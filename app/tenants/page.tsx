@@ -35,13 +35,14 @@ import {
   openContractFile,
   uploadContractFile
 } from "@/lib/contract-files";
-import { euro, noteSummary } from "@/lib/format";
+import { euro } from "@/lib/format";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const sources = ["微信群", "华人街", "小红书", "Facebook", "朋友介绍", "其他"];
 const tenantStatuses = ["在租", "预定入住", "已退租"];
 const maxAttachmentSize = 5 * 1024 * 1024;
+type TenantSortKey = "expiry" | "rent" | "property" | "status";
 
 const emptyTenant: BusinessTenant = {
   id: "",
@@ -66,8 +67,12 @@ export default function TenantsPage() {
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [contractFiles, setContractFiles] = useState<ContractFile[]>([]);
   const [form, setForm] = useState<BusinessTenant>(emptyTenant);
+  const [contractForm, setContractForm] = useState({ startDate: today(), endDate: "" });
+  const [pendingContractFile, setPendingContractFile] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
@@ -107,15 +112,57 @@ export default function TenantsPage() {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract).map((file) => file.fileName).join(" ");
-      return `${tenant.name} ${tenant.phone} ${tenant.wechat} ${property?.name || ""} ${room?.name || ""} ${tenant.status} ${fileNames}`.toLowerCase().includes(keyword);
+      const displayStatus = tenantDisplayStatus(tenant, payments);
+      return `${tenant.name} ${tenant.phone} ${tenant.wechat} ${property?.name || ""} ${room?.name || ""} ${tenant.status} ${displayStatus} ${fileNames}`.toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, properties, query, rooms, tenants]);
+  }, [contracts, filesByContract, payments, properties, query, rooms, tenants]);
 
-  const visibleTenants = pageRows(filteredTenants, page, pageSize);
+  const sortedTenants = useMemo(() => {
+    return [...filteredTenants].sort((left, right) => {
+      const leftProperty = properties.find((item) => item.id === left.propertyId)?.name || "";
+      const rightProperty = properties.find((item) => item.id === right.propertyId)?.name || "";
+      const leftContract = latestContractForTenant(left.id, contracts);
+      const rightContract = latestContractForTenant(right.id, contracts);
+      const direction = sortDirection === "asc" ? 1 : -1;
+      if (sortKey === "rent") return (left.monthlyRent - right.monthlyRent) * direction;
+      if (sortKey === "property") return leftProperty.localeCompare(rightProperty, "zh-Hans-CN") * direction;
+      if (sortKey === "status") return tenantDisplayStatus(left, payments).localeCompare(tenantDisplayStatus(right, payments), "zh-Hans-CN") * direction;
+      return (expirySortValue(leftContract?.endDate) - expirySortValue(rightContract?.endDate)) * direction;
+    });
+  }, [contracts, filteredTenants, payments, properties, sortDirection, sortKey]);
+
+  const visibleTenants = pageRows(sortedTenants, page, pageSize);
 
   function close() {
     setOpen(false);
     setForm(emptyTenant);
+    setContractForm({ startDate: today(), endDate: "" });
+    setPendingContractFile(null);
+  }
+
+  function openTenantForm(tenant?: BusinessTenant) {
+    if (!tenant) {
+      setForm(emptyTenant);
+      setContractForm({ startDate: today(), endDate: "" });
+      setPendingContractFile(null);
+      setOpen(true);
+      return;
+    }
+    const contract = latestContractForTenant(tenant.id, contracts);
+    setForm(tenant);
+    setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
+    setPendingContractFile(null);
+    setOpen(true);
+  }
+
+  function toggleSort(nextKey: TenantSortKey) {
+    if (nextKey === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(nextKey);
+      setSortDirection("asc");
+    }
+    setPage(1);
   }
 
   async function persistAll(next: {
@@ -144,11 +191,49 @@ export default function TenantsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
-    const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
-    const next = form.id
-      ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
-      : [nextTenant, ...tenants];
-    await persistAll({ tenants: next });
+    try {
+      const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
+      const next = form.id
+        ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
+        : [nextTenant, ...tenants];
+      const currentContract = latestContractForTenant(nextTenant.id, contracts);
+      const nextContract: BusinessContract = currentContract
+        ? {
+            ...currentContract,
+            propertyId: nextTenant.propertyId,
+            roomId: nextTenant.roomId,
+            tenantId: nextTenant.id,
+            startDate: contractForm.startDate,
+            endDate: contractForm.endDate,
+            monthlyRent: nextTenant.monthlyRent,
+            depositAmount: nextTenant.depositAmount,
+            status: currentContract.status || "有效",
+            notes: nextTenant.notes || currentContract.notes || ""
+          }
+        : {
+            id: crypto.randomUUID(),
+            propertyId: nextTenant.propertyId,
+            roomId: nextTenant.roomId,
+            tenantId: nextTenant.id,
+            startDate: contractForm.startDate,
+            endDate: contractForm.endDate,
+            monthlyRent: nextTenant.monthlyRent,
+            depositAmount: nextTenant.depositAmount,
+            status: "有效",
+            notes: nextTenant.notes || ""
+          };
+      const nextContracts = currentContract
+        ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
+        : [nextContract, ...contracts];
+      await persistAll({ tenants: next, contracts: nextContracts });
+      if (pendingContractFile) {
+        const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
+        setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
+      }
+    } catch (error: any) {
+      window.alert(error.message || "保存租客或合同附件失败，请稍后重试。");
+      return;
+    }
     close();
   }
 
@@ -170,14 +255,7 @@ export default function TenantsPage() {
       window.alert("该租客还没有合同记录，请先通过一键入住创建合同后再上传合同附件。");
       return;
     }
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-      window.alert("只支持 PDF、JPG、PNG 文件。");
-      return;
-    }
-    if (file.size > maxAttachmentSize) {
-      window.alert("合同附件不能超过 5MB。");
-      return;
-    }
+    if (!validateContractFile(file)) return;
     setSaving(true);
     try {
       const existing = filesByContract[contract.id] || [];
@@ -189,6 +267,11 @@ export default function TenantsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function chooseContractFile(file?: File) {
+    if (!file || !validateContractFile(file)) return;
+    setPendingContractFile(file);
   }
 
   async function removeContractFile(file: ContractFile) {
@@ -212,7 +295,7 @@ export default function TenantsPage() {
             <h2 className="panel-title">租客列表</h2>
             <p className="muted">默认只显示一行核心信息，点击后展开详情和合同附件。</p>
           </div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button">
+          <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
             <Plus size={17} /> 新增租客
           </button>
         </div>
@@ -221,6 +304,12 @@ export default function TenantsPage() {
           <label className="search-box">
             <input placeholder="搜索姓名、电话、微信、房源、房间、合同附件" value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
+          <div className="sort-pills">
+            <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
+            <SortButton active={sortKey === "rent"} direction={sortDirection} label="月租" onClick={() => toggleSort("rent")} />
+            <SortButton active={sortKey === "property"} direction={sortDirection} label="房源" onClick={() => toggleSort("property")} />
+            <SortButton active={sortKey === "status"} direction={sortDirection} label="状态" onClick={() => toggleSort("status")} />
+          </div>
         </div>
 
         <div className="finance-list tenant-compact-list">
@@ -228,6 +317,9 @@ export default function TenantsPage() {
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract);
+            const contract = latestContractForTenant(tenant.id, contracts);
+            const expiry = getExpiryInfo(contract?.endDate);
+            const displayStatus = tenantDisplayStatus(tenant, payments);
             const expanded = detailTenantId === tenant.id;
             return (
               <article className="finance-list-item" key={tenant.id}>
@@ -235,16 +327,16 @@ export default function TenantsPage() {
                   <span>{tenant.name || "-"}</span>
                   <span>{property?.name || "-"}-{room?.name || "-"}</span>
                   <strong>{euro(tenant.monthlyRent)}</strong>
-                  <StatusBadge tone={tenantTone(tenant.status)}>{tenant.status || "在租"}</StatusBadge>
-                  <span className="contract-count">合同{files.length}个</span>
+                  <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
+                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
                 {expanded ? (
                   <TenantDetail
+                    contract={contract}
                     files={files}
                     onDeleteFile={removeContractFile}
                     onEdit={() => {
-                      setForm(tenant);
-                      setOpen(true);
+                      openTenantForm(tenant);
                     }}
                     onMoveOut={() => moveOut(tenant)}
                     onReplaceFile={(file) => replaceTenantContractFile(tenant, file)}
@@ -302,6 +394,19 @@ export default function TenantsPage() {
               <MoneyInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
+              <div className="field"><label>入住日期</label><input type="date" value={contractForm.startDate} onChange={(event) => setContractForm((current) => ({ ...current, startDate: event.target.value }))} /></div>
+              <div className="field"><label>合同到期日期</label><input type="date" value={contractForm.endDate} onChange={(event) => setContractForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <label>合同附件 PDF/JPG/PNG</label>
+                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseContractFile(event.target.files?.[0])} />
+                {pendingContractFile ? (
+                  <div className="attachment-preview">
+                    <FileUp size={16} />
+                    <span>{pendingContractFile.name} ｜ {formatFileSize(pendingContractFile.size)}</span>
+                    <button className="btn danger" type="button" onClick={() => setPendingContractFile(null)}>移除</button>
+                  </div>
+                ) : <p className="muted">新增租客时可直接上传合同；保存后在租客展开详情里查看、下载、替换或删除。</p>}
+              </div>
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
@@ -320,6 +425,7 @@ export default function TenantsPage() {
 
 function TenantDetail({
   tenant,
+  contract,
   propertyName,
   roomName,
   files,
@@ -330,6 +436,7 @@ function TenantDetail({
   onReplaceFile
 }: {
   tenant: BusinessTenant;
+  contract?: BusinessContract | null;
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -346,6 +453,8 @@ function TenantDetail({
         <DetailField label="电话" value={tenant.phone || "-"} />
         <DetailField label="微信" value={tenant.wechat || "-"} />
         <DetailField label="押金" value={euro(tenant.depositAmount)} />
+        <DetailField label="入住日期" value={contract?.startDate || "-"} />
+        <DetailField label="合同到期" value={contract?.endDate || "-"} />
         <DetailField label="来源" value={tenant.source || "-"} />
         <DetailField label="备注" value={tenant.notes || "-"} />
       </div>
@@ -389,6 +498,14 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
+function SortButton({ active, direction, label, onClick }: { active: boolean; direction: "asc" | "desc"; label: string; onClick: () => void }) {
+  return (
+    <button className={`sort-pill ${active ? "active" : ""}`} onClick={onClick} type="button">
+      {label}{active ? direction === "asc" ? " ↑" : " ↓" : ""}
+    </button>
+  );
+}
+
 function latestContractForTenant(tenantId: string, contracts: BusinessContract[]) {
   if (!tenantId) return null;
   return contracts
@@ -404,9 +521,52 @@ function getTenantFiles(tenantId: string, contracts: BusinessContract[], filesBy
 }
 
 function tenantTone(status: string) {
+  if (status.includes("欠")) return "red";
   if (status.includes("退")) return "red";
   if (status.includes("预")) return "amber";
   return "green";
+}
+
+function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayment[]) {
+  const hasDebt = payments.some((payment) => payment.tenantId === tenant.id && Number(payment.amountUnpaid || 0) > 0);
+  if (hasDebt) return "欠租";
+  return tenant.status || "在租";
+}
+
+function getExpiryInfo(endDate?: string) {
+  if (!endDate) return { label: "未设置", tone: "blue" as const };
+  const diff = daysBetween(today(), endDate);
+  if (diff < 0) return { label: `已到期${Math.abs(diff)}天`, tone: "red" as const };
+  if (diff < 30) return { label: `${diff}天`, tone: "red" as const };
+  if (diff <= 90) return { label: `${diff}天`, tone: "amber" as const };
+  return { label: `${diff}天`, tone: "green" as const };
+}
+
+function expirySortValue(endDate?: string) {
+  if (!endDate) return Number.MAX_SAFE_INTEGER;
+  return daysBetween(today(), endDate);
+}
+
+function daysBetween(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  return Math.ceil((end.getTime() - start.getTime()) / 86400000);
+}
+
+function validateContractFile(file: File) {
+  if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+    window.alert("只支持 PDF、JPG、PNG 文件。");
+    return false;
+  }
+  if (file.size > maxAttachmentSize) {
+    window.alert("合同附件不能超过 5MB。");
+    return false;
+  }
+  return true;
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
