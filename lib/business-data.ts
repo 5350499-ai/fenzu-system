@@ -3,7 +3,6 @@ import { isSupabaseConfigured, supabase } from "./supabase";
 export type ContractAttachment = {
   name: string;
   type: string;
-  dataUrl: string;
   size: number;
   uploadedAt: string;
 };
@@ -189,8 +188,7 @@ const tableConfigs: Record<string, TableConfig> = {
         monthlyRent: Number(row.monthly_rent || 0),
         depositAmount: Number(row.deposit_amount || 0),
         status: normalizeContractStatus(row.status || "有效"),
-        notes: parsed.notes,
-        attachment: parsed.attachment
+        notes: parsed.notes
       };
     },
     toDb: (row, userId) => ({
@@ -204,7 +202,7 @@ const tableConfigs: Record<string, TableConfig> = {
       start_date: row.startDate || null,
       end_date: row.endDate || null,
       status: normalizeContractStatus(row.status || "有效"),
-      notes: packContractNotes(row.notes || "", row.attachment)
+      notes: packContractNotes(row.notes || "")
     })
   },
   [rentPaymentKey]: {
@@ -426,10 +424,7 @@ function parseContractNotes(value: string): { notes: string; attachment?: Contra
   try {
     const parsed = JSON.parse(value);
     if (parsed?.[contractMetaMarker]) {
-      return {
-        notes: parsed.notes || "",
-        attachment: parsed.attachment
-      };
+      return { notes: parsed.notes || "" };
     }
   } catch {
     // Existing plain notes remain valid.
@@ -438,13 +433,8 @@ function parseContractNotes(value: string): { notes: string; attachment?: Contra
   return { notes: value };
 }
 
-function packContractNotes(notes: string, attachment?: ContractAttachment) {
-  if (!attachment) return notes || null;
-  return JSON.stringify({
-    [contractMetaMarker]: true,
-    notes: notes || "",
-    attachment
-  });
+function packContractNotes(notes: string) {
+  return notes || null;
 }
 
 function readStored<T>(key: string): T | null {

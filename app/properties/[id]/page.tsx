@@ -29,12 +29,13 @@ import {
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
+import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "notes";
+type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "profit" | "notes";
 type Editor = "room" | "tenant" | "contract" | "payment" | "deposit" | "expense" | null;
 
 const tabs: { id: Tab; label: string }[] = [
@@ -45,6 +46,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "payments", label: "收租" },
   { id: "deposits", label: "押金" },
   { id: "expenses", label: "支出" },
+  { id: "profit", label: "利润" },
   { id: "notes", label: "备注" }
 ];
 
@@ -99,6 +101,10 @@ export default function PropertyDetailPage() {
   const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
   const monthlyIncome = scopedPayments.reduce((sum, item) => sum + item.amountPaid, 0);
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
+  const monthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("thisMonth")) : null;
+  const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last3Months")) : null;
+  const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last12Months")) : null;
+  const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, 12) : [];
 
   const roomOptions = scopedRooms.map((room) => ({
     value: room.id,
@@ -224,6 +230,50 @@ export default function PropertyDetailPage() {
         </ScopedTable>
       ) : null}
 
+      {tab === "profit" && monthProfit && threeMonthProfit && twelveMonthProfit ? (
+        <>
+          <section className="grid metrics">
+            <Summary label="本月收入" value={euro(monthProfit.income)} />
+            <Summary label="本月支出" value={euro(monthProfit.expense)} />
+            <Summary label="本月净利润" value={euro(monthProfit.netProfit)} tone={monthProfit.netProfit < 0 ? "red" : "green"} />
+            <Summary label="最近3个月利润" value={euro(threeMonthProfit.netProfit)} tone={threeMonthProfit.netProfit < 0 ? "red" : "green"} />
+            <Summary label="最近12个月利润" value={euro(twelveMonthProfit.netProfit)} tone={twelveMonthProfit.netProfit < 0 ? "red" : "green"} />
+            <Summary label="欠租金额" value={euro(monthProfit.unpaid)} tone={monthProfit.unpaid > 0 ? "red" : "green"} />
+            <Summary label="入住率" value={`${monthProfit.occupancy}%`} />
+            <Summary label="空置房间" value={`${monthProfit.vacantRooms} 间`} />
+          </section>
+          <div className="grid dashboard-panels">
+            <section className="card panel">
+              <h2 className="panel-title">按月收入/支出/利润</h2>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>月份</th><th>收入</th><th>支出</th><th>净利润</th></tr></thead>
+                  <tbody>{monthlyRows.map((row) => <tr key={row.month}><td>{row.month}</td><td>{euro(row.income)}</td><td>{euro(row.expense)}</td><td className={row.netProfit < 0 ? "danger-text" : "profit"}>{euro(row.netProfit)}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </section>
+            <section className="card panel">
+              <h2 className="panel-title">欠租与空置情况</h2>
+              <div className="list" style={{ marginTop: 14 }}>
+                <div className="list-item"><span>欠租金额</span><strong className={monthProfit.unpaid > 0 ? "danger-text" : ""}>{euro(monthProfit.unpaid)}</strong></div>
+                <div className="list-item"><span>空置房间数</span><strong>{monthProfit.vacantRooms} 间</strong></div>
+                <div className="list-item"><span>入住率</span><strong>{monthProfit.occupancy}%</strong></div>
+              </div>
+            </section>
+          </div>
+          <div className="grid dashboard-panels">
+            <ScopedReadOnlyTable title="收租明细">
+              <thead><tr><th>月份</th><th>房间</th><th>租客</th><th>应收</th><th>已收</th><th>未收</th><th>状态</th></tr></thead>
+              <tbody>{monthProfit.payments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>)}</tbody>
+            </ScopedReadOnlyTable>
+            <ScopedReadOnlyTable title="支出明细">
+              <thead><tr><th>月份</th><th>类别</th><th>金额</th><th>付款日期</th><th>状态</th></tr></thead>
+              <tbody>{monthProfit.expenses.map((expense) => <tr key={expense.id}><td>{expense.expenseMonth}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td>{expense.paymentDate || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}</tbody>
+            </ScopedReadOnlyTable>
+          </div>
+        </>
+      ) : null}
+
       {tab === "notes" ? (
         <section className="card panel">
           <h2 className="panel-title">房源备注</h2>
@@ -340,6 +390,10 @@ function ExpenseFields({ form, setForm }: any) {
 
 function ScopedTable({ title, action, onAdd, children }: { title: string; action: string; onAdd: () => void; children: React.ReactNode }) {
   return <section className="card panel"><div className="panel-header"><h2 className="panel-title">{title}</h2><button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button></div><div className="table-wrap"><table>{children}</table></div></section>;
+}
+
+function ScopedReadOnlyTable({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="card panel"><h2 className="panel-title">{title}</h2><div className="table-wrap"><table>{children}</table></div></section>;
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

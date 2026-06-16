@@ -1,7 +1,7 @@
 "use client";
 
-import { MoneyInput } from "@/components/money-input";
 import { AppLayout } from "@/components/app-layout";
+import { MoneyInput } from "@/components/money-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
   BusinessContract,
@@ -10,7 +10,6 @@ import {
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
-  ContractAttachment,
   contractKey,
   depositKey,
   getInitialContracts,
@@ -25,6 +24,7 @@ import {
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
+import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { FileUp, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -38,6 +38,7 @@ export default function CheckInPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [saving, setSaving] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [form, setForm] = useState({
     propertyId: "",
     roomId: "",
@@ -54,7 +55,6 @@ export default function CheckInPage() {
     paymentMethod: "转账",
     notes: ""
   });
-  const [attachment, setAttachment] = useState<ContractAttachment | undefined>();
 
   useEffect(() => {
     async function load() {
@@ -91,6 +91,7 @@ export default function CheckInPage() {
           (!form.phone || tenant.phone === form.phone)
       );
       const tenantId = existingTenant?.id || crypto.randomUUID();
+      const contractId = crypto.randomUUID();
       const nextTenant: BusinessTenant = {
         id: tenantId,
         propertyId: form.propertyId,
@@ -109,7 +110,7 @@ export default function CheckInPage() {
         : [nextTenant, ...tenants];
       const nextRooms = rooms.map((room) => (room.id === form.roomId ? { ...room, status: "已租", monthlyRent: form.monthlyRent || room.monthlyRent, depositAmount: form.depositAmount || room.depositAmount } : room));
       const nextContract: BusinessContract = {
-        id: crypto.randomUUID(),
+        id: contractId,
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,
@@ -118,8 +119,7 @@ export default function CheckInPage() {
         monthlyRent: form.monthlyRent,
         depositAmount: form.depositAmount,
         status: "有效",
-        notes: form.notes,
-        attachment
+        notes: form.notes
       };
       const nextDeposit: BusinessDeposit | null = form.depositAmount
         ? {
@@ -152,6 +152,7 @@ export default function CheckInPage() {
       await saveBusinessData(tenantKey, nextTenants);
       await saveBusinessData(roomKey, nextRooms);
       await saveBusinessData(contractKey, [nextContract, ...contracts]);
+      if (attachment) await uploadContractFile(contractId, attachment);
       await saveBusinessData(depositKey, nextDeposit ? [nextDeposit, ...deposits] : deposits);
       await saveBusinessData(rentPaymentKey, [nextPayment, ...payments]);
       setTenants(nextTenants);
@@ -159,6 +160,7 @@ export default function CheckInPage() {
       setContracts([nextContract, ...contracts]);
       if (nextDeposit) setDeposits([nextDeposit, ...deposits]);
       setPayments([nextPayment, ...payments]);
+      setAttachment(null);
       window.alert("一键入住已保存，首页统计会同步更新。");
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
@@ -167,7 +169,7 @@ export default function CheckInPage() {
     }
   }
 
-  async function attachFile(file?: File) {
+  function chooseFile(file?: File) {
     if (!file) return;
     if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
       window.alert("只支持 PDF、JPG、PNG 文件。");
@@ -177,8 +179,7 @@ export default function CheckInPage() {
       window.alert("合同附件不能超过 5MB。");
       return;
     }
-    const dataUrl = await readFileAsDataUrl(file);
-    setAttachment({ name: file.name, type: file.type, dataUrl, size: file.size, uploadedAt: new Date().toISOString() });
+    setAttachment(file);
   }
 
   return (
@@ -203,8 +204,8 @@ export default function CheckInPage() {
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label>合同附件 PDF/JPG/PNG</label>
-            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => attachFile(event.target.files?.[0])} />
-            {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name}</span></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传。</p>}
+            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" capture="environment" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+            {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传，附件会保存到 Supabase Storage。</p>}
           </div>
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
           <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div>
@@ -216,13 +217,4 @@ export default function CheckInPage() {
 
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
   return <div className="field"><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }

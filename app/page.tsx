@@ -4,20 +4,6 @@ import { AppLayout } from "@/components/app-layout";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import {
-  AlertTriangle,
-  Building2,
-  FileClock,
-  FileText,
-  Home,
-  LogIn,
-  Plus,
-  ReceiptText,
-  ShieldAlert,
-  UserPlus
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
   BusinessContract,
   BusinessDeposit,
   BusinessExpense,
@@ -36,9 +22,27 @@ import {
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
-  rentPaymentKey
+  propertyKey,
+  rentPaymentKey,
+  roomKey,
+  tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
+import {
+  AlertTriangle,
+  Building2,
+  FileClock,
+  FileText,
+  Home,
+  LogIn,
+  Plus,
+  ReceiptText,
+  ShieldAlert,
+  UserPlus
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 const HOME_LIMIT = 5;
 const shortcuts = [
@@ -62,9 +66,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
+      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
@@ -80,24 +84,20 @@ export default function DashboardPage() {
     load().catch((error) => window.alert(`加载首页数据失败：${error.message || error}`));
   }, []);
 
-  const currentMonth = getCurrentMonth();
-  const currentYear = getCurrentYear();
-  const monthlyPayments = rentPayments.filter((item) => item.rentMonth?.startsWith(currentMonth) && !item.notes?.includes("[已作废]"));
-  const monthlyExpenses = expenses.filter((item) => item.expenseMonth?.startsWith(currentMonth) && !item.notes?.includes("[已作废]"));
-  const yearlyPayments = rentPayments.filter((item) => item.rentMonth?.startsWith(currentYear) && !item.notes?.includes("[已作废]"));
-  const yearlyExpenses = expenses.filter((item) => item.expenseMonth?.startsWith(currentYear) && !item.notes?.includes("[已作废]"));
-  const monthlyIncome = sum(monthlyPayments, "amountPaid");
-  const monthlyExpenseTotal = sum(monthlyExpenses, "amount");
-  const monthlyProfit = monthlyIncome - monthlyExpenseTotal;
-  const yearlyProfit = sum(yearlyPayments, "amountPaid") - sum(yearlyExpenses, "amount");
-  const unpaid = sum(rentPayments.filter((item) => !item.notes?.includes("[已作废]")), "amountUnpaid");
+  const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
+  const yearRange = useMemo(() => ({ start: `${new Date().getFullYear()}-01-01`, end: `${new Date().getFullYear()}-12-31`, label: "本年" }), []);
+  const propertyStats = useMemo(() => calculatePropertyProfits(properties, rooms, rentPayments, expenses, deposits, thisMonthRange), [deposits, expenses, properties, rentPayments, rooms, thisMonthRange]);
+  const yearStats = useMemo(() => calculatePropertyProfits(properties, rooms, rentPayments, expenses, deposits, yearRange), [deposits, expenses, properties, rentPayments, rooms, yearRange]);
+  const totals = calculateTotals(propertyStats);
+  const yearTotals = calculateTotals(yearStats);
+  const propertyProfitRows = [...propertyStats].sort((a, b) => {
+    if (a.hasLoss !== b.hasLoss) return a.hasLoss ? -1 : 1;
+    if (a.hasUnpaid !== b.hasUnpaid) return a.hasUnpaid ? -1 : 1;
+    return a.netProfit - b.netProfit;
+  });
   const overdueRows = rentPayments
     .filter((payment) => !payment.notes?.includes("[已作废]") && (payment.isOverdue || Number(payment.amountUnpaid) > 0))
     .sort((a, b) => Number(b.amountUnpaid) - Number(a.amountUnpaid));
-  const rentedRooms = rooms.filter((room) => isRentedStatus(room.status)).length;
-  const rentableRooms = rooms.filter((room) => !isStoppedStatus(room.status)).length;
-  const vacantRooms = rooms.filter((room) => room.status === "空置").length;
-  const occupancy = rentableRooms ? Math.round((rentedRooms / rentableRooms) * 100) : 0;
   const roomSummaryRows = [...rooms].sort((a, b) => roomPriority(a.status) - roomPriority(b.status));
   const tenantContracts = contracts
     .map((contract) => {
@@ -107,29 +107,60 @@ export default function DashboardPage() {
     })
     .filter((item) => item.daysLeft >= 0 && item.daysLeft <= 30)
     .sort((a, b) => a.daysLeft - b.daysLeft);
-  const unpaidDepositCount = useMemo(() => tenants.filter((tenant) => Number(tenant.depositAmount) && !deposits.some((deposit) => deposit.tenantId === tenant.id && deposit.type === "收取" && ["已收", "部分扣除"].includes(deposit.status))).length, [deposits, tenants]);
+  const unpaidDepositCount = tenants.filter((tenant) => Number(tenant.depositAmount) && !deposits.some((deposit) => deposit.tenantId === tenant.id && deposit.type === "收取" && ["已收", "部分扣除"].includes(deposit.status))).length;
   const refundableDeposits = deposits.filter((deposit) => deposit.status === "待退").length;
   const unpaidExpenses = expenses.filter((expense) => !expense.isPaid && !expense.notes?.includes("[已作废]")).length;
   const risks = [
     { title: "即将到期合同", count: tenantContracts.length, note: "租客合同 30 天内到期", tone: "amber", href: "/contracts", icon: <FileClock className="warning-text" size={22} /> },
-    { title: "欠租提醒", count: overdueRows.length, note: `合计 ${euro(unpaid)} 未收`, tone: "red", href: "/rent-payments", icon: <AlertTriangle className="danger-text" size={22} /> },
+    { title: "欠租提醒", count: overdueRows.length, note: `合计 ${euro(totals.unpaid)} 未收`, tone: "red", href: "/rent-payments", icon: <AlertTriangle className="danger-text" size={22} /> },
     { title: "待退押金", count: refundableDeposits, note: "押金状态为待退", tone: "blue", href: "/deposits", icon: <ShieldAlert className="info-text" size={22} /> },
-    { title: "押金未收", count: unpaidDepositCount, note: "有押金金额但没有收取记录", tone: "red", href: "/deposits", icon: <ShieldAlert className="danger-text" size={22} /> },
+    { title: "押金未收", count: unpaidDepositCount, note: "有押金额但没有收取记录", tone: "red", href: "/deposits", icon: <ShieldAlert className="danger-text" size={22} /> },
     { title: "未支付支出", count: unpaidExpenses, note: "支出状态为未支付", tone: "blue", href: "/expenses", icon: <AlertTriangle className="info-text" size={22} /> }
   ];
 
   return (
     <AppLayout title="分租管理仪表盘" description="先看经营数据，再处理风险和明细。">
       <div className="grid metrics">
-        <MetricCard label="本月总收入" value={euro(monthlyIncome)} note="来自本月已收房租" />
-        <MetricCard label="本月总支出" value={euro(monthlyExpenseTotal)} note="本月经营支出" />
-        <MetricCard label="本月净利润" value={euro(monthlyProfit)} note="收入减支出" tone="profit" hero />
-        <MetricCard label="应收未收金额" value={euro(unpaid)} note="所有欠费合计" tone="danger" />
-        <MetricCard label="入住率" value={`${occupancy}%`} note={`${rentedRooms}/${rentableRooms} 间可出租房间`} tone="info" />
-        <MetricCard label="空置房间数" value={`${vacantRooms} 间`} note="状态为空置的房间" />
-        <MetricCard label="本年累计利润" value={euro(yearlyProfit)} note="本年收入减支出" tone="profit" />
-        <MetricCard label="欠费人数" value={`${overdueRows.length} 人`} note="存在未收金额的记录" tone="danger" />
+        <MetricCard label="本月总收入" value={euro(totals.income)} note="来自本月已收房租" />
+        <MetricCard label="本月总支出" value={euro(totals.expense)} note="本月经营支出" />
+        <MetricCard label="本月净利润" value={euro(totals.netProfit)} note="收入减支出" tone={totals.netProfit < 0 ? "danger" : "profit"} hero />
+        <MetricCard label="应收未收金额" value={euro(totals.unpaid)} note="所有欠费合计" tone={totals.unpaid > 0 ? "danger" : "info"} />
+        <MetricCard label="入住率" value={`${totals.occupancy}%`} note={`${totals.rentedRooms}/${totals.rentableRooms} 间可出租房间`} tone="info" />
+        <MetricCard label="空置房间数" value={`${totals.vacantRooms} 间`} note="状态为空置的房间" />
+        <MetricCard label="本年累计利润" value={euro(yearTotals.netProfit)} note="本年收入减支出" tone={yearTotals.netProfit < 0 ? "danger" : "profit"} />
+        <MetricCard label="欠费人数" value={`${overdueRows.length} 人`} note="存在未收金额的记录" tone={overdueRows.length ? "danger" : "info"} />
       </div>
+
+      <section className="card panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">房源利润概览</h2>
+            <p className="muted">本月按房源核算，优先显示亏损、欠租、空置风险。</p>
+          </div>
+          <Link className="btn" href="/analytics">查看统计分析</Link>
+        </div>
+        <div className="property-profit-grid">
+          {propertyProfitRows.slice(0, HOME_LIMIT).map((stat) => (
+            <Link className={`property-profit-card ${stat.hasLoss ? "loss" : ""}`} href={`/properties/${stat.property.id}`} key={stat.property.id}>
+              <div className="profit-card-head">
+                <div>
+                  <strong>{stat.property.name}</strong>
+                  <p>{stat.property.city || "-"} · 空置 {stat.vacantRooms} 间 · 入住率 {stat.occupancy}%</p>
+                </div>
+                {stat.hasLoss ? <StatusBadge tone="red">亏损</StatusBadge> : <StatusBadge tone="green">盈利</StatusBadge>}
+              </div>
+              <div className="profit-card-metrics">
+                <span>收入 <b>{euro(stat.income)}</b></span>
+                <span>支出 <b>{euro(stat.expense)}</b></span>
+                <span>净利润 <b className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</b></span>
+                <span>欠租 <b className={stat.unpaid > 0 ? "danger-text" : ""}>{euro(stat.unpaid)}</b></span>
+              </div>
+            </Link>
+          ))}
+          {!propertyProfitRows.length ? <p className="muted">暂无房源数据。</p> : null}
+        </div>
+        <ShowMore total={propertyProfitRows.length} shown={HOME_LIMIT} href="/analytics" />
+      </section>
 
       <section className="mobile-shortcuts card compact-shortcuts">
         <div className="shortcut-grid">
@@ -156,7 +187,7 @@ export default function DashboardPage() {
               {roomSummaryRows.slice(0, HOME_LIMIT).map((room) => {
                 const property = properties.find((item) => item.id === room.propertyId);
                 const tenant = tenants.find((item) => item.roomId === room.id && item.status === "在租");
-                const payment = monthlyPayments.find((item) => item.roomId === room.id);
+                const payment = rentPayments.find((item) => item.rentMonth === new Date().toISOString().slice(0, 7) && item.roomId === room.id);
                 return <tr key={room.id}><td>{property?.name || "-"}</td><td>{room.name || "-"}</td><td><StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge></td><td>{tenant?.name || "-"}</td><td>{euro(room.monthlyRent)}</td><td>{payment ? <StatusBadge tone={payment.isOverdue || payment.amountUnpaid > 0 ? "red" : "green"}>{payment.isOverdue || payment.amountUnpaid > 0 ? "未结清" : "已收款"}</StatusBadge> : "-"}</td></tr>;
               })}
             </tbody></table>
@@ -164,7 +195,7 @@ export default function DashboardPage() {
           <ShowMore total={roomSummaryRows.length} shown={HOME_LIMIT} href="/rooms" />
         </section>
         <section className="card panel">
-          <div className="panel-header"><h2 className="panel-title">欠费名单</h2><span className="badge red">{euro(unpaid)}</span></div>
+          <div className="panel-header"><h2 className="panel-title">欠费名单</h2><span className="badge red">{euro(totals.unpaid)}</span></div>
           <div className="list">{overdueRows.slice(0, HOME_LIMIT).map((payment) => { const tenant = tenants.find((item) => item.id === payment.tenantId); const room = rooms.find((item) => item.id === payment.roomId); return <div className="list-item" key={payment.id}><div><div className="list-title">{tenant?.name || "-"} · {room?.name || "-"}</div><div className="list-meta">月份：{payment.rentMonth || "-"}</div></div><strong className="danger-text">{euro(payment.amountUnpaid)}</strong></div>; })}<ShowMore total={overdueRows.length} shown={HOME_LIMIT} href="/rent-payments" /></div>
         </section>
       </div>
@@ -183,29 +214,9 @@ function ShowMore({ total, shown, href }: { total: number; shown: number; href: 
   return <Link className="show-more" href={href}>还有 {hidden} 条，查看全部</Link>;
 }
 
-function sum<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
-  return rows.reduce((total, row) => total + Number(row[key] || 0), 0);
-}
-
-function getCurrentMonth() {
-  return new Date().toISOString().slice(0, 7);
-}
-
-function getCurrentYear() {
-  return new Date().toISOString().slice(0, 4);
-}
-
 function roomPriority(status: string) {
   const priority: Record<string, number> = { "空置": 1, "即将退租": 2, "维修中": 3, "暂停出租": 4, "预订中": 5, "已租": 6, "已归档": 7 };
   return priority[status] ?? 99;
-}
-
-function isRentedStatus(status: string) {
-  return ["已租", "即将退租"].includes(status);
-}
-
-function isStoppedStatus(status: string) {
-  return ["维修中", "暂停出租", "已归档"].includes(status);
 }
 
 function roomTone(status: string) {

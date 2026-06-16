@@ -401,6 +401,92 @@ a {
   font-weight: 850;
 }
 
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.property-profit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.property-profit-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.property-profit-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--blue) 42%, var(--border));
+}
+
+.property-profit-card.loss {
+  border-color: color-mix(in srgb, var(--red) 42%, var(--border));
+}
+
+.profit-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.profit-card-head strong {
+  display: block;
+  font-size: 16px;
+}
+
+.profit-card-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.profit-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profit-card-metrics span {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profit-card-metrics b {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.profit-alert {
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--red) 10%, var(--surface));
+  color: var(--red);
+  font-weight: 800;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 8px;
+}
+
 .show-more {
   display: flex;
   align-items: center;
@@ -911,6 +997,11 @@ td:last-child {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .filter-grid,
+  .property-profit-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mobile-nav {
     position: fixed;
     right: 12px;
@@ -1016,6 +1107,10 @@ td:last-child {
   }
 
   .risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profit-card-metrics {
     grid-template-columns: 1fr;
   }
 
