@@ -10,6 +10,7 @@ import {
   expenseKey,
   getInitialExpenses,
   getInitialProperties,
+  loadBusinessData,
   saveBusinessData
 } from "@/lib/business-data";
 import { noteSummary } from "@/lib/format";
@@ -39,16 +40,22 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    setProperties(loadedProperties);
-    setExpenses(getInitialExpenses(loadedProperties));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
+      setProperties(loadedProperties);
+      setExpenses(loadedExpenses);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (expenses.length) saveBusinessData(expenseKey, expenses);
-  }, [expenses]);
+    if (loaded) saveBusinessData(expenseKey, expenses).catch(console.error);
+  }, [expenses, loaded]);
 
   const filteredExpenses = useMemo(
     () =>

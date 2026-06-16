@@ -1,40 +1,89 @@
+"use client";
+
 import { AppLayout } from "@/components/app-layout";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import { AlertTriangle, FileClock, Home, Plus, ReceiptText, ShieldAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
 import {
-  contractReminders,
-  expenses,
-  properties,
-  rentPayments,
-  rooms,
-  tasks,
-  tenants
-} from "@/lib/demo-data";
-import { euro, roomStatusLabel, roomStatusTone } from "@/lib/format";
+  BusinessContract,
+  BusinessExpense,
+  BusinessProperty,
+  BusinessRentPayment,
+  BusinessRoom,
+  BusinessTenant,
+  contractKey,
+  expenseKey,
+  getInitialContracts,
+  getInitialExpenses,
+  getInitialProperties,
+  getInitialRentPayments,
+  getInitialRooms,
+  getInitialTenants,
+  loadBusinessData,
+  rentPaymentKey
+} from "@/lib/business-data";
+import { euro } from "@/lib/format";
+import { useEffect, useState } from "react";
 
 const HOME_LIMIT = 5;
 
 export default function DashboardPage() {
+  const [properties, setProperties] = useState<BusinessProperty[]>([]);
+  const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
+  const [contracts, setContracts] = useState<BusinessContract[]>([]);
+  const [rentPayments, setRentPayments] = useState<BusinessRentPayment[]>([]);
+  const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
+      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
+      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
+      const loadedTasks = await loadBusinessData<any>("v1-tasks", []);
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setContracts(loadedContracts);
+      setRentPayments(loadedPayments);
+      setExpenses(loadedExpenses);
+      setTasks(loadedTasks);
+    }
+    load().catch(console.error);
+  }, []);
+
   const totalIncome = rentPayments.reduce((sum, item) => sum + item.amountPaid, 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
   const totalProfit = totalIncome - totalExpenses;
   const unpaid = rentPayments.reduce((sum, item) => sum + item.amountUnpaid, 0);
-  const rentedRooms = rooms.filter((room) => room.status === "rented" || room.status === "moving_out").length;
-  const rentableRooms = rooms.filter((room) => room.status !== "maintenance" && room.status !== "paused").length;
-  const vacantRooms = rooms.filter((room) => room.status === "vacant").length;
+  const rentedRooms = rooms.filter((room) => isRentedStatus(room.status)).length;
+  const rentableRooms = rooms.filter((room) => !isStoppedStatus(room.status)).length;
+  const vacantRooms = rooms.filter((room) => isVacantStatus(room.status)).length;
   const occupancy = rentableRooms ? Math.round((rentedRooms / rentableRooms) * 100) : 0;
   const overdueRows = rentPayments
     .filter((payment) => payment.isOverdue)
     .sort((a, b) => b.amountUnpaid - a.amountUnpaid);
   const roomSummaryRows = [...rooms].sort((a, b) => roomPriority(a.status) - roomPriority(b.status));
-  const tenantContracts = contractReminders
-    .filter((item) => item.type === "tenant")
+  const tenantContracts = contracts
+    .map((contract) => {
+      const tenant = tenants.find((item) => item.id === contract.tenantId);
+      const room = rooms.find((item) => item.id === contract.roomId);
+      return {
+        id: contract.id,
+        personName: tenant?.name || "-",
+        roomName: room?.name || "-",
+        endDate: contract.endDate,
+        daysLeft: daysLeft(contract.endDate)
+      };
+    })
+    .filter((item) => item.daysLeft <= 30)
     .sort((a, b) => a.daysLeft - b.daysLeft);
-  const landlordContracts = contractReminders
-    .filter((item) => item.type === "landlord")
-    .sort((a, b) => a.daysLeft - b.daysLeft);
+  const landlordContracts: any[] = [];
   const sortedTasks = [...tasks].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   const risks = [
@@ -157,14 +206,14 @@ export default function DashboardPage() {
               <tbody>
                 {roomSummaryRows.slice(0, HOME_LIMIT).map((room) => {
                   const property = properties.find((item) => item.id === room.propertyId);
-                  const tenant = tenants.find((item) => item.roomId === room.id && item.status === "active");
+                  const tenant = tenants.find((item) => item.roomId === room.id && isTenantActive(item.status));
                   const payment = rentPayments.find((item) => item.roomId === room.id);
                   return (
                     <tr key={room.id}>
                       <td>{property?.name}</td>
                       <td>{room.name}</td>
                       <td>
-                        <StatusBadge tone={roomStatusTone(room.status)}>{roomStatusLabel[room.status]}</StatusBadge>
+                        <StatusBadge tone={roomTone(room.status)}>{roomLabel(room.status)}</StatusBadge>
                       </td>
                       <td>{tenant?.name || "-"}</td>
                       <td>{euro(room.monthlyRent)}</td>
@@ -306,11 +355,61 @@ function ShowMore({
 function roomPriority(status: string) {
   const priority: Record<string, number> = {
     vacant: 1,
+    "空置": 1,
+    "绌虹疆": 1,
     moving_out: 2,
+    "即将退租": 2,
     maintenance: 3,
+    "维修中": 3,
     paused: 4,
+    "暂停出租": 4,
     reserved: 5,
+    "预订中": 5,
     rented: 6
+    ,
+    "已租": 6
   };
   return priority[status] ?? 99;
+}
+
+function roomLabel(status: string) {
+  const labels: Record<string, string> = {
+    vacant: "空置",
+    rented: "已租",
+    reserved: "预订中",
+    moving_out: "即将退租",
+    maintenance: "维修中",
+    paused: "暂停出租"
+  };
+  return labels[status] || status || "-";
+}
+
+function roomTone(status: string) {
+  if (isRentedStatus(status)) return "green";
+  if (isVacantStatus(status)) return "blue";
+  if (["maintenance", "维修中", "缁翠慨涓?"].includes(status)) return "red";
+  return "amber";
+}
+
+function isRentedStatus(status: string) {
+  return ["rented", "moving_out", "已租", "即将退租", "宸茬"].includes(status);
+}
+
+function isStoppedStatus(status: string) {
+  return ["maintenance", "paused", "维修中", "暂停出租", "缁翠慨涓?", "鏆傚仠鍑虹"].includes(status);
+}
+
+function isVacantStatus(status: string) {
+  return ["vacant", "空置", "绌虹疆"].includes(status);
+}
+
+function isTenantActive(status: string) {
+  return ["active", "在租", "鍦ㄧ"].includes(status);
+}
+
+function daysLeft(date: string) {
+  if (!date) return 9999;
+  const today = new Date();
+  const end = new Date(date);
+  return Math.ceil((end.getTime() - today.getTime()) / 86400000);
 }

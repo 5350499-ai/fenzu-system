@@ -9,6 +9,7 @@ import {
   BusinessRoom,
   getInitialProperties,
   getInitialRooms,
+  loadBusinessData,
   roomKey,
   saveBusinessData
 } from "@/lib/business-data";
@@ -38,16 +39,22 @@ export default function RoomsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    setProperties(loadedProperties);
-    setRooms(getInitialRooms(loadedProperties));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (rooms.length) saveBusinessData(roomKey, rooms);
-  }, [rooms]);
+    if (loaded) saveBusinessData(roomKey, rooms).catch(console.error);
+  }, [loaded, rooms]);
 
   const filteredRooms = useMemo(() => {
     const keyword = query.trim().toLowerCase();

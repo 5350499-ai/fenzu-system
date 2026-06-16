@@ -11,6 +11,7 @@ import {
   getInitialProperties,
   getInitialRooms,
   getInitialTenants,
+  loadBusinessData,
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
@@ -44,18 +45,24 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    const loadedRooms = getInitialRooms(loadedProperties);
-    setProperties(loadedProperties);
-    setRooms(loadedRooms);
-    setTenants(getInitialTenants(loadedProperties, loadedRooms));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (tenants.length) saveBusinessData(tenantKey, tenants);
-  }, [tenants]);
+    if (loaded) saveBusinessData(tenantKey, tenants).catch(console.error);
+  }, [loaded, tenants]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filteredTenants = useMemo(() => {

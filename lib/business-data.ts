@@ -1,4 +1,4 @@
-import { properties, rentPayments, rooms, tenants } from "./demo-data";
+import { isSupabaseConfigured, supabase } from "./supabase";
 
 export type BusinessProperty = {
   id: string;
@@ -6,6 +6,7 @@ export type BusinessProperty = {
   address: string;
   city: string;
   landlordName?: string;
+  subletAllowed?: boolean;
   notes?: string;
 };
 
@@ -16,7 +17,7 @@ export type BusinessRoom = {
   roomNumber: string;
   monthlyRent: number;
   depositAmount: number;
-  status: "空置" | "已租" | "预订中" | "即将退租" | "维修中" | "暂停出租";
+  status: string;
   notes?: string;
 };
 
@@ -30,7 +31,7 @@ export type BusinessTenant = {
   source: string;
   monthlyRent: number;
   depositAmount: number;
-  status: "在租" | "预定入住" | "已退房";
+  status: string;
   notes?: string;
 };
 
@@ -43,7 +44,7 @@ export type BusinessContract = {
   endDate: string;
   monthlyRent: number;
   depositAmount: number;
-  status: "有效" | "即将到期" | "已结束";
+  status: string;
   notes?: string;
 };
 
@@ -56,7 +57,7 @@ export type BusinessRentPayment = {
   amountDue: number;
   amountPaid: number;
   amountUnpaid: number;
-  paymentMethod: "现金" | "转账" | "Bizum" | "其他";
+  paymentMethod: string;
   isOverdue: boolean;
   notes?: string;
 };
@@ -77,11 +78,20 @@ export type BusinessDeposit = {
   propertyId: string;
   roomId: string;
   tenantId: string;
-  type: "收取" | "退还" | "扣除";
+  type: string;
   amount: number;
-  status: "已收" | "待退" | "已退" | "部分扣除";
+  status: string;
   transactionDate: string;
   notes?: string;
+};
+
+type AnyRecord = Record<string, any> & { id: string };
+type TableConfig = {
+  table: string;
+  select?: string;
+  order?: string;
+  fromDb: (row: AnyRecord) => AnyRecord;
+  toDb: (row: AnyRecord, userId: string) => AnyRecord;
 };
 
 export const propertyKey = "business-properties";
@@ -92,112 +102,308 @@ export const rentPaymentKey = "business-rent-payments";
 export const expenseKey = "business-expenses";
 export const depositKey = "business-deposits";
 
+const remoteIdKey = (key: string) => `supabase-ids:${key}`;
+
+const tableConfigs: Record<string, TableConfig> = {
+  [propertyKey]: propertyConfig(),
+  "v1-properties": propertyConfig(),
+  [roomKey]: {
+    table: "rooms",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      name: row.name || "",
+      roomNumber: row.room_number || "",
+      monthlyRent: Number(row.monthly_rent || 0),
+      depositAmount: Number(row.deposit_amount || 0),
+      status: row.status || "空置",
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId,
+      name: row.name || "",
+      room_number: row.roomNumber || "",
+      monthly_rent: Number(row.monthlyRent || 0),
+      deposit_amount: Number(row.depositAmount || 0),
+      status: row.status || "空置",
+      notes: row.notes || null
+    })
+  },
+  [tenantKey]: {
+    table: "tenants",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      name: row.name || "",
+      phone: row.phone || "",
+      wechat: row.wechat || "",
+      source: row.source || "其他",
+      monthlyRent: Number(row.monthly_rent || 0),
+      depositAmount: Number(row.deposit_amount || 0),
+      status: row.status || "在租",
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId,
+      room_id: row.roomId,
+      name: row.name || "",
+      phone: row.phone || null,
+      wechat: row.wechat || null,
+      source: row.source || null,
+      monthly_rent: Number(row.monthlyRent || 0),
+      deposit_amount: Number(row.depositAmount || 0),
+      status: row.status || "在租",
+      notes: row.notes || null
+    })
+  },
+  [contractKey]: {
+    table: "contracts",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      tenantId: row.tenant_id || "",
+      startDate: row.start_date || "",
+      endDate: row.end_date || "",
+      monthlyRent: Number(row.monthly_rent || 0),
+      depositAmount: Number(row.deposit_amount || 0),
+      status: row.status || "有效",
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      contract_type: "tenant_contract",
+      property_id: row.propertyId,
+      room_id: row.roomId || null,
+      tenant_id: row.tenantId || null,
+      monthly_rent: Number(row.monthlyRent || 0),
+      deposit_amount: Number(row.depositAmount || 0),
+      start_date: row.startDate || null,
+      end_date: row.endDate || null,
+      status: row.status || "有效",
+      notes: row.notes || null
+    })
+  },
+  [rentPaymentKey]: {
+    table: "rent_payments",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      tenantId: row.tenant_id || "",
+      rentMonth: dateToMonth(row.rent_month),
+      amountDue: Number(row.amount_due || 0),
+      amountPaid: Number(row.amount_paid || 0),
+      amountUnpaid: Number(row.amount_unpaid || 0),
+      paymentMethod: row.payment_method || "转账",
+      isOverdue: Boolean(row.is_overdue),
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId,
+      room_id: row.roomId,
+      tenant_id: row.tenantId,
+      rent_month: monthToDate(row.rentMonth),
+      amount_due: Number(row.amountDue || 0),
+      amount_paid: Number(row.amountPaid || 0),
+      amount_unpaid: Number(row.amountUnpaid || 0),
+      payment_method: row.paymentMethod || null,
+      is_overdue: Boolean(row.isOverdue),
+      notes: row.notes || null
+    })
+  },
+  [expenseKey]: {
+    table: "expenses",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      expenseMonth: dateToMonth(row.expense_month),
+      category: row.category || "",
+      amount: Number(row.amount || 0),
+      paymentDate: row.payment_date || "",
+      isPaid: Boolean(row.is_paid),
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId,
+      expense_month: monthToDate(row.expenseMonth),
+      category: row.category || "其他",
+      amount: Number(row.amount || 0),
+      payment_date: row.paymentDate || null,
+      is_paid: Boolean(row.isPaid),
+      notes: row.notes || null
+    })
+  },
+  [depositKey]: {
+    table: "deposits",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      tenantId: row.tenant_id || "",
+      type: row.transaction_type || "收取",
+      amount: Number(row.amount || 0),
+      status: row.status || "已收",
+      transactionDate: row.transaction_date || "",
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId,
+      room_id: row.roomId,
+      tenant_id: row.tenantId,
+      transaction_type: row.type || "收取",
+      amount: Number(row.amount || 0),
+      status: row.status || "已收",
+      transaction_date: row.transactionDate || null,
+      notes: row.notes || null
+    })
+  },
+  "v1-tasks": {
+    table: "tasks",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      title: row.title || "",
+      dueDate: row.due_date || "",
+      status: row.status || "待处理",
+      priority: row.priority || "普通",
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      task_type: "manual",
+      title: row.title || "",
+      due_date: row.dueDate || null,
+      status: row.status || "待处理",
+      priority: row.priority || "普通",
+      notes: row.notes || null
+    })
+  }
+};
+
 export function getInitialProperties(): BusinessProperty[] {
-  return readStored<BusinessProperty[]>(propertyKey) || readLegacyProperties() || properties.map((item) => ({
-    id: item.id,
-    name: item.name,
-    address: item.address,
-    city: item.city,
-    landlordName: item.landlordName,
-    notes: item.notes || ""
-  }));
+  return isSupabaseConfigured ? [] : readStored<BusinessProperty[]>(propertyKey) || [];
 }
 
-export function getInitialRooms(currentProperties = getInitialProperties()): BusinessRoom[] {
-  return readStored<BusinessRoom[]>(roomKey) || readLegacyRooms(currentProperties) || rooms.map((item) => ({
-    id: item.id,
-    propertyId: item.propertyId,
-    name: item.name,
-    roomNumber: item.roomNumber,
-    monthlyRent: item.monthlyRent,
-    depositAmount: item.depositAmount,
-    status: roomStatusToChinese(item.status),
-    notes: ""
-  }));
+export function getInitialRooms(..._args: unknown[]): BusinessRoom[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessRoom[]>(roomKey) || [];
 }
 
-export function getInitialTenants(currentProperties = getInitialProperties(), currentRooms = getInitialRooms(currentProperties)): BusinessTenant[] {
-  return readStored<BusinessTenant[]>(tenantKey) || readLegacyTenants(currentProperties, currentRooms) || tenants.map((item) => ({
-    id: item.id,
-    propertyId: item.propertyId,
-    roomId: item.roomId,
-    name: item.name,
-    phone: item.phone,
-    wechat: item.wechat || item.whatsapp || "",
-    source: item.source,
-    monthlyRent: item.monthlyRent,
-    depositAmount: item.depositAmount,
-    status: item.status === "active" ? "在租" : item.status === "reserved" ? "预定入住" : "已退房",
-    notes: ""
-  }));
+export function getInitialTenants(..._args: unknown[]): BusinessTenant[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessTenant[]>(tenantKey) || [];
 }
 
-export function getInitialContracts(
-  currentProperties = getInitialProperties(),
-  currentRooms = getInitialRooms(currentProperties),
-  currentTenants = getInitialTenants(currentProperties, currentRooms)
-): BusinessContract[] {
-  return readStored<BusinessContract[]>(contractKey) || currentTenants.slice(0, 10).map((tenant, index) => ({
-    id: `contract-${index + 1}`,
-    propertyId: tenant.propertyId,
-    roomId: tenant.roomId,
-    tenantId: tenant.id,
-    startDate: "2026-01-01",
-    endDate: `2026-07-${String(index + 1).padStart(2, "0")}`,
-    monthlyRent: tenant.monthlyRent,
-    depositAmount: tenant.depositAmount,
-    status: index < 4 ? "即将到期" : "有效",
-    notes: index < 4 ? "请提前联系租客确认是否续约" : ""
-  }));
+export function getInitialContracts(..._args: unknown[]): BusinessContract[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessContract[]>(contractKey) || [];
 }
 
-export function getInitialRentPayments(
-  currentProperties = getInitialProperties(),
-  currentRooms = getInitialRooms(currentProperties),
-  currentTenants = getInitialTenants(currentProperties, currentRooms)
-): BusinessRentPayment[] {
-  return readStored<BusinessRentPayment[]>(rentPaymentKey) || readLegacyRentPayments(currentProperties, currentRooms, currentTenants) || rentPayments.map((item) => ({
-    id: item.id,
-    propertyId: item.propertyId,
-    roomId: item.roomId,
-    tenantId: item.tenantId,
-    rentMonth: item.rentMonth.slice(0, 7),
-    amountDue: item.amountDue,
-    amountPaid: item.amountPaid,
-    amountUnpaid: item.amountUnpaid,
-    paymentMethod: item.paymentMethod,
-    isOverdue: item.isOverdue,
-    notes: item.isOverdue ? "需要催收本月剩余房租" : ""
-  }));
+export function getInitialRentPayments(..._args: unknown[]): BusinessRentPayment[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessRentPayment[]>(rentPaymentKey) || [];
 }
 
-export function getInitialExpenses(currentProperties = getInitialProperties()): BusinessExpense[] {
-  return readStored<BusinessExpense[]>(expenseKey) || [
-    { id: "expense-1", propertyId: currentProperties[0]?.id || "", expenseMonth: "2026-06", category: "房东租金", amount: 980, paymentDate: "2026-06-01", isPaid: true, notes: "每月固定支付给房东" },
-    { id: "expense-2", propertyId: currentProperties[1]?.id || currentProperties[0]?.id || "", expenseMonth: "2026-06", category: "维修", amount: 120, paymentDate: "2026-06-12", isPaid: false, notes: "厨房水龙头维修" }
-  ];
+export function getInitialExpenses(..._args: unknown[]): BusinessExpense[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessExpense[]>(expenseKey) || [];
 }
 
-export function getInitialDeposits(
-  currentProperties = getInitialProperties(),
-  currentRooms = getInitialRooms(currentProperties),
-  currentTenants = getInitialTenants(currentProperties, currentRooms)
-): BusinessDeposit[] {
-  return readStored<BusinessDeposit[]>(depositKey) || currentTenants.slice(0, 8).map((tenant, index) => ({
-    id: `deposit-${index + 1}`,
-    propertyId: tenant.propertyId,
-    roomId: tenant.roomId,
-    tenantId: tenant.id,
-    type: index % 4 === 0 ? "扣除" : index % 3 === 0 ? "退还" : "收取",
-    amount: tenant.depositAmount,
-    status: index % 4 === 0 ? "部分扣除" : index % 3 === 0 ? "已退" : "已收",
-    transactionDate: `2026-06-${String(index + 1).padStart(2, "0")}`,
-    notes: index % 4 === 0 ? "退租清洁费扣除" : "押金记录"
-  }));
+export function getInitialDeposits(..._args: unknown[]): BusinessDeposit[] {
+  return isSupabaseConfigured ? [] : readStored<BusinessDeposit[]>(depositKey) || [];
 }
 
-export function saveBusinessData<T>(key: string, value: T) {
-  window.localStorage.setItem(key, JSON.stringify(value));
+export async function loadBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
+  const config = tableConfigs[key];
+  if (!isSupabaseConfigured || !supabase || !config) {
+    return readStored<T[]>(key) || fallback;
+  }
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+  if (!session) return [];
+
+  let query = supabase.from(config.table).select(config.select || "*");
+  if (config.order) query = query.order(config.order, { ascending: false });
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const rows = ((data || []) as unknown as AnyRecord[]).map((row) => config.fromDb(row)) as T[];
+  writeRemoteIds(key, rows.map((row) => row.id));
+  return rows;
+}
+
+export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[]) {
+  if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
+    if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
+    return;
+  }
+
+  const config = tableConfigs[key];
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const previousIds = readRemoteIds(key);
+  if (!previousIds.length && !value.length) return;
+
+  const nextIds = value.map((row) => row.id).filter(Boolean);
+  const removedIds = previousIds.filter((id) => !nextIds.includes(id));
+  if (removedIds.length) {
+    const { error } = await supabase.from(config.table).delete().in("id", removedIds);
+    if (error) throw error;
+  }
+
+  const rows = value.filter((row) => row.id).map((row) => config.toDb(row, session.user.id));
+  if (rows.length) {
+    const { error } = await supabase.from(config.table).upsert(rows);
+    if (error) throw error;
+  }
+
+  writeRemoteIds(key, nextIds);
+}
+
+function propertyConfig(): TableConfig {
+  return {
+    table: "properties",
+    order: "created_at",
+    fromDb: (row) => ({
+      id: row.id,
+      name: row.name || "",
+      address: row.address || "",
+      city: row.city || "",
+      landlordName: row.landlord_name || "",
+      subletAllowed: Boolean(row.sublet_allowed),
+      notes: row.notes || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      name: row.name || "",
+      address: row.address || null,
+      city: row.city || null,
+      landlord_name: row.landlordName || null,
+      sublet_allowed: Boolean(row.subletAllowed),
+      notes: row.notes || null
+    })
+  };
 }
 
 function readStored<T>(key: string): T | null {
@@ -206,79 +412,23 @@ function readStored<T>(key: string): T | null {
   return stored ? (JSON.parse(stored) as T) : null;
 }
 
-function readLegacyProperties() {
-  const stored = readStored<any[]>("v1-properties");
-  if (!stored) return null;
-  return stored.map((item) => ({
-    id: item.id,
-    name: item.name,
-    address: item.address,
-    city: item.city,
-    landlordName: item.landlordName,
-    notes: item.notes || ""
-  })) as BusinessProperty[];
+function readRemoteIds(key: string): string[] {
+  if (typeof window === "undefined") return [];
+  const stored = window.localStorage.getItem(remoteIdKey(key));
+  return stored ? (JSON.parse(stored) as string[]) : [];
 }
 
-function readLegacyRooms(currentProperties: BusinessProperty[]) {
-  const stored = readStored<any[]>("v1-rooms");
-  if (!stored) return null;
-  return stored.map((item) => ({
-    id: item.id,
-    propertyId: currentProperties.find((property) => property.name === item.propertyName)?.id || currentProperties[0]?.id || "",
-    name: item.name,
-    roomNumber: item.roomNumber,
-    monthlyRent: Number(item.monthlyRent || 0),
-    depositAmount: Number(item.depositAmount || 0),
-    status: item.status || "空置",
-    notes: item.notes || ""
-  })) as BusinessRoom[];
+function writeRemoteIds(key: string, ids: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(remoteIdKey(key), JSON.stringify(ids));
 }
 
-function readLegacyTenants(currentProperties: BusinessProperty[], currentRooms: BusinessRoom[]) {
-  const stored = readStored<any[]>("v1-tenants");
-  if (!stored) return null;
-  return stored.map((item) => ({
-    id: item.id,
-    propertyId: currentProperties.find((property) => property.name === item.propertyName)?.id || currentProperties[0]?.id || "",
-    roomId: currentRooms.find((room) => room.name === item.roomName)?.id || "",
-    name: item.name,
-    phone: item.phone,
-    wechat: item.wechat || "",
-    source: item.source || "其他",
-    monthlyRent: Number(item.monthlyRent || 0),
-    depositAmount: Number(item.depositAmount || 0),
-    status: item.status || "在租",
-    notes: item.notes || ""
-  })) as BusinessTenant[];
+function monthToDate(value?: string) {
+  if (!value) return null;
+  return value.length === 7 ? `${value}-01` : value;
 }
 
-function readLegacyRentPayments(
-  currentProperties: BusinessProperty[],
-  currentRooms: BusinessRoom[],
-  currentTenants: BusinessTenant[]
-) {
-  const stored = readStored<any[]>("v1-rent-payments");
-  if (!stored) return null;
-  return stored.map((item) => ({
-    id: item.id,
-    propertyId: currentProperties.find((property) => property.name === item.propertyName)?.id || currentProperties[0]?.id || "",
-    roomId: currentRooms.find((room) => room.name === item.roomName)?.id || "",
-    tenantId: currentTenants.find((tenant) => tenant.name === item.tenantName)?.id || "",
-    rentMonth: item.rentMonth,
-    amountDue: Number(item.amountDue || 0),
-    amountPaid: Number(item.amountPaid || 0),
-    amountUnpaid: Number(item.amountUnpaid || 0),
-    paymentMethod: item.paymentMethod || "转账",
-    isOverdue: Boolean(item.isOverdue),
-    notes: item.notes || ""
-  })) as BusinessRentPayment[];
-}
-
-function roomStatusToChinese(status: string): BusinessRoom["status"] {
-  if (status === "rented") return "已租";
-  if (status === "reserved") return "预订中";
-  if (status === "moving_out") return "即将退租";
-  if (status === "maintenance") return "维修中";
-  if (status === "paused") return "暂停出租";
-  return "空置";
+function dateToMonth(value?: string) {
+  if (!value) return "";
+  return value.slice(0, 7);
 }

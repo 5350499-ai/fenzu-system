@@ -3,7 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { CrudPage } from "@/components/crud-page";
 import { StatusBadge } from "@/components/status-badge";
-import { properties } from "@/lib/demo-data";
+import { getInitialProperties } from "@/lib/business-data";
 import { noteSummary } from "@/lib/format";
 import Link from "next/link";
 
@@ -14,7 +14,7 @@ export default function PropertiesPage() {
         title="房源"
         storageKey="v1-properties"
         createLabel="新增房源"
-        initialRows={properties.map((item) => ({
+        initialRows={getInitialProperties().map((item) => ({
           id: item.id,
           name: item.name,
           address: item.address,

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { loadBusinessData, saveBusinessData } from "@/lib/business-data";
 
 type CrudValue = string | number | boolean | undefined;
 type CrudRecord = Record<string, CrudValue> & { id: string };
@@ -36,17 +37,20 @@ export function CrudPage({
   const [filterField, setFilterField] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    if (saved) {
-      setRows(JSON.parse(saved) as CrudRecord[]);
+    async function load() {
+      const loadedRows = await loadBusinessData<CrudRecord>(storageKey, initialRows);
+      setRows(loadedRows);
+      setLoaded(true);
     }
+    load().catch(console.error);
   }, [storageKey]);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(rows));
-  }, [rows, storageKey]);
+    if (loaded) saveBusinessData(storageKey, rows).catch(console.error);
+  }, [loaded, rows, storageKey]);
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
   const searchableFields = columns.map((column) => column.name);

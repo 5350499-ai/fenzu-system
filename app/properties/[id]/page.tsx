@@ -21,6 +21,7 @@ import {
   getInitialRentPayments,
   getInitialRooms,
   getInitialTenants,
+  loadBusinessData,
   propertyKey,
   rentPaymentKey,
   roomKey,
@@ -64,18 +65,27 @@ export default function PropertyDetailPage() {
   const [paymentForm, setPaymentForm] = useState<BusinessRentPayment>(emptyPayment(propertyId));
   const [depositForm, setDepositForm] = useState<BusinessDeposit>(emptyDeposit(propertyId));
   const [expenseForm, setExpenseForm] = useState<BusinessExpense>(emptyExpense(propertyId));
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    const loadedRooms = getInitialRooms(loadedProperties);
-    const loadedTenants = getInitialTenants(loadedProperties, loadedRooms);
-    setProperties(loadedProperties);
-    setRooms(loadedRooms);
-    setTenants(loadedTenants);
-    setContracts(getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
-    setPayments(getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
-    setDeposits(getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
-    setExpenses(getInitialExpenses(loadedProperties));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
+      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setContracts(loadedContracts);
+      setPayments(loadedPayments);
+      setDeposits(loadedDeposits);
+      setExpenses(loadedExpenses);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   const property = properties.find((item) => item.id === propertyId);
@@ -122,15 +132,15 @@ export default function PropertyDetailPage() {
   function savePropertyNotes(notes: string) {
     const next = properties.map((item) => (item.id === propertyId ? { ...item, notes } : item));
     setProperties(next);
-    saveBusinessData(propertyKey, next);
+    saveBusinessData(propertyKey, next).catch(console.error);
   }
 
-  useEffect(() => { if (rooms.length) saveBusinessData(roomKey, rooms); }, [rooms]);
-  useEffect(() => { if (tenants.length) saveBusinessData(tenantKey, tenants); }, [tenants]);
-  useEffect(() => { if (contracts.length) saveBusinessData(contractKey, contracts); }, [contracts]);
-  useEffect(() => { if (payments.length) saveBusinessData(rentPaymentKey, payments); }, [payments]);
-  useEffect(() => { if (deposits.length) saveBusinessData(depositKey, deposits); }, [deposits]);
-  useEffect(() => { if (expenses.length) saveBusinessData(expenseKey, expenses); }, [expenses]);
+  useEffect(() => { if (loaded) saveBusinessData(roomKey, rooms).catch(console.error); }, [loaded, rooms]);
+  useEffect(() => { if (loaded) saveBusinessData(tenantKey, tenants).catch(console.error); }, [loaded, tenants]);
+  useEffect(() => { if (loaded) saveBusinessData(contractKey, contracts).catch(console.error); }, [contracts, loaded]);
+  useEffect(() => { if (loaded) saveBusinessData(rentPaymentKey, payments).catch(console.error); }, [loaded, payments]);
+  useEffect(() => { if (loaded) saveBusinessData(depositKey, deposits).catch(console.error); }, [deposits, loaded]);
+  useEffect(() => { if (loaded) saveBusinessData(expenseKey, expenses).catch(console.error); }, [expenses, loaded]);
 
   if (!property) {
     return (

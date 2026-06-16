@@ -13,6 +13,7 @@ import {
   getInitialRentPayments,
   getInitialRooms,
   getInitialTenants,
+  loadBusinessData,
   rentPaymentKey,
   saveBusinessData
 } from "@/lib/business-data";
@@ -45,20 +46,26 @@ export default function RentPaymentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    const loadedRooms = getInitialRooms(loadedProperties);
-    const loadedTenants = getInitialTenants(loadedProperties, loadedRooms);
-    setProperties(loadedProperties);
-    setRooms(loadedRooms);
-    setTenants(loadedTenants);
-    setPayments(getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
+      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setPayments(loadedPayments);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (payments.length) saveBusinessData(rentPaymentKey, payments);
-  }, [payments]);
+    if (loaded) saveBusinessData(rentPaymentKey, payments).catch(console.error);
+  }, [loaded, payments]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);

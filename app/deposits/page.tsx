@@ -14,6 +14,7 @@ import {
   getInitialProperties,
   getInitialRooms,
   getInitialTenants,
+  loadBusinessData,
   saveBusinessData
 } from "@/lib/business-data";
 import { noteSummary } from "@/lib/format";
@@ -43,20 +44,26 @@ export default function DepositsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const loadedProperties = getInitialProperties();
-    const loadedRooms = getInitialRooms(loadedProperties);
-    const loadedTenants = getInitialTenants(loadedProperties, loadedRooms);
-    setProperties(loadedProperties);
-    setRooms(loadedRooms);
-    setTenants(loadedTenants);
-    setDeposits(getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setDeposits(loadedDeposits);
+      setLoaded(true);
+    }
+    load().catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (deposits.length) saveBusinessData(depositKey, deposits);
-  }, [deposits]);
+    if (loaded) saveBusinessData(depositKey, deposits).catch(console.error);
+  }, [deposits, loaded]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
