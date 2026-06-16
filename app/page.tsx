@@ -3,7 +3,19 @@
 import { AppLayout } from "@/components/app-layout";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
-import { AlertTriangle, FileClock, Home, Plus, ReceiptText, ShieldAlert, UserPlus } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  ClipboardList,
+  FileClock,
+  FileText,
+  Home,
+  Plus,
+  ReceiptText,
+  ShieldAlert,
+  UserPlus,
+  WalletCards
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -31,6 +43,16 @@ import { euro } from "@/lib/format";
 
 const HOME_LIMIT = 5;
 
+const shortcuts = [
+  { title: "房源管理", href: "/properties", icon: Building2, tone: "blue" },
+  { title: "房间管理", href: "/rooms", icon: Home, tone: "green" },
+  { title: "租客管理", href: "/tenants", icon: UserPlus, tone: "amber" },
+  { title: "合同管理", href: "/contracts", icon: FileText, tone: "blue" },
+  { title: "收租管理", href: "/rent-payments", icon: ReceiptText, tone: "green" },
+  { title: "支出管理", href: "/expenses", icon: ClipboardList, tone: "red" },
+  { title: "押金管理", href: "/deposits", icon: WalletCards, tone: "amber" }
+];
+
 export default function DashboardPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -44,11 +66,23 @@ export default function DashboardPage() {
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
-      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(
+        "business-tenants",
+        getInitialTenants(loadedProperties, loadedRooms)
+      );
+      const loadedContracts = await loadBusinessData<BusinessContract>(
+        contractKey,
+        getInitialContracts(loadedProperties, loadedRooms, loadedTenants)
+      );
+      const loadedPayments = await loadBusinessData<BusinessRentPayment>(
+        rentPaymentKey,
+        getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)
+      );
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(
+        depositKey,
+        getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)
+      );
 
       setProperties(loadedProperties);
       setRooms(loadedRooms);
@@ -145,7 +179,7 @@ export default function DashboardPage() {
     {
       title: "押金未收",
       count: unpaidDepositCount,
-      note: "租客有押金金额但没有收取记录",
+      note: "有押金金额但没有收取记录",
       tone: "red",
       href: "/deposits",
       icon: <ShieldAlert className="danger-text" size={22} />
@@ -180,6 +214,26 @@ export default function DashboardPage() {
           录入收款
         </Link>
       </div>
+
+      <section className="mobile-shortcuts card">
+        <div className="panel-header">
+          <h2 className="panel-title">常用入口</h2>
+          <span className="muted">手机端快速进入核心业务</span>
+        </div>
+        <div className="shortcut-grid">
+          {shortcuts.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link className="shortcut-card" href={item.href} key={item.title}>
+                <span className={`shortcut-icon ${item.tone}`}>
+                  <Icon size={20} />
+                </span>
+                <strong>{item.title}</strong>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="grid metrics">
         <MetricCard label="本月总收入" value={euro(monthlyIncome)} note="来自本月已收房租" />
@@ -312,12 +366,14 @@ export default function DashboardPage() {
         <section className="card panel">
           <div className="panel-header">
             <h2 className="panel-title">待办事项</h2>
-            <span className="muted">当前版本请在待办管理中录入</span>
+            <span className="muted">待办管理中录入的事项</span>
           </div>
           <div className="list">
             <div className="list-item">
               <span className="muted">暂无自动待办数据</span>
-              <Link className="btn" href="/tasks">查看待办</Link>
+              <Link className="btn" href="/tasks">
+                查看待办
+              </Link>
             </div>
           </div>
         </section>

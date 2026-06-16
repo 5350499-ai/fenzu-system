@@ -1,5 +1,13 @@
 import { isSupabaseConfigured, supabase } from "./supabase";
 
+export type ContractAttachment = {
+  name: string;
+  type: string;
+  dataUrl: string;
+  size: number;
+  uploadedAt: string;
+};
+
 export type BusinessProperty = {
   id: string;
   name: string;
@@ -46,6 +54,7 @@ export type BusinessContract = {
   depositAmount: number;
   status: string;
   notes?: string;
+  attachment?: ContractAttachment;
 };
 
 export type BusinessRentPayment = {
@@ -103,6 +112,7 @@ export const expenseKey = "business-expenses";
 export const depositKey = "business-deposits";
 
 const remoteIdKey = (key: string) => `supabase-ids:${key}`;
+const contractMetaMarker = "__contractMeta";
 
 const tableConfigs: Record<string, TableConfig> = {
   [propertyKey]: propertyConfig(),
@@ -166,18 +176,22 @@ const tableConfigs: Record<string, TableConfig> = {
   [contractKey]: {
     table: "contracts",
     order: "created_at",
-    fromDb: (row) => ({
-      id: row.id,
-      propertyId: row.property_id || "",
-      roomId: row.room_id || "",
-      tenantId: row.tenant_id || "",
-      startDate: row.start_date || "",
-      endDate: row.end_date || "",
-      monthlyRent: Number(row.monthly_rent || 0),
-      depositAmount: Number(row.deposit_amount || 0),
-      status: row.status || "有效",
-      notes: row.notes || ""
-    }),
+    fromDb: (row) => {
+      const parsed = parseContractNotes(row.notes || "");
+      return {
+        id: row.id,
+        propertyId: row.property_id || "",
+        roomId: row.room_id || "",
+        tenantId: row.tenant_id || "",
+        startDate: row.start_date || "",
+        endDate: row.end_date || "",
+        monthlyRent: Number(row.monthly_rent || 0),
+        depositAmount: Number(row.deposit_amount || 0),
+        status: row.status || "有效",
+        notes: parsed.notes,
+        attachment: parsed.attachment
+      };
+    },
     toDb: (row, userId) => ({
       id: row.id,
       user_id: userId,
@@ -189,7 +203,7 @@ const tableConfigs: Record<string, TableConfig> = {
       start_date: row.startDate || null,
       end_date: row.endDate || null,
       status: row.status || "有效",
-      notes: row.notes || null
+      notes: packContractNotes(row.notes || "", row.attachment)
     })
   },
   [rentPaymentKey]: {
@@ -403,6 +417,33 @@ function propertyConfig(): TableConfig {
       notes: row.notes || null
     })
   };
+}
+
+function parseContractNotes(value: string): { notes: string; attachment?: ContractAttachment } {
+  if (!value) return { notes: "" };
+
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed?.[contractMetaMarker]) {
+      return {
+        notes: parsed.notes || "",
+        attachment: parsed.attachment
+      };
+    }
+  } catch {
+    // Plain old notes are still valid.
+  }
+
+  return { notes: value };
+}
+
+function packContractNotes(notes: string, attachment?: ContractAttachment) {
+  if (!attachment) return notes || null;
+  return JSON.stringify({
+    [contractMetaMarker]: true,
+    notes: notes || "",
+    attachment
+  });
 }
 
 function readStored<T>(key: string): T | null {

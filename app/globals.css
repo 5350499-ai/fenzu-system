@@ -304,6 +304,76 @@ a {
   margin-bottom: 16px;
 }
 
+.mobile-shortcuts {
+  display: none;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shortcut-card {
+  display: grid;
+  min-width: 0;
+  min-height: 96px;
+  gap: 10px;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 12px 8px;
+  text-align: center;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.shortcut-card:hover {
+  transform: translateY(-1px);
+  background: var(--surface-hover);
+  border-color: color-mix(in srgb, var(--border) 50%, var(--muted));
+}
+
+.shortcut-card strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.shortcut-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+.shortcut-icon.green {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, var(--surface));
+}
+
+.shortcut-icon.red {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+}
+
+.shortcut-icon.amber {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, var(--surface));
+}
+
+.shortcut-icon.blue {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, var(--surface));
+}
+
 .risk-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 18px;
@@ -767,6 +837,26 @@ td:last-child {
   margin-top: 4px;
 }
 
+.attachment-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 10px;
+}
+
+.attachment-preview span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .search {
   width: min(340px, 100%);
 }
@@ -873,6 +963,14 @@ td:last-child {
 
   .quick-actions .btn {
     width: 100%;
+  }
+
+  .mobile-shortcuts {
+    display: block;
+  }
+
+  .shortcut-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .list-controls,
