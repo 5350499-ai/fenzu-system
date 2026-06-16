@@ -31,7 +31,7 @@ import { noteSummary } from "@/lib/format";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const categories = ["电费", "水费", "网费", "家具", "床", "床垫", "换锁", "刷墙", "维修", "清洁", "其他"];
+const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 
@@ -40,7 +40,7 @@ const emptyExpense: BusinessExpense = {
   propertyId: "",
   roomId: "",
   expenseMonth: new Date().toISOString().slice(0, 7),
-  category: "电费",
+  category: "",
   amount: 0,
   paymentDate: new Date().toISOString().slice(0, 10),
   paymentMethod: "转账",
@@ -255,7 +255,7 @@ export default function ExpensesPage() {
               <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
               <SearchableSelect label="房间（可选）" value={form.roomId || ""} disabled={!form.propertyId} options={[{ value: "", label: "不关联房间" }, ...roomOptions.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))]} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
               <div className="field"><label>支出日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, expenseMonth: event.target.value.slice(0, 7) }))} /></div>
-              <SearchableSelect label="支出类型" value={form.category} options={categories.map((category) => ({ value: category, label: category }))} onChange={(category) => setForm((current) => ({ ...current, category }))} />
+              <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
@@ -278,6 +278,24 @@ export default function ExpensesPage() {
 function ExpenseAttachmentActions({ files, onDelete, compact }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void; compact?: boolean }) {
   if (!files.length) return <span className="muted">-</span>;
   return <div className="attachment-list">{files.map((file) => <div className="attachment-preview" key={file.id}><FileUp size={16} />{!compact ? <span>{file.fileName} · {formatFileSize(file.fileSize)}</span> : <span>{files.length} 个附件</span>}<button className="btn" type="button" onClick={() => openExpenseFile(file)}><Eye size={15} /> 查看</button><button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button>{!compact ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}</div>)}</div>;
+}
+
+function CategoryInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="field">
+      <label>支出类型</label>
+      <input
+        list="expense-category-options"
+        placeholder="可选预设，也可输入自定义类型"
+        required
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <datalist id="expense-category-options">
+        {categories.map((category) => <option key={category} value={category} />)}
+      </datalist>
+    </div>
+  );
 }
 
 function ExpenseActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {

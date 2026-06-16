@@ -27,6 +27,7 @@ export function MoneyInput({
         min="0"
         placeholder="请输入金额"
         readOnly={readOnly}
+        step="0.01"
         type="number"
         value={text}
         onChange={(event) => {
@@ -41,8 +42,10 @@ export function MoneyInput({
 
 function normalizeMoneyText(value: string) {
   if (!value) return "";
-  const [integerPart, decimalPart] = value.replace(/[^\d.]/g, "").split(".");
-  const integer = integerPart.replace(/^0+(?=\d)/, "");
-  if (decimalPart === undefined) return integer;
-  return `${integer || "0"}.${decimalPart.slice(0, 2)}`;
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned.replace(/^0+(?=\d)/, "");
+  const integerPart = cleaned.slice(0, firstDot).replace(/^0+(?=\d)/, "");
+  const decimalPart = cleaned.slice(firstDot + 1).replace(/\./g, "");
+  return `${integerPart || "0"}.${decimalPart.slice(0, 2)}`;
 }
