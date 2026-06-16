@@ -1008,7 +1008,16 @@ td:last-child {
 }
 
 .tenant-finance-line {
-  grid-template-columns: minmax(74px, 1fr) minmax(58px, 0.8fr) minmax(58px, 0.8fr) minmax(82px, auto) auto;
+  grid-template-columns: minmax(54px, 0.9fr) minmax(72px, 1.25fr) minmax(76px, auto) auto minmax(56px, auto);
+  min-height: 32px;
+  padding-block: 5px;
+}
+
+.tenant-finance-line .contract-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
 }
 
 .tenant-detail-panel {
@@ -1127,6 +1136,12 @@ td:last-child {
   .compact-record-button span {
     font-weight: 850;
   }
+
+.tenant-compact-list .tenant-finance-line {
+  grid-template-columns: minmax(54px, 0.9fr) minmax(72px, 1.25fr) minmax(76px, auto) auto minmax(56px, auto);
+  min-height: 32px;
+  padding-block: 5px;
+}
 
 .compact-record-button small {
   grid-column: 1 / -1;

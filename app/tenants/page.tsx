@@ -210,7 +210,7 @@ export default function TenantsPage() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">租客列表</h2>
-            <p className="muted">姓名｜房源｜房间｜月租｜状态；展开后查看电话、微信、押金、备注和合同附件。</p>
+            <p className="muted">默认只显示一行核心信息，点击后展开详情和合同附件。</p>
           </div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button">
             <Plus size={17} /> 新增租客
@@ -233,10 +233,10 @@ export default function TenantsPage() {
               <article className="finance-list-item" key={tenant.id}>
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span>{tenant.name || "-"}</span>
-                  <span>{property?.name || "-"}</span>
-                  <span>{room?.name || "-"}</span>
+                  <span>{property?.name || "-"}-{room?.name || "-"}</span>
                   <strong>{euro(tenant.monthlyRent)}</strong>
                   <StatusBadge tone={tenantTone(tenant.status)}>{tenant.status || "在租"}</StatusBadge>
+                  <span className="contract-count">合同{files.length}个</span>
                 </button>
                 {expanded ? (
                   <TenantDetail
