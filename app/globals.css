@@ -310,6 +310,11 @@ a {
   margin-bottom: 16px;
 }
 
+.compact-shortcuts {
+  margin-top: 12px;
+  padding: 12px;
+}
+
 .shortcut-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -971,6 +976,17 @@ td:last-child {
 
   .shortcut-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .compact-shortcuts .shortcut-card {
+    min-height: 76px;
+    gap: 6px;
+  }
+
+  .compact-shortcuts .shortcut-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
   }
 
   .list-controls,

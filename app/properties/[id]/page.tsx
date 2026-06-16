@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { MoneyInput } from "@/components/money-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -115,8 +116,7 @@ export default function PropertyDetailPage() {
     }));
 
   function remove<T extends { id: string }>(id: string, setter: (updater: (current: T[]) => T[]) => void) {
-    if (!window.confirm("确定要删除这条记录吗？\n删除后不可恢复。")) return;
-    setter((current) => current.filter((item) => item.id !== id));
+    window.alert("为避免误删真实业务数据，请到对应管理页面使用归档、退租、作废或永久删除。");
   }
 
   function closeEditor() {
@@ -355,7 +355,7 @@ function Text({ label, value, onChange, type = "text", readOnly }: { label: stri
 }
 
 function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return <div className="field"><label>{label}</label><input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} /></div>;
+  return <MoneyInput label={label} value={value} onChange={onChange} />;
 }
 
 function Note({ value, onChange }: { value?: string; onChange: (value: string) => void }) {

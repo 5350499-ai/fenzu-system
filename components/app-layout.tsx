@@ -12,6 +12,7 @@ import {
   FileText,
   Home,
   LineChart,
+  LogIn,
   LogOut,
   Moon,
   ReceiptText,
@@ -23,11 +24,12 @@ import {
 import { useEffect, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const navGroups = [
+export const navGroups = [
   {
     title: "分租管理",
     items: [
       { href: "/", label: "首页", icon: Home },
+      { href: "/check-in", label: "一键入住", icon: LogIn },
       { href: "/properties", label: "房源管理", icon: Building2 },
       { href: "/rooms", label: "房间管理", icon: CalendarCheck },
       { href: "/tenants", label: "租客管理", icon: Users },
@@ -53,21 +55,13 @@ const navGroups = [
 
 const mobileItems = [
   { href: "/", label: "首页", icon: Home },
-  { href: "/rooms", label: "房间", icon: CalendarCheck },
+  { href: "/properties", label: "房源", icon: Building2 },
   { href: "/tenants", label: "租客", icon: Users },
   { href: "/rent-payments", label: "收租", icon: ReceiptText },
-  { href: "/properties", label: "更多", icon: ChevronRight }
+  { href: "/more", label: "更多", icon: ChevronRight }
 ];
 
-export function AppLayout({
-  children,
-  title,
-  description
-}: {
-  children: React.ReactNode;
-  title: string;
-  description?: string;
-}) {
+export function AppLayout({ children, title, description }: { children: React.ReactNode; title: string; description?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState("light");

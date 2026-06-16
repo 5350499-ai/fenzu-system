@@ -1,0 +1,228 @@
+"use client";
+
+import { MoneyInput } from "@/components/money-input";
+import { AppLayout } from "@/components/app-layout";
+import { SearchableSelect } from "@/components/searchable-select";
+import {
+  BusinessContract,
+  BusinessDeposit,
+  BusinessProperty,
+  BusinessRentPayment,
+  BusinessRoom,
+  BusinessTenant,
+  ContractAttachment,
+  contractKey,
+  depositKey,
+  getInitialContracts,
+  getInitialDeposits,
+  getInitialProperties,
+  getInitialRentPayments,
+  getInitialRooms,
+  getInitialTenants,
+  loadBusinessData,
+  rentPaymentKey,
+  roomKey,
+  saveBusinessData,
+  tenantKey
+} from "@/lib/business-data";
+import { FileUp, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+
+const maxAttachmentSize = 5 * 1024 * 1024;
+
+export default function CheckInPage() {
+  const [properties, setProperties] = useState<BusinessProperty[]>([]);
+  const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
+  const [contracts, setContracts] = useState<BusinessContract[]>([]);
+  const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    propertyId: "",
+    roomId: "",
+    tenantName: "",
+    phone: "",
+    wechat: "",
+    documentNumber: "",
+    checkInDate: new Date().toISOString().slice(0, 10),
+    contractEndDate: "",
+    monthlyRent: 0,
+    depositAmount: 0,
+    depositStatus: "已收",
+    rentStatus: "已收",
+    paymentMethod: "转账",
+    notes: ""
+  });
+  const [attachment, setAttachment] = useState<ContractAttachment | undefined>();
+
+  useEffect(() => {
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
+      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setContracts(loadedContracts);
+      setPayments(loadedPayments);
+      setDeposits(loadedDeposits);
+    }
+    load().catch((error) => window.alert(`加载入住数据失败：${error.message || error}`));
+  }, []);
+
+  const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId && room.status !== "已归档");
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!form.propertyId || !form.roomId || !form.tenantName.trim()) {
+      window.alert("请先选择房源、房间，并填写租客姓名。");
+      return;
+    }
+    setSaving(true);
+    try {
+      const existingTenant = tenants.find(
+        (tenant) =>
+          tenant.roomId === form.roomId &&
+          tenant.name.trim() === form.tenantName.trim() &&
+          (!form.phone || tenant.phone === form.phone)
+      );
+      const tenantId = existingTenant?.id || crypto.randomUUID();
+      const nextTenant: BusinessTenant = {
+        id: tenantId,
+        propertyId: form.propertyId,
+        roomId: form.roomId,
+        name: form.tenantName.trim(),
+        phone: form.phone,
+        wechat: form.wechat,
+        source: "其他",
+        monthlyRent: form.monthlyRent,
+        depositAmount: form.depositAmount,
+        status: "在租",
+        notes: [form.documentNumber ? `证件号：${form.documentNumber}` : "", form.notes].filter(Boolean).join("\n")
+      };
+      const nextTenants = existingTenant
+        ? tenants.map((tenant) => (tenant.id === tenantId ? nextTenant : tenant))
+        : [nextTenant, ...tenants];
+      const nextRooms = rooms.map((room) => (room.id === form.roomId ? { ...room, status: "已租", monthlyRent: form.monthlyRent || room.monthlyRent, depositAmount: form.depositAmount || room.depositAmount } : room));
+      const nextContract: BusinessContract = {
+        id: crypto.randomUUID(),
+        propertyId: form.propertyId,
+        roomId: form.roomId,
+        tenantId,
+        startDate: form.checkInDate,
+        endDate: form.contractEndDate,
+        monthlyRent: form.monthlyRent,
+        depositAmount: form.depositAmount,
+        status: "有效",
+        notes: form.notes,
+        attachment
+      };
+      const nextDeposit: BusinessDeposit | null = form.depositAmount
+        ? {
+            id: crypto.randomUUID(),
+            propertyId: form.propertyId,
+            roomId: form.roomId,
+            tenantId,
+            type: "收取",
+            amount: form.depositAmount,
+            status: form.depositStatus === "已收" ? "已收" : "待退",
+            transactionDate: form.checkInDate,
+            notes: form.notes
+          }
+        : null;
+      const amountPaid = form.rentStatus === "已收" ? form.monthlyRent : 0;
+      const nextPayment: BusinessRentPayment = {
+        id: crypto.randomUUID(),
+        propertyId: form.propertyId,
+        roomId: form.roomId,
+        tenantId,
+        rentMonth: new Date().toISOString().slice(0, 7),
+        amountDue: form.monthlyRent,
+        amountPaid,
+        amountUnpaid: Math.max(form.monthlyRent - amountPaid, 0),
+        paymentMethod: form.paymentMethod,
+        isOverdue: amountPaid < form.monthlyRent,
+        notes: form.notes
+      };
+
+      await saveBusinessData(tenantKey, nextTenants);
+      await saveBusinessData(roomKey, nextRooms);
+      await saveBusinessData(contractKey, [nextContract, ...contracts]);
+      await saveBusinessData(depositKey, nextDeposit ? [nextDeposit, ...deposits] : deposits);
+      await saveBusinessData(rentPaymentKey, [nextPayment, ...payments]);
+      setTenants(nextTenants);
+      setRooms(nextRooms);
+      setContracts([nextContract, ...contracts]);
+      if (nextDeposit) setDeposits([nextDeposit, ...deposits]);
+      setPayments([nextPayment, ...payments]);
+      window.alert("一键入住已保存，首页统计会同步更新。");
+    } catch (error: any) {
+      window.alert(error.message || "一键入住保存失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function attachFile(file?: File) {
+    if (!file) return;
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+      window.alert("只支持 PDF、JPG、PNG 文件。");
+      return;
+    }
+    if (file.size > maxAttachmentSize) {
+      window.alert("合同附件不能超过 5MB。");
+      return;
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    setAttachment({ name: file.name, type: file.type, dataUrl, size: file.size, uploadedAt: new Date().toISOString() });
+  }
+
+  return (
+    <AppLayout title="一键入住" description="一次录入租客、合同、押金和本月租金，减少重复操作。">
+      <section className="card panel">
+        <form className="form-grid" onSubmit={submit}>
+          <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
+          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => {
+            const room = rooms.find((item) => item.id === roomId);
+            setForm((current) => ({ ...current, roomId, monthlyRent: room?.monthlyRent || current.monthlyRent, depositAmount: room?.depositAmount || current.depositAmount }));
+          }} />
+          <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
+          <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
+          <TextField label="微信" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
+          <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
+          <div className="field"><label>入住日期</label><input required type="date" value={form.checkInDate} onChange={(event) => setForm((current) => ({ ...current, checkInDate: event.target.value }))} /></div>
+          <div className="field"><label>合同结束日期</label><input required type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} /></div>
+          <MoneyInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
+          <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+          <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />
+          <SearchableSelect label="本月租金状态" value={form.rentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(rentStatus) => setForm((current) => ({ ...current, rentStatus }))} />
+          <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label>合同附件 PDF/JPG/PNG</label>
+            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => attachFile(event.target.files?.[0])} />
+            {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name}</span></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传。</p>}
+          </div>
+          <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
+          <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div>
+        </form>
+      </section>
+    </AppLayout>
+  );
+}
+
+function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
+  return <div className="field"><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}

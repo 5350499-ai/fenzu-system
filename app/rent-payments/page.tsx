@@ -1,5 +1,6 @@
 "use client";
 
+import { MoneyInput } from "@/components/money-input";
 import { AppLayout } from "@/components/app-layout";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -18,7 +19,7 @@ import {
   saveBusinessData
 } from "@/lib/business-data";
 import { noteSummary } from "@/lib/format";
-import { Edit3, Plus, Trash2, X } from "lucide-react";
+import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const emptyPayment: BusinessRentPayment = {
@@ -26,7 +27,7 @@ const emptyPayment: BusinessRentPayment = {
   propertyId: "",
   roomId: "",
   tenantId: "",
-  rentMonth: "2026-06",
+  rentMonth: new Date().toISOString().slice(0, 7),
   amountDue: 0,
   amountPaid: 0,
   amountUnpaid: 0,
@@ -34,6 +35,8 @@ const emptyPayment: BusinessRentPayment = {
   isOverdue: false,
   notes: ""
 };
+
+const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 
 export default function RentPaymentsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -47,6 +50,7 @@ export default function RentPaymentsPage() {
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -60,12 +64,8 @@ export default function RentPaymentsPage() {
       setPayments(loadedPayments);
       setLoaded(true);
     }
-    load().catch(console.error);
+    load().catch((error) => window.alert(`加载收租记录失败：${error.message || error}`));
   }, []);
-
-  useEffect(() => {
-    if (loaded) saveBusinessData(rentPaymentKey, payments).catch(console.error);
-  }, [loaded, payments]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
@@ -76,9 +76,7 @@ export default function RentPaymentsPage() {
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
       const tenant = tenants.find((item) => item.id === payment.tenantId);
-      return `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""}`
-        .toLowerCase()
-        .includes(keyword);
+      return `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase().includes(keyword);
     });
   }, [payments, properties, query, rooms, tenants]);
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
@@ -86,6 +84,18 @@ export default function RentPaymentsPage() {
   function close() {
     setOpen(false);
     setForm(emptyPayment);
+  }
+
+  async function persist(next: BusinessRentPayment[]) {
+    setSaving(true);
+    try {
+      await saveBusinessData(rentPaymentKey, next);
+      setPayments(next);
+    } catch (error: any) {
+      window.alert(error.message || "保存收租记录失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function updateMoney(patch: Partial<BusinessRentPayment>) {
@@ -101,48 +111,53 @@ export default function RentPaymentsPage() {
     updateMoney({ tenantId, amountDue: tenant?.monthlyRent || 0, amountPaid: 0 });
   }
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.propertyId || !form.roomId || !form.tenantId) return;
-    if (form.id) {
-      setPayments((current) => current.map((payment) => (payment.id === form.id ? form : payment)));
-    } else {
-      setPayments((current) => [{ ...form, id: crypto.randomUUID() }, ...current]);
-    }
+    if (!loaded || !form.propertyId || !form.roomId || !form.tenantId) return;
+    const next = form.id
+      ? payments.map((payment) => (payment.id === form.id ? form : payment))
+      : [{ ...form, id: crypto.randomUUID() }, ...payments];
+    await persist(next);
     close();
   }
 
+  async function voidPayment(payment: BusinessRentPayment) {
+    if (!window.confirm("确认作废这条收租记录吗？作废后金额会变为 0，但历史记录仍保留。")) return;
+    await persist(payments.map((item) => (item.id === payment.id ? { ...item, amountDue: 0, amountPaid: 0, amountUnpaid: 0, isOverdue: false, notes: markVoided(item.notes) } : item)));
+  }
+
+  async function permanentlyDelete(payment: BusinessRentPayment) {
+    if (!window.confirm("确定要永久删除这条收租记录吗？\n真实发生过的财务记录建议使用“作废”，删除后不可恢复。")) return;
+    await persist(payments.filter((item) => item.id !== payment.id));
+  }
+
   return (
-    <AppLayout title="收租管理" description="收款必须关联房源、房间、租客。">
+    <AppLayout title="收租管理" description="收款必须关联房源、房间、租客。真实财务记录建议作废，不建议删除。">
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收租记录</h2><p className="muted">新增收款必须按房源 → 房间 → 租客选择。</p></div>
-          <button className="btn primary" onClick={() => setOpen(true)} type="button"><Plus size={17} /> 登记收款</button>
+          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 登记收款</button>
         </div>
-        <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间、租客姓名、电话、微信" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
+        <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信、月份" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>月份</th><th>房源</th><th>房间</th><th>租客</th><th>应收</th><th>已收</th><th>未收</th><th>付款方式</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-            <tbody>
-              {visiblePayments.map((payment) => (
+            <thead><tr><th>日期</th><th>房间</th><th>租客</th><th>金额</th><th>状态</th><th>付款方式</th><th>备注</th><th>操作</th></tr></thead>
+            <tbody>{visiblePayments.map((payment) => {
+              const room = rooms.find((item) => item.id === payment.roomId);
+              const tenant = tenants.find((item) => item.id === payment.tenantId);
+              return (
                 <tr key={payment.id}>
                   <td>{payment.rentMonth}</td>
-                  <td>{properties.find((item) => item.id === payment.propertyId)?.name || "-"}</td>
-                  <td>{rooms.find((item) => item.id === payment.roomId)?.name || "-"}</td>
-                  <td>{tenants.find((item) => item.id === payment.tenantId)?.name || "-"}</td>
-                  <td>€{payment.amountDue}</td>
-                  <td>€{payment.amountPaid}</td>
-                  <td>€{payment.amountUnpaid}</td>
+                  <td>{room?.name || "-"}</td>
+                  <td>{tenant?.name || "-"}</td>
+                  <td>应收 €{payment.amountDue} / 已收 €{payment.amountPaid} / 欠费 €{payment.amountUnpaid}</td>
+                  <td><StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td>
                   <td>{payment.paymentMethod}</td>
-                  <td><StatusBadge tone={payment.isOverdue ? "red" : "green"}>{payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td>
-                  <td title={payment.notes || ""}>{noteSummary(payment.notes)}</td>
-                  <td><div className="top-actions"><button className="btn" onClick={() => { setForm(payment); setOpen(true); }} type="button"><Edit3 size={15} /> 编辑</button><button className="btn danger" onClick={() => {
-                    if (!window.confirm("确定要删除这条记录吗？\n删除后不可恢复。")) return;
-                    setPayments((current) => current.filter((item) => item.id !== payment.id));
-                  }} type="button"><Trash2 size={15} /> 删除</button></div></td>
+                  <td title={payment.notes || ""}>{noteSummary(cleanVoidNote(payment.notes))}</td>
+                  <td><PaymentActions onDelete={() => permanentlyDelete(payment)} onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} /></td>
                 </tr>
-              ))}
-            </tbody>
+              );
+            })}</tbody>
           </table>
         </div>
         <div className="mobile-card-list">
@@ -152,21 +167,14 @@ export default function RentPaymentsPage() {
             const expanded = expandedNoteId === payment.id;
             return (
               <article className="mobile-record-card" key={payment.id}>
-                <div className="mobile-record-title">
-                  <strong>{tenant?.name || "-"}</strong>
-                  <span>{payment.rentMonth} · <StatusBadge tone={payment.isOverdue ? "red" : "green"}>{payment.isOverdue ? "欠费" : "已结清"}</StatusBadge> · 欠 €{payment.amountUnpaid}</span>
-                </div>
+                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span>{payment.rentMonth} · <StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></span></div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>应收</span><strong>€{payment.amountDue}</strong></div>
-                  <div className="mobile-record-field"><span>已收</span><strong>€{payment.amountPaid}</strong></div>
-                  <div className="mobile-record-field"><span>方式</span><strong>{payment.paymentMethod}</strong></div>
-                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? payment.notes || "-" : noteSummary(payment.notes)} {payment.notes && payment.notes.length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : payment.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
+                  <div className="mobile-record-field"><span>金额</span><strong>应收 €{payment.amountDue} / 已收 €{payment.amountPaid} / 欠费 €{payment.amountUnpaid}</strong></div>
+                  <div className="mobile-record-field"><span>付款方式</span><strong>{payment.paymentMethod}</strong></div>
+                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? cleanVoidNote(payment.notes) || "-" : noteSummary(cleanVoidNote(payment.notes))} {cleanVoidNote(payment.notes).length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : payment.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
                 </div>
-                <div className="top-actions">
-                  <button className="btn" onClick={() => { setForm(payment); setOpen(true); }} type="button"><Edit3 size={15} /> 编辑</button>
-                  <button className="btn danger" onClick={() => { if (!window.confirm("确定要删除这条记录吗？\n删除后不可恢复。")) return; setPayments((current) => current.filter((item) => item.id !== payment.id)); }} type="button"><Trash2 size={15} /> 删除</button>
-                </div>
+                <PaymentActions onDelete={() => permanentlyDelete(payment)} onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} />
               </article>
             );
           })}
@@ -183,17 +191,34 @@ export default function RentPaymentsPage() {
               <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder="先选房源，再搜索房间名称、编号" />
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
               <div className="field"><label>月份</label><input required value={form.rentMonth} onChange={(event) => setForm((current) => ({ ...current, rentMonth: event.target.value }))} placeholder="例如 2026-06" /></div>
-              <div className="field"><label>应收金额</label><input type="number" value={form.amountDue} onChange={(event) => updateMoney({ amountDue: Number(event.target.value) })} /></div>
-              <div className="field"><label>已收金额</label><input type="number" value={form.amountPaid} onChange={(event) => updateMoney({ amountPaid: Number(event.target.value) })} /></div>
-              <div className="field"><label>未收金额</label><input readOnly value={form.amountUnpaid} /></div>
-              <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod: paymentMethod as BusinessRentPayment["paymentMethod"] }))} />
-              <div className="field"><label>欠费状态</label><input readOnly value={form.isOverdue ? "欠费" : "已结清"} /></div>
-              <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
-              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" type="submit">保存</button></div>
+              <MoneyInput label="应收金额" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
+              <MoneyInput label="已收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
+              <MoneyInput label="未收金额" readOnly value={form.amountUnpaid} onChange={() => undefined} />
+              <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <div className="field"><label>收款状态</label><input readOnly value={form.isOverdue ? "欠费" : "已结清"} /></div>
+              <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
+              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
           </section>
         </div>
       ) : null}
     </AppLayout>
   );
+}
+
+function PaymentActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {
+  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
+}
+
+function markVoided(notes?: string) {
+  const clean = cleanVoidNote(notes);
+  return clean ? `[已作废] ${clean}` : "[已作废]";
+}
+
+function isVoided(notes?: string) {
+  return Boolean(notes?.includes("[已作废]"));
+}
+
+function cleanVoidNote(notes?: string) {
+  return (notes || "").replace("[已作废]", "").trim();
 }
