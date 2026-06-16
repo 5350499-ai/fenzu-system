@@ -27,9 +27,9 @@ import {
   openExpenseFile,
   uploadExpenseFile
 } from "@/lib/expense-files";
-import { euro, noteSummary } from "@/lib/format";
+import { euro } from "@/lib/format";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
@@ -67,8 +67,7 @@ export default function ExpensesPage() {
   const [storageWarning, setStorageWarning] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const month = params.get("month");
+    const month = new URLSearchParams(window.location.search).get("month");
     if (month) setMonthFilter(month);
   }, []);
 
@@ -107,7 +106,6 @@ export default function ExpensesPage() {
       ),
     [categoryFilter, expenses, monthFilter, propertyFilter]
   );
-
   const visibleExpenses = pageRows(filteredExpenses, page, pageSize);
   const roomOptions = rooms.filter((room) => room.propertyId === form.propertyId);
 
@@ -147,6 +145,11 @@ export default function ExpensesPage() {
       await saveBusinessData(expenseKey, next);
       if (pendingFile) {
         try {
+          if (form.id) {
+            const existing = filesByExpense[expenseId] || [];
+            for (const file of existing) await deleteExpenseFile(file);
+            setFiles((current) => current.filter((file) => file.expenseId !== expenseId));
+          }
           const uploaded = await uploadExpenseFile(expenseId, pendingFile);
           setFiles((current) => [uploaded, ...current]);
           setStorageWarning("");
@@ -171,15 +174,11 @@ export default function ExpensesPage() {
 
   async function permanentlyDelete(expense: BusinessExpense) {
     if (!window.confirm("确定要永久删除这条支出记录吗？\n真实发生过的财务记录建议使用“作废”，删除后不可恢复。")) return;
-    try {
-      const relatedFiles = filesByExpense[expense.id] || [];
-      for (const file of relatedFiles) await deleteExpenseFile(file);
-      await persist(expenses.filter((item) => item.id !== expense.id));
-      setFiles((current) => current.filter((file) => file.expenseId !== expense.id));
-      setDetailExpenseId("");
-    } catch (error: any) {
-      window.alert(error.message || "删除支出失败，请稍后重试。");
-    }
+    const relatedFiles = filesByExpense[expense.id] || [];
+    for (const file of relatedFiles) await deleteExpenseFile(file);
+    await persist(expenses.filter((item) => item.id !== expense.id));
+    setFiles((current) => current.filter((file) => file.expenseId !== expense.id));
+    setDetailExpenseId("");
   }
 
   function chooseFile(file?: File) {
@@ -197,19 +196,15 @@ export default function ExpensesPage() {
 
   async function removeFile(file: ExpenseFile) {
     if (!window.confirm("确定要删除这个支出附件吗？")) return;
-    try {
-      await deleteExpenseFile(file);
-      setFiles((current) => current.filter((item) => item.id !== file.id));
-    } catch (error: any) {
-      window.alert(error.message || "删除附件失败，请稍后重试。");
-    }
+    await deleteExpenseFile(file);
+    setFiles((current) => current.filter((item) => item.id !== file.id));
   }
 
   return (
-    <AppLayout title="支出管理" description="录入支出后会自动计入对应房源利润。真实支出建议作废，不建议直接删除。">
+    <AppLayout title="支出管理" description="默认压缩显示支出明细，点击一条记录后查看附件和完整信息。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">支出列表</h2><p className="muted">一行一条，点击记录展开详情。</p></div>
+          <div><h2 className="panel-title">支出列表</h2><p className="muted">默认只显示日期、类型、金额、状态。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
@@ -218,67 +213,39 @@ export default function ExpensesPage() {
           <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
           <label className="search-box"><input placeholder="筛选月份，例如 2026-06" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></label>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>支出明细</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-            <tbody>{visibleExpenses.map((expense) => {
-              const property = properties.find((item) => item.id === expense.propertyId);
-              const room = rooms.find((item) => item.id === expense.roomId);
-              const expanded = detailExpenseId === expense.id;
-              return (
-                <Fragment key={expense.id}>
-                  <tr className="compact-row" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)}>
-                    <td><strong>{expense.paymentDate || "-"}</strong>｜{expense.category || "-"}｜{euro(expense.amount)}</td>
-                    <td><StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td>
-                    <td title={expense.notes || ""}>{noteSummary(cleanVoidNote(expense.notes))}</td>
-                    <td><ExpenseActions onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} /></td>
-                  </tr>
-                  {expanded ? (
-                    <tr className="detail-row">
-                      <td colSpan={4}>
-                        <ExpenseDetail
-                          expense={expense}
-                          propertyName={property?.name || "-"}
-                          roomName={room?.name || "-"}
-                          files={filesByExpense[expense.id] || []}
-                          onDelete={() => permanentlyDelete(expense)}
-                          onFileDelete={removeFile}
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              );
-            })}</tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
+
+        <div className="finance-list">
           {visibleExpenses.map((expense) => {
             const property = properties.find((item) => item.id === expense.propertyId);
             const room = rooms.find((item) => item.id === expense.roomId);
             const expanded = detailExpenseId === expense.id;
             return (
-              <article className="mobile-record-card compact-record-card" key={expense.id}>
-                <button className="compact-record-button" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
-                  <strong>{expense.category || "-"}</strong>
-                  <span>{euro(expense.amount)}</span>
-                  <small>{expense.paymentDate || "-"} · {isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</small>
+              <article className="finance-list-item" key={expense.id}>
+                <button className="finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
+                  <span>{expense.paymentDate || "-"}</span>
+                  <span>{expense.category || "-"}</span>
+                  <strong>{euro(expense.amount)}</strong>
+                  <StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
                 </button>
-                <ExpenseActions onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} />
                 {expanded ? (
                   <ExpenseDetail
                     expense={expense}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     files={filesByExpense[expense.id] || []}
+                    onEdit={() => { setForm(expense); setOpen(true); }}
+                    onVoid={() => voidExpense(expense)}
                     onDelete={() => permanentlyDelete(expense)}
                     onFileDelete={removeFile}
+                    saving={saving}
                   />
                 ) : null}
               </article>
             );
           })}
+          {!visibleExpenses.length ? <p className="muted">暂无支出记录。</p> : null}
         </div>
+
         <PaginationControls page={page} pageSize={pageSize} total={filteredExpenses.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
 
@@ -297,7 +264,7 @@ export default function ExpensesPage() {
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
-                {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">可上传票据、截图或照片，单个附件最大 5MB。</p>}
+                {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">{form.id ? "选择新文件并保存后，会替换当前支出附件。" : "可上传票据、截图或照片，单个附件最大 5MB。"}</p>}
                 {form.id && (filesByExpense[form.id] || []).length ? <ExpenseAttachmentActions files={filesByExpense[form.id] || []} onDelete={removeFile} /> : null}
               </div>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
@@ -315,15 +282,21 @@ function ExpenseDetail({
   propertyName,
   roomName,
   files,
+  onEdit,
+  onVoid,
   onDelete,
-  onFileDelete
+  onFileDelete,
+  saving
 }: {
   expense: BusinessExpense;
   propertyName: string;
   roomName: string;
   files: ExpenseFile[];
+  onEdit: () => void;
+  onVoid: () => void;
   onDelete: () => void;
   onFileDelete: (file: ExpenseFile) => void;
+  saving: boolean;
 }) {
   return (
     <div className="record-detail-panel">
@@ -333,8 +306,13 @@ function ExpenseDetail({
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
       </div>
-      <ExpenseAttachmentActions files={files} onDelete={onFileDelete} />
+      <div>
+        <div className="detail-section-title">附件</div>
+        <ExpenseAttachmentActions files={files} onDelete={onFileDelete} />
+      </div>
       <div className="top-actions detail-actions">
+        <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button>
+        <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button>
         <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button>
       </div>
     </div>
@@ -345,9 +323,21 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function ExpenseAttachmentActions({ files, onDelete, compact }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void; compact?: boolean }) {
-  if (!files.length) return <span className="muted">-</span>;
-  return <div className="attachment-list">{files.map((file) => <div className="attachment-preview" key={file.id}><FileUp size={16} />{!compact ? <span>{file.fileName} · {formatFileSize(file.fileSize)}</span> : <span>{files.length} 个附件</span>}<button className="btn" type="button" onClick={() => openExpenseFile(file)}><Eye size={15} /> 查看</button><button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button>{!compact ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}</div>)}</div>;
+function ExpenseAttachmentActions({ files, onDelete }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void }) {
+  if (!files.length) return <span className="muted">暂无附件</span>;
+  return (
+    <div className="attachment-list">
+      {files.map((file) => (
+        <div className="attachment-preview" key={file.id}>
+          <FileUp size={16} />
+          <span>{file.fileName} · {formatFileSize(file.fileSize)}</span>
+          <button className="btn" type="button" onClick={() => openExpenseFile(file)}><Eye size={15} /> 查看</button>
+          <button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button>
+          <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function CategoryInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -364,15 +354,6 @@ function CategoryInput({ value, onChange }: { value: string; onChange: (value: s
       <datalist id="expense-category-options">
         {categories.map((category) => <option key={category} value={category} />)}
       </datalist>
-    </div>
-  );
-}
-
-function ExpenseActions({ onEdit, onVoid, saving }: { onEdit: () => void; onVoid: () => void; saving: boolean }) {
-  return (
-    <div className="top-actions compact-actions" onClick={(event) => event.stopPropagation()}>
-      <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
-      <button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button>
     </div>
   );
 }
