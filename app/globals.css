@@ -1003,6 +1003,36 @@ td:last-child {
   background: var(--surface-soft);
 }
 
+.tenant-compact-list {
+  gap: 0;
+}
+
+.tenant-finance-line {
+  grid-template-columns: minmax(74px, 1fr) minmax(58px, 0.8fr) minmax(58px, 0.8fr) minmax(82px, auto) auto;
+}
+
+.tenant-detail-panel {
+  margin: 2px 0 8px;
+}
+
+.attachment-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.file-action-button {
+  justify-self: start;
+  cursor: pointer;
+}
+
+.file-action-button input {
+  display: none;
+}
+
+.compact-attachment-list .attachment-preview {
+  flex-wrap: wrap;
+}
+
 .compact-row:hover {
   background: var(--surface-soft);
 }
