@@ -25,7 +25,7 @@ import {
   roomKey,
   saveBusinessData
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -56,6 +56,12 @@ export default function RoomsPage() {
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status) setQuery(status);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -160,8 +166,8 @@ export default function RoomsPage() {
                 <td>{properties.find((item) => item.id === room.propertyId)?.name || "-"}</td>
                 <td>{room.name}</td>
                 <td>{room.roomNumber || "-"}</td>
-                <td>€{room.monthlyRent}</td>
-                <td>€{room.depositAmount}</td>
+                <td>{euro(room.monthlyRent)}</td>
+                <td>{euro(room.depositAmount)}</td>
                 <td><StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge></td>
                 <td title={room.notes || ""}>{noteSummary(room.notes)}</td>
                 <td><RoomActions onArchive={() => archiveRoom(room)} onDelete={() => permanentlyDelete(room)} onEdit={() => { setForm(room); setOpen(true); }} onVacant={() => setVacant(room)} saving={saving} /></td>
@@ -181,8 +187,8 @@ export default function RoomsPage() {
                 </div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room.name}</strong></div>
-                  <div className="mobile-record-field"><span>月租</span><strong>€{room.monthlyRent}</strong></div>
-                  <div className="mobile-record-field"><span>押金</span><strong>€{room.depositAmount}</strong></div>
+                  <div className="mobile-record-field"><span>月租</span><strong>{euro(room.monthlyRent)}</strong></div>
+                  <div className="mobile-record-field"><span>押金</span><strong>{euro(room.depositAmount)}</strong></div>
                   <div className="mobile-record-field"><span>备注</span><strong>{expanded ? room.notes || "-" : noteSummary(room.notes)} {room.notes && room.notes.length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : room.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
                 </div>
                 <RoomActions onArchive={() => archiveRoom(room)} onDelete={() => permanentlyDelete(room)} onEdit={() => { setForm(room); setOpen(true); }} onVacant={() => setVacant(room)} saving={saving} />

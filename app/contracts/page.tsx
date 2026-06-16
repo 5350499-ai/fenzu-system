@@ -27,7 +27,7 @@ import {
   openContractFile,
   uploadContractFile
 } from "@/lib/contract-files";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -234,12 +234,12 @@ export default function ContractsPage() {
                   <td>{tenants.find((item) => item.id === contract.tenantId)?.name || "-"}</td>
                   <td>{contract.startDate || "-"}</td>
                   <td>{contract.endDate || "-"}</td>
-                  <td>€{contract.monthlyRent}</td>
-                  <td>€{contract.depositAmount}</td>
+                  <td>{euro(contract.monthlyRent)}</td>
+                  <td>{euro(contract.depositAmount)}</td>
                   <td><StatusBadge tone={contractTone(contract.status)}>{contract.status}</StatusBadge></td>
                   <td><AttachmentActions files={filesByContract[contract.id] || []} onDelete={removeFile} /></td>
                   <td title={contract.notes || ""}>{noteSummary(contract.notes)}</td>
-                  <td><ContractActions onDelete={() => permanentlyDelete(contract)} onEdit={() => { setForm(contract); setOpen(true); }} onVoid={() => voidContract(contract)} saving={saving} /></td>
+                  <td><ContractActions onEdit={() => { setForm(contract); setOpen(true); }} onVoid={() => voidContract(contract)} saving={saving} /></td>
                 </tr>
               ))}
             </tbody>
@@ -259,8 +259,8 @@ export default function ContractsPage() {
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
                   <div className="mobile-record-field"><span>开始</span><strong>{contract.startDate || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>月租</span><strong>€{contract.monthlyRent}</strong></div>
-                  <div className="mobile-record-field"><span>押金</span><strong>€{contract.depositAmount}</strong></div>
+                  <div className="mobile-record-field"><span>月租</span><strong>{euro(contract.monthlyRent)}</strong></div>
+                  <div className="mobile-record-field"><span>押金</span><strong>{euro(contract.depositAmount)}</strong></div>
                   <div className="mobile-record-field"><span>附件</span><strong><AttachmentActions files={filesByContract[contract.id] || []} onDelete={removeFile} compact /></strong></div>
                   <div className="mobile-record-field">
                     <span>备注</span>
@@ -270,7 +270,7 @@ export default function ContractsPage() {
                     </strong>
                   </div>
                 </div>
-                <ContractActions onDelete={() => permanentlyDelete(contract)} onEdit={() => { setForm(contract); setOpen(true); }} onVoid={() => voidContract(contract)} saving={saving} />
+                <ContractActions onEdit={() => { setForm(contract); setOpen(true); }} onVoid={() => voidContract(contract)} saving={saving} />
               </article>
             );
           })}
@@ -333,8 +333,8 @@ function AttachmentActions({ files, onDelete, compact }: { files: ContractFile[]
   );
 }
 
-function ContractActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {
-  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
+function ContractActions({ onEdit, onVoid, saving }: { onEdit: () => void; onVoid: () => void; saving: boolean }) {
+  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button></div>;
 }
 
 function contractTone(status: string) {

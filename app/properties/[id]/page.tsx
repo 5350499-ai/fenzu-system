@@ -183,7 +183,7 @@ export default function PropertyDetailPage() {
             <div className="list-item"><span>房间</span><strong>{scopedRooms.length} 间</strong></div>
             <div className="list-item"><span>在租租客</span><strong>{currentTenantCount} 人</strong></div>
             <div className="list-item"><span>合同</span><strong>{scopedContracts.length} 份</strong></div>
-            <div className="list-item"><span>本月收款</span><strong>€{monthlyIncome}</strong></div>
+            <div className="list-item"><span>本月收款</span><strong>{euro(monthlyIncome)}</strong></div>
           </div>
         </section>
       ) : null}
@@ -191,42 +191,42 @@ export default function PropertyDetailPage() {
       {tab === "rooms" ? (
         <ScopedTable title="房间" action="新增房间" onAdd={() => { setRoomForm(emptyRoom(propertyId)); setEditor("room"); }}>
           <thead><tr><th>房间</th><th>编号</th><th>月租</th><th>押金</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedRooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.roomNumber}</td><td>€{room.monthlyRent}</td><td>€{room.depositAmount}</td><td><StatusBadge tone={room.status === "已租" ? "green" : room.status === "空置" ? "blue" : "amber"}>{room.status}</StatusBadge></td><td title={room.notes || ""}>{noteSummary(room.notes)}</td><td><RowActions onEdit={() => { setRoomForm(room); setEditor("room"); }} onDelete={() => remove<BusinessRoom>(room.id, setRooms)} /></td></tr>)}</tbody>
+          <tbody>{scopedRooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.roomNumber}</td><td>{euro(room.monthlyRent)}</td><td>{euro(room.depositAmount)}</td><td><StatusBadge tone={room.status === "已租" ? "green" : room.status === "空置" ? "blue" : "amber"}>{room.status}</StatusBadge></td><td title={room.notes || ""}>{noteSummary(room.notes)}</td><td><RowActions onEdit={() => { setRoomForm(room); setEditor("room"); }} onDelete={() => remove<BusinessRoom>(room.id, setRooms)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
       {tab === "tenants" ? (
         <ScopedTable title="租客" action="新增租客" onAdd={() => { setTenantForm(emptyTenant(propertyId)); setEditor("tenant"); }}>
           <thead><tr><th>姓名</th><th>电话</th><th>微信</th><th>房间</th><th>月租</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedTenants.map((tenant) => <tr key={tenant.id}><td>{tenant.name}</td><td>{tenant.phone}</td><td>{tenant.wechat || "-"}</td><td>{scopedRooms.find((room) => room.id === tenant.roomId)?.name || "-"}</td><td>€{tenant.monthlyRent}</td><td><StatusBadge tone={tenant.status === "在租" ? "green" : "amber"}>{tenant.status}</StatusBadge></td><td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td><td><RowActions onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)} /></td></tr>)}</tbody>
+          <tbody>{scopedTenants.map((tenant) => <tr key={tenant.id}><td>{tenant.name}</td><td>{tenant.phone}</td><td>{tenant.wechat || "-"}</td><td>{scopedRooms.find((room) => room.id === tenant.roomId)?.name || "-"}</td><td>{euro(tenant.monthlyRent)}</td><td><StatusBadge tone={tenant.status === "在租" ? "green" : "amber"}>{tenant.status}</StatusBadge></td><td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td><td><RowActions onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
       {tab === "contracts" ? (
         <ScopedTable title="合同" action="新增合同" onAdd={() => { setContractForm(emptyContract(propertyId)); setEditor("contract"); }}>
           <thead><tr><th>房间</th><th>租客</th><th>开始</th><th>结束</th><th>月租</th><th>押金</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedContracts.map((contract) => <tr key={contract.id}><td>{scopedRooms.find((room) => room.id === contract.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === contract.tenantId)?.name || "-"}</td><td>{contract.startDate}</td><td>{contract.endDate}</td><td>€{contract.monthlyRent}</td><td>€{contract.depositAmount}</td><td><StatusBadge tone={contract.status === "有效" ? "green" : contract.status === "即将到期" ? "amber" : "red"}>{contract.status}</StatusBadge></td><td title={contract.notes || ""}>{noteSummary(contract.notes)}</td><td><RowActions onEdit={() => { setContractForm(contract); setEditor("contract"); }} onDelete={() => remove<BusinessContract>(contract.id, setContracts)} /></td></tr>)}</tbody>
+          <tbody>{scopedContracts.map((contract) => <tr key={contract.id}><td>{scopedRooms.find((room) => room.id === contract.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === contract.tenantId)?.name || "-"}</td><td>{contract.startDate}</td><td>{contract.endDate}</td><td>{euro(contract.monthlyRent)}</td><td>{euro(contract.depositAmount)}</td><td><StatusBadge tone={contract.status === "有效" ? "green" : contract.status === "即将到期" ? "amber" : "red"}>{contract.status}</StatusBadge></td><td title={contract.notes || ""}>{noteSummary(contract.notes)}</td><td><RowActions onEdit={() => { setContractForm(contract); setEditor("contract"); }} onDelete={() => remove<BusinessContract>(contract.id, setContracts)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
       {tab === "payments" ? (
         <ScopedTable title="收租" action="登记收款" onAdd={() => { setPaymentForm(emptyPayment(propertyId)); setEditor("payment"); }}>
           <thead><tr><th>月份</th><th>房间</th><th>租客</th><th>应收</th><th>已收</th><th>未收</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedPayments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>€{payment.amountDue}</td><td>€{payment.amountPaid}</td><td>€{payment.amountUnpaid}</td><td><StatusBadge tone={payment.isOverdue ? "red" : "green"}>{payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td><td title={payment.notes || ""}>{noteSummary(payment.notes)}</td><td><RowActions onEdit={() => { setPaymentForm(payment); setEditor("payment"); }} onDelete={() => remove<BusinessRentPayment>(payment.id, setPayments)} /></td></tr>)}</tbody>
+          <tbody>{scopedPayments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.isOverdue ? "red" : "green"}>{payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td><td title={payment.notes || ""}>{noteSummary(payment.notes)}</td><td><RowActions onEdit={() => { setPaymentForm(payment); setEditor("payment"); }} onDelete={() => remove<BusinessRentPayment>(payment.id, setPayments)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
       {tab === "deposits" ? (
         <ScopedTable title="押金" action="新增押金记录" onAdd={() => { setDepositForm(emptyDeposit(propertyId)); setEditor("deposit"); }}>
           <thead><tr><th>日期</th><th>房间</th><th>租客</th><th>类型</th><th>金额</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedDeposits.map((deposit) => <tr key={deposit.id}><td>{deposit.transactionDate}</td><td>{scopedRooms.find((room) => room.id === deposit.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === deposit.tenantId)?.name || "-"}</td><td>{deposit.type}</td><td>€{deposit.amount}</td><td><StatusBadge tone={deposit.status === "已收" ? "green" : deposit.status === "待退" ? "amber" : "blue"}>{deposit.status}</StatusBadge></td><td title={deposit.notes || ""}>{noteSummary(deposit.notes)}</td><td><RowActions onEdit={() => { setDepositForm(deposit); setEditor("deposit"); }} onDelete={() => remove<BusinessDeposit>(deposit.id, setDeposits)} /></td></tr>)}</tbody>
+          <tbody>{scopedDeposits.map((deposit) => <tr key={deposit.id}><td>{deposit.transactionDate}</td><td>{scopedRooms.find((room) => room.id === deposit.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === deposit.tenantId)?.name || "-"}</td><td>{deposit.type}</td><td>{euro(deposit.amount)}</td><td><StatusBadge tone={deposit.status === "已收" ? "green" : deposit.status === "待退" ? "amber" : "blue"}>{deposit.status}</StatusBadge></td><td title={deposit.notes || ""}>{noteSummary(deposit.notes)}</td><td><RowActions onEdit={() => { setDepositForm(deposit); setEditor("deposit"); }} onDelete={() => remove<BusinessDeposit>(deposit.id, setDeposits)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
       {tab === "expenses" ? (
         <ScopedTable title="支出" action="新增支出" onAdd={() => { setExpenseForm(emptyExpense(propertyId)); setEditor("expense"); }}>
-          <thead><tr><th>月份</th><th>类别</th><th>金额</th><th>付款日期</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedExpenses.map((expense) => <tr key={expense.id}><td>{expense.expenseMonth}</td><td>{expense.category}</td><td>€{expense.amount}</td><td>{expense.paymentDate || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td><td title={expense.notes || ""}>{noteSummary(expense.notes)}</td><td><RowActions onEdit={() => { setExpenseForm(expense); setEditor("expense"); }} onDelete={() => remove<BusinessExpense>(expense.id, setExpenses)} /></td></tr>)}</tbody>
+          <thead><tr><th>付款日期</th><th>类别</th><th>金额</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
+          <tbody>{scopedExpenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td><td title={expense.notes || ""}>{noteSummary(expense.notes)}</td><td><RowActions onEdit={() => { setExpenseForm(expense); setEditor("expense"); }} onDelete={() => remove<BusinessExpense>(expense.id, setExpenses)} /></td></tr>)}</tbody>
         </ScopedTable>
       ) : null}
 
@@ -267,8 +267,8 @@ export default function PropertyDetailPage() {
               <tbody>{monthProfit.payments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>)}</tbody>
             </ScopedReadOnlyTable>
             <ScopedReadOnlyTable title="支出明细">
-              <thead><tr><th>月份</th><th>类别</th><th>金额</th><th>付款日期</th><th>状态</th></tr></thead>
-              <tbody>{monthProfit.expenses.map((expense) => <tr key={expense.id}><td>{expense.expenseMonth}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td>{expense.paymentDate || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}</tbody>
+              <thead><tr><th>付款日期</th><th>类别</th><th>金额</th><th>状态</th></tr></thead>
+              <tbody>{monthProfit.expenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}</tbody>
             </ScopedReadOnlyTable>
           </div>
         </>

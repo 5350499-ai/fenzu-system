@@ -27,9 +27,9 @@ import {
   openExpenseFile,
   uploadExpenseFile
 } from "@/lib/expense-files";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
@@ -61,10 +61,16 @@ export default function ExpensesPage() {
   const [monthFilter, setMonthFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
-  const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [detailExpenseId, setDetailExpenseId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const month = params.get("month");
+    if (month) setMonthFilter(month);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -90,16 +96,18 @@ export default function ExpensesPage() {
     map[file.expenseId] = [...(map[file.expenseId] || []), file];
     return map;
   }, {}), [files]);
+
   const filteredExpenses = useMemo(
     () =>
       expenses.filter(
         (expense) =>
           (!propertyFilter || expense.propertyId === propertyFilter) &&
           (!categoryFilter || expense.category === categoryFilter) &&
-          (!monthFilter || expense.expenseMonth.includes(monthFilter))
+          (!monthFilter || expense.expenseMonth.includes(monthFilter) || expense.paymentDate.includes(monthFilter))
       ),
     [categoryFilter, expenses, monthFilter, propertyFilter]
   );
+
   const visibleExpenses = pageRows(filteredExpenses, page, pageSize);
   const roomOptions = rooms.filter((room) => room.propertyId === form.propertyId);
 
@@ -126,7 +134,12 @@ export default function ExpensesPage() {
     if (!loaded || !form.propertyId) return;
     setSaving(true);
     const expenseId = form.id || crypto.randomUUID();
-    const nextExpense = { ...form, id: expenseId, expenseMonth: (form.paymentDate || new Date().toISOString()).slice(0, 7) };
+    const nextExpense = {
+      ...form,
+      id: expenseId,
+      amount: Number(form.amount || 0),
+      expenseMonth: (form.paymentDate || new Date().toISOString()).slice(0, 7)
+    };
     const next = form.id
       ? expenses.map((expense) => (expense.id === form.id ? nextExpense : expense))
       : [nextExpense, ...expenses];
@@ -163,6 +176,7 @@ export default function ExpensesPage() {
       for (const file of relatedFiles) await deleteExpenseFile(file);
       await persist(expenses.filter((item) => item.id !== expense.id));
       setFiles((current) => current.filter((file) => file.expenseId !== expense.id));
+      setDetailExpenseId("");
     } catch (error: any) {
       window.alert(error.message || "删除支出失败，请稍后重试。");
     }
@@ -195,7 +209,7 @@ export default function ExpensesPage() {
     <AppLayout title="支出管理" description="录入支出后会自动计入对应房源利润。真实支出建议作废，不建议直接删除。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">支出列表</h2><p className="muted">支持按房源、类别、月份筛选，并可上传票据附件。</p></div>
+          <div><h2 className="panel-title">支出列表</h2><p className="muted">一行一条，点击记录展开详情。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
@@ -206,40 +220,61 @@ export default function ExpensesPage() {
         </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>日期</th><th>房源</th><th>房间</th><th>类型</th><th>金额</th><th>付款方式</th><th>状态</th><th>附件</th><th>备注</th><th>操作</th></tr></thead>
-            <tbody>{visibleExpenses.map((expense) => (
-              <tr key={expense.id}>
-                <td>{expense.paymentDate || "-"}</td>
-                <td>{properties.find((property) => property.id === expense.propertyId)?.name || "-"}</td>
-                <td>{rooms.find((room) => room.id === expense.roomId)?.name || "-"}</td>
-                <td>{expense.category}</td>
-                <td>€{expense.amount}</td>
-                <td>{expense.paymentMethod || "-"}</td>
-                <td><StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td>
-                <td><ExpenseAttachmentActions files={filesByExpense[expense.id] || []} onDelete={removeFile} /></td>
-                <td title={expense.notes || ""}>{noteSummary(cleanVoidNote(expense.notes))}</td>
-                <td><ExpenseActions onDelete={() => permanentlyDelete(expense)} onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} /></td>
-              </tr>
-            ))}</tbody>
+            <thead><tr><th>支出明细</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
+            <tbody>{visibleExpenses.map((expense) => {
+              const property = properties.find((item) => item.id === expense.propertyId);
+              const room = rooms.find((item) => item.id === expense.roomId);
+              const expanded = detailExpenseId === expense.id;
+              return (
+                <Fragment key={expense.id}>
+                  <tr className="compact-row" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)}>
+                    <td><strong>{expense.paymentDate || "-"}</strong>｜{expense.category || "-"}｜{euro(expense.amount)}</td>
+                    <td><StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td>
+                    <td title={expense.notes || ""}>{noteSummary(cleanVoidNote(expense.notes))}</td>
+                    <td><ExpenseActions onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} /></td>
+                  </tr>
+                  {expanded ? (
+                    <tr className="detail-row">
+                      <td colSpan={4}>
+                        <ExpenseDetail
+                          expense={expense}
+                          propertyName={property?.name || "-"}
+                          roomName={room?.name || "-"}
+                          files={filesByExpense[expense.id] || []}
+                          onDelete={() => permanentlyDelete(expense)}
+                          onFileDelete={removeFile}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}</tbody>
           </table>
         </div>
         <div className="mobile-card-list">
           {visibleExpenses.map((expense) => {
             const property = properties.find((item) => item.id === expense.propertyId);
             const room = rooms.find((item) => item.id === expense.roomId);
-            const expanded = expandedNoteId === expense.id;
+            const expanded = detailExpenseId === expense.id;
             return (
-              <article className="mobile-record-card" key={expense.id}>
-                <div className="mobile-record-title"><strong>{property?.name || "-"}</strong><span>{expense.category} · €{expense.amount}</span></div>
-                <div className="mobile-record-fields">
-                  <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>日期</span><strong>{expense.paymentDate || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>付款方式</span><strong>{expense.paymentMethod || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>状态</span><strong><StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge></strong></div>
-                  <div className="mobile-record-field"><span>附件</span><strong><ExpenseAttachmentActions files={filesByExpense[expense.id] || []} onDelete={removeFile} compact /></strong></div>
-                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? cleanVoidNote(expense.notes) || "-" : noteSummary(cleanVoidNote(expense.notes))} {cleanVoidNote(expense.notes).length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : expense.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
-                </div>
-                <ExpenseActions onDelete={() => permanentlyDelete(expense)} onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} />
+              <article className="mobile-record-card compact-record-card" key={expense.id}>
+                <button className="compact-record-button" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
+                  <strong>{expense.category || "-"}</strong>
+                  <span>{euro(expense.amount)}</span>
+                  <small>{expense.paymentDate || "-"} · {isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</small>
+                </button>
+                <ExpenseActions onEdit={() => { setForm(expense); setOpen(true); }} onVoid={() => voidExpense(expense)} saving={saving} />
+                {expanded ? (
+                  <ExpenseDetail
+                    expense={expense}
+                    propertyName={property?.name || "-"}
+                    roomName={room?.name || "-"}
+                    files={filesByExpense[expense.id] || []}
+                    onDelete={() => permanentlyDelete(expense)}
+                    onFileDelete={removeFile}
+                  />
+                ) : null}
               </article>
             );
           })}
@@ -275,6 +310,41 @@ export default function ExpensesPage() {
   );
 }
 
+function ExpenseDetail({
+  expense,
+  propertyName,
+  roomName,
+  files,
+  onDelete,
+  onFileDelete
+}: {
+  expense: BusinessExpense;
+  propertyName: string;
+  roomName: string;
+  files: ExpenseFile[];
+  onDelete: () => void;
+  onFileDelete: (file: ExpenseFile) => void;
+}) {
+  return (
+    <div className="record-detail-panel">
+      <div className="detail-grid">
+        <DetailField label="房源" value={propertyName} />
+        <DetailField label="房间" value={roomName} />
+        <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
+        <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
+      </div>
+      <ExpenseAttachmentActions files={files} onDelete={onFileDelete} />
+      <div className="top-actions detail-actions">
+        <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+}
+
 function ExpenseAttachmentActions({ files, onDelete, compact }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void; compact?: boolean }) {
   if (!files.length) return <span className="muted">-</span>;
   return <div className="attachment-list">{files.map((file) => <div className="attachment-preview" key={file.id}><FileUp size={16} />{!compact ? <span>{file.fileName} · {formatFileSize(file.fileSize)}</span> : <span>{files.length} 个附件</span>}<button className="btn" type="button" onClick={() => openExpenseFile(file)}><Eye size={15} /> 查看</button><button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button>{!compact ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}</div>)}</div>;
@@ -298,8 +368,13 @@ function CategoryInput({ value, onChange }: { value: string; onChange: (value: s
   );
 }
 
-function ExpenseActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {
-  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
+function ExpenseActions({ onEdit, onVoid, saving }: { onEdit: () => void; onVoid: () => void; saving: boolean }) {
+  return (
+    <div className="top-actions compact-actions" onClick={(event) => event.stopPropagation()}>
+      <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
+      <button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button>
+    </div>
+  );
 }
 
 function markVoided(notes?: string) {
@@ -308,9 +383,9 @@ function markVoided(notes?: string) {
 }
 
 function isVoided(notes?: string) {
-  return Boolean(notes?.includes("[已作废]"));
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
 
 function cleanVoidNote(notes?: string) {
-  return (notes || "").replace("[已作废]", "").trim();
+  return (notes || "").replace("[已作废]", "").replace("[宸蹭綔搴焆", "").trim();
 }

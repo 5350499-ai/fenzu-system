@@ -120,8 +120,8 @@ export default function PropertyProfitDetailPage() {
             return <tr key={payment.id}><td>{payment.rentMonth}</td><td>{room?.name || "-"}</td><td>{tenant?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td className={payment.amountUnpaid > 0 ? "danger-text" : ""}>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>;
           })}
         </DetailTable>
-        <DetailTable title="支出明细" headers={["月份", "日期", "类型", "金额", "付款方式", "状态"]}>
-          {stat.expenses.map((expense) => <tr key={expense.id}><td>{expense.expenseMonth}</td><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td>{expense.paymentMethod || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}
+        <DetailTable title="支出明细" headers={["日期", "类型", "金额", "付款方式", "状态"]}>
+          {stat.expenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td>{expense.paymentMethod || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}
         </DetailTable>
       </div>
 

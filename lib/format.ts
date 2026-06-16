@@ -4,8 +4,9 @@ export function euro(value: number) {
   return new Intl.NumberFormat("zh-CN", {
     style: "currency",
     currency: "EUR",
-    maximumFractionDigits: 0
-  }).format(value);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(value || 0));
 }
 
 export const roomStatusLabel: Record<RoomStatus, string> = {

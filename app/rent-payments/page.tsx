@@ -1,7 +1,7 @@
 "use client";
 
-import { MoneyInput } from "@/components/money-input";
 import { AppLayout } from "@/components/app-layout";
+import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -15,12 +15,15 @@ import {
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
+  propertyKey,
   rentPaymentKey,
-  saveBusinessData
+  roomKey,
+  saveBusinessData,
+  tenantKey
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 const emptyPayment: BusinessRentPayment = {
   id: "",
@@ -46,17 +49,25 @@ export default function RentPaymentsPage() {
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
-  const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [detailPaymentId, setDetailPaymentId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setMonthFilter(params.get("month") || "");
+    setOverdueOnly(params.get("overdue") === "1");
+  }, []);
+
+  useEffect(() => {
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
+      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
       setProperties(loadedProperties);
       setRooms(loadedRooms);
@@ -71,14 +82,16 @@ export default function RentPaymentsPage() {
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
   const filteredPayments = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return payments;
     return payments.filter((payment) => {
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
       const tenant = tenants.find((item) => item.id === payment.tenantId);
-      return `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase().includes(keyword);
+      const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
+      return (!keyword || text.includes(keyword)) &&
+        (!monthFilter || payment.rentMonth.includes(monthFilter)) &&
+        (!overdueOnly || payment.isOverdue || Number(payment.amountUnpaid || 0) > 0);
     });
-  }, [payments, properties, query, rooms, tenants]);
+  }, [monthFilter, overdueOnly, payments, properties, query, rooms, tenants]);
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
 
   function close() {
@@ -114,9 +127,16 @@ export default function RentPaymentsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.tenantId) return;
+    const nextPayment = {
+      ...form,
+      amountDue: Number(form.amountDue || 0),
+      amountPaid: Number(form.amountPaid || 0),
+      amountUnpaid: Math.max(Number(form.amountDue || 0) - Number(form.amountPaid || 0), 0)
+    };
+    nextPayment.isOverdue = nextPayment.amountUnpaid > 0;
     const next = form.id
-      ? payments.map((payment) => (payment.id === form.id ? form : payment))
-      : [{ ...form, id: crypto.randomUUID() }, ...payments];
+      ? payments.map((payment) => (payment.id === form.id ? nextPayment : payment))
+      : [{ ...nextPayment, id: crypto.randomUUID() }, ...payments];
     await persist(next);
     close();
   }
@@ -129,52 +149,86 @@ export default function RentPaymentsPage() {
   async function permanentlyDelete(payment: BusinessRentPayment) {
     if (!window.confirm("确定要永久删除这条收租记录吗？\n真实发生过的财务记录建议使用“作废”，删除后不可恢复。")) return;
     await persist(payments.filter((item) => item.id !== payment.id));
+    setDetailPaymentId("");
+  }
+
+  function resetFilters() {
+    setQuery("");
+    setMonthFilter("");
+    setOverdueOnly(false);
+    setPage(1);
   }
 
   return (
     <AppLayout title="收租管理" description="收款必须关联房源、房间、租客。真实财务记录建议作废，不建议删除。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">收租记录</h2><p className="muted">新增收款必须按房源 → 房间 → 租客选择。</p></div>
+          <div><h2 className="panel-title">收租记录</h2><p className="muted">一行一条，点击记录展开详情。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 登记收款</button>
         </div>
-        <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信、月份" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
+        <div className="list-controls">
+          <label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信、月份" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+          <label className="search-box"><input placeholder="筛选月份，例如 2026-06" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></label>
+          <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => setOverdueOnly((current) => !current)} type="button">只看欠费</button>
+          {(query || monthFilter || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
+        </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>日期</th><th>房间</th><th>租客</th><th>金额</th><th>状态</th><th>付款方式</th><th>备注</th><th>操作</th></tr></thead>
+            <thead><tr><th>收租明细</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
             <tbody>{visiblePayments.map((payment) => {
+              const property = properties.find((item) => item.id === payment.propertyId);
               const room = rooms.find((item) => item.id === payment.roomId);
               const tenant = tenants.find((item) => item.id === payment.tenantId);
+              const expanded = detailPaymentId === payment.id;
               return (
-                <tr key={payment.id}>
-                  <td>{payment.rentMonth}</td>
-                  <td>{room?.name || "-"}</td>
-                  <td>{tenant?.name || "-"}</td>
-                  <td>应收 €{payment.amountDue} / 已收 €{payment.amountPaid} / 欠费 €{payment.amountUnpaid}</td>
-                  <td><StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td>
-                  <td>{payment.paymentMethod}</td>
-                  <td title={payment.notes || ""}>{noteSummary(cleanVoidNote(payment.notes))}</td>
-                  <td><PaymentActions onDelete={() => permanentlyDelete(payment)} onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} /></td>
-                </tr>
+                <Fragment key={payment.id}>
+                  <tr className="compact-row" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)}>
+                    <td><strong>{payment.rentMonth}</strong>｜{tenant?.name || "-"}｜已收 {euro(payment.amountPaid)}｜欠费 {euro(payment.amountUnpaid)}</td>
+                    <td><StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td>
+                    <td title={payment.notes || ""}>{noteSummary(cleanVoidNote(payment.notes))}</td>
+                    <td><PaymentActions onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} /></td>
+                  </tr>
+                  {expanded ? (
+                    <tr className="detail-row">
+                      <td colSpan={4}>
+                        <PaymentDetail
+                          payment={payment}
+                          propertyName={property?.name || "-"}
+                          roomName={room?.name || "-"}
+                          tenantName={tenant?.name || "-"}
+                          onDelete={() => permanentlyDelete(payment)}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}</tbody>
           </table>
         </div>
         <div className="mobile-card-list">
           {visiblePayments.map((payment) => {
-            const tenant = tenants.find((item) => item.id === payment.tenantId);
+            const property = properties.find((item) => item.id === payment.propertyId);
             const room = rooms.find((item) => item.id === payment.roomId);
-            const expanded = expandedNoteId === payment.id;
+            const tenant = tenants.find((item) => item.id === payment.tenantId);
+            const expanded = detailPaymentId === payment.id;
             return (
-              <article className="mobile-record-card" key={payment.id}>
-                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span>{payment.rentMonth} · <StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></span></div>
-                <div className="mobile-record-fields">
-                  <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>金额</span><strong>应收 €{payment.amountDue} / 已收 €{payment.amountPaid} / 欠费 €{payment.amountUnpaid}</strong></div>
-                  <div className="mobile-record-field"><span>付款方式</span><strong>{payment.paymentMethod}</strong></div>
-                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? cleanVoidNote(payment.notes) || "-" : noteSummary(cleanVoidNote(payment.notes))} {cleanVoidNote(payment.notes).length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : payment.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
-                </div>
-                <PaymentActions onDelete={() => permanentlyDelete(payment)} onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} />
+              <article className="mobile-record-card compact-record-card" key={payment.id}>
+                <button className="compact-record-button" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
+                  <strong>{tenant?.name || "-"}</strong>
+                  <span>{payment.rentMonth} · 欠费 {euro(payment.amountUnpaid)}</span>
+                  <small>{room?.name || "-"} · {isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</small>
+                </button>
+                <PaymentActions onEdit={() => { setForm(payment); setOpen(true); }} onVoid={() => voidPayment(payment)} saving={saving} />
+                {expanded ? (
+                  <PaymentDetail
+                    payment={payment}
+                    propertyName={property?.name || "-"}
+                    roomName={room?.name || "-"}
+                    tenantName={tenant?.name || "-"}
+                    onDelete={() => permanentlyDelete(payment)}
+                  />
+                ) : null}
               </article>
             );
           })}
@@ -206,8 +260,49 @@ export default function RentPaymentsPage() {
   );
 }
 
-function PaymentActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {
-  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
+function PaymentDetail({
+  payment,
+  propertyName,
+  roomName,
+  tenantName,
+  onDelete
+}: {
+  payment: BusinessRentPayment;
+  propertyName: string;
+  roomName: string;
+  tenantName: string;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="record-detail-panel">
+      <div className="detail-grid">
+        <DetailField label="房源" value={propertyName} />
+        <DetailField label="房间" value={roomName} />
+        <DetailField label="租客" value={tenantName} />
+        <DetailField label="应收" value={euro(payment.amountDue)} />
+        <DetailField label="已收" value={euro(payment.amountPaid)} />
+        <DetailField label="欠费" value={euro(payment.amountUnpaid)} />
+        <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
+        <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
+      </div>
+      <div className="top-actions detail-actions">
+        <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function PaymentActions({ onEdit, onVoid, saving }: { onEdit: () => void; onVoid: () => void; saving: boolean }) {
+  return (
+    <div className="top-actions compact-actions" onClick={(event) => event.stopPropagation()}>
+      <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
+      <button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button>
+    </div>
+  );
 }
 
 function markVoided(notes?: string) {
@@ -216,9 +311,9 @@ function markVoided(notes?: string) {
 }
 
 function isVoided(notes?: string) {
-  return Boolean(notes?.includes("[已作废]"));
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
 
 function cleanVoidNote(notes?: string) {
-  return (notes || "").replace("[已作废]", "").trim();
+  return (notes || "").replace("[已作废]", "").replace("[宸蹭綔搴焆", "").trim();
 }

@@ -134,13 +134,12 @@ export default function AnalyticsPage() {
               </tr>
             ))}
           </DetailTable>
-          <DetailTable title="支出明细" headers={["月份", "类别", "金额", "付款日期", "状态"]}>
+          <DetailTable title="支出明细" headers={["付款日期", "类别", "金额", "状态"]}>
             {selected.expenses.map((expense) => (
               <tr key={expense.id}>
-                <td>{expense.expenseMonth}</td>
+                <td>{expense.paymentDate || "-"}</td>
                 <td>{expense.category}</td>
                 <td>{euro(expense.amount)}</td>
-                <td>{expense.paymentDate || "-"}</td>
                 <td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td>
               </tr>
             ))}

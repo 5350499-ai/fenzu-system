@@ -1,15 +1,19 @@
+import Link from "next/link";
+
 export function MetricCard({
   label,
   value,
   note,
   tone,
-  hero
+  hero,
+  href
 }: {
   label: string;
   value: string;
   note?: string;
   tone?: "profit" | "danger" | "warning" | "info";
   hero?: boolean;
+  href?: string;
 }) {
   const toneClass =
     tone === "profit"
@@ -22,7 +26,7 @@ export function MetricCard({
             ? "info-text"
             : "";
 
-  return (
+  const content = (
     <section className={`card metric-card ${hero ? "hero" : ""}`}>
       <div className="metric-label">
         <span>{label}</span>
@@ -30,5 +34,13 @@ export function MetricCard({
       <div className={`metric-value ${toneClass}`}>{value}</div>
       {note ? <div className="metric-note">{note}</div> : null}
     </section>
+  );
+
+  if (!href) return content;
+
+  return (
+    <Link className="metric-link" href={href}>
+      {content}
+    </Link>
   );
 }

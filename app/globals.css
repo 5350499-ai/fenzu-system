@@ -325,6 +325,17 @@ a {
   padding: 14px;
 }
 
+.metric-link {
+  color: inherit;
+  display: block;
+  height: 100%;
+  text-decoration: none;
+}
+
+.metric-link .metric-card {
+  height: 100%;
+}
+
 .mobile-shortcuts {
   display: block;
   padding: 16px;
@@ -334,6 +345,14 @@ a {
 .compact-shortcuts {
   margin-top: 12px;
   padding: 12px;
+}
+
+.home-shortcuts {
+  margin-top: 14px;
+}
+
+.compact-icon-grid {
+  gap: 8px;
 }
 
 .shortcut-header {
@@ -364,6 +383,12 @@ a {
     border-color 160ms ease;
 }
 
+.compact-icon-card {
+  min-height: 64px;
+  gap: 5px;
+  padding: 8px 6px;
+}
+
 .shortcut-card:hover {
   transform: translateY(-1px);
   background: var(--surface-hover);
@@ -373,6 +398,10 @@ a {
 .shortcut-card strong {
   overflow-wrap: anywhere;
   font-size: 13px;
+}
+
+.compact-icon-card strong {
+  font-size: 12px;
 }
 
 .shortcut-icon {
@@ -884,6 +913,94 @@ td:last-child {
   display: none;
 }
 
+.compact-row {
+  cursor: pointer;
+}
+
+.compact-row:hover {
+  background: var(--surface-soft);
+}
+
+.detail-row td {
+  background: transparent;
+  padding-top: 0;
+}
+
+.record-detail-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.detail-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.detail-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-field strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.detail-actions {
+  justify-content: flex-end;
+}
+
+.compact-actions {
+  flex-wrap: nowrap;
+}
+
+.compact-record-card {
+  gap: 8px;
+  padding: 10px;
+}
+
+.compact-record-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.compact-record-button strong,
+.compact-record-button span,
+.compact-record-button small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.compact-record-button span {
+  font-weight: 850;
+}
+
+.compact-record-button small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .mobile-record-card {
   display: grid;
   gap: 12px;
@@ -1155,15 +1272,30 @@ td:last-child {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .compact-icon-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .compact-shortcuts .shortcut-card {
     min-height: 76px;
     gap: 6px;
+  }
+
+  .compact-shortcuts .compact-icon-card {
+    min-height: 58px;
+    padding: 7px 4px;
   }
 
   .compact-shortcuts .shortcut-icon {
     width: 34px;
     height: 34px;
     border-radius: 12px;
+  }
+
+  .compact-shortcuts .compact-icon-card .shortcut-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
   }
 
   .list-controls,

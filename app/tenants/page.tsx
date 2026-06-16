@@ -26,8 +26,8 @@ import {
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
-import { Archive, Edit3, Plus, Trash2, X } from "lucide-react";
+import { euro, noteSummary } from "@/lib/format";
+import { Archive, Edit3, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const emptyTenant: BusinessTenant = {
@@ -179,10 +179,10 @@ export default function TenantsPage() {
                 <td>{properties.find((item) => item.id === tenant.propertyId)?.name || "-"}</td>
                 <td>{rooms.find((item) => item.id === tenant.roomId)?.name || "-"}</td>
                 <td>{tenant.source || "-"}</td>
-                <td>€{tenant.monthlyRent}</td>
+                <td>{euro(tenant.monthlyRent)}</td>
                 <td><StatusBadge tone={tenant.status === "在租" ? "green" : tenant.status === "已退租" ? "red" : "amber"}>{tenant.status}</StatusBadge></td>
                 <td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td>
-                <td><TenantActions onDelete={() => permanentlyDelete(tenant)} onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} /></td>
+                <td><TenantActions onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} /></td>
               </tr>
             ))}</tbody>
           </table>
@@ -199,10 +199,10 @@ export default function TenantsPage() {
                   <div className="mobile-record-field"><span>电话</span><strong>{tenant.phone || "-"}</strong></div>
                   <div className="mobile-record-field"><span>微信</span><strong>{tenant.wechat || "-"}</strong></div>
                   <div className="mobile-record-field"><span>来源</span><strong>{tenant.source}</strong></div>
-                  <div className="mobile-record-field"><span>月租</span><strong>€{tenant.monthlyRent}</strong></div>
+                  <div className="mobile-record-field"><span>月租</span><strong>{euro(tenant.monthlyRent)}</strong></div>
                   <div className="mobile-record-field"><span>备注</span><strong>{expanded ? tenant.notes || "-" : noteSummary(tenant.notes)} {tenant.notes && tenant.notes.length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : tenant.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
                 </div>
-                <TenantActions onDelete={() => permanentlyDelete(tenant)} onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} />
+                <TenantActions onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} />
               </article>
             );
           })}
@@ -234,12 +234,11 @@ export default function TenantsPage() {
   );
 }
 
-function TenantActions({ onEdit, onMoveOut, onDelete, saving }: { onEdit: () => void; onMoveOut: () => void; onDelete: () => void; saving: boolean }) {
+function TenantActions({ onEdit, onMoveOut, saving }: { onEdit: () => void; onMoveOut: () => void; saving: boolean }) {
   return (
     <div className="top-actions">
       <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
       <button className="btn" disabled={saving} onClick={onMoveOut} type="button"><Archive size={15} /> 退租/归档</button>
-      <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button>
     </div>
   );
 }

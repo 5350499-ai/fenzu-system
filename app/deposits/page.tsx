@@ -18,7 +18,7 @@ import {
   loadBusinessData,
   saveBusinessData
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
+import { euro, noteSummary } from "@/lib/format";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -141,7 +141,7 @@ export default function DepositsPage() {
                   <td>{deposit.transactionDate || "-"}</td>
                   <td>{room?.name || "-"}</td>
                   <td>{tenant?.name || "-"}</td>
-                  <td>€{deposit.amount}</td>
+                  <td>{euro(deposit.amount)}</td>
                   <td><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge></td>
                   <td>{deposit.type}</td>
                   <td title={deposit.notes || ""}>{noteSummary(cleanVoidNote(deposit.notes))}</td>
@@ -158,7 +158,7 @@ export default function DepositsPage() {
             const expanded = expandedNoteId === deposit.id;
             return (
               <article className="mobile-record-card" key={deposit.id}>
-                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · €{deposit.amount}</span></div>
+                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
                   <div className="mobile-record-field"><span>类型</span><strong>{deposit.type}</strong></div>
