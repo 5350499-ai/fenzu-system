@@ -288,6 +288,20 @@ a {
   color: var(--amber);
 }
 
+.notice {
+  margin: 12px 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.notice.warning {
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--border));
+  background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+  color: var(--text);
+}
+
 .info-text {
   color: var(--blue);
 }
@@ -305,7 +319,7 @@ a {
 }
 
 .mobile-shortcuts {
-  display: none;
+  display: block;
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -509,6 +523,29 @@ a {
   color: var(--text);
   font-size: 32px;
   font-weight: 900;
+}
+
+.profit-mini-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.profit-mini-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.profit-mini-text strong {
+  color: var(--text);
 }
 
 .attachment-list {
@@ -1142,6 +1179,15 @@ td:last-child {
 
   .profit-card-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .profit-mini-card {
+    display: grid;
+  }
+
+  .profit-mini-card .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .table-wrap {

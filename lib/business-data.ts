@@ -322,6 +322,10 @@ export function getInitialProperties(): BusinessProperty[] {
   return isSupabaseConfigured ? [] : readStored<BusinessProperty[]>(propertyKey) || [];
 }
 
+function isMissingExpenseOptionalColumn(message: string) {
+  return message.includes("room_id") || message.includes("payment_method") || message.includes("schema cache");
+}
+
 export function getInitialRooms(..._args: unknown[]): BusinessRoom[] {
   return isSupabaseConfigured ? [] : readStored<BusinessRoom[]>(roomKey) || [];
 }
@@ -392,7 +396,15 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   const rows = value.filter((row) => row.id).map((row) => config.toDb(row, session.user.id));
   if (rows.length) {
     const { error } = await supabase.from(config.table).upsert(rows);
-    if (error) throw new Error(toBusinessError(error.message));
+    if (error) {
+      if (config.table === "expenses" && isMissingExpenseOptionalColumn(error.message)) {
+        const fallbackRows = rows.map(({ room_id, payment_method, ...row }) => row);
+        const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
+        if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
+      } else {
+        throw new Error(toBusinessError(error.message));
+      }
+    }
   }
 
   writeRemoteIds(key, nextIds);

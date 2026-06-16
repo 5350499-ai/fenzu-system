@@ -29,31 +29,18 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import {
-  AlertTriangle,
-  Building2,
-  FileClock,
-  FileText,
-  Home,
-  LogIn,
-  Plus,
-  ReceiptText,
-  ShieldAlert,
-  UserPlus
-} from "lucide-react";
+import { AlertTriangle, FileClock, Home, LogIn, Plus, ReceiptText, ShieldAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const HOME_LIMIT = 5;
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green" },
-  { title: "新增房源", href: "/properties", icon: Plus, tone: "blue" },
-  { title: "新增房间", href: "/rooms", icon: Home, tone: "amber" },
-  { title: "新增租客", href: "/tenants", icon: UserPlus, tone: "blue" },
   { title: "录入收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
   { title: "录入支出", href: "/expenses", icon: ReceiptText, tone: "red" },
-  { title: "合同管理", href: "/contracts", icon: FileText, tone: "blue" },
-  { title: "房源管理", href: "/properties", icon: Building2, tone: "amber" }
+  { title: "新增房源", href: "/properties", icon: Plus, tone: "blue" },
+  { title: "新增房间", href: "/rooms", icon: Home, tone: "amber" },
+  { title: "新增租客", href: "/tenants", icon: UserPlus, tone: "blue" }
 ];
 
 export default function DashboardPage() {
@@ -131,22 +118,6 @@ export default function DashboardPage() {
         <MetricCard label="欠费人数" value={`${overdueRows.length} 人`} note="存在未收金额的记录" tone={overdueRows.length ? "danger" : "info"} />
       </div>
 
-      <section className="card panel">
-        <div className="panel-header">
-          <div>
-            <h2 className="panel-title">房源利润概览</h2>
-            <p className="muted">首页只显示摘要，详细盈亏进入独立分析页查看。</p>
-          </div>
-          <Link className="btn primary" href="/property-profits">查看房源利润分析</Link>
-        </div>
-        <div className="profit-summary-grid">
-          <div className="profit-summary-item"><span>盈利房源</span><strong className="profit">{profitablePropertyCount}</strong></div>
-          <div className="profit-summary-item"><span>亏损房源</span><strong className={lossPropertyCount ? "danger-text" : ""}>{lossPropertyCount}</strong></div>
-          <div className="profit-summary-item"><span>欠租房源</span><strong className={unpaidPropertyCount ? "danger-text" : ""}>{unpaidPropertyCount}</strong></div>
-          <div className="profit-summary-item"><span>空置风险</span><strong className={vacancyRiskPropertyCount ? "warning-text" : ""}>{vacancyRiskPropertyCount}</strong></div>
-        </div>
-      </section>
-
       <section className="mobile-shortcuts card compact-shortcuts">
         <div className="shortcut-grid">
           {shortcuts.map((item) => {
@@ -154,6 +125,17 @@ export default function DashboardPage() {
             return <Link className="shortcut-card" href={item.href} key={item.title}><span className={`shortcut-icon ${item.tone}`}><Icon size={20} /></span><strong>{item.title}</strong></Link>;
           })}
         </div>
+      </section>
+
+      <section className="card profit-mini-card">
+        <div className="profit-mini-text">
+          <strong>房源利润：</strong>
+          <span>盈利 {profitablePropertyCount}</span>
+          <span>亏损 {lossPropertyCount}</span>
+          <span>欠租 {unpaidPropertyCount}</span>
+          <span>空置风险 {vacancyRiskPropertyCount}</span>
+        </div>
+        <Link className="btn primary" href="/property-profits">查看分析</Link>
       </section>
 
       <section className="grid risk-grid">

@@ -64,6 +64,7 @@ export default function ExpensesPage() {
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [storageWarning, setStorageWarning] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -73,7 +74,13 @@ export default function ExpensesPage() {
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setExpenses(loadedExpenses);
-      setFiles(await loadExpenseFiles(loadedExpenses.map((expense) => expense.id)));
+      try {
+        setFiles(await loadExpenseFiles(loadedExpenses.map((expense) => expense.id)));
+        setStorageWarning("");
+      } catch {
+        setFiles([]);
+        setStorageWarning("支出附件功能未初始化，请先执行 expense-files SQL。普通支出记录仍可保存。");
+      }
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));
@@ -126,8 +133,14 @@ export default function ExpensesPage() {
     try {
       await saveBusinessData(expenseKey, next);
       if (pendingFile) {
-        const uploaded = await uploadExpenseFile(expenseId, pendingFile);
-        setFiles((current) => [uploaded, ...current]);
+        try {
+          const uploaded = await uploadExpenseFile(expenseId, pendingFile);
+          setFiles((current) => [uploaded, ...current]);
+          setStorageWarning("");
+        } catch (error: any) {
+          setStorageWarning("支出附件功能未初始化，请先执行 expense-files SQL。普通支出记录已保存。");
+          window.alert(error.message || "支出已保存，但附件上传失败。请执行 expense-files SQL 后再上传附件。");
+        }
       }
       setExpenses(next);
       close();
@@ -185,6 +198,7 @@ export default function ExpensesPage() {
           <div><h2 className="panel-title">支出列表</h2><p className="muted">支持按房源、类别、月份筛选，并可上传票据附件。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button>
         </div>
+        {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
           <select value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
           <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
