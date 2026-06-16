@@ -22,6 +22,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const navGroups = [
   {
@@ -72,12 +73,48 @@ export function AppLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState("light");
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme") || "light";
     setTheme(saved);
     document.documentElement.dataset.theme = saved;
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function checkAuth() {
+      if (!isSupabaseConfigured || !supabase) {
+        if (!alive) return;
+        setAuthError("系统尚未配置 Supabase 登录服务。");
+        setAuthChecked(true);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
+
+      if (!data.session) {
+        router.replace("/login");
+        return;
+      }
+
+      setAuthChecked(true);
+    }
+
+    checkAuth();
+
+    const { data: listener } = supabase?.auth.onAuthStateChange((_event, session) => {
+      if (!session) router.replace("/login");
+    }) || { data: { subscription: null } };
+
+    return () => {
+      alive = false;
+      listener.subscription?.unsubscribe();
+    };
+  }, [router]);
 
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -86,9 +123,20 @@ export function AppLayout({
     document.documentElement.dataset.theme = next;
   }
 
-  function logout() {
-    window.localStorage.removeItem("demo-auth");
+  async function logout() {
+    await supabase?.auth.signOut();
     router.push("/login");
+  }
+
+  if (!authChecked) {
+    return (
+      <main className="login-page">
+        <section className="card login-card">
+          <div className="brand-title">正在检查登录状态...</div>
+          {authError ? <p className="danger-text">{authError}</p> : null}
+        </section>
+      </main>
+    );
   }
 
   return (

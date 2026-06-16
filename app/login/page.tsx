@@ -1,18 +1,47 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("demo@example.com");
+  const [email, setEmail] = useState("admin@test.com");
   const [password, setPassword] = useState("123456");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace("/");
+    });
+  }, [router]);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    window.localStorage.setItem("demo-auth", JSON.stringify({ email }));
-    router.push("/");
+    setError("");
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError("系统尚未配置 Supabase 环境变量，请先在 Vercel 中配置登录服务。");
+      return;
+    }
+
+    setLoading(true);
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    setLoading(false);
+
+    if (loginError) {
+      setError("登录失败，请检查邮箱和密码是否正确。");
+      return;
+    }
+
+    router.replace("/");
+    router.refresh();
   }
 
   return (
@@ -37,11 +66,10 @@ export default function LoginPage() {
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
           </div>
           <button className="btn primary" type="submit">
-            登录系统
+            {loading ? "登录中..." : "登录系统"}
           </button>
-          <p className="muted">
-            当前为本地演示登录。接入 Supabase 环境变量后，可替换为真实邮箱登录。
-          </p>
+          {error ? <p className="danger-text">{error}</p> : null}
+          <p className="muted">请输入管理员邮箱和密码。未登录用户不能访问系统页面。</p>
         </form>
       </section>
     </main>
