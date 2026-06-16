@@ -22,8 +22,18 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
+import { Building2, FileText, LogIn, Plus, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
+const shortcuts = [
+  { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green" },
+  { title: "录入收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
+  { title: "录入支出", href: "/expenses", icon: ReceiptText, tone: "red" },
+  { title: "新增租客", href: "/tenants", icon: UserPlus, tone: "blue" },
+  { title: "合同管理", href: "/contracts", icon: FileText, tone: "blue" },
+  { title: "房源管理", href: "/properties", icon: Building2, tone: "amber" }
+];
 
 export default function DashboardPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -65,6 +75,23 @@ export default function DashboardPage() {
 
       <section className="card action-strip">
         <Link className="btn primary" href="/property-profits">房源利润分析 →</Link>
+      </section>
+
+      <section className="card compact-shortcuts">
+        <div className="panel-header shortcut-header">
+          <h2 className="panel-title">快捷操作</h2>
+        </div>
+        <div className="shortcut-grid">
+          {shortcuts.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link className="shortcut-card" href={item.href} key={item.title}>
+                <span className={`shortcut-icon ${item.tone}`}><Icon size={20} /></span>
+                <strong>{item.title}</strong>
+              </Link>
+            );
+          })}
+        </div>
       </section>
     </AppLayout>
   );
