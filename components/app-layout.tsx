@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell,
   Building2,
   CalendarCheck,
   ChevronRight,
@@ -41,7 +40,6 @@ const navGroups = [
   {
     title: "运营工具",
     items: [
-      { href: "/reminders", label: "提醒中心", icon: Bell },
       { href: "/analytics", label: "统计分析", icon: LineChart },
       { href: "/archive", label: "档案中心", icon: FileArchive },
       { href: "/tasks", label: "待办管理", icon: ClipboardList }

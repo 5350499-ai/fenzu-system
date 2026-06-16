@@ -38,6 +38,8 @@ export function CrudPage({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -45,12 +47,12 @@ export function CrudPage({
       setRows(loadedRows);
       setLoaded(true);
     }
-    load().catch(console.error);
-  }, [storageKey]);
 
-  useEffect(() => {
-    if (loaded) saveBusinessData(storageKey, rows).catch(console.error);
-  }, [loaded, rows, storageKey]);
+    load().catch((error) => {
+      console.error(`加载${title}失败`, error);
+      setErrorMessage(`加载失败：${error.message || error}`);
+    });
+  }, [storageKey]);
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
   const searchableFields = columns.map((column) => column.name);
@@ -80,14 +82,28 @@ export function CrudPage({
     setIsFormOpen(false);
   }
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (editingId) {
-      setRows((current) => current.map((row) => (row.id === editingId ? { ...form, id: editingId } : row)));
-    } else {
-      setRows((current) => [{ ...form, id: crypto.randomUUID() }, ...current]);
+    if (!loaded || saving) return;
+
+    setSaving(true);
+    setErrorMessage("");
+    const nextRows = editingId
+      ? rows.map((row) => (row.id === editingId ? { ...form, id: editingId } : row))
+      : [{ ...form, id: crypto.randomUUID() }, ...rows];
+
+    try {
+      await saveBusinessData(storageKey, nextRows);
+      setRows(nextRows);
+      reset();
+    } catch (error: any) {
+      console.error(`保存${title}失败`, error);
+      const message = `保存失败：${error.message || error}`;
+      setErrorMessage(message);
+      window.alert(message);
+    } finally {
+      setSaving(false);
     }
-    reset();
   }
 
   function edit(row: CrudRecord) {
@@ -96,9 +112,25 @@ export function CrudPage({
     setIsFormOpen(true);
   }
 
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!window.confirm("确定要删除这条记录吗？\n删除后不可恢复。")) return;
-    setRows((current) => current.filter((row) => row.id !== id));
+    if (!loaded || saving) return;
+
+    const nextRows = rows.filter((row) => row.id !== id);
+    setSaving(true);
+    setErrorMessage("");
+
+    try {
+      await saveBusinessData(storageKey, nextRows);
+      setRows(nextRows);
+    } catch (error: any) {
+      console.error(`删除${title}失败`, error);
+      const message = `删除失败：${error.message || error}`;
+      setErrorMessage(message);
+      window.alert(message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -113,6 +145,7 @@ export function CrudPage({
             <span className="badge blue">{filteredRows.length} 条</span>
             <button
               className="btn primary"
+              disabled={!loaded || saving}
               type="button"
               onClick={() => {
                 setEditingId(null);
@@ -125,14 +158,13 @@ export function CrudPage({
             </button>
           </div>
         </div>
+
+        {errorMessage ? <div className="badge red" style={{ marginBottom: 12 }}>{errorMessage}</div> : null}
+
         <div className="list-controls">
           <label className="search-box">
             <Search size={17} />
-            <input
-              placeholder={`搜索${title}`}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+            <input placeholder={`搜索${title}`} value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
           <select value={filterField} onChange={(event) => setFilterField(event.target.value)}>
             <option value="">全部字段</option>
@@ -149,6 +181,7 @@ export function CrudPage({
             <option value={50}>每页50条</option>
           </select>
         </div>
+
         <div className="mobile-card-list">
           {visibleRows.map((row) => (
             <article className="mobile-record-card" key={row.id}>
@@ -169,7 +202,7 @@ export function CrudPage({
                   <Edit3 size={15} />
                   编辑
                 </button>
-                <button className="btn danger" type="button" onClick={() => remove(row.id)}>
+                <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
                   <Trash2 size={15} />
                   删除
                 </button>
@@ -177,6 +210,7 @@ export function CrudPage({
             </article>
           ))}
         </div>
+
         <div className="table-wrap">
           <table>
             <thead>
@@ -199,7 +233,7 @@ export function CrudPage({
                         <Edit3 size={15} />
                         编辑
                       </button>
-                      <button className="btn danger" type="button" onClick={() => remove(row.id)}>
+                      <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
                         <Trash2 size={15} />
                         删除
                       </button>
@@ -210,6 +244,7 @@ export function CrudPage({
             </tbody>
           </table>
         </div>
+
         <div className="pagination">
           <span className="muted">
             第 {page} / {totalPages} 页
@@ -250,10 +285,7 @@ export function CrudPage({
                 <div className="field" key={field.name}>
                   <label>{field.label}</label>
                   {field.type === "select" ? (
-                    <select
-                      value={String(form[field.name] ?? "")}
-                      onChange={(event) => updateField(field.name, event.target.value)}
-                    >
+                    <select value={String(form[field.name] ?? "")} onChange={(event) => updateField(field.name, event.target.value)}>
                       <option value="">请选择</option>
                       {field.options?.map((option) => (
                         <option key={option} value={option}>
@@ -262,27 +294,18 @@ export function CrudPage({
                       ))}
                     </select>
                   ) : field.type === "checkbox" ? (
-                    <select
-                      value={form[field.name] ? "true" : "false"}
-                      onChange={(event) => updateField(field.name, event.target.value === "true")}
-                    >
+                    <select value={form[field.name] ? "true" : "false"} onChange={(event) => updateField(field.name, event.target.value === "true")}>
                       <option value="true">是</option>
                       <option value="false">否</option>
                     </select>
-              ) : field.type === "textarea" ? (
-                <textarea
-                  value={String(form[field.name] ?? "")}
-                  onChange={(event) => updateField(field.name, event.target.value)}
-                />
-              ) : (
+                  ) : field.type === "textarea" ? (
+                    <textarea value={String(form[field.name] ?? "")} onChange={(event) => updateField(field.name, event.target.value)} />
+                  ) : (
                     <input
                       type={field.type}
                       value={String(form[field.name] ?? "")}
                       onChange={(event) =>
-                        updateField(
-                          field.name,
-                          field.type === "number" ? Number(event.target.value) : event.target.value
-                        )
+                        updateField(field.name, field.type === "number" ? Number(event.target.value) : event.target.value)
                       }
                     />
                   )}
@@ -292,9 +315,9 @@ export function CrudPage({
                 <button className="btn" type="button" onClick={reset}>
                   取消
                 </button>
-                <button className="btn primary" type="submit">
+                <button className="btn primary" disabled={saving} type="submit">
                   {isEditing ? <Save size={17} /> : <Plus size={17} />}
-                  {isEditing ? "保存修改" : createLabel}
+                  {saving ? "保存中..." : isEditing ? "保存修改" : createLabel}
                 </button>
               </div>
             </form>

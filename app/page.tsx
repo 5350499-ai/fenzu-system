@@ -5,16 +5,20 @@ import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import { AlertTriangle, FileClock, Home, Plus, ReceiptText, ShieldAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   BusinessContract,
+  BusinessDeposit,
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
   contractKey,
+  depositKey,
   expenseKey,
   getInitialContracts,
+  getInitialDeposits,
   getInitialExpenses,
   getInitialProperties,
   getInitialRentPayments,
@@ -24,7 +28,6 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { useEffect, useState } from "react";
 
 const HOME_LIMIT = 5;
 
@@ -35,7 +38,7 @@ export default function DashboardPage() {
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [rentPayments, setRentPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -45,29 +48,44 @@ export default function DashboardPage() {
       const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
-      const loadedTasks = await loadBusinessData<any>("v1-tasks", []);
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setContracts(loadedContracts);
       setRentPayments(loadedPayments);
       setExpenses(loadedExpenses);
-      setTasks(loadedTasks);
+      setDeposits(loadedDeposits);
     }
-    load().catch(console.error);
+
+    load().catch((error) => {
+      console.error("加载首页数据失败", error);
+      window.alert(`加载首页数据失败：${error.message || error}`);
+    });
   }, []);
 
-  const totalIncome = rentPayments.reduce((sum, item) => sum + item.amountPaid, 0);
-  const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-  const totalProfit = totalIncome - totalExpenses;
-  const unpaid = rentPayments.reduce((sum, item) => sum + item.amountUnpaid, 0);
+  const currentMonth = getCurrentMonth();
+  const currentYear = getCurrentYear();
+
+  const monthlyPayments = rentPayments.filter((item) => item.rentMonth?.startsWith(currentMonth));
+  const monthlyExpenses = expenses.filter((item) => item.expenseMonth?.startsWith(currentMonth));
+  const yearlyPayments = rentPayments.filter((item) => item.rentMonth?.startsWith(currentYear));
+  const yearlyExpenses = expenses.filter((item) => item.expenseMonth?.startsWith(currentYear));
+
+  const monthlyIncome = sum(monthlyPayments, "amountPaid");
+  const monthlyExpenseTotal = sum(monthlyExpenses, "amount");
+  const monthlyProfit = monthlyIncome - monthlyExpenseTotal;
+  const yearlyProfit = sum(yearlyPayments, "amountPaid") - sum(yearlyExpenses, "amount");
+  const unpaid = sum(rentPayments, "amountUnpaid");
+  const overdueRows = rentPayments
+    .filter((payment) => payment.isOverdue || Number(payment.amountUnpaid) > 0)
+    .sort((a, b) => Number(b.amountUnpaid) - Number(a.amountUnpaid));
+
   const rentedRooms = rooms.filter((room) => isRentedStatus(room.status)).length;
   const rentableRooms = rooms.filter((room) => !isStoppedStatus(room.status)).length;
   const vacantRooms = rooms.filter((room) => isVacantStatus(room.status)).length;
   const occupancy = rentableRooms ? Math.round((rentedRooms / rentableRooms) * 100) : 0;
-  const overdueRows = rentPayments
-    .filter((payment) => payment.isOverdue)
-    .sort((a, b) => b.amountUnpaid - a.amountUnpaid);
   const roomSummaryRows = [...rooms].sort((a, b) => roomPriority(a.status) - roomPriority(b.status));
   const tenantContracts = contracts
     .map((contract) => {
@@ -81,18 +99,31 @@ export default function DashboardPage() {
         daysLeft: daysLeft(contract.endDate)
       };
     })
-    .filter((item) => item.daysLeft <= 30)
+    .filter((item) => item.daysLeft >= 0 && item.daysLeft <= 30)
     .sort((a, b) => a.daysLeft - b.daysLeft);
-  const landlordContracts: any[] = [];
-  const sortedTasks = [...tasks].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
+  const unpaidDepositCount = useMemo(() => {
+    return tenants.filter((tenant) => {
+      if (!Number(tenant.depositAmount)) return false;
+      const collected = deposits.some(
+        (deposit) =>
+          deposit.tenantId === tenant.id &&
+          deposit.type === "收取" &&
+          (deposit.status === "已收" || deposit.status === "部分扣除")
+      );
+      return !collected;
+    }).length;
+  }, [deposits, tenants]);
+
+  const refundableDeposits = deposits.filter((deposit) => deposit.status === "待退").length;
+  const unpaidExpenses = expenses.filter((expense) => !expense.isPaid).length;
   const risks = [
     {
       title: "即将到期合同",
       count: tenantContracts.length,
       note: "租客合同 30 天内到期",
       tone: "amber",
-      href: "/reminders",
+      href: "/contracts",
       icon: <FileClock className="warning-text" size={22} />
     },
     {
@@ -105,32 +136,24 @@ export default function DashboardPage() {
     },
     {
       title: "待退押金",
-      count: 1,
-      note: "退租前需要核对房间",
+      count: refundableDeposits,
+      note: "押金状态为待退",
       tone: "blue",
       href: "/deposits",
       icon: <ShieldAlert className="info-text" size={22} />
     },
     {
-      title: "未录入水电费",
-      count: landlordContracts.length,
-      note: "本月账单待补充",
-      tone: "amber",
-      href: "/reminders",
-      icon: <AlertTriangle className="warning-text" size={22} />
-    },
-    {
       title: "押金未收",
-      count: 3,
-      note: "入住资料需要补齐",
+      count: unpaidDepositCount,
+      note: "租客有押金金额但没有收取记录",
       tone: "red",
-      href: "/reminders",
+      href: "/deposits",
       icon: <ShieldAlert className="danger-text" size={22} />
     },
     {
       title: "未支付支出",
-      count: 2,
-      note: "请核对本月账单",
+      count: unpaidExpenses,
+      note: "支出状态为未支付",
       tone: "blue",
       href: "/expenses",
       icon: <AlertTriangle className="info-text" size={22} />
@@ -159,14 +182,14 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid metrics">
-        <MetricCard label="本月总收入" value={euro(totalIncome)} note="来自已收房租" />
-        <MetricCard label="本月总支出" value={euro(totalExpenses)} note="房东租金与经营支出" />
-        <MetricCard label="本月净利润" value={euro(totalProfit)} note="收入减支出" tone="profit" hero />
-        <MetricCard label="本年累计利润" value={euro(8600)} note="年度累计演示值" tone="profit" />
-        <MetricCard label="应收未收金额" value={euro(unpaid)} note="需要优先跟进" tone="danger" />
+        <MetricCard label="本月总收入" value={euro(monthlyIncome)} note="来自本月已收房租" />
+        <MetricCard label="本月总支出" value={euro(monthlyExpenseTotal)} note="本月经营支出" />
+        <MetricCard label="本月净利润" value={euro(monthlyProfit)} note="本月收入减支出" tone="profit" hero />
+        <MetricCard label="本年累计利润" value={euro(yearlyProfit)} note="本年收入减支出" tone="profit" />
+        <MetricCard label="应收未收金额" value={euro(unpaid)} note="所有未收金额合计" tone="danger" />
         <MetricCard label="入住率" value={`${occupancy}%`} note={`${rentedRooms}/${rentableRooms} 间可出租房间`} tone="info" />
-        <MetricCard label="空置房间数" value={`${vacantRooms} 间`} note="可立即安排出租" />
-        <MetricCard label="欠费人数" value={`${overdueRows.length} 人`} note="本月未结清租金" tone="danger" />
+        <MetricCard label="空置房间数" value={`${vacantRooms} 间`} note="状态为空置的房间" />
+        <MetricCard label="欠费人数" value={`${overdueRows.length} 人`} note="存在未收金额的记录" tone="danger" />
       </div>
 
       <section className="grid risk-grid">
@@ -182,7 +205,6 @@ export default function DashboardPage() {
             <div className="metric-note">{risk.note}</div>
           </Link>
         ))}
-        <ShowMore total={risks.length} shown={HOME_LIMIT} href="/reminders" compact />
       </section>
 
       <div className="grid dashboard-panels">
@@ -207,11 +229,11 @@ export default function DashboardPage() {
                 {roomSummaryRows.slice(0, HOME_LIMIT).map((room) => {
                   const property = properties.find((item) => item.id === room.propertyId);
                   const tenant = tenants.find((item) => item.roomId === room.id && isTenantActive(item.status));
-                  const payment = rentPayments.find((item) => item.roomId === room.id);
+                  const payment = monthlyPayments.find((item) => item.roomId === room.id);
                   return (
                     <tr key={room.id}>
-                      <td>{property?.name}</td>
-                      <td>{room.name}</td>
+                      <td>{property?.name || "-"}</td>
+                      <td>{room.name || "-"}</td>
                       <td>
                         <StatusBadge tone={roomTone(room.status)}>{roomLabel(room.status)}</StatusBadge>
                       </td>
@@ -219,8 +241,8 @@ export default function DashboardPage() {
                       <td>{euro(room.monthlyRent)}</td>
                       <td>
                         {payment ? (
-                          <StatusBadge tone={payment.isOverdue ? "red" : "green"}>
-                            {payment.isOverdue ? "未结清" : "已收款"}
+                          <StatusBadge tone={payment.isOverdue || payment.amountUnpaid > 0 ? "red" : "green"}>
+                            {payment.isOverdue || payment.amountUnpaid > 0 ? "未结清" : "已收款"}
                           </StatusBadge>
                         ) : (
                           "-"
@@ -248,9 +270,9 @@ export default function DashboardPage() {
                 <div className="list-item" key={payment.id}>
                   <div>
                     <div className="list-title">
-                      {tenant?.name} · {room?.name}
+                      {tenant?.name || "-"} · {room?.name || "-"}
                     </div>
-                    <div className="list-meta">欠费天数：6天</div>
+                    <div className="list-meta">月份：{payment.rentMonth || "-"}</div>
                   </div>
                   <strong className="danger-text">{euro(payment.amountUnpaid)}</strong>
                 </div>
@@ -268,95 +290,65 @@ export default function DashboardPage() {
             <span className="muted">租客合同 30 天内</span>
           </div>
           <div className="list">
-            {tenantContracts
-              .slice(0, HOME_LIMIT)
-              .map((item) => (
-                <div className="list-item" key={item.id}>
-                  <div>
-                    <div className="list-title">
-                      {item.personName} · {item.roomName}
-                    </div>
-                    <div className="list-meta">到期日期：{item.endDate}</div>
+            {tenantContracts.slice(0, HOME_LIMIT).map((item) => (
+              <div className="list-item" key={item.id}>
+                <div>
+                  <div className="list-title">
+                    {item.personName} · {item.roomName}
                   </div>
-                  <StatusBadge tone="amber">剩余 {item.daysLeft} 天</StatusBadge>
+                  <div className="list-meta">到期日期：{item.endDate || "-"}</div>
                 </div>
-              ))}
-            <ShowMore total={tenantContracts.length} shown={HOME_LIMIT} href="/reminders" />
+                <StatusBadge tone="amber">剩余 {item.daysLeft} 天</StatusBadge>
+              </div>
+            ))}
+            <ShowMore total={tenantContracts.length} shown={HOME_LIMIT} href="/contracts" />
           </div>
         </section>
 
         <section className="card panel">
           <div className="panel-header">
-            <h2 className="panel-title">房东合同到期提醒</h2>
-            <span className="muted">房东合同 60 天内</span>
+            <h2 className="panel-title">待办事项</h2>
+            <span className="muted">当前版本请在待办管理中录入</span>
           </div>
           <div className="list">
-            {landlordContracts
-              .slice(0, HOME_LIMIT)
-              .map((item) => (
-                <div className="list-item" key={item.id}>
-                  <div>
-                    <div className="list-title">
-                      {item.propertyName} · {item.personName}
-                    </div>
-                    <div className="list-meta">到期日期：{item.endDate}</div>
-                  </div>
-                  <StatusBadge tone="amber">剩余 {item.daysLeft} 天</StatusBadge>
-                </div>
-              ))}
-            <ShowMore total={landlordContracts.length} shown={HOME_LIMIT} href="/reminders" />
+            <div className="list-item">
+              <span className="muted">暂无自动待办数据</span>
+              <Link className="btn" href="/tasks">查看待办</Link>
+            </div>
           </div>
         </section>
       </div>
-
-      <section className="card panel" style={{ marginTop: 18 }}>
-        <div className="panel-header">
-          <h2 className="panel-title">待办事项</h2>
-          <span className="muted">收租、续约、退押金</span>
-        </div>
-        <div className="list">
-          {sortedTasks.slice(0, HOME_LIMIT).map((task) => (
-            <div className="list-item" key={task.id}>
-              <div>
-                <div className="list-title">{task.title}</div>
-                <div className="list-meta">截止日期：{task.dueDate}</div>
-              </div>
-              <StatusBadge tone={task.status === "待处理" ? "blue" : "green"}>{task.status}</StatusBadge>
-            </div>
-          ))}
-          <ShowMore total={sortedTasks.length} shown={HOME_LIMIT} href="/tasks" />
-        </div>
-      </section>
     </AppLayout>
   );
 }
 
-function ShowMore({
-  total,
-  shown,
-  href,
-  compact
-}: {
-  total: number;
-  shown: number;
-  href: string;
-  compact?: boolean;
-}) {
+function ShowMore({ total, shown, href }: { total: number; shown: number; href: string }) {
   const hidden = Math.max(total - shown, 0);
   if (hidden <= 0) return null;
 
   return (
-    <Link className={compact ? "show-more compact" : "show-more"} href={href}>
+    <Link className="show-more" href={href}>
       还有 {hidden} 条，查看全部
     </Link>
   );
+}
+
+function sum<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
+  return rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+}
+
+function getCurrentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function getCurrentYear() {
+  return new Date().toISOString().slice(0, 4);
 }
 
 function roomPriority(status: string) {
   const priority: Record<string, number> = {
     vacant: 1,
     "空置": 1,
-    "绌虹疆": 1,
     moving_out: 2,
     "即将退租": 2,
     maintenance: 3,
@@ -365,8 +357,7 @@ function roomPriority(status: string) {
     "暂停出租": 4,
     reserved: 5,
     "预订中": 5,
-    rented: 6
-    ,
+    rented: 6,
     "已租": 6
   };
   return priority[status] ?? 99;
@@ -387,24 +378,24 @@ function roomLabel(status: string) {
 function roomTone(status: string) {
   if (isRentedStatus(status)) return "green";
   if (isVacantStatus(status)) return "blue";
-  if (["maintenance", "维修中", "缁翠慨涓?"].includes(status)) return "red";
+  if (["maintenance", "维修中"].includes(status)) return "red";
   return "amber";
 }
 
 function isRentedStatus(status: string) {
-  return ["rented", "moving_out", "已租", "即将退租", "宸茬"].includes(status);
+  return ["rented", "moving_out", "已租", "即将退租"].includes(status);
 }
 
 function isStoppedStatus(status: string) {
-  return ["maintenance", "paused", "维修中", "暂停出租", "缁翠慨涓?", "鏆傚仠鍑虹"].includes(status);
+  return ["maintenance", "paused", "维修中", "暂停出租"].includes(status);
 }
 
 function isVacantStatus(status: string) {
-  return ["vacant", "空置", "绌虹疆"].includes(status);
+  return ["vacant", "空置"].includes(status);
 }
 
 function isTenantActive(status: string) {
-  return ["active", "在租", "鍦ㄧ"].includes(status);
+  return ["active", "在租"].includes(status);
 }
 
 function daysLeft(date: string) {

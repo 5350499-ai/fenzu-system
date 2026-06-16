@@ -14,7 +14,7 @@ export function PageCard({
       <div className="toolbar">
         <div>
           <h2 className="panel-title">{title}</h2>
-          <p className="muted">当前为 V1 演示数据，接入 Supabase 后保存到数据库。</p>
+          <p className="muted">当前数据来自 Supabase 云数据库。</p>
         </div>
         <button className="btn primary" type="button">
           <Plus size={17} />
