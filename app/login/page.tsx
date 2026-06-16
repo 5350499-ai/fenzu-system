@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    window.localStorage.removeItem("demo-auth");
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace("/");
