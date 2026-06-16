@@ -1,4 +1,5 @@
--- Initial Supabase schema for Spanish sublet rental management system V1.
+﻿-- V1 Supabase schema for fenzu-system.
+-- Run this whole file in Supabase SQL Editor.
 -- Non-destructive migration: no DROP TABLE, no TRUNCATE TABLE.
 
 create extension if not exists "pgcrypto";
@@ -39,7 +40,7 @@ create table if not exists public.rooms (
   room_number text,
   monthly_rent numeric not null default 0,
   deposit_amount numeric not null default 0,
-  status text not null default '空置',
+  status text not null default 'vacant',
   area numeric,
   has_window boolean not null default false,
   has_private_bathroom boolean not null default false,
@@ -69,7 +70,7 @@ create table if not exists public.tenants (
   monthly_rent numeric not null default 0,
   deposit_amount numeric not null default 0,
   key_count integer not null default 0,
-  status text not null default '在租',
+  status text not null default 'active',
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -89,7 +90,7 @@ create table if not exists public.contracts (
   end_date date,
   is_signed boolean not null default false,
   is_active boolean not null default true,
-  status text not null default '有效',
+  status text not null default 'active',
   file_url text,
   storage_path text,
   notes text,
@@ -138,7 +139,7 @@ create table if not exists public.deposits (
   transaction_type text not null,
   amount numeric not null default 0,
   transaction_date date,
-  status text not null default '已收',
+  status text not null default 'collected',
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -185,8 +186,8 @@ create table if not exists public.tasks (
   title text not null,
   description text,
   due_date date,
-  status text not null default '待处�?,
-  priority text not null default '普�?,
+  status text not null default 'pending',
+  priority text not null default 'normal',
   property_id uuid references public.properties(id),
   room_id uuid references public.rooms(id),
   tenant_id uuid references public.tenants(id),
@@ -291,8 +292,3 @@ begin
     end if;
   end loop;
 end $$;
--- Add a compatibility field used by the current V1 property form.
--- Non-destructive migration: no DROP TABLE, no TRUNCATE TABLE.
-
-alter table public.properties
-  add column if not exists landlord_name text;

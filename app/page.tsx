@@ -193,18 +193,22 @@ export default function DashboardPage() {
       </div>
 
       <section className="grid risk-grid">
-        {risks.slice(0, HOME_LIMIT).map((risk) => (
-          <Link className="card risk-card" href={risk.href} key={risk.title}>
-            <div className="risk-topline">
-              <StatusBadge tone={risk.tone}>{risk.title}</StatusBadge>
-              {risk.icon}
-            </div>
-            <div className={`risk-count ${risk.tone === "red" ? "danger-text" : risk.tone === "blue" ? "info-text" : "warning-text"}`}>
-              {risk.count}
-            </div>
-            <div className="metric-note">{risk.note}</div>
-          </Link>
-        ))}
+        {risks.slice(0, HOME_LIMIT).map((risk) => {
+          const active = risk.count > 0;
+          const tone = active ? risk.tone : "blue";
+          return (
+            <Link className="card risk-card" href={risk.href} key={risk.title}>
+              <div className="risk-topline">
+                <StatusBadge tone={tone}>{risk.title}</StatusBadge>
+                {active ? risk.icon : null}
+              </div>
+              <div className={`risk-count ${active && risk.tone === "red" ? "danger-text" : active && risk.tone === "amber" ? "warning-text" : "info-text"}`}>
+                {risk.count}
+              </div>
+              <div className="metric-note">{risk.note}</div>
+            </Link>
+          );
+        })}
       </section>
 
       <div className="grid dashboard-panels">
