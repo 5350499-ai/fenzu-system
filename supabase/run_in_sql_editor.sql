@@ -185,8 +185,8 @@ create table if not exists public.tasks (
   title text not null,
   description text,
   due_date date,
-  status text not null default '待处理',
-  priority text not null default '普通',
+  status text not null default '待处�?,
+  priority text not null default '普�?,
   property_id uuid references public.properties(id),
   room_id uuid references public.rooms(id),
   tenant_id uuid references public.tenants(id),
@@ -291,3 +291,8 @@ begin
     end if;
   end loop;
 end $$;
+-- Add a compatibility field used by the current V1 property form.
+-- Non-destructive migration: no DROP TABLE, no TRUNCATE TABLE.
+
+alter table public.properties
+  add column if not exists landlord_name text;
