@@ -261,7 +261,7 @@ export default function ExpensesPage() {
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" capture="environment" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
                 {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">可上传票据、截图或照片，单个附件最大 5MB。</p>}
                 {form.id && (filesByExpense[form.id] || []).length ? <ExpenseAttachmentActions files={filesByExpense[form.id] || []} onDelete={removeFile} /> : null}
               </div>

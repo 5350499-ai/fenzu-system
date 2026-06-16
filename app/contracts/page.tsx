@@ -296,7 +296,7 @@ export default function ContractsPage() {
               <SearchableSelect label="状态" value={form.status} options={contractStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>合同附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" capture="environment" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
                 {pendingFile ? (
                   <div className="attachment-preview">
                     <FileUp size={16} />

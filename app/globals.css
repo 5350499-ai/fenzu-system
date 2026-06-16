@@ -318,6 +318,13 @@ a {
   margin-bottom: 16px;
 }
 
+.action-strip {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding: 14px;
+}
+
 .mobile-shortcuts {
   display: block;
   padding: 16px;
@@ -1126,6 +1133,14 @@ td:last-child {
 
   .quick-actions .btn {
     width: 100%;
+  }
+
+  .action-strip {
+    display: grid;
+  }
+
+  .action-strip .btn {
+    justify-content: center;
   }
 
   .mobile-shortcuts {

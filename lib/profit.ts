@@ -56,9 +56,7 @@ export function getDateRange(preset: RangePreset, customStart?: string, customEn
     const end = addDays(startOfMonth(today), -1);
     return { start: toDateInput(start), end: toDateInput(end), label: "上月" };
   }
-  if (preset === "last30Days") {
-    return { start: toDateInput(addDays(today, -29)), end: toDateInput(today), label: "最近30天" };
-  }
+  if (preset === "last30Days") return { start: toDateInput(addDays(today, -29)), end: toDateInput(today), label: "最近30天" };
   if (preset === "last3Months") return rollingMonths(today, 3, "最近3个月");
   if (preset === "last6Months") return rollingMonths(today, 6, "最近6个月");
   if (preset === "last12Months") return rollingMonths(today, 12, "最近12个月");
@@ -150,12 +148,7 @@ export function monthlyProfitRows(
   return months.map((month) => {
     const income = sumBy(payments.filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes)), "amountPaid");
     const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount");
-    return {
-      month,
-      income,
-      expense,
-      netProfit: income - expense
-    };
+    return { month, income, expense, netProfit: income - expense };
   });
 }
 
@@ -168,10 +161,6 @@ export function isMonthInRange(month: string, range: DateRange) {
 export function isDateInRange(date: string, range: DateRange) {
   if (!date) return false;
   return date >= range.start && date <= range.end;
-}
-
-export function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
 }
 
 function rollingMonths(today: Date, count: number, label: string): DateRange {

@@ -204,7 +204,7 @@ export default function CheckInPage() {
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label>合同附件 PDF/JPG/PNG</label>
-            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" capture="environment" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
             {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传，附件会保存到 Supabase Storage。</p>}
           </div>
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
