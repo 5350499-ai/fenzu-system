@@ -16,3 +16,14 @@ pnpm-debug.log*
 
 .DS_Store
 Thumbs.db
+
+# Business uploads must live in Supabase Storage, not GitHub.
+uploads/
+business-files/
+contract-files/
+expense-files/
+contract-uploads/
+expense-uploads/
+*.pdf
+*.jpg
+*.jpeg

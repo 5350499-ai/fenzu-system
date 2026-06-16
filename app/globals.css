@@ -482,6 +482,35 @@ a {
   font-weight: 800;
 }
 
+.profit-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.profit-summary-item {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 16px;
+}
+
+.profit-summary-item span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profit-summary-item strong {
+  color: var(--text);
+  font-size: 32px;
+  font-weight: 900;
+}
+
 .attachment-list {
   display: grid;
   gap: 8px;
@@ -998,7 +1027,8 @@ td:last-child {
   }
 
   .filter-grid,
-  .property-profit-grid {
+  .property-profit-grid,
+  .profit-summary-grid {
     grid-template-columns: 1fr;
   }
 

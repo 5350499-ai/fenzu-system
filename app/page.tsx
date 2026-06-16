@@ -51,6 +51,7 @@ const shortcuts = [
   { title: "新增房间", href: "/rooms", icon: Home, tone: "amber" },
   { title: "新增租客", href: "/tenants", icon: UserPlus, tone: "blue" },
   { title: "录入收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
+  { title: "录入支出", href: "/expenses", icon: ReceiptText, tone: "red" },
   { title: "合同管理", href: "/contracts", icon: FileText, tone: "blue" },
   { title: "房源管理", href: "/properties", icon: Building2, tone: "amber" }
 ];
@@ -90,11 +91,10 @@ export default function DashboardPage() {
   const yearStats = useMemo(() => calculatePropertyProfits(properties, rooms, rentPayments, expenses, deposits, yearRange), [deposits, expenses, properties, rentPayments, rooms, yearRange]);
   const totals = calculateTotals(propertyStats);
   const yearTotals = calculateTotals(yearStats);
-  const propertyProfitRows = [...propertyStats].sort((a, b) => {
-    if (a.hasLoss !== b.hasLoss) return a.hasLoss ? -1 : 1;
-    if (a.hasUnpaid !== b.hasUnpaid) return a.hasUnpaid ? -1 : 1;
-    return a.netProfit - b.netProfit;
-  });
+  const profitablePropertyCount = propertyStats.filter((stat) => stat.netProfit >= 0).length;
+  const lossPropertyCount = propertyStats.filter((stat) => stat.netProfit < 0).length;
+  const unpaidPropertyCount = propertyStats.filter((stat) => stat.unpaid > 0).length;
+  const vacancyRiskPropertyCount = propertyStats.filter((stat) => stat.vacantRooms > 0 || stat.occupancy < 80).length;
   const overdueRows = rentPayments
     .filter((payment) => !payment.notes?.includes("[已作废]") && (payment.isOverdue || Number(payment.amountUnpaid) > 0))
     .sort((a, b) => Number(b.amountUnpaid) - Number(a.amountUnpaid));
@@ -135,31 +135,16 @@ export default function DashboardPage() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">房源利润概览</h2>
-            <p className="muted">本月按房源核算，优先显示亏损、欠租、空置风险。</p>
+            <p className="muted">首页只显示摘要，详细盈亏进入独立分析页查看。</p>
           </div>
-          <Link className="btn" href="/analytics">查看统计分析</Link>
+          <Link className="btn primary" href="/property-profits">查看房源利润分析</Link>
         </div>
-        <div className="property-profit-grid">
-          {propertyProfitRows.slice(0, HOME_LIMIT).map((stat) => (
-            <Link className={`property-profit-card ${stat.hasLoss ? "loss" : ""}`} href={`/properties/${stat.property.id}`} key={stat.property.id}>
-              <div className="profit-card-head">
-                <div>
-                  <strong>{stat.property.name}</strong>
-                  <p>{stat.property.city || "-"} · 空置 {stat.vacantRooms} 间 · 入住率 {stat.occupancy}%</p>
-                </div>
-                {stat.hasLoss ? <StatusBadge tone="red">亏损</StatusBadge> : <StatusBadge tone="green">盈利</StatusBadge>}
-              </div>
-              <div className="profit-card-metrics">
-                <span>收入 <b>{euro(stat.income)}</b></span>
-                <span>支出 <b>{euro(stat.expense)}</b></span>
-                <span>净利润 <b className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</b></span>
-                <span>欠租 <b className={stat.unpaid > 0 ? "danger-text" : ""}>{euro(stat.unpaid)}</b></span>
-              </div>
-            </Link>
-          ))}
-          {!propertyProfitRows.length ? <p className="muted">暂无房源数据。</p> : null}
+        <div className="profit-summary-grid">
+          <div className="profit-summary-item"><span>盈利房源</span><strong className="profit">{profitablePropertyCount}</strong></div>
+          <div className="profit-summary-item"><span>亏损房源</span><strong className={lossPropertyCount ? "danger-text" : ""}>{lossPropertyCount}</strong></div>
+          <div className="profit-summary-item"><span>欠租房源</span><strong className={unpaidPropertyCount ? "danger-text" : ""}>{unpaidPropertyCount}</strong></div>
+          <div className="profit-summary-item"><span>空置风险</span><strong className={vacancyRiskPropertyCount ? "warning-text" : ""}>{vacancyRiskPropertyCount}</strong></div>
         </div>
-        <ShowMore total={propertyProfitRows.length} shown={HOME_LIMIT} href="/analytics" />
       </section>
 
       <section className="mobile-shortcuts card compact-shortcuts">

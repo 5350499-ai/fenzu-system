@@ -73,10 +73,12 @@ export type BusinessRentPayment = {
 export type BusinessExpense = {
   id: string;
   propertyId: string;
+  roomId?: string;
   expenseMonth: string;
   category: string;
   amount: number;
   paymentDate: string;
+  paymentMethod?: string;
   isPaid: boolean;
   notes?: string;
 };
@@ -242,10 +244,12 @@ const tableConfigs: Record<string, TableConfig> = {
     fromDb: (row) => ({
       id: row.id,
       propertyId: row.property_id || "",
+      roomId: row.room_id || "",
       expenseMonth: dateToMonth(row.expense_month),
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       paymentDate: row.payment_date || "",
+      paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isPaid: Boolean(row.is_paid),
       notes: row.notes || ""
     }),
@@ -253,10 +257,12 @@ const tableConfigs: Record<string, TableConfig> = {
       id: row.id,
       user_id: userId,
       property_id: row.propertyId,
+      room_id: row.roomId || null,
       expense_month: monthToDate(row.expenseMonth),
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       payment_date: row.paymentDate || null,
+      payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_paid: Boolean(row.isPaid),
       notes: row.notes || null
     })
