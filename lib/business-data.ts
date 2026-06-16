@@ -181,7 +181,6 @@ const tableConfigs: Record<string, TableConfig> = {
     toDb: (row, userId) => ({
       id: row.id,
       user_id: userId,
-      contract_type: "tenant_contract",
       property_id: row.propertyId,
       room_id: row.roomId || null,
       tenant_id: row.tenantId || null,
