@@ -183,6 +183,7 @@ export default function RentPaymentsPage() {
                 <button className="finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{payment.rentMonth}</span>
                   <span>{tenant?.name || "-"}</span>
+                  <span className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{payment.receivedBy || "A"}</span>
                   <strong>{euro(payment.amountPaid)}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge>
                 </button>

@@ -954,7 +954,7 @@ td:last-child {
 
 .finance-line {
   display: grid;
-  grid-template-columns: minmax(92px, 0.9fr) minmax(72px, 1fr) minmax(82px, auto) auto;
+  grid-template-columns: minmax(92px, 0.9fr) minmax(72px, 1fr) auto minmax(82px, auto) auto;
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -977,6 +977,26 @@ td:last-child {
 .finance-line strong {
   font-weight: 850;
   text-align: right;
+}
+
+.partner-tag {
+  justify-self: start;
+  min-width: 24px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.partner-a {
+  background: color-mix(in srgb, var(--blue) 14%, var(--surface));
+  color: var(--blue);
+}
+
+.partner-b {
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  color: var(--green);
 }
 
 .finance-line:hover {
@@ -1062,7 +1082,7 @@ td:last-child {
   }
 
   .finance-line {
-    grid-template-columns: minmax(82px, 0.8fr) minmax(64px, 1fr) minmax(72px, auto) auto;
+    grid-template-columns: minmax(82px, 0.8fr) minmax(58px, 1fr) auto minmax(64px, auto) auto;
     gap: 6px;
     min-height: 38px;
     padding: 7px 0;

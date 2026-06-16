@@ -37,7 +37,7 @@ import {
 } from "@/lib/contract-files";
 import { euro, noteSummary } from "@/lib/format";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 const sources = ["微信群", "华人街", "小红书", "Facebook", "朋友介绍", "其他"];
 const tenantStatuses = ["在租", "预定入住", "已退租"];
@@ -71,7 +71,7 @@ export default function TenantsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
-  const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [detailTenantId, setDetailTenantId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -154,7 +154,7 @@ export default function TenantsPage() {
 
     if (form.id && pendingContractFile) {
       if (!latestTenantContract) {
-        window.alert("该租客还没有合同记录，请先在合同管理中创建合同后再上传合同附件。");
+        window.alert("该租客还没有合同记录，请先通过一键入住或合同数据创建合同后再上传合同附件。");
       } else {
         const existing = filesByContract[latestTenantContract.id] || [];
         for (const file of existing) await deleteContractFile(file);
@@ -197,10 +197,10 @@ export default function TenantsPage() {
   }
 
   return (
-    <AppLayout title="租客管理" description="租客必须关联房源和房间；打开租客可查看、下载、替换、删除合同附件。">
+    <AppLayout title="租客管理" description="合同附件已整合进租客管理：展开租客即可查看、下载、替换、删除合同。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">租客列表</h2><p className="muted">支持姓名、电话、微信、房源、房间、合同附件搜索。</p></div>
+          <div><h2 className="panel-title">租客列表</h2><p className="muted">点击租客行可展开合同附件和完整信息。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增租客</button>
         </div>
         <div className="list-controls"><label className="search-box"><input placeholder="搜索姓名、电话、微信、房源、房间、合同附件" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
@@ -209,19 +209,29 @@ export default function TenantsPage() {
             <thead><tr><th>姓名</th><th>电话</th><th>微信</th><th>房源</th><th>房间</th><th>月租</th><th>状态</th><th>合同附件</th><th>备注</th><th>操作</th></tr></thead>
             <tbody>{visibleTenants.map((tenant) => {
               const tenantFiles = getTenantFiles(tenant.id, contracts, filesByContract);
+              const expanded = detailTenantId === tenant.id;
               return (
-                <tr key={tenant.id}>
-                  <td>{tenant.name}</td>
-                  <td>{tenant.phone || "-"}</td>
-                  <td>{tenant.wechat || "-"}</td>
-                  <td>{properties.find((item) => item.id === tenant.propertyId)?.name || "-"}</td>
-                  <td>{rooms.find((item) => item.id === tenant.roomId)?.name || "-"}</td>
-                  <td>{euro(tenant.monthlyRent)}</td>
-                  <td><StatusBadge tone={tenant.status.includes("退") ? "red" : tenant.status.includes("预") ? "amber" : "green"}>{tenant.status}</StatusBadge></td>
-                  <td><TenantAttachmentActions files={tenantFiles} onDelete={removeContractFile} compact /></td>
-                  <td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td>
-                  <td><TenantActions onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} /></td>
-                </tr>
+                <Fragment key={tenant.id}>
+                  <tr className="compact-row" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)}>
+                    <td>{tenant.name}</td>
+                    <td>{tenant.phone || "-"}</td>
+                    <td>{tenant.wechat || "-"}</td>
+                    <td>{properties.find((item) => item.id === tenant.propertyId)?.name || "-"}</td>
+                    <td>{rooms.find((item) => item.id === tenant.roomId)?.name || "-"}</td>
+                    <td>{euro(tenant.monthlyRent)}</td>
+                    <td><StatusBadge tone={tenant.status.includes("退") ? "red" : tenant.status.includes("预") ? "amber" : "green"}>{tenant.status}</StatusBadge></td>
+                    <td><TenantAttachmentActions files={tenantFiles} onDelete={removeContractFile} compact /></td>
+                    <td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td>
+                    <td><TenantActions onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} /></td>
+                  </tr>
+                  {expanded ? (
+                    <tr className="detail-row">
+                      <td colSpan={10}>
+                        <TenantDetail tenant={tenant} files={tenantFiles} onDeleteFile={removeContractFile} onEdit={() => { setForm(tenant); setOpen(true); }} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}</tbody>
           </table>
@@ -230,19 +240,22 @@ export default function TenantsPage() {
           {visibleTenants.map((tenant) => {
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
-            const expanded = expandedNoteId === tenant.id;
+            const expanded = detailTenantId === tenant.id;
             const tenantFiles = getTenantFiles(tenant.id, contracts, filesByContract);
             return (
-              <article className="mobile-record-card" key={tenant.id}>
-                <div className="mobile-record-title"><strong>{tenant.name}</strong><span>{property?.name || "-"} / {room?.name || "-"} · <StatusBadge tone={tenant.status.includes("退") ? "red" : tenant.status.includes("预") ? "amber" : "green"}>{tenant.status}</StatusBadge></span></div>
+              <article className="mobile-record-card compact-record-card" key={tenant.id}>
+                <button className="compact-record-button" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
+                  <strong>{tenant.name}</strong>
+                  <span>{euro(tenant.monthlyRent)}</span>
+                  <small>{property?.name || "-"} / {room?.name || "-"} · 合同 {tenantFiles.length} 个</small>
+                </button>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>电话</span><strong>{tenant.phone || "-"}</strong></div>
                   <div className="mobile-record-field"><span>微信</span><strong>{tenant.wechat || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>月租</span><strong>{euro(tenant.monthlyRent)}</strong></div>
-                  <div className="mobile-record-field"><span>合同附件</span><strong><TenantAttachmentActions files={tenantFiles} onDelete={removeContractFile} compact /></strong></div>
-                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? tenant.notes || "-" : noteSummary(tenant.notes)} {tenant.notes && tenant.notes.length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : tenant.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
+                  <div className="mobile-record-field"><span>状态</span><strong><StatusBadge tone={tenant.status.includes("退") ? "red" : tenant.status.includes("预") ? "amber" : "green"}>{tenant.status}</StatusBadge></strong></div>
                 </div>
                 <TenantActions onEdit={() => { setForm(tenant); setOpen(true); }} onMoveOut={() => moveOut(tenant)} saving={saving} />
+                {expanded ? <TenantDetail tenant={tenant} files={tenantFiles} onDeleteFile={removeContractFile} onEdit={() => { setForm(tenant); setOpen(true); }} /> : null}
               </article>
             );
           })}
@@ -280,6 +293,28 @@ export default function TenantsPage() {
       ) : null}
     </AppLayout>
   );
+}
+
+function TenantDetail({ tenant, files, onDeleteFile, onEdit }: { tenant: BusinessTenant; files: ContractFile[]; onDeleteFile: (file: ContractFile) => void; onEdit: () => void }) {
+  return (
+    <div className="record-detail-panel">
+      <div className="detail-grid">
+        <DetailField label="合同附件" value={`${files.length} 个`} />
+        <DetailField label="备注" value={tenant.notes || "-"} />
+      </div>
+      <div>
+        <div className="detail-section-title">合同附件</div>
+        <TenantAttachmentActions files={files} onDelete={onDeleteFile} />
+      </div>
+      <div className="top-actions detail-actions">
+        <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换合同</button>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function TenantAttachmentActions({ files, onDelete, compact }: { files: ContractFile[]; onDelete: (file: ContractFile) => void; compact?: boolean }) {

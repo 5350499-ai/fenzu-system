@@ -227,6 +227,7 @@ export default function ExpensesPage() {
                 <button className="finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
                   <span>{expense.category || "-"}</span>
+                  <span className={`partner-tag partner-${(expense.paidBy || "A").toLowerCase()}`}>{expense.paidBy || "A"}</span>
                   <strong>{euro(expense.amount)}</strong>
                   <StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
                 </button>

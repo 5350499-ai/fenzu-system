@@ -22,7 +22,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import { BedDouble, Building2, CreditCard, FileText, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
+import { BedDouble, Building2, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -33,7 +33,7 @@ const shortcuts = [
   { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue" },
   { title: "房源", href: "/properties", icon: Building2, tone: "amber" },
   { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
-  { title: "合同", href: "/contracts", icon: FileText, tone: "blue" },
+  { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
 ];
 
