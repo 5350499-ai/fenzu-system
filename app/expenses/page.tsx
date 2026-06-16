@@ -33,6 +33,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
+const partnerOptions = ["A", "B"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 
 const emptyExpense: BusinessExpense = {
@@ -44,6 +45,7 @@ const emptyExpense: BusinessExpense = {
   amount: 0,
   paymentDate: new Date().toISOString().slice(0, 10),
   paymentMethod: "转账",
+  paidBy: "A",
   isPaid: true,
   notes: ""
 };
@@ -136,6 +138,7 @@ export default function ExpensesPage() {
       ...form,
       id: expenseId,
       amount: Number(form.amount || 0),
+      paidBy: form.paidBy || "A",
       expenseMonth: (form.paymentDate || new Date().toISOString()).slice(0, 7)
     };
     const next = form.id
@@ -260,6 +263,7 @@ export default function ExpensesPage() {
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件 PDF/JPG/PNG</label>
@@ -304,6 +308,7 @@ function ExpenseDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
+        <DetailField label="付款归属" value={expense.paidBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
       </div>
       <div>

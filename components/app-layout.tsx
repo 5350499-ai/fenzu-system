@@ -10,6 +10,7 @@ import {
   CreditCard,
   FileArchive,
   FileText,
+  HandCoins,
   Home,
   LineChart,
   LogIn,
@@ -36,6 +37,7 @@ export const navGroups = [
       { href: "/contracts", label: "合同管理", icon: FileText },
       { href: "/rent-payments", label: "收租管理", icon: ReceiptText },
       { href: "/expenses", label: "支出管理", icon: CreditCard },
+      { href: "/partnership-settlement", label: "合伙结算", icon: HandCoins },
       { href: "/deposits", label: "押金管理", icon: WalletCards }
     ]
   },

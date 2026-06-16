@@ -66,6 +66,7 @@ export type BusinessRentPayment = {
   amountPaid: number;
   amountUnpaid: number;
   paymentMethod: string;
+  receivedBy?: string;
   isOverdue: boolean;
   notes?: string;
 };
@@ -79,6 +80,7 @@ export type BusinessExpense = {
   amount: number;
   paymentDate: string;
   paymentMethod?: string;
+  paidBy?: string;
   isPaid: boolean;
   notes?: string;
 };
@@ -219,6 +221,7 @@ const tableConfigs: Record<string, TableConfig> = {
       amountDue: Number(row.amount_due || 0),
       amountPaid: Number(row.amount_paid || 0),
       amountUnpaid: Number(row.amount_unpaid || 0),
+      receivedBy: normalizePartner(row.received_by || "A"),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isOverdue: Boolean(row.is_overdue),
       notes: row.notes || ""
@@ -233,6 +236,7 @@ const tableConfigs: Record<string, TableConfig> = {
       amount_due: Number(row.amountDue || 0),
       amount_paid: Number(row.amountPaid || 0),
       amount_unpaid: Number(row.amountUnpaid || 0),
+      received_by: normalizePartner(row.receivedBy || "A"),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_overdue: Boolean(row.isOverdue),
       notes: row.notes || null
@@ -249,6 +253,7 @@ const tableConfigs: Record<string, TableConfig> = {
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       paymentDate: row.payment_date || "",
+      paidBy: normalizePartner(row.paid_by || "A"),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isPaid: Boolean(row.is_paid),
       notes: row.notes || ""
@@ -262,6 +267,7 @@ const tableConfigs: Record<string, TableConfig> = {
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       payment_date: row.paymentDate || null,
+      paid_by: normalizePartner(row.paidBy || "A"),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_paid: Boolean(row.isPaid),
       notes: row.notes || null
@@ -323,7 +329,11 @@ export function getInitialProperties(): BusinessProperty[] {
 }
 
 function isMissingExpenseOptionalColumn(message: string) {
-  return message.includes("room_id") || message.includes("payment_method") || message.includes("schema cache");
+  return message.includes("room_id") || message.includes("payment_method") || message.includes("paid_by") || message.includes("schema cache");
+}
+
+function isMissingRentPaymentOptionalColumn(message: string) {
+  return message.includes("received_by") || message.includes("schema cache");
 }
 
 export function getInitialRooms(..._args: unknown[]): BusinessRoom[] {
@@ -398,7 +408,11 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
     const { error } = await supabase.from(config.table).upsert(rows);
     if (error) {
       if (config.table === "expenses" && isMissingExpenseOptionalColumn(error.message)) {
-        const fallbackRows = rows.map(({ room_id, payment_method, ...row }) => row);
+        const fallbackRows = rows.map(({ room_id, payment_method, paid_by, ...row }) => row);
+        const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
+        if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
+      } else if (config.table === "rent_payments" && isMissingRentPaymentOptionalColumn(error.message)) {
+        const fallbackRows = rows.map(({ received_by, ...row }) => row);
         const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
         if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
       } else {
@@ -542,6 +556,11 @@ function normalizePaymentMethod(method: string) {
     "杞处": "转账",
     "鍏朵粬": "其他"
   });
+}
+
+function normalizePartner(value?: string) {
+  const partner = (value || "A").trim().toUpperCase();
+  return partner || "A";
 }
 
 function normalizeSource(source: string) {

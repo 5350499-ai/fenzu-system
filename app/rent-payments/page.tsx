@@ -35,11 +35,13 @@ const emptyPayment: BusinessRentPayment = {
   amountPaid: 0,
   amountUnpaid: 0,
   paymentMethod: "转账",
+  receivedBy: "A",
   isOverdue: false,
   notes: ""
 };
 
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
+const partnerOptions = ["A", "B"];
 
 export default function RentPaymentsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -130,7 +132,7 @@ export default function RentPaymentsPage() {
     const amountDue = Number(form.amountDue || 0);
     const amountPaid = Number(form.amountPaid || 0);
     const amountUnpaid = Math.max(amountDue - amountPaid, 0);
-    const nextPayment = { ...form, amountDue, amountPaid, amountUnpaid, isOverdue: amountUnpaid > 0 };
+    const nextPayment = { ...form, amountDue, amountPaid, amountUnpaid, receivedBy: form.receivedBy || "A", isOverdue: amountUnpaid > 0 };
     const next = form.id
       ? payments.map((payment) => (payment.id === form.id ? nextPayment : payment))
       : [{ ...nextPayment, id: crypto.randomUUID() }, ...payments];
@@ -218,6 +220,7 @@ export default function RentPaymentsPage() {
               <MoneyInput label="已收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
               <MoneyInput label="未收金额" readOnly value={form.amountUnpaid} onChange={() => undefined} />
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
               <div className="field"><label>收款状态</label><input readOnly value={form.isOverdue ? "欠费" : "已结清"} /></div>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
@@ -258,6 +261,7 @@ function PaymentDetail({
         <DetailField label="已收" value={euro(payment.amountPaid)} />
         <DetailField label="欠费" value={euro(payment.amountUnpaid)} />
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
+        <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
       </div>
       <div className="top-actions detail-actions">

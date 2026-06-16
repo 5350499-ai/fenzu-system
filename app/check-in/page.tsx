@@ -145,6 +145,7 @@ export default function CheckInPage() {
         amountPaid,
         amountUnpaid: Math.max(form.monthlyRent - amountPaid, 0),
         paymentMethod: form.paymentMethod,
+        receivedBy: "A",
         isOverdue: amountPaid < form.monthlyRent,
         notes: form.notes
       };
