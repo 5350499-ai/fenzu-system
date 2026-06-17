@@ -7,7 +7,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@test.com");
+  const [email, setEmail] = useState("5350499@qq.com");
   const [password, setPassword] = useState("123456");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

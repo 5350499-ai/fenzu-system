@@ -131,7 +131,7 @@ export default function TenantsPage() {
     async function loadAdmin() {
       const { data } = await supabase?.auth.getUser() || { data: { user: null } };
       const email = data.user?.email?.toLowerCase() || "";
-      const admins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "admin@test.com")
+      const admins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "5350499@qq.com")
         .split(",")
         .map((item) => item.trim().toLowerCase())
         .filter(Boolean);
