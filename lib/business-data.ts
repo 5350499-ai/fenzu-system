@@ -65,6 +65,8 @@ export type BusinessRentPayment = {
   amountDue: number;
   amountPaid: number;
   amountUnpaid: number;
+  coverageStartDate?: string;
+  coverageEndDate?: string;
   paymentMethod: string;
   receivedBy?: string;
   isOverdue: boolean;
@@ -223,6 +225,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amountDue: Number(row.amount_due || 0),
       amountPaid: Number(row.amount_paid || 0),
       amountUnpaid: Number(row.amount_unpaid || 0),
+      coverageStartDate: row.coverage_start_date || "",
+      coverageEndDate: row.coverage_end_date || "",
       receivedBy: normalizePartner(row.received_by || "A"),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isOverdue: Boolean(row.is_overdue),
@@ -238,6 +242,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amount_due: Number(row.amountDue || 0),
       amount_paid: Number(row.amountPaid || 0),
       amount_unpaid: Number(row.amountUnpaid || 0),
+      coverage_start_date: row.coverageStartDate || null,
+      coverage_end_date: row.coverageEndDate || null,
       received_by: normalizePartner(row.receivedBy || "A"),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_overdue: Boolean(row.isOverdue),

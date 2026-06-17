@@ -25,6 +25,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
+import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { FileUp, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -49,9 +50,11 @@ export default function CheckInPage() {
     checkInDate: new Date().toISOString().slice(0, 10),
     contractEndDate: "",
     monthlyRent: 0,
+    amountPaid: 0,
+    coverageStartDate: new Date().toISOString().slice(0, 10),
+    coverageEndDate: "",
     depositAmount: 0,
     depositStatus: "已收",
-    rentStatus: "已收",
     paymentMethod: "转账",
     notes: ""
   });
@@ -136,21 +139,25 @@ export default function CheckInPage() {
             notes: form.notes
           }
         : null;
-      const amountPaid = form.rentStatus === "已收" ? form.monthlyRent : 0;
+      const rentMonth = (form.coverageStartDate || form.checkInDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
+      const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - Number(form.amountPaid || 0), 0);
       const nextPayment: BusinessRentPayment = {
         id: crypto.randomUUID(),
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,
-        rentMonth: new Date().toISOString().slice(0, 7),
+        rentMonth,
         amountDue: form.monthlyRent,
-        amountPaid,
-        amountUnpaid: Math.max(form.monthlyRent - amountPaid, 0),
+        amountPaid: form.amountPaid,
+        amountUnpaid,
+        coverageStartDate: form.coverageStartDate || monthStart(rentMonth),
+        coverageEndDate: form.coverageEndDate || monthEnd(rentMonth),
         paymentMethod: form.paymentMethod,
         receivedBy: "A",
-        isOverdue: amountPaid < form.monthlyRent,
+        isOverdue: false,
         notes: form.notes
       };
+      nextPayment.isOverdue = isCoverageExpired(nextPayment);
 
       await saveBusinessData(tenantKey, nextTenants);
       await saveBusinessData(roomKey, nextRooms);
@@ -198,12 +205,14 @@ export default function CheckInPage() {
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
           <TextField label="微信" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
-          <div className="field"><label>入住日期</label><input required type="date" value={form.checkInDate} onChange={(event) => setForm((current) => ({ ...current, checkInDate: event.target.value }))} /></div>
+          <div className="field"><label>入住日期</label><input required type="date" value={form.checkInDate} onChange={(event) => setForm((current) => ({ ...current, checkInDate: event.target.value, coverageStartDate: current.coverageStartDate || event.target.value }))} /></div>
           <div className="field"><label>合同结束日期</label><input required type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} /></div>
-          <MoneyInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
+          <MoneyInput label="月租金额（参考）" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
+          <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
+          <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
+          <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />
-          <SearchableSelect label="本月租金状态" value={form.rentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(rentStatus) => setForm((current) => ({ ...current, rentStatus }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label>合同附件 PDF/JPG/PNG</label>

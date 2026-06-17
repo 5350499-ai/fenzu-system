@@ -24,6 +24,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -140,19 +141,21 @@ function buildReminders({
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
   const reminders: Reminder[] = [];
 
-  payments
-    .filter((payment) => Number(payment.amountUnpaid || 0) > 0 && !isVoided(payment.notes))
-    .forEach((payment) => {
-      const room = roomById.get(payment.roomId);
-      const tenant = tenantById.get(payment.tenantId);
+  tenants
+    .filter((tenant) => !tenant.status.includes("退"))
+    .map((tenant) => ({ tenant, payment: latestCoverageForTenant(tenant.id, payments) }))
+    .filter(({ payment }) => isCoverageExpired(payment))
+    .forEach(({ tenant, payment }) => {
+      const room = roomById.get(tenant.roomId);
+      const amount = overdueReferenceAmount(payment, tenant);
       reminders.push({
-        id: `payment-${payment.id}`,
+        id: `payment-${tenant.id}`,
         category: "欠费提醒",
-        title: `${room?.roomNumber || room?.name || tenant?.name || "房间"}欠费 ${euro(payment.amountUnpaid)}`,
-        description: `${tenant?.name || "未命名租客"}｜${payment.rentMonth}`,
+        title: `${room?.roomNumber || room?.name || tenant.name || "房间"}欠费 ${euro(amount)}`,
+        description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
         href: "/rent-payments?overdue=1",
         tone: "danger",
-        priority: 40_000 + Number(payment.amountUnpaid || 0)
+        priority: 40_000 + amount
       });
     });
 

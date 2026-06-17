@@ -5,6 +5,7 @@ import {
   BusinessRentPayment,
   BusinessRoom
 } from "./business-data";
+import { isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount } from "./rent-coverage";
 
 export type RangePreset = "thisMonth" | "lastMonth" | "last30Days" | "last3Months" | "last6Months" | "last12Months" | "custom";
 
@@ -91,7 +92,11 @@ export function calculatePropertyProfit(
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
   const income = sumBy(scopedPayments, "amountPaid");
   const expense = sumBy(scopedExpenses, "amount");
-  const unpaid = sumBy(scopedPayments, "amountUnpaid");
+  const propertyPayments = payments.filter((payment) => payment.propertyId === property.id && !isVoided(payment.notes));
+  const unpaid = scopedRooms.reduce((total, room) => {
+    const latest = latestCoverageForRoom(room.id, propertyPayments);
+    return total + (isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0);
+  }, 0);
   const depositAmount = scopedDeposits.reduce((total, deposit) => {
     if (deposit.type === "退还") return total - Number(deposit.amount || 0);
     if (deposit.type === "扣除") return total;

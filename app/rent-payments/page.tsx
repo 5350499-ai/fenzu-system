@@ -22,6 +22,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart } from "@/lib/rent-coverage";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -34,6 +35,8 @@ const emptyPayment: BusinessRentPayment = {
   amountDue: 0,
   amountPaid: 0,
   amountUnpaid: 0,
+  coverageStartDate: monthStart(new Date().toISOString().slice(0, 7)),
+  coverageEndDate: monthEnd(new Date().toISOString().slice(0, 7)),
   paymentMethod: "转账",
   receivedBy: "A",
   isOverdue: false,
@@ -91,7 +94,7 @@ export default function RentPaymentsPage() {
       const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
       return (!keyword || text.includes(keyword)) &&
         (!monthFilter || payment.rentMonth.includes(monthFilter)) &&
-        (!overdueOnly || payment.isOverdue || Number(payment.amountUnpaid || 0) > 0);
+        (!overdueOnly || isLatestExpiredPayment(payment, payments));
     });
   }, [monthFilter, overdueOnly, payments, properties, query, rooms, tenants]);
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
@@ -117,13 +120,13 @@ export default function RentPaymentsPage() {
     setForm((current) => {
       const next = { ...current, ...patch };
       const amountUnpaid = Math.max(Number(next.amountDue || 0) - Number(next.amountPaid || 0), 0);
-      return { ...next, amountUnpaid, isOverdue: amountUnpaid > 0 };
+      return { ...next, amountUnpaid, isOverdue: isCoverageExpired(next) };
     });
   }
 
   function chooseTenant(tenantId: string) {
     const tenant = tenants.find((item) => item.id === tenantId);
-    updateMoney({ tenantId, amountDue: tenant?.monthlyRent || 0, amountPaid: 0 });
+    updateMoney({ tenantId, amountDue: tenant?.monthlyRent || 0 });
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -132,7 +135,17 @@ export default function RentPaymentsPage() {
     const amountDue = Number(form.amountDue || 0);
     const amountPaid = Number(form.amountPaid || 0);
     const amountUnpaid = Math.max(amountDue - amountPaid, 0);
-    const nextPayment = { ...form, amountDue, amountPaid, amountUnpaid, receivedBy: form.receivedBy || "A", isOverdue: amountUnpaid > 0 };
+    const nextPayment = {
+      ...form,
+      amountDue,
+      amountPaid,
+      amountUnpaid,
+      coverageStartDate: form.coverageStartDate || monthStart(form.rentMonth),
+      coverageEndDate: form.coverageEndDate || monthEnd(form.rentMonth),
+      receivedBy: form.receivedBy || "A",
+      isOverdue: false
+    };
+    nextPayment.isOverdue = isCoverageExpired(nextPayment);
     const next = form.id
       ? payments.map((payment) => (payment.id === form.id ? nextPayment : payment))
       : [{ ...nextPayment, id: crypto.randomUUID() }, ...payments];
@@ -180,12 +193,12 @@ export default function RentPaymentsPage() {
             const expanded = detailPaymentId === payment.id;
             return (
               <article className="finance-list-item" key={payment.id}>
-                <button className="finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
-                  <span>{payment.rentMonth}</span>
+                <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
+                  <span>{paymentCoverageEnd(payment) || payment.rentMonth}</span>
                   <span>{tenant?.name || "-"}</span>
                   <span className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{payment.receivedBy || "A"}</span>
                   <strong>{euro(payment.amountPaid)}</strong>
-                  <StatusBadge tone={isVoided(payment.notes) ? "red" : payment.isOverdue ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : payment.isOverdue ? "欠费" : "已结清"}</StatusBadge>
+                  <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖"}</StatusBadge>
                 </button>
                 {expanded ? (
                   <PaymentDetail
@@ -216,13 +229,18 @@ export default function RentPaymentsPage() {
               <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder="搜索房源名称、地址、城市" />
               <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder="先选房源，再搜索房间名称、编号" />
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
-              <div className="field"><label>月份</label><input required value={form.rentMonth} onChange={(event) => setForm((current) => ({ ...current, rentMonth: event.target.value }))} placeholder="例如 2026-06" /></div>
-              <MoneyInput label="应收金额" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
-              <MoneyInput label="已收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
-              <MoneyInput label="未收金额" readOnly value={form.amountUnpaid} onChange={() => undefined} />
+              <div className="field"><label>月份</label><input required value={form.rentMonth} onChange={(event) => {
+                const rentMonth = event.target.value;
+                setForm((current) => ({ ...current, rentMonth, coverageStartDate: current.coverageStartDate || monthStart(rentMonth), coverageEndDate: current.coverageEndDate || monthEnd(rentMonth) }));
+              }} placeholder="例如 2026-06" /></div>
+              <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
+              <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
+              <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
+              <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
+              <MoneyInput label="差额参考" readOnly value={form.amountUnpaid} onChange={() => undefined} />
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
-              <div className="field"><label>收款状态</label><input readOnly value={form.isOverdue ? "欠费" : "已结清"} /></div>
+              <div className="field"><label>覆盖状态</label><input readOnly value={isCoverageExpired(form) ? "覆盖已过期" : "覆盖中"} /></div>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
@@ -258,9 +276,11 @@ function PaymentDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="租客" value={tenantName} />
-        <DetailField label="应收" value={euro(payment.amountDue)} />
-        <DetailField label="已收" value={euro(payment.amountPaid)} />
-        <DetailField label="欠费" value={euro(payment.amountUnpaid)} />
+        <DetailField label="月租参考" value={euro(payment.amountDue)} />
+        <DetailField label="实收金额" value={euro(payment.amountPaid)} />
+        <DetailField label="差额参考" value={euro(payment.amountUnpaid)} />
+        <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} />
+        <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} />
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
         <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
@@ -289,4 +309,9 @@ function isVoided(notes?: string) {
 
 function cleanVoidNote(notes?: string) {
   return (notes || "").replace("[已作废]", "").replace("[宸蹭綔搴焆", "").trim();
+}
+
+function isLatestExpiredPayment(payment: BusinessRentPayment, payments: BusinessRentPayment[]) {
+  const latest = latestCoverageForTenant(payment.tenantId, payments);
+  return latest?.id === payment.id && isCoverageExpired(latest);
 }

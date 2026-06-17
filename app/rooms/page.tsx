@@ -26,6 +26,7 @@ import {
   saveBusinessData
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -163,6 +164,7 @@ export default function RoomsPage() {
             const property = properties.find((item) => item.id === room.propertyId);
             const contract = latestContractForRoom(room.id, contracts);
             const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
+            const latestPayment = latestCoverageForRoom(room.id, payments);
             const unpaid = roomUnpaidAmount(room.id, payments);
             const expanded = expandedRoomId === room.id;
             return (
@@ -181,6 +183,7 @@ export default function RoomsPage() {
                     propertyName={property?.name || "-"}
                     room={room}
                     unpaid={unpaid}
+                    coverageEnd={coverageLabel(latestPayment)}
                     saving={saving}
                     onArchive={() => archiveRoom(room)}
                     onDelete={() => permanentlyDelete(room)}
@@ -233,6 +236,7 @@ function RoomDetail({
   propertyName,
   expiryLabel,
   unpaid,
+  coverageEnd,
   saving,
   onEdit,
   onVacant,
@@ -243,6 +247,7 @@ function RoomDetail({
   propertyName: string;
   expiryLabel: string;
   unpaid: number;
+  coverageEnd: string;
   saving: boolean;
   onEdit: () => void;
   onVacant: () => void;
@@ -258,6 +263,7 @@ function RoomDetail({
         <DetailField label="月租" value={euro(room.monthlyRent)} />
         <DetailField label="押金" value={euro(room.depositAmount)} />
         <DetailField label="欠费" value={unpaid > 0 ? euro(unpaid) : "-"} />
+        <DetailField label="租金已覆盖至" value={coverageEnd} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
       </div>
@@ -288,9 +294,8 @@ function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
 }
 
 function roomUnpaidAmount(roomId: string, payments: BusinessRentPayment[]) {
-  return payments
-    .filter((payment) => payment.roomId === roomId && !isVoided(payment.notes))
-    .reduce((sum, payment) => sum + Number(payment.amountUnpaid || 0), 0);
+  const latest = latestCoverageForRoom(roomId, payments);
+  return isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0;
 }
 
 function getRoomExpiryInfo(endDate?: string) {

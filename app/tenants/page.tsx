@@ -36,6 +36,7 @@ import {
   uploadContractFile
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
+import { coverageLabel, isCoverageExpired, latestCoverageForTenant } from "@/lib/rent-coverage";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -319,6 +320,7 @@ export default function TenantsPage() {
             const files = getTenantFiles(tenant.id, contracts, filesByContract);
             const contract = latestContractForTenant(tenant.id, contracts);
             const expiry = getExpiryInfo(contract?.endDate);
+            const coveragePayment = latestCoverageForTenant(tenant.id, payments);
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const expanded = detailTenantId === tenant.id;
             return (
@@ -333,6 +335,7 @@ export default function TenantsPage() {
                 {expanded ? (
                   <TenantDetail
                     contract={contract}
+                    coverageEnd={coverageLabel(coveragePayment)}
                     files={files}
                     onDeleteFile={removeContractFile}
                     onEdit={() => {
@@ -426,6 +429,7 @@ export default function TenantsPage() {
 function TenantDetail({
   tenant,
   contract,
+  coverageEnd,
   propertyName,
   roomName,
   files,
@@ -437,6 +441,7 @@ function TenantDetail({
 }: {
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
+  coverageEnd: string;
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -455,6 +460,7 @@ function TenantDetail({
         <DetailField label="押金" value={euro(tenant.depositAmount)} />
         <DetailField label="入住日期" value={contract?.startDate || "-"} />
         <DetailField label="合同到期" value={contract?.endDate || "-"} />
+        <DetailField label="租金已覆盖至" value={coverageEnd} />
         <DetailField label="来源" value={tenant.source || "-"} />
         <DetailField label="备注" value={tenant.notes || "-"} />
       </div>
@@ -528,7 +534,7 @@ function tenantTone(status: string) {
 }
 
 function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayment[]) {
-  const hasDebt = payments.some((payment) => payment.tenantId === tenant.id && Number(payment.amountUnpaid || 0) > 0);
+  const hasDebt = isCoverageExpired(latestCoverageForTenant(tenant.id, payments));
   if (hasDebt) return "欠租";
   return tenant.status || "在租";
 }

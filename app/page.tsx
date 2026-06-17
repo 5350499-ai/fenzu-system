@@ -28,6 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
+import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -168,19 +169,21 @@ function buildDashboardReminders({
   const roomById = new Map(rooms.map((item) => [item.id, item]));
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
 
-  rentPayments
-    .filter((payment) => Number(payment.amountUnpaid || 0) > 0 && !isVoided(payment.notes))
-    .sort((a, b) => Number(b.amountUnpaid || 0) - Number(a.amountUnpaid || 0))
-    .forEach((payment) => {
-      const room = roomById.get(payment.roomId);
-      const tenant = tenantById.get(payment.tenantId);
+  tenants
+    .filter((tenant) => !tenant.status.includes("退"))
+    .map((tenant) => ({ tenant, payment: latestCoverageForTenant(tenant.id, rentPayments) }))
+    .filter(({ payment }) => isCoverageExpired(payment))
+    .sort((a, b) => overdueReferenceAmount(b.payment, b.tenant) - overdueReferenceAmount(a.payment, a.tenant))
+    .forEach(({ tenant, payment }) => {
+      const room = roomById.get(tenant.roomId);
+      const amount = overdueReferenceAmount(payment, tenant);
       reminders.push({
-        id: `rent-${payment.id}`,
-        title: `${room?.name || tenant?.name || "租客"}欠费 ${euro(payment.amountUnpaid)}`,
-        description: `${tenant?.name || "未命名租客"}｜${payment.rentMonth}`,
+        id: `rent-${tenant.id}`,
+        title: `${room?.roomNumber || room?.name || tenant.name || "租客"}欠费 ${euro(amount)}`,
+        description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
         href: "/rent-payments?overdue=1",
         tone: "danger",
-        priority: 40_000 + Number(payment.amountUnpaid || 0)
+        priority: 40_000 + amount
       });
     });
 
@@ -260,9 +263,10 @@ function buildReminderSummary({
   deposits: BusinessDeposit[];
 }) {
   const today = new Date();
-  const unpaid = rentPayments
-    .filter((payment) => Number(payment.amountUnpaid || 0) > 0 && !isVoided(payment.notes))
-    .reduce((sum, payment) => sum + Number(payment.amountUnpaid || 0), 0);
+  const unpaid = rentPayments.reduce((sum, payment) => {
+    if (!isCoverageExpired(payment) || latestCoverageForTenant(payment.tenantId, rentPayments)?.id !== payment.id) return sum;
+    return sum + Number(payment.amountDue || 0);
+  }, 0);
   const expiringCount = contracts.filter((contract) => {
     const days = daysUntil(contract.endDate, today);
     return days <= 30;

@@ -1026,6 +1026,12 @@ td:last-child {
   gap: 14px;
 }
 
+.form-grid > *,
+.field,
+.combobox-field {
+  min-width: 0;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -1041,6 +1047,8 @@ td:last-child {
 .field select,
 .field textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 42px;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1068,6 +1076,8 @@ td:last-child {
   border-radius: 16px;
   background: var(--surface);
   padding: 0 10px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .combobox.disabled {
@@ -1075,6 +1085,8 @@ td:last-child {
 }
 
 .combobox input {
+  width: 100%;
+  min-width: 0;
   min-height: 40px;
   border: 0;
   outline: 0;
