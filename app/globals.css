@@ -433,6 +433,77 @@ a {
   background: color-mix(in srgb, var(--blue) 12%, var(--surface));
 }
 
+.reminder-center {
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.reminder-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  text-align: left;
+}
+
+.reminder-toggle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.reminder-toggle svg {
+  color: var(--amber);
+}
+
+.reminder-toggle .open {
+  transform: rotate(180deg);
+}
+
+.reminder-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reminder-item {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.reminder-item span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.reminder-item small {
+  color: var(--muted);
+}
+
+.reminder-item.danger {
+  border-color: color-mix(in srgb, var(--red) 28%, var(--border));
+}
+
+.reminder-item.warning {
+  border-color: color-mix(in srgb, var(--amber) 32%, var(--border));
+}
+
+.reminder-item.info {
+  border-color: color-mix(in srgb, var(--blue) 25%, var(--border));
+}
+
 .risk-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 18px;
