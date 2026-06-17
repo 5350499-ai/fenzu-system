@@ -36,12 +36,16 @@ import {
   uploadContractFile
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
-import { coverageLabel, isCoverageExpired, latestCoverageForTenant } from "@/lib/rent-coverage";
+import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
+import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const sources = ["微信群", "华人街", "小红书", "Facebook", "朋友介绍", "其他"];
 const tenantStatuses = ["在租", "预定入住", "已退租"];
+const paymentMethods = ["现金", "转账", "Bizum", "其他"];
+const paymentStatusOptions = ["已收", "未收"];
+const partnerOptions = ["A", "B"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 type TenantSortKey = "expiry" | "rent" | "property" | "status";
 
@@ -59,6 +63,26 @@ const emptyTenant: BusinessTenant = {
   notes: ""
 };
 
+const currentMonth = new Date().toISOString().slice(0, 7);
+const emptyTenantPayment: BusinessRentPayment = {
+  id: "",
+  propertyId: "",
+  roomId: "",
+  tenantId: "",
+  rentMonth: currentMonth,
+  paymentDate: today(),
+  amountDue: 0,
+  amountPaid: 0,
+  amountUnpaid: 0,
+  coverageStartDate: today(),
+  coverageEndDate: monthEnd(currentMonth),
+  paymentMethod: "转账",
+  receivedBy: "A",
+  paymentStatus: "已收",
+  isOverdue: false,
+  notes: ""
+};
+
 export default function TenantsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -69,7 +93,9 @@ export default function TenantsPage() {
   const [contractFiles, setContractFiles] = useState<ContractFile[]>([]);
   const [form, setForm] = useState<BusinessTenant>(emptyTenant);
   const [contractForm, setContractForm] = useState({ startDate: today(), endDate: "" });
+  const [paymentForm, setPaymentForm] = useState<BusinessRentPayment>(emptyTenantPayment);
   const [pendingContractFile, setPendingContractFile] = useState<File | null>(null);
+  const [pendingPaymentFile, setPendingPaymentFile] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
@@ -138,21 +164,34 @@ export default function TenantsPage() {
     setOpen(false);
     setForm(emptyTenant);
     setContractForm({ startDate: today(), endDate: "" });
+    setPaymentForm(emptyTenantPayment);
     setPendingContractFile(null);
+    setPendingPaymentFile(null);
   }
 
   function openTenantForm(tenant?: BusinessTenant) {
     if (!tenant) {
       setForm(emptyTenant);
       setContractForm({ startDate: today(), endDate: "" });
+      setPaymentForm(emptyTenantPayment);
       setPendingContractFile(null);
+      setPendingPaymentFile(null);
       setOpen(true);
       return;
     }
     const contract = latestContractForTenant(tenant.id, contracts);
+    const latestPayment = latestCoverageForTenant(tenant.id, payments);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
+    setPaymentForm(latestPayment ? { ...latestPayment } : {
+      ...emptyTenantPayment,
+      propertyId: tenant.propertyId,
+      roomId: tenant.roomId,
+      tenantId: tenant.id,
+      amountDue: tenant.monthlyRent
+    });
     setPendingContractFile(null);
+    setPendingPaymentFile(null);
     setOpen(true);
   }
 
@@ -171,6 +210,7 @@ export default function TenantsPage() {
     rooms?: BusinessRoom[];
     contracts?: BusinessContract[];
     deposits?: BusinessDeposit[];
+    payments?: BusinessRentPayment[];
   }) {
     setSaving(true);
     try {
@@ -178,10 +218,12 @@ export default function TenantsPage() {
       if (next.rooms) await saveBusinessData(roomKey, next.rooms);
       if (next.contracts) await saveBusinessData(contractKey, next.contracts);
       if (next.deposits) await saveBusinessData(depositKey, next.deposits);
+      if (next.payments) await saveBusinessData(rentPaymentKey, next.payments);
       if (next.tenants) setTenants(next.tenants);
       if (next.rooms) setRooms(next.rooms);
       if (next.contracts) setContracts(next.contracts);
       if (next.deposits) setDeposits(next.deposits);
+      if (next.payments) setPayments(next.payments);
     } catch (error: any) {
       window.alert(error.message || "保存失败，请稍后重试。");
     } finally {
@@ -226,13 +268,18 @@ export default function TenantsPage() {
       const nextContracts = currentContract
         ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
         : [nextContract, ...contracts];
-      await persistAll({ tenants: next, contracts: nextContracts });
+      const nextPayment = buildTenantPayment(nextTenant, paymentForm);
+      const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
+        ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
+        : [nextPayment, ...payments];
+      await persistAll({ tenants: next, contracts: nextContracts, payments: nextPayments });
       if (pendingContractFile) {
         const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
         setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
       }
+      if (pendingPaymentFile) await uploadRentPaymentFile(nextPayment.id, pendingPaymentFile);
     } catch (error: any) {
-      window.alert(error.message || "保存租客或合同附件失败，请稍后重试。");
+      window.alert(error.message || "保存租客、收款或附件失败，请稍后重试。");
       return;
     }
     close();
@@ -273,6 +320,20 @@ export default function TenantsPage() {
   function chooseContractFile(file?: File) {
     if (!file || !validateContractFile(file)) return;
     setPendingContractFile(file);
+  }
+
+  function choosePaymentFile(file?: File) {
+    if (!file || !validateContractFile(file)) return;
+    setPendingPaymentFile(file);
+  }
+
+  function updatePaymentMoney(patch: Partial<BusinessRentPayment>) {
+    setPaymentForm((current) => {
+      const next = { ...current, ...patch };
+      const amountPaid = next.paymentStatus === "未收" ? 0 : Number(next.amountPaid || 0);
+      const amountUnpaid = Math.max(Number(next.amountDue || 0) - amountPaid, 0);
+      return { ...next, amountPaid, amountUnpaid, isOverdue: isCoverageExpired(next) };
+    });
   }
 
   async function removeContractFile(file: ContractFile) {
@@ -395,11 +456,32 @@ export default function TenantsPage() {
               <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
               <TextField label="微信" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
               <SearchableSelect label="来源" value={form.source} options={sources.map((source) => ({ value: source, label: source }))} onChange={(source) => setForm((current) => ({ ...current, source }))} />
-              <MoneyInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
+              <MoneyInput label="月租金额" value={form.monthlyRent} onChange={(monthlyRent) => {
+                setForm((current) => ({ ...current, monthlyRent }));
+                updatePaymentMoney({ amountDue: monthlyRent });
+              }} />
+              <MoneyInput label="本次实收金额" value={paymentForm.amountPaid} onChange={(amountPaid) => updatePaymentMoney({ amountPaid, paymentStatus: amountPaid > 0 ? "已收" : paymentForm.paymentStatus })} />
+              <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
+              <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
+              <SearchableSelect label="收款归属" value={paymentForm.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => updatePaymentMoney({ receivedBy })} />
+              <SearchableSelect label="收款状态" value={paymentForm.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updatePaymentMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : paymentForm.amountPaid })} />
+              <SearchableSelect label="付款方式" value={paymentForm.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => updatePaymentMoney({ paymentMethod })} />
+              <div className="field"><label>收款日期</label><input required type="date" value={paymentForm.paymentDate || ""} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentDate: event.target.value }))} /></div>
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field"><label>入住日期</label><input type="date" value={contractForm.startDate} onChange={(event) => setContractForm((current) => ({ ...current, startDate: event.target.value }))} /></div>
               <div className="field"><label>合同到期日期</label><input type="date" value={contractForm.endDate} onChange={(event) => setContractForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <label>收款附件 PDF/JPG/PNG</label>
+                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
+                {pendingPaymentFile ? (
+                  <div className="attachment-preview">
+                    <FileUp size={16} />
+                    <span>{pendingPaymentFile.name} ｜ {formatFileSize(pendingPaymentFile.size)}</span>
+                    <button className="btn danger" type="button" onClick={() => setPendingPaymentFile(null)}>移除</button>
+                  </div>
+                ) : <p className="muted">这笔收款凭证会绑定到租客的收款记录。</p>}
+              </div>
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>合同附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseContractFile(event.target.files?.[0])} />
@@ -580,6 +662,31 @@ function daysBetween(startDate: string, endDate: string) {
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T00:00:00`);
   return Math.ceil((end.getTime() - start.getTime()) / 86400000);
+}
+
+function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment): BusinessRentPayment {
+  const rentMonth = (draft.coverageStartDate || today()).slice(0, 7);
+  const amountPaid = draft.paymentStatus === "未收" ? 0 : Number(draft.amountPaid || 0);
+  const next: BusinessRentPayment = {
+    ...draft,
+    id: draft.id || crypto.randomUUID(),
+    propertyId: tenant.propertyId,
+    roomId: tenant.roomId,
+    tenantId: tenant.id,
+    rentMonth,
+    paymentDate: draft.paymentDate || today(),
+    amountDue: Number(draft.amountDue || tenant.monthlyRent || 0),
+    amountPaid,
+    amountUnpaid: Math.max(Number(draft.amountDue || tenant.monthlyRent || 0) - amountPaid, 0),
+    coverageStartDate: draft.coverageStartDate || monthStart(rentMonth),
+    coverageEndDate: draft.coverageEndDate || monthEnd(rentMonth),
+    paymentMethod: draft.paymentMethod || "转账",
+    receivedBy: draft.receivedBy || "A",
+    paymentStatus: draft.paymentStatus || (amountPaid > 0 ? "已收" : "未收"),
+    isOverdue: false,
+    notes: draft.notes || tenant.notes || ""
+  };
+  return { ...next, isOverdue: isCoverageExpired(next) };
 }
 
 function validateContractFile(file: File) {
