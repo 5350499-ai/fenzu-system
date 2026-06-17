@@ -28,7 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowRight, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -85,6 +85,7 @@ export default function DashboardPage() {
     [contracts, deposits, properties, rentPayments, rooms, tenants]
   );
   const visibleReminders = reminders.slice(0, 3);
+  const topReminder = reminders[0];
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
@@ -111,13 +112,10 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="card action-strip">
-        <Link className="btn primary" href="/property-profits">房源利润分析 →</Link>
-      </section>
-
       <section className="card panel reminder-center">
         <button className="reminder-toggle" onClick={() => setRemindersOpen((current) => !current)} type="button">
-          <span><AlertTriangle size={17} /> 提醒中心（{reminders.length}）</span>
+          <span className="reminder-toggle-title"><AlertTriangle size={17} /> 提醒中心（{reminders.length}）</span>
+          <span className={`reminder-summary ${topReminder?.tone || ""}`}>{topReminder ? topReminder.title : "暂无待处理提醒"}</span>
           <ChevronDown className={remindersOpen ? "open" : ""} size={18} />
         </button>
         {remindersOpen ? (
@@ -132,6 +130,14 @@ export default function DashboardPage() {
           </div>
         ) : null}
       </section>
+
+      <Link className="card property-profit-entry" href="/property-profits">
+        <span>
+          <strong>房源利润分析</strong>
+          <small>查看每个房源收入、支出、利润和空置情况</small>
+        </span>
+        <ArrowRight size={20} />
+      </Link>
     </AppLayout>
   );
 }
@@ -178,7 +184,7 @@ function buildDashboardReminders({
         description: `${tenant?.name || "未命名租客"}｜${payment.rentMonth}`,
         href: "/rent-payments?overdue=1",
         tone: "danger",
-        priority: 10_000 + Number(payment.amountUnpaid || 0)
+        priority: 40_000 + Number(payment.amountUnpaid || 0)
       });
     });
 
@@ -195,7 +201,34 @@ function buildDashboardReminders({
         description: room?.name || contract.endDate || "合同到期提醒",
         href: "/tenants",
         tone: "danger",
-        priority: 9_000 - days
+        priority: 30_000 - days
+      });
+    });
+
+  rooms
+    .filter((room) => room.status.includes("即将退租"))
+    .forEach((room) => {
+      reminders.push({
+        id: `moving-${room.id}`,
+        title: `${room.name} 即将退租`,
+        description: propertyById.get(room.propertyId)?.name || "房间状态提醒",
+        href: "/rooms",
+        tone: "warning",
+        priority: 20_000
+      });
+    });
+
+  deposits
+    .filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes))
+    .forEach((deposit) => {
+      const tenant = tenantById.get(deposit.tenantId);
+      reminders.push({
+        id: `deposit-${deposit.id}`,
+        title: `${tenant?.name || "租客"}押金${deposit.status}`,
+        description: euro(deposit.amount),
+        href: "/deposits",
+        tone: "info",
+        priority: 10_000
       });
     });
 
@@ -212,36 +245,9 @@ function buildDashboardReminders({
       description: "点击查看房间状态",
       href: "/rooms?status=空置",
       tone: "warning",
-      priority: 3_000 + count
+      priority: 1_000 + count
     });
   });
-
-  rooms
-    .filter((room) => room.status.includes("即将退租"))
-    .forEach((room) => {
-      reminders.push({
-        id: `moving-${room.id}`,
-        title: `${room.name} 即将退租`,
-        description: propertyById.get(room.propertyId)?.name || "房间状态提醒",
-        href: "/rooms",
-        tone: "warning",
-        priority: 2_500
-      });
-    });
-
-  deposits
-    .filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes))
-    .forEach((deposit) => {
-      const tenant = tenantById.get(deposit.tenantId);
-      reminders.push({
-        id: `deposit-${deposit.id}`,
-        title: `${tenant?.name || "租客"}押金${deposit.status}`,
-        description: euro(deposit.amount),
-        href: "/deposits",
-        tone: "info",
-        priority: 1_500
-      });
-    });
 
   return reminders.sort((a, b) => b.priority - a.priority);
 }

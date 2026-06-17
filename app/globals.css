@@ -325,6 +325,37 @@ a {
   padding: 14px;
 }
 
+.property-profit-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.property-profit-entry span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.property-profit-entry strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.property-profit-entry small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.property-profit-entry svg {
+  flex: 0 0 auto;
+  color: var(--blue);
+}
+
 .metric-link {
   color: inherit;
   display: block;
@@ -439,9 +470,10 @@ a {
 }
 
 .reminder-toggle {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   width: 100%;
   border: 0;
   background: transparent;
@@ -450,12 +482,35 @@ a {
   text-align: left;
 }
 
-.reminder-toggle span {
+.reminder-toggle-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 15px;
   font-weight: 850;
+  white-space: nowrap;
+}
+
+.reminder-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.reminder-summary.danger {
+  color: var(--red);
+}
+
+.reminder-summary.warning {
+  color: var(--amber);
+}
+
+.reminder-summary.info {
+  color: var(--blue);
 }
 
 .reminder-toggle svg {
