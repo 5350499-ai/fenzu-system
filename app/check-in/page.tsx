@@ -92,13 +92,7 @@ export default function CheckInPage() {
     }
     setSaving(true);
     try {
-      const existingTenant = tenants.find(
-        (tenant) =>
-          tenant.roomId === form.roomId &&
-          tenant.name.trim() === form.tenantName.trim() &&
-          (!form.phone || tenant.phone === form.phone)
-      );
-      const tenantId = existingTenant?.id || crypto.randomUUID();
+      const tenantId = crypto.randomUUID();
       const contractId = crypto.randomUUID();
       const nextTenant: BusinessTenant = {
         id: tenantId,
@@ -113,10 +107,16 @@ export default function CheckInPage() {
         status: "在租",
         notes: [form.documentNumber ? `证件号：${form.documentNumber}` : "", form.notes].filter(Boolean).join("\n")
       };
-      const nextTenants = existingTenant
-        ? tenants.map((tenant) => (tenant.id === tenantId ? nextTenant : tenant))
-        : [nextTenant, ...tenants];
-      const nextRooms = rooms.map((room) => (room.id === form.roomId ? { ...room, status: "已租", monthlyRent: form.monthlyRent || room.monthlyRent, depositAmount: form.depositAmount || room.depositAmount } : room));
+      const nextTenants = [nextTenant, ...tenants];
+      const nextRooms = rooms.map((room) => {
+        if (room.id !== form.roomId) return room;
+        return {
+          ...room,
+          status: "已租",
+          monthlyRent: form.monthlyRent || room.monthlyRent,
+          depositAmount: form.depositAmount || room.depositAmount
+        };
+      });
       const nextContract: BusinessContract = {
         id: contractId,
         propertyId: form.propertyId,

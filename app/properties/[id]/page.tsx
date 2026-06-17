@@ -301,7 +301,15 @@ export default function PropertyDetailPage() {
           onClose={closeEditor}
           onSave={() => {
             if (editor === "room") upsert(roomForm, setRooms);
-            if (editor === "tenant") upsert(tenantForm, setTenants);
+            if (editor === "tenant") {
+              const previousTenant = tenantForm.id ? tenants.find((tenant) => tenant.id === tenantForm.id) || null : null;
+              const nextTenant = tenantForm.id ? tenantForm : { ...tenantForm, id: crypto.randomUUID() };
+              const nextTenants = tenantForm.id
+                ? tenants.map((tenant) => (tenant.id === tenantForm.id ? nextTenant : tenant))
+                : [nextTenant, ...tenants];
+              setTenants(nextTenants);
+              setRooms(syncRoomsAfterTenantChange(rooms, nextTenants, previousTenant, nextTenant));
+            }
             if (editor === "contract") upsert(contractForm, setContracts);
             if (editor === "payment") upsert(paymentForm, setPayments);
             if (editor === "deposit") upsert(depositForm, setDeposits);
@@ -418,6 +426,26 @@ function Note({ value, onChange }: { value?: string; onChange: (value: string) =
 
 function upsert<T extends { id: string }>(record: T, setter: (updater: (current: T[]) => T[]) => void) {
   setter((current) => record.id ? current.map((item) => item.id === record.id ? record : item) : [{ ...record, id: crypto.randomUUID() }, ...current]);
+}
+
+function syncRoomsAfterTenantChange(
+  rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
+  previousTenant: BusinessTenant | null,
+  nextTenant: BusinessTenant
+) {
+  const touchedRoomIds = new Set([previousTenant?.roomId, nextTenant.roomId].filter(Boolean));
+  return rooms.map((room) => {
+    if (!touchedRoomIds.has(room.id)) return room;
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    if (hasActiveTenant) return { ...room, status: "已租" };
+    if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
+    return room;
+  });
+}
+
+function isActiveTenant(tenant: BusinessTenant) {
+  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function emptyRoom(propertyId: string): BusinessRoom { return { id: "", propertyId, name: "", roomNumber: "", monthlyRent: 0, depositAmount: 0, status: "空置", notes: "" }; }

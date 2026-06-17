@@ -236,10 +236,12 @@ export default function TenantsPage() {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
     try {
+      const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
       const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
       const next = form.id
         ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
         : [nextTenant, ...tenants];
+      const nextRooms = syncRoomsAfterTenantChange(rooms, next, previousTenant, nextTenant);
       const currentContract = latestContractForTenant(nextTenant.id, contracts);
       const nextContract: BusinessContract = currentContract
         ? {
@@ -273,7 +275,7 @@ export default function TenantsPage() {
       const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
-      await persistAll({ tenants: next, contracts: nextContracts, payments: nextPayments });
+      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, payments: nextPayments });
       if (pendingContractFile) {
         const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
         setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
@@ -648,6 +650,26 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
   const hasDebt = isCoverageExpired(latestCoverageForTenant(tenant.id, payments));
   if (hasDebt) return "欠租";
   return tenant.status || "在租";
+}
+
+function syncRoomsAfterTenantChange(
+  rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
+  previousTenant: BusinessTenant | null,
+  nextTenant: BusinessTenant
+) {
+  const touchedRoomIds = new Set([previousTenant?.roomId, nextTenant.roomId].filter(Boolean));
+  return rooms.map((room) => {
+    if (!touchedRoomIds.has(room.id)) return room;
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    if (hasActiveTenant) return { ...room, status: "已租" };
+    if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
+    return room;
+  });
+}
+
+function isActiveTenant(tenant: BusinessTenant) {
+  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function getExpiryInfo(endDate?: string) {

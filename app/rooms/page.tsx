@@ -23,7 +23,8 @@ import {
   loadBusinessData,
   rentPaymentKey,
   roomKey,
-  saveBusinessData
+  saveBusinessData,
+  tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount } from "@/lib/rent-coverage";
@@ -121,8 +122,23 @@ export default function RoomsPage() {
   }
 
   async function setVacant(room: BusinessRoom) {
-    if (!window.confirm("确认把这个房间设为空置吗？历史租客、合同、收租记录会保留。")) return;
-    await persist(rooms.map((item) => (item.id === room.id ? { ...item, status: "空置" } : item)));
+    if (!window.confirm("确认把这个房间设为空置吗？\n当前在租租客会标记为已退租，合同会标记为已结束，历史收租记录会保留。")) return;
+    setSaving(true);
+    const nextRooms = rooms.map((item) => (item.id === room.id ? { ...item, status: "空置" } : item));
+    const nextTenants = tenants.map((tenant) => (tenant.roomId === room.id && isActiveTenant(tenant) ? { ...tenant, status: "已退租" } : tenant));
+    const nextContracts = contracts.map((contract) => (contract.roomId === room.id && contract.status !== "已结束" ? { ...contract, status: "已结束" } : contract));
+    try {
+      await saveBusinessData(roomKey, nextRooms);
+      await saveBusinessData(tenantKey, nextTenants);
+      await saveBusinessData(contractKey, nextContracts);
+      setRooms(nextRooms);
+      setTenants(nextTenants);
+      setContracts(nextContracts);
+    } catch (error: any) {
+      window.alert(error.message || "设为空置失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function archiveRoom(room: BusinessRoom) {
@@ -165,7 +181,7 @@ export default function RoomsPage() {
             const contract = latestContractForRoom(room.id, contracts);
             const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
             const latestPayment = latestCoverageForRoom(room.id, payments);
-            const currentTenant = tenants.find((tenant) => tenant.roomId === room.id && !tenant.status.includes("退"));
+            const currentTenant = tenants.find((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
             const unpaid = roomUnpaidAmount(room.id, payments);
             const expanded = expandedRoomId === room.id;
             return (
@@ -305,6 +321,10 @@ function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
 function roomUnpaidAmount(roomId: string, payments: BusinessRentPayment[]) {
   const latest = latestCoverageForRoom(roomId, payments);
   return isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0;
+}
+
+function isActiveTenant(tenant: BusinessTenant) {
+  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function getRoomExpiryInfo(endDate?: string) {
