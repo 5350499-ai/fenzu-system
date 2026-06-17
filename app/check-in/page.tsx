@@ -42,14 +42,14 @@ export default function CheckInPage() {
   const [saving, setSaving] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [form, setForm] = useState({
     propertyId: "",
     roomId: "",
     tenantName: "",
     phone: "",
-    wechat: "",
     documentNumber: "",
-    checkInDate: new Date().toISOString().slice(0, 10),
     contractEndDate: "",
     monthlyRent: 0,
     amountPaid: 0,
@@ -106,7 +106,7 @@ export default function CheckInPage() {
         roomId: form.roomId,
         name: form.tenantName.trim(),
         phone: form.phone,
-        wechat: form.wechat,
+        wechat: "",
         source: "其他",
         monthlyRent: form.monthlyRent,
         depositAmount: form.depositAmount,
@@ -122,7 +122,7 @@ export default function CheckInPage() {
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,
-        startDate: form.checkInDate,
+        startDate: form.coverageStartDate || form.paymentDate,
         endDate: form.contractEndDate,
         monthlyRent: form.monthlyRent,
         depositAmount: form.depositAmount,
@@ -138,13 +138,13 @@ export default function CheckInPage() {
             type: "收取",
             amount: form.depositAmount,
             status: form.depositStatus === "已收" ? "已收" : "待退",
-            transactionDate: form.checkInDate,
+            transactionDate: form.paymentDate,
             receivedBy: "A",
             paidBy: "A",
             notes: form.notes
           }
         : null;
-      const rentMonth = (form.coverageStartDate || form.checkInDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
+      const rentMonth = (form.coverageStartDate || form.paymentDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const actualPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
       const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - actualPaid, 0);
       const nextPayment: BusinessRentPayment = {
@@ -181,6 +181,8 @@ export default function CheckInPage() {
       setPayments([nextPayment, ...payments]);
       setAttachment(null);
       setPaymentAttachment(null);
+      setAdvancedOpen(false);
+      setAttachmentsOpen(false);
       window.alert("一键入住已保存，首页统计会同步更新。");
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
@@ -226,31 +228,55 @@ export default function CheckInPage() {
           }} />
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-          <TextField label="微信" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
-          <div className="field"><label>入住日期</label><input required type="date" value={form.checkInDate} onChange={(event) => setForm((current) => ({ ...current, checkInDate: event.target.value, coverageStartDate: current.coverageStartDate || event.target.value }))} /></div>
-          <div className="field"><label>合同结束日期</label><input required type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} /></div>
           <MoneyInput label="月租金额（参考）" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
-          <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
-          <div className="field"><label>收款日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} /></div>
+          <MoneyInput label="本次实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
+          <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-          <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
-          <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />
-          <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
           <SearchableSelect label="收款归属" value={form.receivedBy} options={["A", "B"].map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
+          <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-          <div className="field" style={{ gridColumn: "1 / -1" }}>
-            <label>收款附件 PDF/JPG/PNG</label>
-            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
-            {paymentAttachment ? <div className="attachment-preview"><FileUp size={16} /><span>{paymentAttachment.name} · {formatFileSize(paymentAttachment.size)}</span><button className="btn danger" type="button" onClick={() => setPaymentAttachment(null)}>移除</button></div> : <p className="muted">可上传付款截图或收款凭证，附件会绑定到本次收款记录。</p>}
-          </div>
-          <div className="field" style={{ gridColumn: "1 / -1" }}>
-            <label>合同附件 PDF/JPG/PNG</label>
-            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
-            {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传，附件会保存到 Supabase Storage。</p>}
-          </div>
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
+          <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
+            <button className="btn soft attachment-toggle" type="button" onClick={() => setAdvancedOpen((current) => !current)}>
+              <span>高级选项</span>
+              <span className="muted">{advancedOpen ? "收起" : "展开"}</span>
+            </button>
+            {advancedOpen ? (
+              <div className="attachment-sections">
+                <div className="field compact-field">
+                  <label>收款日期</label>
+                  <input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} />
+                </div>
+                <div className="field compact-field">
+                  <label>合同结束日期（可选）</label>
+                  <input type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} />
+                </div>
+                <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />
+              </div>
+            ) : <p className="muted">收款日期默认今天，押金默认已收；需要修改时再展开。</p>}
+          </div>
+          <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
+            <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
+              <span><FileUp size={16} /> 附件管理</span>
+              <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
+            </button>
+            {attachmentsOpen ? (
+              <div className="attachment-sections">
+                <div className="attachment-subsection">
+                  <label>收款附件 PDF/JPG/PNG</label>
+                  <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
+                  {paymentAttachment ? <div className="attachment-preview"><FileUp size={16} /><span>{paymentAttachment.name} · {formatFileSize(paymentAttachment.size)}</span><button className="btn danger" type="button" onClick={() => setPaymentAttachment(null)}>移除</button></div> : <p className="muted">可上传付款截图或收款凭证，附件会绑定到本次收款记录。</p>}
+                </div>
+                <div className="attachment-subsection">
+                  <label>合同附件 PDF/JPG/PNG</label>
+                  <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                  {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传，附件会保存到 Supabase Storage。</p>}
+                </div>
+              </div>
+            ) : <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>}
+          </div>
           <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div>
         </form>
       </section>
