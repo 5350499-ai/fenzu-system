@@ -1316,6 +1316,20 @@ td:last-child {
   padding-block: 5px;
 }
 
+.room-compact-list {
+  gap: 0;
+}
+
+.room-finance-line {
+  grid-template-columns: minmax(54px, 0.8fr) minmax(54px, 0.8fr) auto minmax(76px, auto) auto;
+  min-height: 32px;
+  padding-block: 5px;
+}
+
+.room-detail-panel {
+  margin: 2px 0 8px;
+}
+
 .compact-record-button small {
   grid-column: 1 / -1;
   color: var(--muted);

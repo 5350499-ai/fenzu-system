@@ -19,6 +19,7 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { defaultPartnerRatios, loadPartnerRatios, PartnerRatios } from "@/lib/partner-settings";
 import { useEffect, useMemo, useState } from "react";
 
 const partners = ["A", "B"];
@@ -38,8 +39,10 @@ export default function PartnershipSettlementPage() {
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [propertyId, setPropertyId] = useState("all");
+  const [ratios, setRatios] = useState<PartnerRatios>(defaultPartnerRatios);
 
   useEffect(() => {
+    setRatios(loadPartnerRatios());
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       setProperties(loadedProperties);
@@ -71,7 +74,6 @@ export default function PartnershipSettlementPage() {
     const totalIncome = scopedPayments.reduce((sum, payment) => sum + Number(payment.amountPaid || 0), 0);
     const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const netProfit = totalIncome - totalExpense;
-    const share = netProfit / partners.length;
 
     const partnerStats = partners.reduce<Record<string, PartnerStat>>((map, partner) => {
       const collected = scopedPayments
@@ -85,8 +87,8 @@ export default function PartnershipSettlementPage() {
         collected,
         advanced,
         actualCash,
-        shouldHave: share,
-        balance: actualCash - share
+        shouldHave: netProfit * (ratios[partner as keyof PartnerRatios] / 100),
+        balance: actualCash - netProfit * (ratios[partner as keyof PartnerRatios] / 100)
       };
       return map;
     }, {});
@@ -99,8 +101,8 @@ export default function PartnershipSettlementPage() {
           ? { from: "A", to: "B", amount: aBalance }
           : { from: "B", to: "A", amount: Math.abs(aBalance) };
 
-    return { scopedPayments, scopedExpenses, scopedDeposits, totalIncome, totalExpense, netProfit, share, partnerStats, transfer };
-  }, [deposits, expenses, month, payments, propertyId]);
+    return { scopedPayments, scopedExpenses, scopedDeposits, totalIncome, totalExpense, netProfit, partnerStats, transfer };
+  }, [deposits, expenses, month, payments, propertyId, ratios]);
 
   return (
     <AppLayout title="合伙结算" description="按 A/B 代收和垫付自动计算月底谁该给谁转账。">
@@ -108,7 +110,7 @@ export default function PartnershipSettlementPage() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">结算范围</h2>
-            <p className="muted">默认按 50% / 50% 股权计算。</p>
+            <p className="muted">当前比例：A {ratios.A}% / B {ratios.B}%。可在设置里调整。</p>
           </div>
         </div>
         <div className="filter-grid">
@@ -130,7 +132,8 @@ export default function PartnershipSettlementPage() {
         <MetricCard label="总收入" value={euro(settlement.totalIncome)} note="本期已收租金" tone="profit" />
         <MetricCard label="总支出" value={euro(settlement.totalExpense)} note="本期支出合计" />
         <MetricCard label="净利润" value={euro(settlement.netProfit)} note="收入 - 支出" tone={settlement.netProfit < 0 ? "danger" : "profit"} hero />
-        <MetricCard label="每人应得利润" value={euro(settlement.share)} note="按 50% 股权计算" tone={settlement.share < 0 ? "danger" : "info"} />
+        <MetricCard label="A应得利润" value={euro(settlement.partnerStats.A.shouldHave)} note={`按 ${ratios.A}% 计算`} tone={settlement.partnerStats.A.shouldHave < 0 ? "danger" : "info"} />
+        <MetricCard label="B应得利润" value={euro(settlement.partnerStats.B.shouldHave)} note={`按 ${ratios.B}% 计算`} tone={settlement.partnerStats.B.shouldHave < 0 ? "danger" : "info"} />
       </div>
 
       <section className="card panel">

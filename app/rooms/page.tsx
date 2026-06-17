@@ -25,7 +25,7 @@ import {
   roomKey,
   saveBusinessData
 } from "@/lib/business-data";
-import { euro, noteSummary } from "@/lib/format";
+import { euro } from "@/lib/format";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -53,7 +53,7 @@ export default function RoomsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
-  const [expandedNoteId, setExpandedNoteId] = useState("");
+  const [expandedRoomId, setExpandedRoomId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -158,43 +158,37 @@ export default function RoomsPage() {
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增房间</button>
         </div>
         <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间名称、房间编号、状态" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>所属房源</th><th>房间</th><th>编号</th><th>月租</th><th>押金</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-            <tbody>{visibleRooms.map((room) => (
-              <tr key={room.id}>
-                <td>{properties.find((item) => item.id === room.propertyId)?.name || "-"}</td>
-                <td>{room.name}</td>
-                <td>{room.roomNumber || "-"}</td>
-                <td>{euro(room.monthlyRent)}</td>
-                <td>{euro(room.depositAmount)}</td>
-                <td><StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge></td>
-                <td title={room.notes || ""}>{noteSummary(room.notes)}</td>
-                <td><RoomActions onArchive={() => archiveRoom(room)} onDelete={() => permanentlyDelete(room)} onEdit={() => { setForm(room); setOpen(true); }} onVacant={() => setVacant(room)} saving={saving} /></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
+        <div className="finance-list room-compact-list">
           {visibleRooms.map((room) => {
             const property = properties.find((item) => item.id === room.propertyId);
-            const expanded = expandedNoteId === room.id;
+            const contract = latestContractForRoom(room.id, contracts);
+            const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
+            const expanded = expandedRoomId === room.id;
             return (
-              <article className="mobile-record-card" key={room.id}>
-                <div className="mobile-record-title">
-                  <strong>{property?.name || "-"}</strong>
-                  <span>{room.roomNumber || room.name} · <StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge></span>
-                </div>
-                <div className="mobile-record-fields">
-                  <div className="mobile-record-field"><span>房间</span><strong>{room.name}</strong></div>
-                  <div className="mobile-record-field"><span>月租</span><strong>{euro(room.monthlyRent)}</strong></div>
-                  <div className="mobile-record-field"><span>押金</span><strong>{euro(room.depositAmount)}</strong></div>
-                  <div className="mobile-record-field"><span>备注</span><strong>{expanded ? room.notes || "-" : noteSummary(room.notes)} {room.notes && room.notes.length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : room.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
-                </div>
-                <RoomActions onArchive={() => archiveRoom(room)} onDelete={() => permanentlyDelete(room)} onEdit={() => { setForm(room); setOpen(true); }} onVacant={() => setVacant(room)} saving={saving} />
+              <article className="finance-list-item" key={room.id}>
+                <button className="finance-line room-finance-line" onClick={() => setExpandedRoomId(expanded ? "" : room.id)} type="button">
+                  <span>{property?.name || "-"}</span>
+                  <span>{room.roomNumber || room.name}</span>
+                  <StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge>
+                  <strong>{euro(room.monthlyRent)}</strong>
+                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
+                </button>
+                {expanded ? (
+                  <RoomDetail
+                    expiryLabel={expiry.label}
+                    propertyName={property?.name || "-"}
+                    room={room}
+                    saving={saving}
+                    onArchive={() => archiveRoom(room)}
+                    onDelete={() => permanentlyDelete(room)}
+                    onEdit={() => { setForm(room); setOpen(true); }}
+                    onVacant={() => setVacant(room)}
+                  />
+                ) : null}
               </article>
             );
           })}
+          {!visibleRooms.length ? <p className="muted">暂无房间记录。</p> : null}
         </div>
         <PaginationControls page={page} pageSize={pageSize} total={filteredRooms.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
@@ -231,6 +225,45 @@ function RoomActions({ onEdit, onVacant, onArchive, onDelete, saving }: { onEdit
   );
 }
 
+function RoomDetail({
+  room,
+  propertyName,
+  expiryLabel,
+  saving,
+  onEdit,
+  onVacant,
+  onArchive,
+  onDelete
+}: {
+  room: BusinessRoom;
+  propertyName: string;
+  expiryLabel: string;
+  saving: boolean;
+  onEdit: () => void;
+  onVacant: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="record-detail-panel room-detail-panel">
+      <div className="detail-grid">
+        <DetailField label="房源" value={propertyName} />
+        <DetailField label="房间名称" value={room.name || "-"} />
+        <DetailField label="房间编号" value={room.roomNumber || "-"} />
+        <DetailField label="月租" value={euro(room.monthlyRent)} />
+        <DetailField label="押金" value={euro(room.depositAmount)} />
+        <DetailField label="到期提醒" value={expiryLabel} />
+        <DetailField label="备注" value={room.notes || "-"} />
+      </div>
+      <RoomActions onArchive={onArchive} onDelete={onDelete} onEdit={onEdit} onVacant={onVacant} saving={saving} />
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+}
+
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
   return <div className="field"><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
 }
@@ -240,4 +273,26 @@ function roomTone(status: string) {
   if (status === "空置") return "blue";
   if (status === "维修中" || status === "已归档") return "red";
   return "amber";
+}
+
+function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
+  return contracts
+    .filter((contract) => contract.roomId === roomId)
+    .sort((a, b) => (b.endDate || "").localeCompare(a.endDate || ""))[0] || null;
+}
+
+function getRoomExpiryInfo(endDate?: string) {
+  if (!endDate) return { label: "-", tone: "info" as const };
+  const days = daysUntil(endDate);
+  if (days < 0) return { label: `已到期${Math.abs(days)}天`, tone: "red" as const };
+  if (days <= 30) return { label: `${days}天到期`, tone: "red" as const };
+  if (days <= 90) return { label: `${days}天到期`, tone: "amber" as const };
+  return { label: "-", tone: "info" as const };
+}
+
+function daysUntil(date: string) {
+  const today = new Date();
+  const start = new Date(today.toISOString().slice(0, 10) + "T00:00:00");
+  const target = new Date(`${date}T00:00:00`);
+  return Math.ceil((target.getTime() - start.getTime()) / 86400000);
 }

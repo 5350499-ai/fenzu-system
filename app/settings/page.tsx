@@ -26,6 +26,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
 import { Download, HardDriveDownload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -52,10 +53,12 @@ export default function SettingsPage() {
     deposits: []
   });
   const [lastBackupAt, setLastBackupAt] = useState("");
+  const [partnerRatios, setPartnerRatios] = useState<PartnerRatios>({ A: 50, B: 50 });
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
+    setPartnerRatios(loadPartnerRatios());
     async function load() {
       const properties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const rooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(properties));
@@ -75,6 +78,18 @@ export default function SettingsPage() {
   }, []);
 
   const settlement = useMemo(() => buildSettlementRows(data), [data]);
+
+  function saveRatios() {
+    const a = Number(partnerRatios.A || 0);
+    const b = Number(partnerRatios.B || 0);
+    if (a < 0 || b < 0 || Math.round(a + b) !== 100) {
+      window.alert("A/B比例合计必须等于100%。");
+      return;
+    }
+    savePartnerRatios({ A: a, B: b });
+    setPartnerRatios({ A: a, B: b });
+    window.alert("合伙人比例已保存。");
+  }
 
   async function loadLastBackupTime() {
     if (!isSupabaseConfigured || !supabase) {
@@ -138,6 +153,30 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="设置" description="数据备份、导出和系统参数。">
+      <section className="card panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">合伙人设置</h2>
+            <p className="muted">当前先支持 A/B，合计必须为 100%。</p>
+          </div>
+        </div>
+        <div className="filter-grid">
+          <div className="field">
+            <label>A比例</label>
+            <input type="number" min="0" max="100" value={partnerRatios.A} onChange={(event) => setPartnerRatios((current) => ({ ...current, A: Number(event.target.value || 0) }))} />
+          </div>
+          <div className="field">
+            <label>B比例</label>
+            <input type="number" min="0" max="100" value={partnerRatios.B} onChange={(event) => setPartnerRatios((current) => ({ ...current, B: Number(event.target.value || 0) }))} />
+          </div>
+          <div className="field">
+            <label>合计</label>
+            <input readOnly value={`${Number(partnerRatios.A || 0) + Number(partnerRatios.B || 0)}%`} />
+          </div>
+          <button className="btn primary" onClick={saveRatios} type="button">保存比例</button>
+        </div>
+      </section>
+
       <section className="card panel">
         <div className="panel-header">
           <div>

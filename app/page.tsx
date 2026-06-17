@@ -34,11 +34,11 @@ import { useEffect, useMemo, useState } from "react";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green" },
+  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
   { title: "收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
   { title: "支出", href: "/expenses", icon: CreditCard, tone: "red" },
   { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue" },
   { title: "房源", href: "/properties", icon: Building2, tone: "amber" },
-  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
   { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
 ];
@@ -85,7 +85,10 @@ export default function DashboardPage() {
     [contracts, deposits, properties, rentPayments, rooms, tenants]
   );
   const visibleReminders = reminders.slice(0, 3);
-  const topReminder = reminders[0];
+  const reminderSummary = useMemo(
+    () => buildReminderSummary({ rooms, contracts, rentPayments, deposits }),
+    [contracts, deposits, rentPayments, rooms]
+  );
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
@@ -115,7 +118,7 @@ export default function DashboardPage() {
       <section className="card panel reminder-center">
         <button className="reminder-toggle" onClick={() => setRemindersOpen((current) => !current)} type="button">
           <span className="reminder-toggle-title"><AlertTriangle size={17} /> 提醒中心（{reminders.length}）</span>
-          <span className={`reminder-summary ${topReminder?.tone || ""}`}>{topReminder ? topReminder.title : "暂无待处理提醒"}</span>
+          <span className={`reminder-summary ${reminders[0]?.tone || ""}`}>{reminderSummary}</span>
           <ChevronDown className={remindersOpen ? "open" : ""} size={18} />
         </button>
         {remindersOpen ? (
@@ -250,6 +253,35 @@ function buildDashboardReminders({
   });
 
   return reminders.sort((a, b) => b.priority - a.priority);
+}
+
+function buildReminderSummary({
+  rooms,
+  contracts,
+  rentPayments,
+  deposits
+}: {
+  rooms: BusinessRoom[];
+  contracts: BusinessContract[];
+  rentPayments: BusinessRentPayment[];
+  deposits: BusinessDeposit[];
+}) {
+  const today = new Date();
+  const unpaid = rentPayments
+    .filter((payment) => Number(payment.amountUnpaid || 0) > 0 && !isVoided(payment.notes))
+    .reduce((sum, payment) => sum + Number(payment.amountUnpaid || 0), 0);
+  const expiringCount = contracts.filter((contract) => {
+    const days = daysUntil(contract.endDate, today);
+    return days <= 30;
+  }).length;
+  const abnormalDeposits = deposits.filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes)).length;
+  const vacantRooms = rooms.filter((room) => room.status.includes("空置")).length;
+  const parts = [];
+  if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
+  if (expiringCount > 0) parts.push(`快到期${expiringCount}`);
+  if (abnormalDeposits > 0) parts.push(`押金异常${abnormalDeposits}`);
+  if (vacantRooms > 0) parts.push(`空置${vacantRooms}`);
+  return parts.length ? parts.join("｜") : "暂无待处理提醒";
 }
 
 function daysUntil(date: string, from: Date) {
