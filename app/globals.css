@@ -1358,6 +1358,39 @@ td:last-child {
   gap: 8px;
 }
 
+.collapsible-attachments {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 10px;
+}
+
+.attachment-toggle {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.attachment-toggle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attachment-sections,
+.attachment-subsection {
+  display: grid;
+  gap: 8px;
+}
+
+.attachment-sections {
+  margin-top: 10px;
+}
+
+.attachment-subsection {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
 .file-action-button {
   justify-self: start;
   cursor: pointer;

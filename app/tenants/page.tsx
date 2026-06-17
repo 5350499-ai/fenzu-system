@@ -41,10 +41,7 @@ import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, mo
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const sources = ["微信群", "华人街", "小红书", "Facebook", "朋友介绍", "其他"];
-const tenantStatuses = ["在租", "预定入住", "已退租"];
-const paymentMethods = ["现金", "转账", "Bizum", "其他"];
-const paymentStatusOptions = ["已收", "未收"];
+const tenantStatuses = ["在租", "空置"];
 const partnerOptions = ["A", "B"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 type TenantSortKey = "expiry" | "rent" | "property" | "status";
@@ -96,6 +93,7 @@ export default function TenantsPage() {
   const [paymentForm, setPaymentForm] = useState<BusinessRentPayment>(emptyTenantPayment);
   const [pendingContractFile, setPendingContractFile] = useState<File | null>(null);
   const [pendingPaymentFile, setPendingPaymentFile] = useState<File | null>(null);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
@@ -167,6 +165,7 @@ export default function TenantsPage() {
     setPaymentForm(emptyTenantPayment);
     setPendingContractFile(null);
     setPendingPaymentFile(null);
+    setAttachmentsOpen(false);
   }
 
   function openTenantForm(tenant?: BusinessTenant) {
@@ -176,6 +175,7 @@ export default function TenantsPage() {
       setPaymentForm(emptyTenantPayment);
       setPendingContractFile(null);
       setPendingPaymentFile(null);
+      setAttachmentsOpen(false);
       setOpen(true);
       return;
     }
@@ -192,6 +192,7 @@ export default function TenantsPage() {
     });
     setPendingContractFile(null);
     setPendingPaymentFile(null);
+    setAttachmentsOpen(false);
     setOpen(true);
   }
 
@@ -453,49 +454,54 @@ export default function TenantsPage() {
                 placeholder="先选房源，再搜索房间名称、编号"
               />
               <TextField label="姓名" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
-              <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-              <TextField label="微信" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
-              <SearchableSelect label="来源" value={form.source} options={sources.map((source) => ({ value: source, label: source }))} onChange={(source) => setForm((current) => ({ ...current, source }))} />
+              <TextField label="电话（可选）" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
               <MoneyInput label="月租金额" value={form.monthlyRent} onChange={(monthlyRent) => {
                 setForm((current) => ({ ...current, monthlyRent }));
                 updatePaymentMoney({ amountDue: monthlyRent });
               }} />
-              <MoneyInput label="本次实收金额" value={paymentForm.amountPaid} onChange={(amountPaid) => updatePaymentMoney({ amountPaid, paymentStatus: amountPaid > 0 ? "已收" : paymentForm.paymentStatus })} />
+              <MoneyInput label="本次实收金额" value={paymentForm.amountPaid} onChange={(amountPaid) => updatePaymentMoney({ amountPaid, paymentStatus: amountPaid > 0 ? "已收" : "未收" })} />
+              <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               <SearchableSelect label="收款归属" value={paymentForm.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => updatePaymentMoney({ receivedBy })} />
-              <SearchableSelect label="收款状态" value={paymentForm.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updatePaymentMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : paymentForm.amountPaid })} />
-              <SearchableSelect label="付款方式" value={paymentForm.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => updatePaymentMoney({ paymentMethod })} />
-              <div className="field"><label>收款日期</label><input required type="date" value={paymentForm.paymentDate || ""} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentDate: event.target.value }))} /></div>
-              <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
-              <div className="field"><label>入住日期</label><input type="date" value={contractForm.startDate} onChange={(event) => setContractForm((current) => ({ ...current, startDate: event.target.value }))} /></div>
-              <div className="field"><label>合同到期日期</label><input type="date" value={contractForm.endDate} onChange={(event) => setContractForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label>收款附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
-                {pendingPaymentFile ? (
-                  <div className="attachment-preview">
-                    <FileUp size={16} />
-                    <span>{pendingPaymentFile.name} ｜ {formatFileSize(pendingPaymentFile.size)}</span>
-                    <button className="btn danger" type="button" onClick={() => setPendingPaymentFile(null)}>移除</button>
-                  </div>
-                ) : <p className="muted">这笔收款凭证会绑定到租客的收款记录。</p>}
-              </div>
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label>合同附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseContractFile(event.target.files?.[0])} />
-                {pendingContractFile ? (
-                  <div className="attachment-preview">
-                    <FileUp size={16} />
-                    <span>{pendingContractFile.name} ｜ {formatFileSize(pendingContractFile.size)}</span>
-                    <button className="btn danger" type="button" onClick={() => setPendingContractFile(null)}>移除</button>
-                  </div>
-                ) : <p className="muted">新增租客时可直接上传合同；保存后在租客展开详情里查看、下载、替换或删除。</p>}
-              </div>
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
+              </div>
+              <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
+                <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
+                  <span><FileUp size={16} /> 附件管理</span>
+                  <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
+                </button>
+                {attachmentsOpen ? (
+                  <div className="attachment-sections">
+                    <div className="attachment-subsection">
+                      <label>合同附件 PDF/JPG/PNG</label>
+                      <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseContractFile(event.target.files?.[0])} />
+                      {pendingContractFile ? (
+                        <div className="attachment-preview">
+                          <FileUp size={16} />
+                          <span>{pendingContractFile.name} ｜ {formatFileSize(pendingContractFile.size)}</span>
+                          <button className="btn danger" type="button" onClick={() => setPendingContractFile(null)}>移除</button>
+                        </div>
+                      ) : <p className="muted">保存后可在租客展开详情里查看、下载、替换或删除合同。</p>}
+                    </div>
+                    <div className="attachment-subsection">
+                      <label>收款附件 PDF/JPG/PNG</label>
+                      <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
+                      {pendingPaymentFile ? (
+                        <div className="attachment-preview">
+                          <FileUp size={16} />
+                          <span>{pendingPaymentFile.name} ｜ {formatFileSize(pendingPaymentFile.size)}</span>
+                          <button className="btn danger" type="button" onClick={() => setPendingPaymentFile(null)}>移除</button>
+                        </div>
+                      ) : <p className="muted">这笔收款凭证会绑定到租客的收款记录。</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>
+                )}
               </div>
               <div className="modal-actions">
                 <button className="btn" onClick={close} type="button">取消</button>
