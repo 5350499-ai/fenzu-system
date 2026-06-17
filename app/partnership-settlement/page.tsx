@@ -1,7 +1,6 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
-import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessDeposit,
@@ -128,20 +127,20 @@ export default function PartnershipSettlementPage() {
         </div>
       </section>
 
-      <div className="grid metrics">
-        <MetricCard label="总收入" value={euro(settlement.totalIncome)} note="本期已收租金" tone="profit" />
-        <MetricCard label="总支出" value={euro(settlement.totalExpense)} note="本期支出合计" />
-        <MetricCard label="净利润" value={euro(settlement.netProfit)} note="收入 - 支出" tone={settlement.netProfit < 0 ? "danger" : "profit"} hero />
-        <MetricCard label="A应得利润" value={euro(settlement.partnerStats.A.shouldHave)} note={`按 ${ratios.A}% 计算`} tone={settlement.partnerStats.A.shouldHave < 0 ? "danger" : "info"} />
-        <MetricCard label="B应得利润" value={euro(settlement.partnerStats.B.shouldHave)} note={`按 ${ratios.B}% 计算`} tone={settlement.partnerStats.B.shouldHave < 0 ? "danger" : "info"} />
-      </div>
+      <section className="card compact-report-card">
+        <CompactMetric label="总收入" value={euro(settlement.totalIncome)} />
+        <CompactMetric label="总支出" value={euro(settlement.totalExpense)} />
+        <CompactMetric label="净利润" value={euro(settlement.netProfit)} tone={settlement.netProfit < 0 ? "danger" : "profit"} />
+        <CompactMetric label="A应得" value={euro(settlement.partnerStats.A.shouldHave)} />
+        <CompactMetric label="B应得" value={euro(settlement.partnerStats.B.shouldHave)} />
+      </section>
 
       <section className="card panel">
         <div className="panel-header">
           <h2 className="panel-title">A/B 资金归属</h2>
           <span className="muted">实际留存 = 代收 - 垫付</span>
         </div>
-        <div className="settlement-grid">
+        <div className="settlement-grid compact-settlement-grid">
           {partners.map((partner) => {
             const stat = settlement.partnerStats[partner];
             return (
@@ -165,7 +164,7 @@ export default function PartnershipSettlementPage() {
         </div>
       </section>
 
-      <section className="card panel settlement-result">
+      <section className="card panel settlement-result compact-settlement-result">
         <h2 className="panel-title">最终结算</h2>
         {settlement.transfer.amount > 0 ? (
           <p><strong>{settlement.transfer.from}</strong> 应转给 <strong>{settlement.transfer.to}</strong> <span className="danger-text">{euro(settlement.transfer.amount)}</span></p>
@@ -175,29 +174,84 @@ export default function PartnershipSettlementPage() {
       </section>
 
       <div className="grid dashboard-panels">
-        <DetailTable title="收入归属明细" headers={["月份", "收款归属", "金额"]}>
-          {settlement.scopedPayments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{payment.receivedBy || "A"}</td><td>{euro(payment.amountPaid)}</td></tr>)}
-        </DetailTable>
-        <DetailTable title="支出归属明细" headers={["日期", "付款归属", "类别", "金额"]}>
-          {settlement.scopedExpenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || expense.expenseMonth}</td><td>{expense.paidBy || "A"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td></tr>)}
-        </DetailTable>
-        <DetailTable title="押金/预收预支归属明细" headers={["日期", "类型", "收款归属", "付款归属", "金额"]}>
-          {settlement.scopedDeposits.map((deposit) => <tr key={deposit.id}><td>{deposit.transactionDate || "-"}</td><td>{deposit.type}</td><td>{deposit.receivedBy || "A"}</td><td>{deposit.paidBy || "A"}</td><td>{euro(deposit.amount)}</td></tr>)}
-        </DetailTable>
+        <CompactDetailList
+          title="收入归属明细"
+          rows={settlement.scopedPayments.map((payment) => ({
+            id: `income-${payment.id}`,
+            date: payment.rentMonth,
+            partner: payment.receivedBy || "A",
+            type: "收租",
+            amount: payment.amountPaid,
+            details: [`月份：${payment.rentMonth}`, `应收：${euro(payment.amountDue)}`, `未收：${euro(payment.amountUnpaid)}`, `备注：${payment.notes || "-"}`]
+          }))}
+        />
+        <CompactDetailList
+          title="支出归属明细"
+          rows={settlement.scopedExpenses.map((expense) => ({
+            id: `expense-${expense.id}`,
+            date: expense.paymentDate || expense.expenseMonth,
+            partner: expense.paidBy || "A",
+            type: expense.category,
+            amount: expense.amount,
+            details: [`状态：${expense.isPaid ? "已支付" : "未支付"}`, `方式：${expense.paymentMethod || "-"}`, `备注：${expense.notes || "-"}`]
+          }))}
+        />
+        <CompactDetailList
+          title="押金/预收预支归属明细"
+          rows={settlement.scopedDeposits.map((deposit) => ({
+            id: `deposit-${deposit.id}`,
+            date: deposit.transactionDate || "-",
+            partner: deposit.type === "退还" || deposit.type === "扣除" ? deposit.paidBy || "A" : deposit.receivedBy || "A",
+            type: deposit.type,
+            amount: deposit.amount,
+            details: [`状态：${deposit.status}`, `收款归属：${deposit.receivedBy || "A"}`, `付款归属：${deposit.paidBy || "A"}`, `备注：${deposit.notes || "-"}`]
+          }))}
+        />
       </div>
     </AppLayout>
   );
 }
 
-function DetailTable({ title, headers, children }: { title: string; headers: string[]; children: React.ReactNode }) {
+function CompactMetric({ label, value, tone }: { label: string; value: string; tone?: "danger" | "profit" }) {
+  return (
+    <div className="compact-report-metric">
+      <span>{label}</span>
+      <strong className={tone === "danger" ? "danger-text" : tone === "profit" ? "profit" : ""}>{value}</strong>
+    </div>
+  );
+}
+
+function CompactDetailList({
+  title,
+  rows
+}: {
+  title: string;
+  rows: { id: string; date: string; partner: string; type: string; amount: number; details: string[] }[];
+}) {
+  const [expandedId, setExpandedId] = useState("");
   return (
     <section className="card panel">
       <h2 className="panel-title">{title}</h2>
-      <div className="table-wrap">
-        <table>
-          <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
-          <tbody>{children}</tbody>
-        </table>
+      <div className="settlement-detail-list">
+        {rows.map((row) => {
+          const expanded = expandedId === row.id;
+          return (
+            <article className="settlement-detail-item" key={row.id}>
+              <button className="settlement-detail-line" onClick={() => setExpandedId(expanded ? "" : row.id)} type="button">
+                <span>{row.date}</span>
+                <b className={`partner-tag partner-${row.partner.toLowerCase()}`}>{row.partner}</b>
+                <span>{row.type}</span>
+                <strong>{euro(row.amount)}</strong>
+              </button>
+              {expanded ? (
+                <div className="settlement-detail-extra">
+                  {row.details.map((detail) => <span key={detail}>{detail}</span>)}
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+        {!rows.length ? <p className="muted">暂无明细。</p> : null}
       </div>
     </section>
   );

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
+  Bell,
+  BarChart3,
   CalendarCheck,
   ChevronRight,
   ClipboardList,
@@ -42,6 +44,8 @@ export const navGroups = [
   {
     title: "运营工具",
     items: [
+      { href: "/reminders", label: "提醒中心", icon: Bell },
+      { href: "/property-profits", label: "利润分析", icon: BarChart3 },
       { href: "/analytics", label: "统计分析", icon: LineChart },
       { href: "/archive", label: "档案中心", icon: FileArchive },
       { href: "/tasks", label: "待办管理", icon: ClipboardList }
@@ -55,9 +59,9 @@ export const navGroups = [
 
 const mobileItems = [
   { href: "/", label: "首页", icon: Home },
-  { href: "/properties", label: "房源", icon: Building2 },
-  { href: "/tenants", label: "租客", icon: Users },
-  { href: "/rent-payments", label: "收租", icon: ReceiptText },
+  { href: "/tasks", label: "待办", icon: ClipboardList },
+  { href: "/property-profits", label: "利润", icon: BarChart3 },
+  { href: "/analytics", label: "统计", icon: LineChart },
   { href: "/more", label: "更多", icon: ChevronRight }
 ];
 

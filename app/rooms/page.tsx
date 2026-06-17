@@ -163,6 +163,7 @@ export default function RoomsPage() {
             const property = properties.find((item) => item.id === room.propertyId);
             const contract = latestContractForRoom(room.id, contracts);
             const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
+            const unpaid = roomUnpaidAmount(room.id, payments);
             const expanded = expandedRoomId === room.id;
             return (
               <article className="finance-list-item" key={room.id}>
@@ -171,6 +172,7 @@ export default function RoomsPage() {
                   <span>{room.roomNumber || room.name}</span>
                   <StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge>
                   <strong>{euro(room.monthlyRent)}</strong>
+                  <strong className={unpaid > 0 ? "danger-text" : "muted"}>{unpaid > 0 ? `欠费${euro(unpaid)}` : "-"}</strong>
                   <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
                 {expanded ? (
@@ -178,6 +180,7 @@ export default function RoomsPage() {
                     expiryLabel={expiry.label}
                     propertyName={property?.name || "-"}
                     room={room}
+                    unpaid={unpaid}
                     saving={saving}
                     onArchive={() => archiveRoom(room)}
                     onDelete={() => permanentlyDelete(room)}
@@ -229,6 +232,7 @@ function RoomDetail({
   room,
   propertyName,
   expiryLabel,
+  unpaid,
   saving,
   onEdit,
   onVacant,
@@ -238,6 +242,7 @@ function RoomDetail({
   room: BusinessRoom;
   propertyName: string;
   expiryLabel: string;
+  unpaid: number;
   saving: boolean;
   onEdit: () => void;
   onVacant: () => void;
@@ -252,6 +257,7 @@ function RoomDetail({
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
         <DetailField label="月租" value={euro(room.monthlyRent)} />
         <DetailField label="押金" value={euro(room.depositAmount)} />
+        <DetailField label="欠费" value={unpaid > 0 ? euro(unpaid) : "-"} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
       </div>
@@ -281,6 +287,12 @@ function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
     .sort((a, b) => (b.endDate || "").localeCompare(a.endDate || ""))[0] || null;
 }
 
+function roomUnpaidAmount(roomId: string, payments: BusinessRentPayment[]) {
+  return payments
+    .filter((payment) => payment.roomId === roomId && !isVoided(payment.notes))
+    .reduce((sum, payment) => sum + Number(payment.amountUnpaid || 0), 0);
+}
+
 function getRoomExpiryInfo(endDate?: string) {
   if (!endDate) return { label: "-", tone: "info" as const };
   const days = daysUntil(endDate);
@@ -295,4 +307,8 @@ function daysUntil(date: string) {
   const start = new Date(today.toISOString().slice(0, 10) + "T00:00:00");
   const target = new Date(`${date}T00:00:00`);
   return Math.ceil((target.getTime() - start.getTime()) / 86400000);
+}
+
+function isVoided(notes?: string) {
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }

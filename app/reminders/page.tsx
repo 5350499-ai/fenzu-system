@@ -1,44 +1,227 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
-import { CrudPage } from "@/components/crud-page";
 import { StatusBadge } from "@/components/status-badge";
+import {
+  BusinessContract,
+  BusinessDeposit,
+  BusinessProperty,
+  BusinessRentPayment,
+  BusinessRoom,
+  BusinessTenant,
+  contractKey,
+  depositKey,
+  getInitialContracts,
+  getInitialDeposits,
+  getInitialProperties,
+  getInitialRentPayments,
+  getInitialRooms,
+  getInitialTenants,
+  loadBusinessData,
+  propertyKey,
+  rentPaymentKey,
+  roomKey,
+  tenantKey
+} from "@/lib/business-data";
+import { euro } from "@/lib/format";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+type Reminder = {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  href: string;
+  tone: "danger" | "warning" | "info" | "blue";
+  priority: number;
+};
 
 export default function RemindersPage() {
+  const [properties, setProperties] = useState<BusinessProperty[]>([]);
+  const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
+  const [contracts, setContracts] = useState<BusinessContract[]>([]);
+  const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
+      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      setProperties(loadedProperties);
+      setRooms(loadedRooms);
+      setTenants(loadedTenants);
+      setContracts(await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()));
+      setPayments(await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)));
+      setDeposits(await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)));
+    }
+    load().catch((error) => window.alert(`加载提醒中心失败：${error.message || error}`));
+  }, []);
+
+  const reminders = useMemo(
+    () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits }),
+    [contracts, deposits, payments, properties, rooms, tenants]
+  );
+
+  const grouped = useMemo(() => {
+    const groups = ["欠费提醒", "合同30天内到期", "押金异常", "空置房间", "备份提醒"];
+    return groups.map((group) => ({
+      title: group,
+      items: reminders.filter((item) => item.category === group)
+    }));
+  }, [reminders]);
+
   return (
-    <AppLayout title="提醒中心" description="集中查看欠租、合同、押金、支出和空置提醒。">
-      <CrudPage
-        title="提醒"
-        storageKey="v1-tasks"
-        createLabel="新增提醒"
-        initialRows={[]}
-        fields={[
-          { name: "title", label: "提醒内容", type: "text" },
-          { name: "dueDate", label: "截止日期", type: "date" },
-          { name: "status", label: "状态", type: "select", options: ["待处理", "已完成", "已取消"] },
-          { name: "priority", label: "优先级", type: "select", options: ["低", "普通", "高", "紧急"] },
-          { name: "notes", label: "备注", type: "textarea" }
-        ]}
-        columns={[
-          { name: "title", label: "提醒内容" },
-          { name: "dueDate", label: "截止日期" },
-          {
-            name: "status",
-            label: "状态",
-            render: (row) => <StatusBadge tone={row.status === "待处理" ? "amber" : "green"}>{row.status}</StatusBadge>
-          },
-          {
-            name: "priority",
-            label: "优先级",
-            render: (row) => (
-              <StatusBadge tone={row.priority === "高" || row.priority === "紧急" ? "red" : "blue"}>
-                {row.priority}
-              </StatusBadge>
-            )
-          },
-          { name: "notes", label: "备注" }
-        ]}
-      />
+    <AppLayout title="提醒中心" description="系统自动生成的经营风险提醒，和手动待办分开管理。">
+      <section className="card panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">提醒汇总</h2>
+            <p className="muted">优先级：欠费 &gt; 合同到期 &gt; 押金异常 &gt; 空置房间。</p>
+          </div>
+          <StatusBadge tone={reminders.length ? "amber" : "green"}>{reminders.length} 条提醒</StatusBadge>
+        </div>
+        <div className="reminder-page-list">
+          {reminders.slice(0, 8).map((item) => (
+            <ReminderRow item={item} key={item.id} />
+          ))}
+          {!reminders.length ? <p className="muted">暂无系统提醒。</p> : null}
+        </div>
+      </section>
+
+      <div className="grid dashboard-panels">
+        {grouped.map((group) => (
+          <section className="card panel" key={group.title}>
+            <div className="panel-header">
+              <h2 className="panel-title">{group.title}</h2>
+              <span className="muted">{group.items.length} 条</span>
+            </div>
+            <div className="reminder-page-list compact">
+              {group.items.map((item) => <ReminderRow item={item} key={item.id} />)}
+              {!group.items.length ? <p className="muted">暂无</p> : null}
+            </div>
+          </section>
+        ))}
+      </div>
     </AppLayout>
   );
+}
+
+function ReminderRow({ item }: { item: Reminder }) {
+  return (
+    <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
+      <StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : "blue"}>{item.category}</StatusBadge>
+      <span>{item.title}</span>
+      <small>{item.description}</small>
+    </Link>
+  );
+}
+
+function buildReminders({
+  properties,
+  rooms,
+  tenants,
+  contracts,
+  payments,
+  deposits
+}: {
+  properties: BusinessProperty[];
+  rooms: BusinessRoom[];
+  tenants: BusinessTenant[];
+  contracts: BusinessContract[];
+  payments: BusinessRentPayment[];
+  deposits: BusinessDeposit[];
+}) {
+  const today = new Date();
+  const propertyById = new Map(properties.map((item) => [item.id, item]));
+  const roomById = new Map(rooms.map((item) => [item.id, item]));
+  const tenantById = new Map(tenants.map((item) => [item.id, item]));
+  const reminders: Reminder[] = [];
+
+  payments
+    .filter((payment) => Number(payment.amountUnpaid || 0) > 0 && !isVoided(payment.notes))
+    .forEach((payment) => {
+      const room = roomById.get(payment.roomId);
+      const tenant = tenantById.get(payment.tenantId);
+      reminders.push({
+        id: `payment-${payment.id}`,
+        category: "欠费提醒",
+        title: `${room?.roomNumber || room?.name || tenant?.name || "房间"}欠费 ${euro(payment.amountUnpaid)}`,
+        description: `${tenant?.name || "未命名租客"}｜${payment.rentMonth}`,
+        href: "/rent-payments?overdue=1",
+        tone: "danger",
+        priority: 40_000 + Number(payment.amountUnpaid || 0)
+      });
+    });
+
+  contracts
+    .map((contract) => ({ contract, days: daysUntil(contract.endDate, today) }))
+    .filter(({ days }) => days <= 30)
+    .forEach(({ contract, days }) => {
+      const tenant = tenantById.get(contract.tenantId);
+      const room = roomById.get(contract.roomId);
+      reminders.push({
+        id: `contract-${contract.id}`,
+        category: "合同30天内到期",
+        title: `${tenant?.name || "租客"}合同${days < 0 ? `已到期${Math.abs(days)}天` : `还有${days}天到期`}`,
+        description: `${propertyById.get(contract.propertyId)?.name || "房源"}｜${room?.roomNumber || room?.name || "-"}`,
+        href: "/tenants",
+        tone: days < 0 ? "danger" : "warning",
+        priority: 30_000 - days
+      });
+    });
+
+  deposits
+    .filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes))
+    .forEach((deposit) => {
+      const tenant = tenantById.get(deposit.tenantId);
+      reminders.push({
+        id: `deposit-${deposit.id}`,
+        category: "押金异常",
+        title: `${tenant?.name || "租客"}押金${deposit.status}`,
+        description: euro(deposit.amount),
+        href: "/deposits",
+        tone: "info",
+        priority: 10_000
+      });
+    });
+
+  rooms
+    .filter((room) => room.status.includes("空置"))
+    .forEach((room) => {
+      reminders.push({
+        id: `vacant-${room.id}`,
+        category: "空置房间",
+        title: `${room.roomNumber || room.name} 空置`,
+        description: propertyById.get(room.propertyId)?.name || "点击查看房间",
+        href: "/rooms?status=空置",
+        tone: "warning",
+        priority: 1_000
+      });
+    });
+
+  reminders.push({
+    id: "backup-reminder",
+    category: "备份提醒",
+    title: "建议定期导出数据备份",
+    description: "点击进入设置页面导出 Excel 或 CSV",
+    href: "/settings",
+    tone: "blue",
+    priority: 100
+  });
+
+  return reminders.sort((a, b) => b.priority - a.priority);
+}
+
+function daysUntil(date: string, from: Date) {
+  if (!date) return Number.MAX_SAFE_INTEGER;
+  const target = new Date(`${date}T00:00:00`);
+  const start = new Date(from.toISOString().slice(0, 10) + "T00:00:00");
+  return Math.ceil((target.getTime() - start.getTime()) / 86400000);
+}
+
+function isVoided(notes?: string) {
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }

@@ -28,17 +28,17 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import { AlertTriangle, ArrowRight, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
+import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green" },
-  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
-  { title: "收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
   { title: "支出", href: "/expenses", icon: CreditCard, tone: "red" },
-  { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue" },
+  { title: "收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
   { title: "房源", href: "/properties", icon: Building2, tone: "amber" },
+  { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue" },
+  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
   { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
 ];
@@ -134,13 +134,6 @@ export default function DashboardPage() {
         ) : null}
       </section>
 
-      <Link className="card property-profit-entry" href="/property-profits">
-        <span>
-          <strong>房源利润分析</strong>
-          <small>查看每个房源收入、支出、利润和空置情况</small>
-        </span>
-        <ArrowRight size={20} />
-      </Link>
     </AppLayout>
   );
 }
