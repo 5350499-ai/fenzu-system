@@ -363,10 +363,11 @@ export default function TenantsPage() {
       const nextDeposits = deposits.filter((deposit) => deposit.tenantId !== tenant.id);
       const nextRooms = syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId);
 
-      await saveBusinessData(tenantKey, nextTenants);
-      await saveBusinessData(contractKey, nextContracts);
+      // Delete child records before deleting the tenant row, otherwise FK rules block the tenant delete.
       await saveBusinessData(rentPaymentKey, nextPayments);
       await saveBusinessData(depositKey, nextDeposits);
+      await saveBusinessData(contractKey, nextContracts);
+      await saveBusinessData(tenantKey, nextTenants);
       await saveBusinessData(roomKey, nextRooms);
 
       setTenants(nextTenants);
