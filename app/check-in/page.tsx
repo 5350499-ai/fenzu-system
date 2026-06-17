@@ -131,6 +131,8 @@ export default function CheckInPage() {
             amount: form.depositAmount,
             status: form.depositStatus === "已收" ? "已收" : "待退",
             transactionDate: form.checkInDate,
+            receivedBy: "A",
+            paidBy: "A",
             notes: form.notes
           }
         : null;

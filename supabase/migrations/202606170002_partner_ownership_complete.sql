@@ -42,7 +42,24 @@ begin
   end loop;
 end $$;
 
-comment on column public.rent_payments.received_by is 'Partner code that received the rent payment, for example A or B.';
-comment on column public.expenses.paid_by is 'Partner code that paid or advanced this expense, for example A or B.';
-comment on column public.deposits.received_by is 'Partner code that received deposit or prepaid cash, for example A or B.';
-comment on column public.deposits.paid_by is 'Partner code that returned or advanced deposit cash, for example A or B.';
+comment on column public.rent_payments.received_by is 'Partner code that received income, for example A or B.';
+comment on column public.expenses.paid_by is 'Partner code that paid or advanced expense, for example A or B.';
+comment on column public.deposits.received_by is 'Partner code that received deposit/prepaid cash, for example A or B.';
+comment on column public.deposits.paid_by is 'Partner code that returned or advanced deposit/prepaid cash, for example A or B.';
+
+select
+  table_name,
+  column_name,
+  data_type,
+  column_default,
+  is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and (
+    (table_name = 'rent_payments' and column_name = 'received_by')
+    or (table_name = 'expenses' and column_name = 'paid_by')
+    or (table_name = 'deposits' and column_name in ('received_by', 'paid_by'))
+    or (table_name in ('advance_receipts', 'pre_receipts') and column_name = 'received_by')
+    or (table_name in ('advance_payments', 'pre_payments') and column_name = 'paid_by')
+  )
+order by table_name, column_name;

@@ -94,6 +94,8 @@ export type BusinessDeposit = {
   amount: number;
   status: string;
   transactionDate: string;
+  receivedBy?: string;
+  paidBy?: string;
   notes?: string;
 };
 
@@ -285,6 +287,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amount: Number(row.amount || 0),
       status: normalizeDepositStatus(row.status || "已收"),
       transactionDate: row.transaction_date || "",
+      receivedBy: normalizePartner(row.received_by || "A"),
+      paidBy: normalizePartner(row.paid_by || "A"),
       notes: row.notes || ""
     }),
     toDb: (row, userId) => ({
@@ -297,6 +301,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amount: Number(row.amount || 0),
       status: normalizeDepositStatus(row.status || "已收"),
       transaction_date: row.transactionDate || null,
+      received_by: normalizePartner(row.receivedBy || "A"),
+      paid_by: normalizePartner(row.paidBy || "A"),
       notes: row.notes || null
     })
   },

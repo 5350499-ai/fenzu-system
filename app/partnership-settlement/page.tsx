@@ -4,10 +4,13 @@ import { AppLayout } from "@/components/app-layout";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import {
+  BusinessDeposit,
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
+  depositKey,
   expenseKey,
+  getInitialDeposits,
   getInitialExpenses,
   getInitialProperties,
   getInitialRentPayments,
@@ -32,6 +35,7 @@ export default function PartnershipSettlementPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [propertyId, setPropertyId] = useState("all");
 
@@ -41,6 +45,7 @@ export default function PartnershipSettlementPage() {
       setProperties(loadedProperties);
       setPayments(await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()));
       setExpenses(await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)));
+      setDeposits(await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()));
     }
     load().catch((error) => window.alert(`加载合伙结算失败：${error.message || error}`));
   }, []);
@@ -55,6 +60,12 @@ export default function PartnershipSettlementPage() {
       (expense.expenseMonth === month || expense.paymentDate.startsWith(month)) &&
       (propertyId === "all" || expense.propertyId === propertyId) &&
       !isVoided(expense.notes)
+    );
+    const scopedDeposits = deposits.filter((deposit) =>
+      deposit.transactionDate.startsWith(month) &&
+      (propertyId === "all" || deposit.propertyId === propertyId) &&
+      deposit.status !== "已作废" &&
+      !isVoided(deposit.notes)
     );
 
     const totalIncome = scopedPayments.reduce((sum, payment) => sum + Number(payment.amountPaid || 0), 0);
@@ -88,8 +99,8 @@ export default function PartnershipSettlementPage() {
           ? { from: "A", to: "B", amount: aBalance }
           : { from: "B", to: "A", amount: Math.abs(aBalance) };
 
-    return { scopedPayments, scopedExpenses, totalIncome, totalExpense, netProfit, share, partnerStats, transfer };
-  }, [expenses, month, payments, propertyId]);
+    return { scopedPayments, scopedExpenses, scopedDeposits, totalIncome, totalExpense, netProfit, share, partnerStats, transfer };
+  }, [deposits, expenses, month, payments, propertyId]);
 
   return (
     <AppLayout title="合伙结算" description="按 A/B 代收和垫付自动计算月底谁该给谁转账。">
@@ -166,6 +177,9 @@ export default function PartnershipSettlementPage() {
         </DetailTable>
         <DetailTable title="支出归属明细" headers={["日期", "付款归属", "类别", "金额"]}>
           {settlement.scopedExpenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || expense.expenseMonth}</td><td>{expense.paidBy || "A"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td></tr>)}
+        </DetailTable>
+        <DetailTable title="押金/预收预支归属明细" headers={["日期", "类型", "收款归属", "付款归属", "金额"]}>
+          {settlement.scopedDeposits.map((deposit) => <tr key={deposit.id}><td>{deposit.transactionDate || "-"}</td><td>{deposit.type}</td><td>{deposit.receivedBy || "A"}</td><td>{deposit.paidBy || "A"}</td><td>{euro(deposit.amount)}</td></tr>)}
         </DetailTable>
       </div>
     </AppLayout>
