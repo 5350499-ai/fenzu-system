@@ -329,11 +329,11 @@ export function getInitialProperties(): BusinessProperty[] {
 }
 
 function isMissingExpenseOptionalColumn(message: string) {
-  return message.includes("room_id") || message.includes("payment_method") || message.includes("paid_by") || message.includes("schema cache");
+  return message.includes("room_id") || message.includes("payment_method");
 }
 
 function isMissingRentPaymentOptionalColumn(message: string) {
-  return message.includes("received_by") || message.includes("schema cache");
+  return false;
 }
 
 export function getInitialRooms(..._args: unknown[]): BusinessRoom[] {
@@ -408,11 +408,12 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
     const { error } = await supabase.from(config.table).upsert(rows);
     if (error) {
       if (config.table === "expenses" && isMissingExpenseOptionalColumn(error.message)) {
-        const fallbackRows = rows.map(({ room_id, payment_method, paid_by, ...row }) => row);
-        const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
-        if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
-      } else if (config.table === "rent_payments" && isMissingRentPaymentOptionalColumn(error.message)) {
-        const fallbackRows = rows.map(({ received_by, ...row }) => row);
+        const fallbackRows = rows.map((row) => {
+          const next = { ...row };
+          if (error.message.includes("room_id")) delete next.room_id;
+          if (error.message.includes("payment_method")) delete next.payment_method;
+          return next;
+        });
         const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
         if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
       } else {
@@ -601,6 +602,9 @@ function toBusinessError(message: string) {
   }
   if (message.includes("permission") || message.includes("row-level security")) {
     return "当前账号没有权限保存这条数据，请确认已经登录。";
+  }
+  if (message.includes("paid_by") || message.includes("received_by")) {
+    return "A/B归属字段未初始化，请先执行合伙结算迁移 SQL。为避免丢失归属数据，本次保存已停止。";
   }
   return message || "操作失败，请稍后重试。";
 }
