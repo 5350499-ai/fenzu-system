@@ -53,6 +53,7 @@ input,
 select,
 textarea {
   font: inherit;
+  min-width: 0;
 }
 
 button {
@@ -1046,6 +1047,7 @@ td:last-child {
 .field input,
 .field select,
 .field textarea {
+  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -1055,6 +1057,13 @@ td:last-child {
   background: var(--surface);
   color: var(--text);
   padding: 10px 12px;
+}
+
+.field input[type="date"],
+.field input[type="month"],
+.field input[type="file"] {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .field textarea {
@@ -1903,6 +1912,16 @@ td:last-child {
 
   .form-grid {
     grid-template-columns: 1fr;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .form-grid > *,
+  .field,
+  .combobox-field,
+  .attachment-preview {
+    width: 100%;
+    max-width: 100%;
   }
 
   .top-actions {

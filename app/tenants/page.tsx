@@ -336,6 +336,7 @@ export default function TenantsPage() {
                   <TenantDetail
                     contract={contract}
                     coverageEnd={coverageLabel(coveragePayment)}
+                    payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     files={files}
                     onDeleteFile={removeContractFile}
                     onEdit={() => {
@@ -430,6 +431,7 @@ function TenantDetail({
   tenant,
   contract,
   coverageEnd,
+  payments,
   propertyName,
   roomName,
   files,
@@ -442,6 +444,7 @@ function TenantDetail({
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
   coverageEnd: string;
+  payments: BusinessRentPayment[];
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -457,12 +460,32 @@ function TenantDetail({
         <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
         <DetailField label="电话" value={tenant.phone || "-"} />
         <DetailField label="微信" value={tenant.wechat || "-"} />
+        <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
         <DetailField label="押金" value={euro(tenant.depositAmount)} />
         <DetailField label="入住日期" value={contract?.startDate || "-"} />
         <DetailField label="合同到期" value={contract?.endDate || "-"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
+        <DetailField label="最近一次实收" value={euro(latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0)} />
         <DetailField label="来源" value={tenant.source || "-"} />
         <DetailField label="备注" value={tenant.notes || "-"} />
+      </div>
+
+      <div className="attachment-panel">
+        <div className="detail-section-title">收款记录</div>
+        <div className="settlement-detail-list">
+          {[...payments]
+            .sort((a, b) => (b.coverageEndDate || b.rentMonth).localeCompare(a.coverageEndDate || a.rentMonth))
+            .slice(0, 5)
+            .map((payment) => (
+              <div className="settlement-detail-line readonly" key={payment.id}>
+                <span>{payment.paymentDate || payment.rentMonth}</span>
+                <b className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{payment.receivedBy || "A"}</b>
+                <span>至 {payment.coverageEndDate || payment.rentMonth}</span>
+                <strong>{euro(payment.amountPaid)}</strong>
+              </div>
+            ))}
+          {!payments.length ? <span className="muted">暂无收款记录</span> : null}
+        </div>
       </div>
 
       <div className="attachment-panel">

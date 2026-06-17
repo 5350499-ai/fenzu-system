@@ -62,6 +62,7 @@ export type BusinessRentPayment = {
   roomId: string;
   tenantId: string;
   rentMonth: string;
+  paymentDate?: string;
   amountDue: number;
   amountPaid: number;
   amountUnpaid: number;
@@ -69,6 +70,7 @@ export type BusinessRentPayment = {
   coverageEndDate?: string;
   paymentMethod: string;
   receivedBy?: string;
+  paymentStatus?: string;
   isOverdue: boolean;
   notes?: string;
 };
@@ -222,12 +224,14 @@ const tableConfigs: Record<string, TableConfig> = {
       roomId: row.room_id || "",
       tenantId: row.tenant_id || "",
       rentMonth: dateToMonth(row.rent_month),
+      paymentDate: row.payment_date || "",
       amountDue: Number(row.amount_due || 0),
       amountPaid: Number(row.amount_paid || 0),
       amountUnpaid: Number(row.amount_unpaid || 0),
       coverageStartDate: row.coverage_start_date || "",
       coverageEndDate: row.coverage_end_date || "",
       receivedBy: normalizePartner(row.received_by || "A"),
+      paymentStatus: normalizePaymentStatus(row.payment_status || (Number(row.amount_paid || 0) > 0 ? "已收" : "未收")),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isOverdue: Boolean(row.is_overdue),
       notes: row.notes || ""
@@ -239,12 +243,14 @@ const tableConfigs: Record<string, TableConfig> = {
       room_id: row.roomId,
       tenant_id: row.tenantId,
       rent_month: monthToDate(row.rentMonth),
+      payment_date: row.paymentDate || null,
       amount_due: Number(row.amountDue || 0),
       amount_paid: Number(row.amountPaid || 0),
       amount_unpaid: Number(row.amountUnpaid || 0),
       coverage_start_date: row.coverageStartDate || null,
       coverage_end_date: row.coverageEndDate || null,
       received_by: normalizePartner(row.receivedBy || "A"),
+      payment_status: normalizePaymentStatus(row.paymentStatus || (Number(row.amountPaid || 0) > 0 ? "已收" : "未收")),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_overdue: Boolean(row.isOverdue),
       notes: row.notes || null
@@ -568,6 +574,13 @@ function normalizePaymentMethod(method: string) {
     "鐜伴噾": "现金",
     "杞处": "转账",
     "鍏朵粬": "其他"
+  });
+}
+
+function normalizePaymentStatus(status: string) {
+  return normalize(status, {
+    "宸叉敹": "已收",
+    "鏈敹": "未收"
   });
 }
 

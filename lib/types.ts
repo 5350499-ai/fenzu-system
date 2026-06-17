@@ -54,13 +54,14 @@ export type RentPayment = {
   propertyId: string;
   roomId: string;
   rentMonth: string;
+  paymentDate?: string;
   amountDue: number;
   amountPaid: number;
   amountUnpaid: number;
   coverageStartDate?: string;
   coverageEndDate?: string;
-  paymentDate?: string;
   paymentMethod: "现金" | "转账" | "Bizum" | "其他";
+  paymentStatus?: "已收" | "未收";
   isOverdue: boolean;
 };
 

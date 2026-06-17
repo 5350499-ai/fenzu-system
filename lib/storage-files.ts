@@ -41,6 +41,14 @@ export const expenseFileConfig: FileConfig = {
   missingMessage: "支出附件存储尚未初始化。请先执行 expense-files 迁移 SQL。"
 };
 
+export const rentPaymentFileConfig: FileConfig = {
+  bucket: "rent-payment-files",
+  table: "rent_payment_files",
+  ownerColumn: "rent_payment_id",
+  ownerField: "rentPaymentId",
+  missingMessage: "收款附件存储尚未初始化。请先执行 rent-payment-files 迁移 SQL。"
+};
+
 export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): Promise<StoredFile[]> {
   if (!isSupabaseConfigured || !supabase) return [];
   const {
@@ -116,7 +124,12 @@ export async function deleteStoredFile(file: StoredFile) {
   if (!isSupabaseConfigured || !supabase) return;
   const { error: storageError } = await supabase.storage.from(file.storageBucket).remove([file.storagePath]);
   if (storageError) throw new Error(storageError.message);
-  const table = file.storageBucket === "expense-files" ? "expense_files" : "contract_files";
+  const table =
+    file.storageBucket === "expense-files"
+      ? "expense_files"
+      : file.storageBucket === "rent-payment-files"
+        ? "rent_payment_files"
+        : "contract_files";
   const { error } = await supabase.from(table).delete().eq("id", file.id);
   if (error) throw new Error(error.message);
 }

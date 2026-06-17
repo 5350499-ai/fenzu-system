@@ -25,6 +25,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
+import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { FileUp, Save } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -40,6 +41,7 @@ export default function CheckInPage() {
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [saving, setSaving] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
   const [form, setForm] = useState({
     propertyId: "",
     roomId: "",
@@ -51,10 +53,13 @@ export default function CheckInPage() {
     contractEndDate: "",
     monthlyRent: 0,
     amountPaid: 0,
+    paymentDate: new Date().toISOString().slice(0, 10),
     coverageStartDate: new Date().toISOString().slice(0, 10),
     coverageEndDate: "",
     depositAmount: 0,
     depositStatus: "已收",
+    paymentStatus: "已收",
+    receivedBy: "A",
     paymentMethod: "转账",
     notes: ""
   });
@@ -140,20 +145,23 @@ export default function CheckInPage() {
           }
         : null;
       const rentMonth = (form.coverageStartDate || form.checkInDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
-      const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - Number(form.amountPaid || 0), 0);
+      const actualPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
+      const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - actualPaid, 0);
       const nextPayment: BusinessRentPayment = {
         id: crypto.randomUUID(),
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,
         rentMonth,
+        paymentDate: form.paymentDate,
         amountDue: form.monthlyRent,
-        amountPaid: form.amountPaid,
+        amountPaid: actualPaid,
         amountUnpaid,
         coverageStartDate: form.coverageStartDate || monthStart(rentMonth),
         coverageEndDate: form.coverageEndDate || monthEnd(rentMonth),
         paymentMethod: form.paymentMethod,
-        receivedBy: "A",
+        receivedBy: form.receivedBy,
+        paymentStatus: form.paymentStatus,
         isOverdue: false,
         notes: form.notes
       };
@@ -165,12 +173,14 @@ export default function CheckInPage() {
       if (attachment) await uploadContractFile(contractId, attachment);
       await saveBusinessData(depositKey, nextDeposit ? [nextDeposit, ...deposits] : deposits);
       await saveBusinessData(rentPaymentKey, [nextPayment, ...payments]);
+      if (paymentAttachment) await uploadRentPaymentFile(nextPayment.id, paymentAttachment);
       setTenants(nextTenants);
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts]);
       if (nextDeposit) setDeposits([nextDeposit, ...deposits]);
       setPayments([nextPayment, ...payments]);
       setAttachment(null);
+      setPaymentAttachment(null);
       window.alert("一键入住已保存，首页统计会同步更新。");
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
@@ -192,6 +202,19 @@ export default function CheckInPage() {
     setAttachment(file);
   }
 
+  function choosePaymentFile(file?: File) {
+    if (!file) return;
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+      window.alert("只支持 PDF、JPG、PNG 文件。");
+      return;
+    }
+    if (file.size > maxAttachmentSize) {
+      window.alert("收款附件不能超过 5MB。");
+      return;
+    }
+    setPaymentAttachment(file);
+  }
+
   return (
     <AppLayout title="一键入住" description="一次录入租客、合同、押金和本月租金，减少重复操作。">
       <section className="card panel">
@@ -209,11 +232,19 @@ export default function CheckInPage() {
           <div className="field"><label>合同结束日期</label><input required type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} /></div>
           <MoneyInput label="月租金额（参考）" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
           <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
+          <div className="field"><label>收款日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />
+          <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
+          <SearchableSelect label="收款归属" value={form.receivedBy} options={["A", "B"].map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label>收款附件 PDF/JPG/PNG</label>
+            <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
+            {paymentAttachment ? <div className="attachment-preview"><FileUp size={16} /><span>{paymentAttachment.name} · {formatFileSize(paymentAttachment.size)}</span><button className="btn danger" type="button" onClick={() => setPaymentAttachment(null)}>移除</button></div> : <p className="muted">可上传付款截图或收款凭证，附件会绑定到本次收款记录。</p>}
+          </div>
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label>合同附件 PDF/JPG/PNG</label>
             <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />

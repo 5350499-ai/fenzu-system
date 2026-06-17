@@ -165,6 +165,7 @@ export default function RoomsPage() {
             const contract = latestContractForRoom(room.id, contracts);
             const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
             const latestPayment = latestCoverageForRoom(room.id, payments);
+            const currentTenant = tenants.find((tenant) => tenant.roomId === room.id && !tenant.status.includes("退"));
             const unpaid = roomUnpaidAmount(room.id, payments);
             const expanded = expandedRoomId === room.id;
             return (
@@ -183,7 +184,9 @@ export default function RoomsPage() {
                     propertyName={property?.name || "-"}
                     room={room}
                     unpaid={unpaid}
+                    currentTenantName={currentTenant?.name || "-"}
                     coverageEnd={coverageLabel(latestPayment)}
+                    contractEndDate={contract?.endDate || "-"}
                     saving={saving}
                     onArchive={() => archiveRoom(room)}
                     onDelete={() => permanentlyDelete(room)}
@@ -236,7 +239,9 @@ function RoomDetail({
   propertyName,
   expiryLabel,
   unpaid,
+  currentTenantName,
   coverageEnd,
+  contractEndDate,
   saving,
   onEdit,
   onVacant,
@@ -247,7 +252,9 @@ function RoomDetail({
   propertyName: string;
   expiryLabel: string;
   unpaid: number;
+  currentTenantName: string;
   coverageEnd: string;
+  contractEndDate: string;
   saving: boolean;
   onEdit: () => void;
   onVacant: () => void;
@@ -260,10 +267,12 @@ function RoomDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间名称" value={room.name || "-"} />
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
+        <DetailField label="当前租客" value={currentTenantName} />
         <DetailField label="月租" value={euro(room.monthlyRent)} />
         <DetailField label="押金" value={euro(room.depositAmount)} />
-        <DetailField label="欠费" value={unpaid > 0 ? euro(unpaid) : "-"} />
+        <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
+        <DetailField label="合同到期日期" value={contractEndDate} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
       </div>

@@ -178,11 +178,11 @@ export default function PartnershipSettlementPage() {
           title="收入归属明细"
           rows={settlement.scopedPayments.map((payment) => ({
             id: `income-${payment.id}`,
-            date: payment.rentMonth,
+            date: payment.paymentDate || payment.rentMonth,
             partner: payment.receivedBy || "A",
             type: "收租",
             amount: payment.amountPaid,
-            details: [`月份：${payment.rentMonth}`, `应收：${euro(payment.amountDue)}`, `未收：${euro(payment.amountUnpaid)}`, `备注：${payment.notes || "-"}`]
+            details: [`月份：${payment.rentMonth}`, `覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `月租参考：${euro(payment.amountDue)}`, `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
           }))}
         />
         <CompactDetailList
