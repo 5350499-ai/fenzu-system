@@ -33,7 +33,7 @@ import { euro, noteSummary } from "@/lib/format";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "profit" | "notes";
 type Editor = "room" | "tenant" | "contract" | "payment" | "deposit" | "expense" | null;
@@ -69,6 +69,7 @@ export default function PropertyDetailPage() {
   const [depositForm, setDepositForm] = useState<BusinessDeposit>(emptyDeposit(propertyId));
   const [expenseForm, setExpenseForm] = useState<BusinessExpense>(emptyExpense(propertyId));
   const [loaded, setLoaded] = useState(false);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -148,6 +149,10 @@ export default function PropertyDetailPage() {
   useEffect(() => { if (loaded) saveBusinessData(depositKey, deposits).catch(console.error); }, [deposits, loaded]);
   useEffect(() => { if (loaded) saveBusinessData(expenseKey, expenses).catch(console.error); }, [expenses, loaded]);
 
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [tab]);
+
   if (!property) {
     return (
       <AppLayout title="房源详情" description="未找到该房源。">
@@ -170,7 +175,7 @@ export default function PropertyDetailPage() {
 
       <div className="tabs">
         {tabs.map((item) => (
-          <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} type="button">
+          <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">
             {item.label}
           </button>
         ))}

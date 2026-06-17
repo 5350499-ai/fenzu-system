@@ -1606,11 +1606,23 @@ td:last-child {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 18px;
+  scroll-snap-type: x proximity;
   margin: 18px 0;
-  padding-bottom: 4px;
+  padding: 0 2px 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-button {
+  flex: 0 0 auto;
+  width: auto;
+  scroll-snap-align: center;
   min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 999px;
