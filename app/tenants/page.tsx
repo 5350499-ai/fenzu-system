@@ -36,8 +36,9 @@ import {
   uploadContractFile
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
-import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
+import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart } from "@/lib/rent-coverage";
+import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -98,6 +99,8 @@ export default function TenantsPage() {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showArchived, setShowArchived] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
@@ -124,6 +127,19 @@ export default function TenantsPage() {
     load().catch((error) => window.alert(`加载租客失败：${error.message || error}`));
   }, []);
 
+  useEffect(() => {
+    async function loadAdmin() {
+      const { data } = await supabase?.auth.getUser() || { data: { user: null } };
+      const email = data.user?.email?.toLowerCase() || "";
+      const admins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "admin@test.com")
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+      setIsAdmin(Boolean(email && admins.includes(email)));
+    }
+    loadAdmin().catch(() => setIsAdmin(false));
+  }, []);
+
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
     map[file.contractId] = [...(map[file.contractId] || []), file];
@@ -132,15 +148,16 @@ export default function TenantsPage() {
 
   const filteredTenants = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return tenants;
-    return tenants.filter((tenant) => {
+    const visible = tenants.filter((tenant) => showArchived || !isArchivedTenant(tenant));
+    if (!keyword) return visible;
+    return visible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract).map((file) => file.fileName).join(" ");
       const displayStatus = tenantDisplayStatus(tenant, payments);
       return `${tenant.name} ${tenant.phone} ${tenant.wechat} ${property?.name || ""} ${room?.name || ""} ${tenant.status} ${displayStatus} ${fileNames}`.toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, payments, properties, query, rooms, tenants]);
+  }, [contracts, filesByContract, payments, properties, query, rooms, showArchived, tenants]);
 
   const sortedTenants = useMemo(() => {
     return [...filteredTenants].sort((left, right) => {
@@ -289,14 +306,81 @@ export default function TenantsPage() {
   }
 
   async function moveOut(tenant: BusinessTenant) {
-    if (!window.confirm("确认办理退租/归档吗？\n会保留历史收租记录，并把房间设为空置、合同设为已结束。")) return;
+    if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
     const depositStatus = window.prompt("押金状态请输入：已退 或 待退", "待退") === "已退" ? "已退" : "待退";
+    const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租" } : item));
     await persistAll({
-      tenants: tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租" } : item)),
-      rooms: rooms.map((room) => (room.id === tenant.roomId ? { ...room, status: "空置" } : room)),
+      tenants: nextTenants,
+      rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
       contracts: contracts.map((contract) => (contract.tenantId === tenant.id ? { ...contract, status: "已结束" } : contract)),
       deposits: deposits.map((deposit) => (deposit.tenantId === tenant.id ? { ...deposit, status: depositStatus } : deposit))
     });
+  }
+
+  async function archiveTenant(tenant: BusinessTenant) {
+    if (!window.confirm("确认归档该租客吗？\n归档后默认隐藏，历史收租、押金、利润和合同附件都会保留。")) return;
+    await persistAll({
+      tenants: tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已归档" } : item))
+    });
+    setDetailTenantId("");
+  }
+
+  async function restoreTenant(tenant: BusinessTenant) {
+    const restoredTenant = { ...tenant, status: "在租" };
+    const nextTenants = tenants.map((item) => (item.id === tenant.id ? restoredTenant : item));
+    await persistAll({
+      tenants: nextTenants,
+      rooms: syncRoomsAfterTenantChange(rooms, nextTenants, tenant, restoredTenant)
+    });
+  }
+
+  async function permanentlyDeleteTenant(tenant: BusinessTenant) {
+    if (!isAdmin) return;
+    const confirmText = window.prompt(
+      "⚠️ 此操作不可恢复\n\n将删除：\n- 租客资料\n- 收租记录\n- 押金记录\n- 合同记录\n- 合同附件\n- 收款附件\n\n请输入 DELETE 确认永久删除。"
+    );
+    if (confirmText !== "DELETE") return;
+    setSaving(true);
+    try {
+      const tenantContracts = contracts.filter((contract) => contract.tenantId === tenant.id);
+      const tenantContractIds = tenantContracts.map((contract) => contract.id);
+      const tenantPayments = payments.filter((payment) => payment.tenantId === tenant.id);
+      const tenantPaymentIds = tenantPayments.map((payment) => payment.id);
+      const contractFilesToDelete = contractFiles.filter((file) => tenantContractIds.includes(file.contractId));
+      let paymentFilesToDelete: Awaited<ReturnType<typeof loadRentPaymentFiles>> = [];
+      try {
+        paymentFilesToDelete = await loadRentPaymentFiles(tenantPaymentIds);
+      } catch {
+        paymentFilesToDelete = [];
+      }
+
+      for (const file of contractFilesToDelete) await deleteContractFile(file);
+      for (const file of paymentFilesToDelete) await deleteRentPaymentFile(file);
+
+      const nextTenants = tenants.filter((item) => item.id !== tenant.id);
+      const nextContracts = contracts.filter((contract) => contract.tenantId !== tenant.id);
+      const nextPayments = payments.filter((payment) => payment.tenantId !== tenant.id);
+      const nextDeposits = deposits.filter((deposit) => deposit.tenantId !== tenant.id);
+      const nextRooms = syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId);
+
+      await saveBusinessData(tenantKey, nextTenants);
+      await saveBusinessData(contractKey, nextContracts);
+      await saveBusinessData(rentPaymentKey, nextPayments);
+      await saveBusinessData(depositKey, nextDeposits);
+      await saveBusinessData(roomKey, nextRooms);
+
+      setTenants(nextTenants);
+      setContracts(nextContracts);
+      setPayments(nextPayments);
+      setDeposits(nextDeposits);
+      setRooms(nextRooms);
+      setContractFiles((current) => current.filter((file) => !tenantContractIds.includes(file.contractId)));
+      setDetailTenantId("");
+    } catch (error: any) {
+      window.alert(error.message || "永久删除租客失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function replaceTenantContractFile(tenant: BusinessTenant, file?: File) {
@@ -360,9 +444,14 @@ export default function TenantsPage() {
             <h2 className="panel-title">租客列表</h2>
             <p className="muted">默认只显示一行核心信息，点击后展开详情和合同附件。</p>
           </div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
-            <Plus size={17} /> 新增租客
-          </button>
+          <div className="top-actions">
+            <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
+              {showArchived ? "隐藏归档" : "显示归档"}
+            </button>
+            <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
+              <Plus size={17} /> 新增租客
+            </button>
+          </div>
         </div>
 
         <div className="list-controls">
@@ -402,12 +491,16 @@ export default function TenantsPage() {
                     coverageEnd={coverageLabel(coveragePayment)}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     files={files}
+                    isAdmin={isAdmin}
                     onDeleteFile={removeContractFile}
+                    onArchive={() => archiveTenant(tenant)}
+                    onPermanentDelete={() => permanentlyDeleteTenant(tenant)}
                     onEdit={() => {
                       openTenantForm(tenant);
                     }}
                     onMoveOut={() => moveOut(tenant)}
                     onReplaceFile={(file) => replaceTenantContractFile(tenant, file)}
+                    onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     saving={saving}
@@ -525,11 +618,15 @@ function TenantDetail({
   propertyName,
   roomName,
   files,
+  isAdmin,
+  onArchive,
   saving,
   onDeleteFile,
   onEdit,
   onMoveOut,
-  onReplaceFile
+  onPermanentDelete,
+  onReplaceFile,
+  onRestore
 }: {
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
@@ -538,12 +635,17 @@ function TenantDetail({
   propertyName: string;
   roomName: string;
   files: ContractFile[];
+  isAdmin: boolean;
   saving: boolean;
+  onArchive: () => void;
   onDeleteFile: (file: ContractFile) => void;
   onEdit: () => void;
   onMoveOut: () => void;
+  onPermanentDelete: () => void;
   onReplaceFile: (file?: File) => void;
+  onRestore: () => void;
 }) {
+  const archived = isArchivedTenant(tenant);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -590,7 +692,17 @@ function TenantDetail({
 
       <div className="top-actions detail-actions">
         <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button>
-        <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租/归档</button>
+        {archived ? (
+          <button className="btn" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
+        ) : (
+          <>
+            <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button>
+            <button className="btn" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
+          </>
+        )}
+        {isAdmin ? (
+          <button className="btn danger" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
+        ) : null}
       </div>
     </div>
   );
@@ -668,8 +780,22 @@ function syncRoomsAfterTenantChange(
   });
 }
 
+function syncRoomsAfterTenantRemoval(rooms: BusinessRoom[], tenants: BusinessTenant[], roomId: string) {
+  return rooms.map((room) => {
+    if (room.id !== roomId) return room;
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    if (hasActiveTenant) return { ...room, status: "已租" };
+    if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
+    return room;
+  });
+}
+
 function isActiveTenant(tenant: BusinessTenant) {
   return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
+}
+
+function isArchivedTenant(tenant: BusinessTenant) {
+  return tenant.status === "已归档";
 }
 
 function getExpiryInfo(endDate?: string) {
