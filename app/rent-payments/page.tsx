@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { MoneyInput } from "@/components/money-input";
+import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -59,7 +60,6 @@ const emptyPayment: BusinessRentPayment = {
 };
 
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
-const partnerOptions = ["A", "B"];
 const paymentStatusOptions = ["已收", "未收"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 
@@ -195,7 +195,7 @@ export default function RentPaymentsPage() {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.tenantId) return;
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请输入自定义收款归属名称。");
+      window.alert("请填写自定义归属名称。");
       return;
     }
     setSaving(true);
@@ -359,7 +359,7 @@ export default function RentPaymentsPage() {
                     tenantName={tenant?.name || "-"}
                     depositAmount={deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0}
                     files={filesByPayment[payment.id] || []}
-                    onEdit={() => { const mode = ownershipChoice(payment.receivedBy); setForm(payment); setOwnershipMode(mode); setCustomReceivedBy(mode === "自定义" ? payment.receivedBy || "" : ""); setDepositAmount(deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0); setOpen(true); }}
+                    onEdit={() => { const mode = ownershipChoice(payment.receivedBy); setForm(payment); setOwnershipMode(mode); setCustomReceivedBy(mode === "自定义" ? customOwnershipName(payment.receivedBy) : ""); setDepositAmount(deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0); setOpen(true); }}
                     onVoid={() => voidPayment(payment)}
                     onDelete={() => permanentlyDelete(payment)}
                     onFileDelete={removeFile}
@@ -390,12 +390,10 @@ export default function RentPaymentsPage() {
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
-                const mode = choice as "A" | "B" | "自定义";
+              <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
-                if (mode !== "自定义") { setCustomReceivedBy(""); setForm((current) => ({ ...current, receivedBy: mode })); }
-              }} />
-              {ownershipMode === "自定义" ? <div className="field"><label>自定义归属名称</label><input maxLength={50} placeholder="例如：现金、朋友代收、工商银行" required value={customReceivedBy} onChange={(event) => { setCustomReceivedBy(event.target.value); setForm((current) => ({ ...current, receivedBy: event.target.value })); }} /></div> : null}
+                if (mode !== "自定义") setCustomReceivedBy("");
+              }} onCustomNameChange={setCustomReceivedBy} />
               <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
@@ -520,4 +518,9 @@ function depositPaymentMarker(paymentId: string) {
 function ownershipChoice(value?: string) {
   const normalized = (value || "A").trim().toUpperCase();
   return normalized === "A" || normalized === "B" ? normalized : "自定义";
+}
+
+function customOwnershipName(value?: string) {
+  const name = (value || "").trim();
+  return name === "自定义" ? "" : name;
 }

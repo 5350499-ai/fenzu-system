@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { MoneyInput } from "@/components/money-input";
+import { OwnershipField } from "@/components/ownership-field";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
   BusinessContract,
@@ -62,7 +63,6 @@ export default function CheckInPage() {
     paymentDay: 20,
     depositStatus: "已收",
     paymentStatus: "已收",
-    receivedBy: "A",
     paymentMethod: "转账",
     notes: ""
   });
@@ -94,13 +94,14 @@ export default function CheckInPage() {
       return;
     }
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请输入自定义收款归属名称。");
+      window.alert("请填写自定义归属名称。");
       return;
     }
     setSaving(true);
     try {
       const tenantId = crypto.randomUUID();
       const contractId = crypto.randomUUID();
+      const finalReceivedBy = ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode;
       const nextTenant: BusinessTenant = {
         id: tenantId,
         propertyId: form.propertyId,
@@ -147,7 +148,7 @@ export default function CheckInPage() {
             amount: form.depositAmount,
             status: form.depositStatus === "已收" ? "已收" : "待退",
             transactionDate: form.paymentDate,
-            receivedBy: "A",
+            receivedBy: finalReceivedBy,
             paidBy: "A",
             notes: form.notes
           }
@@ -168,7 +169,7 @@ export default function CheckInPage() {
         coverageStartDate: form.coverageStartDate || monthStart(rentMonth),
         coverageEndDate: form.coverageEndDate || monthEnd(rentMonth),
         paymentMethod: form.paymentMethod,
-        receivedBy: form.receivedBy,
+        receivedBy: finalReceivedBy,
         paymentStatus: form.paymentStatus,
         isOverdue: false,
         notes: form.notes
@@ -243,12 +244,10 @@ export default function CheckInPage() {
           <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-          <SearchableSelect label="收款归属" value={ownershipMode} options={["A", "B", "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
-            const mode = choice as "A" | "B" | "自定义";
+          <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
             setOwnershipMode(mode);
-            if (mode !== "自定义") { setCustomReceivedBy(""); setForm((current) => ({ ...current, receivedBy: mode })); }
-          }} />
-          {ownershipMode === "自定义" ? <div className="field"><label>自定义归属名称</label><input maxLength={50} placeholder="例如：现金、朋友代收、工商银行" required value={customReceivedBy} onChange={(event) => { setCustomReceivedBy(event.target.value); setForm((current) => ({ ...current, receivedBy: event.target.value })); }} /></div> : null}
+            if (mode !== "自定义") setCustomReceivedBy("");
+          }} onCustomNameChange={setCustomReceivedBy} />
           <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

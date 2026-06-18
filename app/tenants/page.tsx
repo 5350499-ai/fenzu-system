@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { MoneyInput } from "@/components/money-input";
+import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -44,7 +45,6 @@ import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-r
 import { useEffect, useMemo, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
-const partnerOptions = ["A", "B"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 type TenantSortKey = "expiry" | "rent" | "property" | "status";
 
@@ -217,7 +217,7 @@ export default function TenantsPage() {
       amountDue: tenant.monthlyRent
     });
     setOwnershipMode(mode);
-    setCustomReceivedBy(mode === "自定义" ? latestPayment?.receivedBy || "" : "");
+    setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latestPayment?.receivedBy) : "");
     setPendingContractFile(null);
     setPendingPaymentFile(null);
     setAttachmentsOpen(false);
@@ -264,7 +264,7 @@ export default function TenantsPage() {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请输入自定义收款归属名称。");
+      window.alert("请填写自定义归属名称。");
       return;
     }
     try {
@@ -575,12 +575,10 @@ export default function TenantsPage() {
               <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay || 20} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
-              <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
-                const mode = choice as "A" | "B" | "自定义";
+              <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
-                if (mode !== "自定义") { setCustomReceivedBy(""); updatePaymentMoney({ receivedBy: mode }); }
-              }} />
-              {ownershipMode === "自定义" ? <div className="field"><label>自定义归属名称</label><input maxLength={50} placeholder="例如：现金、朋友代收、工商银行" required value={customReceivedBy} onChange={(event) => { setCustomReceivedBy(event.target.value); updatePaymentMoney({ receivedBy: event.target.value }); }} /></div> : null}
+                if (mode !== "自定义") setCustomReceivedBy("");
+              }} onCustomNameChange={setCustomReceivedBy} />
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>备注</label>
@@ -885,6 +883,11 @@ function today() {
 function ownershipChoice(value?: string): "A" | "B" | "自定义" {
   const normalized = (value || "A").trim().toUpperCase();
   return normalized === "A" || normalized === "B" ? normalized : "自定义";
+}
+
+function customOwnershipName(value?: string) {
+  const name = (value || "").trim();
+  return name === "自定义" ? "" : name;
 }
 
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
