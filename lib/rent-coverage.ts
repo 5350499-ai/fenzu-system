@@ -94,7 +94,7 @@ export function overdueReferenceAmount(payment: BusinessRentPayment | null, tena
 }
 
 export function isRentIncome(payment: BusinessRentPayment) {
-  return !payment.incomeType || payment.incomeType === "房租收入";
+  return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
 export function monthStart(month?: string) {

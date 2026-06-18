@@ -62,7 +62,7 @@ export type BusinessRentPayment = {
   propertyId: string;
   roomId: string;
   tenantId: string;
-  incomeType?: "房租收入" | "押金收入" | "赔偿收入" | "其他收入";
+  incomeType?: "房租收入" | "续交房租" | "押金收入" | "赔偿收入" | "其他收入";
   incomeItem?: string;
   rentMonth: string;
   paymentDate?: string;
@@ -602,7 +602,7 @@ function normalizePartner(value?: string) {
 
 function normalizeIncomeType(value?: string): BusinessRentPayment["incomeType"] {
   const type = (value || "房租收入").trim();
-  return ["房租收入", "押金收入", "赔偿收入", "其他收入"].includes(type)
+  return ["房租收入", "续交房租", "押金收入", "赔偿收入", "其他收入"].includes(type)
     ? type as BusinessRentPayment["incomeType"]
     : "其他收入";
 }

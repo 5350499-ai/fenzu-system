@@ -201,7 +201,7 @@ export default function PartnershipSettlementPage() {
             partner: payment.receivedBy || "A",
             type: payment.incomeItem || payment.incomeType || "房租收入",
             amount: rentIncomeForPayment(payment, deposits),
-            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `月租参考：${euro(payment.amountDue)}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
+            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || payment.incomeType === "续交房租" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `月租参考：${euro(payment.amountDue)}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
           }))}
         />
         <CompactDetailList

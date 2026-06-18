@@ -101,6 +101,7 @@ export default function CheckInPage() {
     try {
       const tenantId = crypto.randomUUID();
       const contractId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
       const finalReceivedBy = ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode;
       const nextTenant: BusinessTenant = {
         id: tenantId,
@@ -150,14 +151,14 @@ export default function CheckInPage() {
             transactionDate: form.paymentDate,
             receivedBy: finalReceivedBy,
             paidBy: "A",
-            notes: form.notes
+            notes: [form.notes, `[收租押金:${paymentId}]`].filter(Boolean).join("\n")
           }
         : null;
       const rentMonth = (form.coverageStartDate || form.paymentDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const actualPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
       const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - actualPaid, 0);
       const nextPayment: BusinessRentPayment = {
-        id: crypto.randomUUID(),
+        id: paymentId,
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,

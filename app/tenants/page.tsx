@@ -508,6 +508,7 @@ export default function TenantsPage() {
                     contract={contract}
                     coverageEnd={coverageLabel(coveragePayment)}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
+                    deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
                     files={files}
                     isAdmin={isAdmin}
                     onDeleteFile={removeContractFile}
@@ -637,6 +638,7 @@ function TenantDetail({
   contract,
   coverageEnd,
   payments,
+  deposits,
   propertyName,
   roomName,
   files,
@@ -654,6 +656,7 @@ function TenantDetail({
   contract?: BusinessContract | null;
   coverageEnd: string;
   payments: BusinessRentPayment[];
+  deposits: BusinessDeposit[];
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -686,19 +689,24 @@ function TenantDetail({
       </div>
 
       <div className="attachment-panel">
-        <div className="detail-section-title">收款记录</div>
+        <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>
         <div className="settlement-detail-list">
           {[...payments]
-            .sort((a, b) => (b.coverageEndDate || b.rentMonth).localeCompare(a.coverageEndDate || a.rentMonth))
-            .slice(0, 5)
-            .map((payment) => (
-              <div className="settlement-detail-line readonly" key={payment.id}>
-                <span>{payment.paymentDate || payment.rentMonth}</span>
-                <b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b>
-                <span>至 {payment.coverageEndDate || payment.rentMonth}</span>
-                <strong>{euro(payment.amountPaid)}</strong>
-              </div>
-            ))}
+            .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
+            .map((payment) => {
+              const deposit = linkedDepositAmount(payment.id, deposits);
+              const rent = Math.max(Number(payment.amountPaid || 0) - deposit, 0);
+              const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
+              return (
+                <div className="payment-history-line" key={payment.id}>
+                  <span>{payment.paymentDate || payment.rentMonth}</span>
+                  <b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b>
+                  <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
+                  <span>押金 {euro(deposit)}</span>
+                  <strong>实收 {euro(payment.amountPaid)}</strong>
+                </div>
+              );
+            })}
           {!payments.length ? <span className="muted">暂无收款记录</span> : null}
         </div>
       </div>
@@ -714,6 +722,7 @@ function TenantDetail({
       </div>
 
       <div className="top-actions detail-actions">
+        <a className="btn primary" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a>
         <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button>
         {archived ? (
           <button className="btn" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
@@ -750,6 +759,10 @@ function TenantAttachmentActions({ files, onDelete }: { files: ContractFile[]; o
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function linkedDepositAmount(paymentId: string, deposits: BusinessDeposit[]) {
+  return Number(deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${paymentId}]`))?.amount || 0);
 }
 
 function SortButton({ active, direction, label, onClick }: { active: boolean; direction: "asc" | "desc"; label: string; onClick: () => void }) {
