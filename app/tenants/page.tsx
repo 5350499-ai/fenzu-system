@@ -38,7 +38,7 @@ import {
 import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart } from "@/lib/rent-coverage";
-import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -107,10 +107,10 @@ export default function TenantsPage() {
   const [detailTenantId, setDetailTenantId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
+  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
+  const [customReceivedBy, setCustomReceivedBy] = useState("");
 
   useEffect(() => {
-    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
@@ -183,6 +183,8 @@ export default function TenantsPage() {
     setForm(emptyTenant);
     setContractForm({ startDate: today(), endDate: "" });
     setPaymentForm(emptyTenantPayment);
+    setOwnershipMode("A");
+    setCustomReceivedBy("");
     setPendingContractFile(null);
     setPendingPaymentFile(null);
     setAttachmentsOpen(false);
@@ -193,6 +195,8 @@ export default function TenantsPage() {
       setForm(emptyTenant);
       setContractForm({ startDate: today(), endDate: "" });
       setPaymentForm(emptyTenantPayment);
+      setOwnershipMode("A");
+      setCustomReceivedBy("");
       setPendingContractFile(null);
       setPendingPaymentFile(null);
       setAttachmentsOpen(false);
@@ -201,6 +205,7 @@ export default function TenantsPage() {
     }
     const contract = latestContractForTenant(tenant.id, contracts);
     const latestPayment = latestCoverageForTenant(tenant.id, payments);
+    const mode = ownershipChoice(latestPayment?.receivedBy);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
     setPaymentForm(latestPayment ? { ...latestPayment } : {
@@ -210,6 +215,8 @@ export default function TenantsPage() {
       tenantId: tenant.id,
       amountDue: tenant.monthlyRent
     });
+    setOwnershipMode(mode);
+    setCustomReceivedBy(mode === "自定义" ? latestPayment?.receivedBy || "" : "");
     setPendingContractFile(null);
     setPendingPaymentFile(null);
     setAttachmentsOpen(false);
@@ -255,6 +262,10 @@ export default function TenantsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
+    if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
+      window.alert("请输入自定义收款归属名称。");
+      return;
+    }
     try {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
       const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
@@ -291,7 +302,7 @@ export default function TenantsPage() {
       const nextContracts = currentContract
         ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
         : [nextContract, ...contracts];
-      const nextPayment = buildTenantPayment(nextTenant, paymentForm);
+      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode });
       const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
@@ -494,7 +505,6 @@ export default function TenantsPage() {
                     contract={contract}
                     coverageEnd={coverageLabel(coveragePayment)}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
-                    partnerNames={partnerNames}
                     files={files}
                     isAdmin={isAdmin}
                     onDeleteFile={removeContractFile}
@@ -563,7 +573,12 @@ export default function TenantsPage() {
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
-              <SearchableSelect label="收款归属" value={paymentForm.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(receivedBy) => updatePaymentMoney({ receivedBy })} />
+              <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
+                const mode = choice as "A" | "B" | "自定义";
+                setOwnershipMode(mode);
+                if (mode !== "自定义") { setCustomReceivedBy(""); updatePaymentMoney({ receivedBy: mode }); }
+              }} />
+              {ownershipMode === "自定义" ? <div className="field"><label>自定义归属名称</label><input maxLength={50} placeholder="例如：现金、朋友代收、工商银行" required value={customReceivedBy} onChange={(event) => { setCustomReceivedBy(event.target.value); updatePaymentMoney({ receivedBy: event.target.value }); }} /></div> : null}
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>备注</label>
@@ -620,7 +635,6 @@ function TenantDetail({
   contract,
   coverageEnd,
   payments,
-  partnerNames,
   propertyName,
   roomName,
   files,
@@ -638,7 +652,6 @@ function TenantDetail({
   contract?: BusinessContract | null;
   coverageEnd: string;
   payments: BusinessRentPayment[];
-  partnerNames: PartnerNames;
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -678,7 +691,7 @@ function TenantDetail({
             .map((payment) => (
               <div className="settlement-detail-line readonly" key={payment.id}>
                 <span>{payment.paymentDate || payment.rentMonth}</span>
-                <b className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{partnerLabel(payment.receivedBy, partnerNames)}</b>
+                <b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b>
                 <span>至 {payment.coverageEndDate || payment.rentMonth}</span>
                 <strong>{euro(payment.amountPaid)}</strong>
               </div>
@@ -864,6 +877,11 @@ function validateContractFile(file: File) {
 
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function ownershipChoice(value?: string): "A" | "B" | "自定义" {
+  const normalized = (value || "A").trim().toUpperCase();
+  return normalized === "A" || normalized === "B" ? normalized : "自定义";
 }
 
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {

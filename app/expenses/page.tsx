@@ -28,7 +28,7 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -68,10 +68,8 @@ export default function ExpensesPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
-  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
 
   useEffect(() => {
-    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     const month = new URLSearchParams(window.location.search).get("month");
     if (month) setMonthFilter(month);
   }, []);
@@ -229,7 +227,7 @@ export default function ExpensesPage() {
               <article className="finance-list-item" key={expense.id}>
                 <button className="finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
-                  <span className={`partner-tag partner-${(expense.paidBy || "A").toLowerCase()}`}>{partnerLabel(expense.paidBy, partnerNames)}</span>
+                  <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy)}</span>
                   <span>{expense.category || "-"}</span>
                   <strong>{euro(expense.amount)}</strong>
                   <StatusBadge tone={isVoided(expense.notes) ? "red" : expense.isPaid ? "green" : "red"}>{isVoided(expense.notes) ? "已作废" : expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
@@ -267,7 +265,7 @@ export default function ExpensesPage() {
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
+              <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件 PDF/JPG/PNG</label>

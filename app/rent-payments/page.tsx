@@ -25,7 +25,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -83,10 +83,10 @@ export default function RentPaymentsPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
-  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
+  const [customReceivedBy, setCustomReceivedBy] = useState("");
+  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
 
   useEffect(() => {
-    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     const params = new URLSearchParams(window.location.search);
     setMonthFilter(params.get("month") || "");
     setOverdueOnly(params.get("overdue") === "1");
@@ -140,6 +140,8 @@ export default function RentPaymentsPage() {
     setOpen(false);
     setForm(emptyPayment);
     setDepositAmount(0);
+    setCustomReceivedBy("");
+    setOwnershipMode("A");
     setPendingFile(null);
   }
 
@@ -192,6 +194,10 @@ export default function RentPaymentsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.tenantId) return;
+    if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
+      window.alert("请输入自定义收款归属名称。");
+      return;
+    }
     setSaving(true);
     const paymentId = form.id || crypto.randomUUID();
     const amountDue = Number(form.amountDue || 0);
@@ -209,7 +215,7 @@ export default function RentPaymentsPage() {
       amountUnpaid,
       coverageStartDate: form.coverageStartDate,
       coverageEndDate: form.coverageEndDate,
-      receivedBy: form.receivedBy || "A",
+      receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode,
       paymentStatus: form.paymentStatus || (amountPaid > 0 ? "已收" : "未收"),
       isOverdue: false
     };
@@ -319,7 +325,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收租记录</h2><p className="muted">默认只显示月份、租客、金额、状态。</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyPayment, paymentDate: todayString(), rentMonth: todayString().slice(0, 7), coverageStartDate: todayString(), coverageEndDate: "" }); setDepositAmount(0); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
+          <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyPayment, paymentDate: todayString(), rentMonth: todayString().slice(0, 7), coverageStartDate: todayString(), coverageEndDate: "" }); setDepositAmount(0); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -340,7 +346,7 @@ export default function RentPaymentsPage() {
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{paymentCoverageEnd(payment) || payment.rentMonth}</span>
-                  <span className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{partnerLabel(payment.receivedBy, partnerNames)}</span>
+                  <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</span>
                   <span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span>
                   <strong>{euro(payment.amountPaid)}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖"}</StatusBadge>
@@ -353,7 +359,7 @@ export default function RentPaymentsPage() {
                     tenantName={tenant?.name || "-"}
                     depositAmount={deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0}
                     files={filesByPayment[payment.id] || []}
-                    onEdit={() => { setForm(payment); setDepositAmount(deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0); setOpen(true); }}
+                    onEdit={() => { const mode = ownershipChoice(payment.receivedBy); setForm(payment); setOwnershipMode(mode); setCustomReceivedBy(mode === "自定义" ? payment.receivedBy || "" : ""); setDepositAmount(deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0); setOpen(true); }}
                     onVoid={() => voidPayment(payment)}
                     onDelete={() => permanentlyDelete(payment)}
                     onFileDelete={removeFile}
@@ -385,7 +391,12 @@ export default function RentPaymentsPage() {
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
               <div className="field"><label>租金差额</label><output className={`money-difference ${form.amountPaid - form.amountDue < 0 ? "danger-text" : "profit"}`}>{signedEuro(form.amountPaid - form.amountDue)}</output></div>
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
+              <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
+                const mode = choice as "A" | "B" | "自定义";
+                setOwnershipMode(mode);
+                if (mode !== "自定义") { setCustomReceivedBy(""); setForm((current) => ({ ...current, receivedBy: mode })); }
+              }} />
+              {ownershipMode === "自定义" ? <div className="field"><label>自定义归属名称</label><input maxLength={50} placeholder="例如：现金、朋友代收、工商银行" required value={customReceivedBy} onChange={(event) => { setCustomReceivedBy(event.target.value); setForm((current) => ({ ...current, receivedBy: event.target.value })); }} /></div> : null}
               <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
@@ -511,4 +522,9 @@ function addOneDay(value: string) {
 
 function depositPaymentMarker(paymentId: string) {
   return `[收租押金:${paymentId}]`;
+}
+
+function ownershipChoice(value?: string) {
+  const normalized = (value || "A").trim().toUpperCase();
+  return normalized === "A" || normalized === "B" ? normalized : "自定义";
 }

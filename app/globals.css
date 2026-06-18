@@ -1488,6 +1488,15 @@ td:last-child {
   color: var(--green);
 }
 
+.partner-custom {
+  background: color-mix(in srgb, var(--amber) 16%, var(--surface));
+  color: var(--amber);
+}
+
+.warning-text {
+  color: var(--amber);
+}
+
 .finance-line:hover {
   background: var(--surface-soft);
 }

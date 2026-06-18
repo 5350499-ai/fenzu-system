@@ -585,8 +585,10 @@ function normalizePaymentStatus(status: string) {
 }
 
 function normalizePartner(value?: string) {
-  const partner = (value || "A").trim().toUpperCase();
-  return partner || "A";
+  const partner = (value || "A").trim();
+  if (!partner) return "A";
+  const fixedCode = partner.toUpperCase();
+  return fixedCode === "A" || fixedCode === "B" ? fixedCode : partner.slice(0, 50);
 }
 
 function normalizeSource(source: string) {

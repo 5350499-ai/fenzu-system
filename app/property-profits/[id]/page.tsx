@@ -27,7 +27,7 @@ import {
 import { euro } from "@/lib/format";
 import { downloadExpenseFile, ExpenseFile, loadExpenseFiles, openExpenseFile } from "@/lib/expense-files";
 import { calculatePropertyProfit, getDateRange, RangePreset } from "@/lib/profit";
-import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { downloadRentPaymentFile, loadRentPaymentFiles, openRentPaymentFile, RentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, paymentCoverageEnd } from "@/lib/rent-coverage";
 import { Download, Eye } from "lucide-react";
@@ -54,13 +54,11 @@ export default function PropertyProfitDetailPage() {
   const [expenseFiles, setExpenseFiles] = useState<ExpenseFile[]>([]);
   const [expandedRentId, setExpandedRentId] = useState("");
   const [expandedExpenseId, setExpandedExpenseId] = useState("");
-  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
   const [preset, setPreset] = useState<RangePreset>("thisMonth");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
   useEffect(() => {
-    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
@@ -146,7 +144,7 @@ export default function PropertyProfitDetailPage() {
             const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
             return <div className="profit-ledger-item" key={payment.id}>
               <button className="profit-ledger-line" onClick={() => setExpandedRentId(expanded ? "" : payment.id)} type="button">
-                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{partnerLabel(payment.receivedBy, partnerNames)}</b><span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isCoverageExpired(payment) ? "已过期" : "已覆盖"}</StatusBadge>
+                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isCoverageExpired(payment) ? "已过期" : "已覆盖"}</StatusBadge>
               </button>
               {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span><span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span><span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
             </div>;
@@ -161,7 +159,7 @@ export default function PropertyProfitDetailPage() {
             const relatedFiles = expenseFiles.filter((file) => file.expenseId === expense.id);
             return <div className="profit-ledger-item" key={expense.id}>
               <button className="profit-ledger-line" onClick={() => setExpandedExpenseId(expanded ? "" : expense.id)} type="button">
-                <span>{expense.paymentDate || "-"}</span><b className={`partner-tag partner-${(expense.paidBy || "A").toLowerCase()}`}>{partnerLabel(expense.paidBy, partnerNames)}</b><span>{expense.category}</span><strong>{euro(expense.amount)}</strong><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
+                <span>{expense.paymentDate || "-"}</span><b className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy)}</b><span>{expense.category}</span><strong>{euro(expense.amount)}</strong><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
               </button>
               {expanded ? <div className="profit-ledger-detail"><span>付款方式：{expense.paymentMethod || "-"}</span><span>付款归属：{expense.paidBy || "A"}</span><span>备注：{expense.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openExpenseFile} onDownload={downloadExpenseFile} /></div> : null}
             </div>;

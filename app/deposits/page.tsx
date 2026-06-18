@@ -19,7 +19,7 @@ import {
   saveBusinessData
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
-import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -54,10 +54,8 @@ export default function DepositsPage() {
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
 
   useEffect(() => {
-    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
@@ -148,7 +146,7 @@ export default function DepositsPage() {
                   <td>{deposit.transactionDate || "-"}</td>
                   <td>{room?.name || "-"}</td>
                   <td>{tenant?.name || "-"}</td>
-                  <td><PartnerTag deposit={deposit} names={partnerNames} /></td>
+                  <td><PartnerTag deposit={deposit} /></td>
                   <td>{euro(deposit.amount)}</td>
                   <td><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge></td>
                   <td>{deposit.type}</td>
@@ -166,7 +164,7 @@ export default function DepositsPage() {
             const expanded = expandedNoteId === deposit.id;
             return (
               <article className="mobile-record-card" key={deposit.id}>
-                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><PartnerTag deposit={deposit} names={partnerNames} /> · <StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
+                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><PartnerTag deposit={deposit} /> · <StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
                   <div className="mobile-record-field"><span>类型</span><strong>{deposit.type}</strong></div>
@@ -192,7 +190,7 @@ export default function DepositsPage() {
               <SearchableSelect label="押金类型" value={form.type} options={depositTypes.map((type) => ({ value: type, label: type }))} onChange={(type) => setForm((current) => ({ ...current, type }))} />
               <MoneyInput label="押金金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="押金状态" value={form.status} options={depositStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
-              <SearchableSelect label={form.type === "退还" ? "付款归属" : "收款归属"} value={depositPartnerValue(form)} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(partner) => setForm((current) => setDepositPartner(current, partner))} />
+              <SearchableSelect label={form.type === "退还" ? "付款归属" : "收款归属"} value={depositPartnerValue(form)} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(partner) => setForm((current) => setDepositPartner(current, partner))} />
               <div className="field"><label>日期</label><input type="date" value={form.transactionDate} onChange={(event) => setForm((current) => ({ ...current, transactionDate: event.target.value }))} /></div>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
@@ -208,9 +206,9 @@ function DepositActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => vo
   return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
 }
 
-function PartnerTag({ deposit, names }: { deposit: BusinessDeposit; names: PartnerNames }) {
+function PartnerTag({ deposit }: { deposit: BusinessDeposit }) {
   const partner = depositPartnerValue(deposit);
-  return <span className={`partner-tag partner-${partner.toLowerCase()}`}>{partnerLabel(partner, names)}</span>;
+  return <span className={`partner-tag ${partnerClass(partner)}`}>{partnerLabel(partner)}</span>;
 }
 
 function depositPartnerValue(deposit: BusinessDeposit) {
@@ -232,7 +230,9 @@ function normalizeDepositPartner(deposit: BusinessDeposit) {
 }
 
 function normalizePartner(value?: string) {
-  return (value || "A").trim().toUpperCase() === "B" ? "B" : "A";
+  const partner = (value || "A").trim();
+  const fixedCode = partner.toUpperCase();
+  return fixedCode === "A" || fixedCode === "B" ? fixedCode : partner || "A";
 }
 
 function depositTone(status: string) {
