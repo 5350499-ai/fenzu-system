@@ -56,7 +56,7 @@ export default function CheckInPage() {
     coverageStartDate: new Date().toISOString().slice(0, 10),
     coverageEndDate: "",
     depositAmount: 0,
-    paymentDay: 20,
+    paymentDay: 20 as number | undefined,
     depositStatus: "已收",
     paymentStatus: "已收",
     paymentMethod: "转账",
@@ -89,6 +89,10 @@ export default function CheckInPage() {
     }
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
       window.alert("请填写自定义归属名称。");
+      return;
+    }
+    if (form.paymentDay != null && (!Number.isInteger(form.paymentDay) || form.paymentDay < 1 || form.paymentDay > 31)) {
+      window.alert("每月缴费日请输入1到31，或留空表示不设置。");
       return;
     }
     setSaving(true);
@@ -224,7 +228,7 @@ export default function CheckInPage() {
           <MoneyInput label="本次房租金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
           <MoneyInput label="押金金额" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
-          <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
+          <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {

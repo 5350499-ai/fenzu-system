@@ -267,6 +267,10 @@ export default function TenantsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
+    if (form.paymentDay != null && (!Number.isInteger(form.paymentDay) || form.paymentDay < 1 || form.paymentDay > 31)) {
+      window.alert("每月缴费日请输入1到31，或留空表示不设置。");
+      return;
+    }
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
       window.alert("请填写自定义归属名称。");
       return;
@@ -577,7 +581,7 @@ export default function TenantsPage() {
               <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />
               <MoneyInput label="押金金额" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(form.depositAmount || 0))} /></div>
-              <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay || 20} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
+              <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
@@ -673,6 +677,7 @@ function TenantDetail({
   onRestore: () => void;
 }) {
   const archived = isArchivedTenant(tenant);
+  const receivedDeposit = collectedDepositForTenant(payments, deposits);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -680,8 +685,9 @@ function TenantDetail({
         <DetailField label="电话" value={tenant.phone || "-"} />
         <DetailField label="微信" value={tenant.wechat || "-"} />
         <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
-        <DetailField label="押金" value={euro(tenant.depositAmount)} />
-        <DetailField label="每月缴费日" value={`每月${tenant.paymentDay || 20}号`} />
+        <DetailField label="押金标准 / 应收押金" value={euro(tenant.depositAmount)} />
+        <DetailField label="已收押金" value={euro(receivedDeposit)} />
+        <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
         <DetailField label="入住日期" value={contract?.startDate || "-"} />
         <DetailField label="合同到期" value={contract?.endDate || "-"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
@@ -697,9 +703,9 @@ function TenantDetail({
             .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
             .map((payment) => {
               const legacyDeposit = linkedDepositAmount(payment.id, deposits);
-              const deposit = legacyDeposit || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
+              const rentPayment = isTenantRentPayment(payment);
+              const deposit = rentPayment ? legacyDeposit || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0) : 0;
               const rent = Number(payment.amountDue || 0);
-              const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
               return (
                 <div className="payment-history-line" key={payment.id}>
                   <span>{payment.paymentDate || payment.rentMonth}</span>
@@ -766,6 +772,20 @@ function DetailField({ label, value }: { label: string; value: string }) {
 
 function linkedDepositAmount(paymentId: string, deposits: BusinessDeposit[]) {
   return Number(deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${paymentId}]`))?.amount || 0);
+}
+
+function isTenantRentPayment(payment: BusinessRentPayment) {
+  return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
+}
+
+function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {
+  return payments
+    .filter((payment) => isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]"))
+    .reduce((total, payment) => {
+      const legacyDeposit = linkedDepositAmount(payment.id, deposits);
+      const deposit = legacyDeposit || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
+      return total + deposit;
+    }, 0);
 }
 
 function SortButton({ active, direction, label, onClick }: { active: boolean; direction: "asc" | "desc"; label: string; onClick: () => void }) {

@@ -168,7 +168,7 @@ const tableConfigs: Record<string, TableConfig> = {
       source: normalizeSource(row.source || "其他"),
       monthlyRent: Number(row.monthly_rent || 0),
       depositAmount: Number(row.deposit_amount || 0),
-      paymentDay: Number(row.payment_day || 20),
+      paymentDay: row.payment_day == null ? undefined : Number(row.payment_day),
       status: normalizeTenantStatus(row.status || "在租"),
       notes: row.notes || ""
     }),
@@ -183,7 +183,7 @@ const tableConfigs: Record<string, TableConfig> = {
       source: normalizeSource(row.source || "其他"),
       monthly_rent: Number(row.monthlyRent || 0),
       deposit_amount: Number(row.depositAmount || 0),
-      payment_day: Math.min(28, Math.max(1, Number(row.paymentDay || 20))),
+      payment_day: row.paymentDay == null || row.paymentDay === "" ? null : Number(row.paymentDay),
       status: normalizeTenantStatus(row.status || "在租"),
       notes: row.notes || null
     })

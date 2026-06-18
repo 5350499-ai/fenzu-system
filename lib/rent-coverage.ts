@@ -49,8 +49,12 @@ export function rentCollectionReminderStage(
     return { ...coverageStage, reason: "coverage", daysPastPaymentDay: 0 };
   }
 
-  const paymentDay = Math.min(28, Math.max(1, Number(tenant.paymentDay || 20)));
-  const dueDate = `${today.slice(0, 8)}${String(paymentDay).padStart(2, "0")}`;
+  if (tenant.paymentDay == null) {
+    return coverageStage ? { ...coverageStage, reason: "coverage", daysPastPaymentDay: 0 } : null;
+  }
+  const paymentDay = Math.min(31, Math.max(1, Number(tenant.paymentDay)));
+  const dueDay = Math.min(paymentDay, Number(monthEnd(today.slice(0, 7)).slice(-2)));
+  const dueDate = `${today.slice(0, 8)}${String(dueDay).padStart(2, "0")}`;
   if (today < dueDate) return null;
 
   const currentMonthEnd = monthEnd(today.slice(0, 7));
