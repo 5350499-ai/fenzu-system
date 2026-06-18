@@ -90,19 +90,14 @@ export function calculatePropertyProfit(
   const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes));
   const scopedExpenses = expenses.filter((expense) => expense.propertyId === property.id && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes));
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
-  const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment, scopedDeposits), 0)
-    + depositIncome(scopedDeposits);
-  const expense = sumBy(scopedExpenses, "amount") + depositRefundExpense(scopedDeposits);
+  const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
+  const expense = sumBy(scopedExpenses, "amount");
   const propertyPayments = payments.filter((payment) => payment.propertyId === property.id && !isVoided(payment.notes));
   const unpaid = scopedRooms.reduce((total, room) => {
     const latest = latestCoverageForRoom(room.id, propertyPayments);
     return total + (isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0);
   }, 0);
-  const depositAmount = scopedDeposits.reduce((total, deposit) => {
-    if (deposit.type === "退还") return total - Number(deposit.amount || 0);
-    if (deposit.type === "扣除") return total;
-    return total + Number(deposit.amount || 0);
-  }, 0);
+  const depositAmount = 0;
   const netProfit = income - expense;
 
   return {
@@ -159,13 +154,10 @@ export function monthlyProfitRows(
 ) {
   const months = recentMonths(monthsBack);
   return months.map((month) => {
-    const monthDeposits = deposits.filter((item) => item.propertyId === propertyId && item.transactionDate.startsWith(month) && !isVoided(item.notes));
     const income = payments
       .filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes))
-      .reduce((total, payment) => total + rentIncomeForPayment(payment, deposits), 0)
-      + depositIncome(monthDeposits);
-    const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount")
-      + depositRefundExpense(monthDeposits);
+      .reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
+    const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount");
     return { month, income, expense, netProfit: income - expense };
   });
 }

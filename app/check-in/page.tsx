@@ -6,15 +6,12 @@ import { OwnershipField } from "@/components/ownership-field";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
   BusinessContract,
-  BusinessDeposit,
   BusinessProperty,
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
   contractKey,
-  depositKey,
   getInitialContracts,
-  getInitialDeposits,
   getInitialProperties,
   getInitialRentPayments,
   getInitialRooms,
@@ -39,7 +36,6 @@ export default function CheckInPage() {
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
-  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [saving, setSaving] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
@@ -74,13 +70,11 @@ export default function CheckInPage() {
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setContracts(loadedContracts);
       setPayments(loadedPayments);
-      setDeposits(loadedDeposits);
     }
     load().catch((error) => window.alert(`加载入住数据失败：${error.message || error}`));
   }, []);
@@ -139,21 +133,6 @@ export default function CheckInPage() {
         status: "有效",
         notes: form.notes
       };
-      const nextDeposit: BusinessDeposit | null = form.depositAmount
-        ? {
-            id: crypto.randomUUID(),
-            propertyId: form.propertyId,
-            roomId: form.roomId,
-            tenantId,
-            type: "收取",
-            amount: form.depositAmount,
-            status: form.depositStatus === "已收" ? "已收" : "待退",
-            transactionDate: form.paymentDate,
-            receivedBy: finalReceivedBy,
-            paidBy: "A",
-            notes: [form.notes, `[收租押金:${paymentId}]`].filter(Boolean).join("\n")
-          }
-        : null;
       const rentMonth = (form.coverageStartDate || form.paymentDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const rentAmount = Number(form.amountPaid || 0);
       const collectedDeposit = form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0;
@@ -185,13 +164,11 @@ export default function CheckInPage() {
       await saveBusinessData(roomKey, nextRooms);
       await saveBusinessData(contractKey, [nextContract, ...contracts]);
       if (attachment) await uploadContractFile(contractId, attachment);
-      await saveBusinessData(depositKey, nextDeposit ? [nextDeposit, ...deposits] : deposits);
       await saveBusinessData(rentPaymentKey, [nextPayment, ...payments]);
       if (paymentAttachment) await uploadRentPaymentFile(nextPayment.id, paymentAttachment);
       setTenants(nextTenants);
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts]);
-      if (nextDeposit) setDeposits([nextDeposit, ...deposits]);
       setPayments([nextPayment, ...payments]);
       setAttachment(null);
       setPaymentAttachment(null);

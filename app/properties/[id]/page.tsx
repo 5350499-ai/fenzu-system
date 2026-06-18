@@ -97,7 +97,7 @@ export default function PropertyDetailPage() {
   const scopedTenants = tenants.filter((item) => item.propertyId === propertyId);
   const scopedContracts = contracts.filter((item) => item.propertyId === propertyId);
   const scopedPayments = payments.filter((item) => item.propertyId === propertyId);
-  const scopedDeposits = deposits.filter((item) => item.propertyId === propertyId);
+  const scopedDeposits = deposits.filter((item) => item.propertyId === propertyId && !item.notes?.includes("[收租押金:"));
   const scopedExpenses = expenses.filter((item) => item.propertyId === propertyId);
   const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);

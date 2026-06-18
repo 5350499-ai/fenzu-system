@@ -3,13 +3,10 @@
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import {
-  BusinessDeposit,
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
-  depositKey,
   expenseKey,
-  getInitialDeposits,
   getInitialExpenses,
   getInitialProperties,
   getInitialRentPayments,
@@ -18,7 +15,7 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { isLinkedRentDeposit, rentIncomeForPayment } from "@/lib/profit";
+import { rentIncomeForPayment } from "@/lib/profit";
 import { defaultPartnerRatios, loadPartnerRatios, partnerClass, partnerLabel, PartnerRatios } from "@/lib/partner-settings";
 import { useEffect, useMemo, useState } from "react";
 
@@ -37,7 +34,6 @@ export default function PartnershipSettlementPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
-  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [rangeMode, setRangeMode] = useState<RangeMode>("current");
   const initialRange = presetRange("current");
   const [customStartDate, setCustomStartDate] = useState(initialRange.startDate);
@@ -59,7 +55,6 @@ export default function PartnershipSettlementPage() {
       setProperties(loadedProperties);
       setPayments(await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()));
       setExpenses(await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)));
-      setDeposits(await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()));
     }
     load().catch((error) => window.alert(`加载合伙结算失败：${error.message || error}`));
   }, []);
@@ -75,40 +70,20 @@ export default function PartnershipSettlementPage() {
       (propertyId === "all" || expense.propertyId === propertyId) &&
       !isVoided(expense.notes)
     );
-    const scopedDeposits = deposits.filter((deposit) =>
-      isWithinRange(deposit.transactionDate, activeRange) &&
-      (propertyId === "all" || deposit.propertyId === propertyId) &&
-      deposit.status !== "已作废" &&
-      !isVoided(deposit.notes)
-    );
-
-    const standaloneDepositIncome = scopedDeposits.filter((deposit) => deposit.type === "收取" && !isLinkedRentDeposit(deposit));
-    const depositRefunds = scopedDeposits.filter((deposit) => deposit.type === "退还");
-    const totalIncome = scopedPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
-      + standaloneDepositIncome.reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
-    const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
-      + depositRefunds.reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
+    const totalIncome = scopedPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment), 0);
+    const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const netProfit = totalIncome - totalExpense;
     const customCollected = scopedPayments
       .filter((payment) => !partners.includes(normalizePartner(payment.receivedBy)))
-      .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
-      + standaloneDepositIncome
-        .filter((deposit) => !partners.includes(normalizePartner(deposit.receivedBy)))
-        .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
+      .reduce((sum, payment) => sum + rentIncomeForPayment(payment), 0);
 
     const partnerStats = partners.reduce<Record<string, PartnerStat>>((map, partner) => {
       const collected = scopedPayments
         .filter((payment) => normalizePartner(payment.receivedBy) === partner)
-        .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
-        + standaloneDepositIncome
-          .filter((deposit) => normalizePartner(deposit.receivedBy) === partner)
-          .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
+        .reduce((sum, payment) => sum + rentIncomeForPayment(payment), 0);
       const advanced = scopedExpenses
         .filter((expense) => normalizePartner(expense.paidBy) === partner)
-        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
-        + depositRefunds
-          .filter((deposit) => normalizePartner(deposit.paidBy) === partner)
-          .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
       const actualCash = collected - advanced;
       map[partner] = {
         collected,
@@ -128,8 +103,8 @@ export default function PartnershipSettlementPage() {
           ? { from: "A", to: "B", amount: aBalance }
           : { from: "B", to: "A", amount: Math.abs(aBalance) };
 
-    return { scopedPayments, scopedExpenses, scopedDeposits, totalIncome, totalExpense, netProfit, customCollected, partnerStats, transfer };
-  }, [activeRange, deposits, expenses, payments, propertyId, ratios]);
+    return { scopedPayments, scopedExpenses, totalIncome, totalExpense, netProfit, customCollected, partnerStats, transfer };
+  }, [activeRange, expenses, payments, propertyId, ratios]);
 
   return (
     <AppLayout title="合伙结算" description="按 A/B 代收和垫付自动计算月底谁该给谁转账。">
@@ -221,8 +196,8 @@ export default function PartnershipSettlementPage() {
             date: payment.paymentDate || payment.rentMonth,
             partner: payment.receivedBy || "A",
             type: payment.incomeItem || payment.incomeType || "房租收入",
-            amount: rentIncomeForPayment(payment, deposits),
-            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || payment.incomeType === "续交房租" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `本次房租：${euro(Math.max(Number(payment.amountPaid || 0) - depositAmountForPayment(payment.id, deposits), 0))}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
+            amount: rentIncomeForPayment(payment),
+            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || payment.incomeType === "续交房租" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `房租金额：${euro(payment.amountDue)}`, `押金金额：${euro(Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0))}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
           }))}
         />
         <CompactDetailList
@@ -234,17 +209,6 @@ export default function PartnershipSettlementPage() {
             type: expense.category,
             amount: expense.amount,
             details: [`状态：${expense.isPaid ? "已支付" : "未支付"}`, `方式：${expense.paymentMethod || "-"}`, `备注：${expense.notes || "-"}`]
-          }))}
-        />
-        <CompactDetailList
-          title="押金/预收预支归属明细"
-          rows={settlement.scopedDeposits.map((deposit) => ({
-            id: `deposit-${deposit.id}`,
-            date: deposit.transactionDate || "-",
-            partner: deposit.type === "退还" || deposit.type === "扣除" ? deposit.paidBy || "A" : deposit.receivedBy || "A",
-            type: deposit.type,
-            amount: deposit.amount,
-            details: [`状态：${deposit.status}`, `收款归属：${deposit.receivedBy || "A"}`, `付款归属：${deposit.paidBy || "A"}`, `备注：${deposit.notes || "-"}`]
           }))}
         />
       </div>
@@ -300,10 +264,6 @@ function CompactDetailList({
 function normalizePartner(value?: string) {
   const partner = (value || "A").trim().toUpperCase();
   return partners.includes(partner) ? partner : "";
-}
-
-function depositAmountForPayment(paymentId: string, deposits: BusinessDeposit[]) {
-  return Number(deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${paymentId}]`))?.amount || 0);
 }
 
 function isVoided(notes?: string) {

@@ -135,10 +135,9 @@ export default function PropertyProfitDetailPage() {
             const tenant = tenants.find((item) => item.id === payment.tenantId);
             const expanded = expandedRentId === payment.id;
             const relatedFiles = rentFiles.filter((file) => file.rentPaymentId === payment.id);
-            const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
             return <div className="profit-ledger-item" key={payment.id}>
               <button className="profit-ledger-line" onClick={() => setExpandedRentId(expanded ? "" : payment.id)} type="button">
-                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{profitPaymentLabel(payment, room?.name || "-", Boolean(linkedDeposit?.amount))}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isRentIncome(payment) ? isCoverageExpired(payment) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
+                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{profitPaymentLabel(payment, room?.name || "-", Number(payment.amountPaid || 0) > Number(payment.amountDue || 0))}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isRentIncome(payment) ? isCoverageExpired(payment) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
               </button>
               {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span>{isRentIncome(payment) ? <span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span> : null}<span>类型：{payment.incomeType || "房租收入"}</span>{payment.incomeItem ? <span>项目：{payment.incomeItem}</span> : null}<span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
             </div>;
@@ -161,20 +160,6 @@ export default function PropertyProfitDetailPage() {
           </div>
         </section>
       </div>
-
-      {stat.deposits.length ? (
-        <section className="card panel compact-ledger-panel">
-          <h2 className="panel-title">押金分类明细</h2>
-          <p className="muted">收取计入收入，退还计入支出；与收租绑定的押金已包含在对应实收金额中，不会重复计算。</p>
-          <div className="profit-ledger-list">
-            {[...stat.deposits].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate)).map((deposit) => {
-              const partner = deposit.type === "退还" ? deposit.paidBy : deposit.receivedBy;
-              const label = deposit.type === "退还" ? "押金退还" : deposit.type === "收取" ? "押金收入" : "押金扣除";
-              return <div className="profit-ledger-item" key={deposit.id}><div className="profit-ledger-line readonly"><span>{deposit.transactionDate}</span><b className={`partner-tag ${partnerClass(partner)}`}>{partnerLabel(partner)}</b><span>{label}</span><strong>{euro(deposit.amount)}</strong><StatusBadge tone={deposit.type === "退还" ? "red" : "green"}>{deposit.status}</StatusBadge></div></div>;
-            })}
-          </div>
-        </section>
-      ) : null}
 
       <div className="grid dashboard-panels">
         <section className="card panel">

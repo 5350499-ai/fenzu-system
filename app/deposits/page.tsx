@@ -20,6 +20,7 @@ import {
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { isLinkedRentDeposit } from "@/lib/profit";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -74,8 +75,9 @@ export default function DepositsPage() {
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
   const filteredDeposits = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return deposits;
     return deposits.filter((deposit) => {
+      if (isLinkedRentDeposit(deposit)) return false;
+      if (!keyword) return true;
       const property = properties.find((item) => item.id === deposit.propertyId);
       const room = rooms.find((item) => item.id === deposit.roomId);
       const tenant = tenants.find((item) => item.id === deposit.tenantId);

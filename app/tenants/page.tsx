@@ -208,7 +208,8 @@ export default function TenantsPage() {
     }
     const contract = latestContractForTenant(tenant.id, contracts);
     const latestPayment = latestCoverageForTenant(tenant.id, payments);
-    const latestDeposit = latestPayment ? linkedDepositAmount(latestPayment.id, deposits) : 0;
+    const legacyDeposit = latestPayment ? linkedDepositAmount(latestPayment.id, deposits) : 0;
+    const latestDeposit = latestPayment ? legacyDeposit || Math.max(Number(latestPayment.amountPaid || 0) - Number(latestPayment.amountDue || 0), 0) : 0;
     const mode = ownershipChoice(latestPayment?.receivedBy);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
@@ -310,14 +311,7 @@ export default function TenantsPage() {
       const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
-      const depositMarker = `[收租押金:${nextPayment.id}]`;
-      const existingDeposit = deposits.find((deposit) => deposit.notes?.includes(depositMarker));
-      const nextDeposits = nextTenant.depositAmount > 0
-        ? existingDeposit
-          ? deposits.map((deposit) => deposit.id === existingDeposit.id ? { ...deposit, propertyId: nextTenant.propertyId, roomId: nextTenant.roomId, tenantId: nextTenant.id, amount: nextTenant.depositAmount, transactionDate: nextPayment.paymentDate || today(), receivedBy: nextPayment.receivedBy || "A" } : deposit)
-          : [{ id: crypto.randomUUID(), propertyId: nextTenant.propertyId, roomId: nextTenant.roomId, tenantId: nextTenant.id, type: "收取", amount: nextTenant.depositAmount, status: "已收", transactionDate: nextPayment.paymentDate || today(), receivedBy: nextPayment.receivedBy || "A", paidBy: "A", notes: depositMarker }, ...deposits]
-        : existingDeposit ? deposits.filter((deposit) => deposit.id !== existingDeposit.id) : deposits;
-      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments });
+      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, payments: nextPayments });
       if (pendingContractFile) {
         const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
         setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
@@ -702,8 +696,9 @@ function TenantDetail({
           {[...payments]
             .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
             .map((payment) => {
-              const deposit = linkedDepositAmount(payment.id, deposits);
-              const rent = Math.max(Number(payment.amountPaid || 0) - deposit, 0);
+              const legacyDeposit = linkedDepositAmount(payment.id, deposits);
+              const deposit = legacyDeposit || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
+              const rent = Number(payment.amountDue || 0);
               const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
               return (
                 <div className="payment-history-line" key={payment.id}>
