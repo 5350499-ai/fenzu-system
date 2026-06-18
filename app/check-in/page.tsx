@@ -155,8 +155,10 @@ export default function CheckInPage() {
           }
         : null;
       const rentMonth = (form.coverageStartDate || form.paymentDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
-      const actualPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
-      const amountUnpaid = Math.max(Number(form.monthlyRent || 0) - actualPaid, 0);
+      const rentAmount = Number(form.amountPaid || 0);
+      const collectedDeposit = form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0;
+      const actualPaid = form.paymentStatus === "未收" ? collectedDeposit : rentAmount + collectedDeposit;
+      const amountUnpaid = form.paymentStatus === "未收" ? rentAmount : 0;
       const nextPayment: BusinessRentPayment = {
         id: paymentId,
         propertyId: form.propertyId,
@@ -166,7 +168,7 @@ export default function CheckInPage() {
         incomeItem: "",
         rentMonth,
         paymentDate: form.paymentDate,
-        amountDue: form.monthlyRent,
+        amountDue: rentAmount,
         amountPaid: actualPaid,
         amountUnpaid,
         coverageStartDate: form.coverageStartDate || monthStart(rentMonth),
@@ -241,9 +243,10 @@ export default function CheckInPage() {
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
-          <MoneyInput label="月租金额（参考）" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
-          <MoneyInput label="本次实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
-          <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+          <div className="field"><label>房间月租（只读）</label><input readOnly value={`€${Number(form.monthlyRent || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
+          <MoneyInput label="本次房租金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
+          <MoneyInput label="押金金额" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+          <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
           <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
@@ -251,7 +254,7 @@ export default function CheckInPage() {
             setOwnershipMode(mode);
             if (mode !== "自定义") setCustomReceivedBy("");
           }} onCustomNameChange={setCustomReceivedBy} />
-          <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
+          <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
           <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>

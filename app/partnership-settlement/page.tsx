@@ -222,7 +222,7 @@ export default function PartnershipSettlementPage() {
             partner: payment.receivedBy || "A",
             type: payment.incomeItem || payment.incomeType || "房租收入",
             amount: rentIncomeForPayment(payment, deposits),
-            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || payment.incomeType === "续交房租" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `月租参考：${euro(payment.amountDue)}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
+            details: [`类型：${payment.incomeType || "房租收入"}`, ...(payment.incomeType === "房租收入" || payment.incomeType === "续交房租" || !payment.incomeType ? [`覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `本次房租：${euro(Math.max(Number(payment.amountPaid || 0) - depositAmountForPayment(payment.id, deposits), 0))}`] : []), `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
           }))}
         />
         <CompactDetailList
@@ -300,6 +300,10 @@ function CompactDetailList({
 function normalizePartner(value?: string) {
   const partner = (value || "A").trim().toUpperCase();
   return partners.includes(partner) ? partner : "";
+}
+
+function depositAmountForPayment(paymentId: string, deposits: BusinessDeposit[]) {
+  return Number(deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${paymentId}]`))?.amount || 0);
 }
 
 function isVoided(notes?: string) {

@@ -208,15 +208,16 @@ export default function TenantsPage() {
     }
     const contract = latestContractForTenant(tenant.id, contracts);
     const latestPayment = latestCoverageForTenant(tenant.id, payments);
+    const latestDeposit = latestPayment ? linkedDepositAmount(latestPayment.id, deposits) : 0;
     const mode = ownershipChoice(latestPayment?.receivedBy);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
-    setPaymentForm(latestPayment ? { ...latestPayment } : {
+    setPaymentForm(latestPayment ? { ...latestPayment, amountDue: Math.max(Number(latestPayment.amountPaid || 0) - latestDeposit, 0) } : {
       ...emptyTenantPayment,
       propertyId: tenant.propertyId,
       roomId: tenant.roomId,
       tenantId: tenant.id,
-      amountDue: tenant.monthlyRent
+      amountDue: 0
     });
     setOwnershipMode(mode);
     setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latestPayment?.receivedBy) : "");
@@ -305,11 +306,18 @@ export default function TenantsPage() {
       const nextContracts = currentContract
         ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
         : [nextContract, ...contracts];
-      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode });
+      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode }, nextTenant.depositAmount);
       const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
-      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, payments: nextPayments });
+      const depositMarker = `[收租押金:${nextPayment.id}]`;
+      const existingDeposit = deposits.find((deposit) => deposit.notes?.includes(depositMarker));
+      const nextDeposits = nextTenant.depositAmount > 0
+        ? existingDeposit
+          ? deposits.map((deposit) => deposit.id === existingDeposit.id ? { ...deposit, propertyId: nextTenant.propertyId, roomId: nextTenant.roomId, tenantId: nextTenant.id, amount: nextTenant.depositAmount, transactionDate: nextPayment.paymentDate || today(), receivedBy: nextPayment.receivedBy || "A" } : deposit)
+          : [{ id: crypto.randomUUID(), propertyId: nextTenant.propertyId, roomId: nextTenant.roomId, tenantId: nextTenant.id, type: "收取", amount: nextTenant.depositAmount, status: "已收", transactionDate: nextPayment.paymentDate || today(), receivedBy: nextPayment.receivedBy || "A", paidBy: "A", notes: depositMarker }, ...deposits]
+        : existingDeposit ? deposits.filter((deposit) => deposit.id !== existingDeposit.id) : deposits;
+      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments });
       if (pendingContractFile) {
         const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
         setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
@@ -435,9 +443,8 @@ export default function TenantsPage() {
   function updatePaymentMoney(patch: Partial<BusinessRentPayment>) {
     setPaymentForm((current) => {
       const next = { ...current, ...patch };
-      const amountPaid = next.paymentStatus === "未收" ? 0 : Number(next.amountPaid || 0);
-      const amountUnpaid = Math.max(Number(next.amountDue || 0) - amountPaid, 0);
-      return { ...next, amountPaid, amountUnpaid, isOverdue: isCoverageExpired(next) };
+      const amountUnpaid = next.paymentStatus === "未收" ? Number(next.amountDue || 0) : 0;
+      return { ...next, amountUnpaid, isOverdue: isCoverageExpired(next) };
     });
   }
 
@@ -564,17 +571,18 @@ export default function TenantsPage() {
                   description: `编号 ${room.roomNumber} ｜ ${room.status}`,
                   keywords: room.roomNumber
                 }))}
-                onChange={(roomId) => setForm((current) => ({ ...current, roomId }))}
+                onChange={(roomId) => {
+                  const room = rooms.find((item) => item.id === roomId);
+                  setForm((current) => ({ ...current, roomId, monthlyRent: room?.monthlyRent || 0, depositAmount: room?.depositAmount || current.depositAmount }));
+                }}
                 placeholder="先选房源，再搜索房间名称、编号"
               />
               <TextField label="姓名" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
               <TextField label="电话（可选）" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-              <MoneyInput label="月租金额" value={form.monthlyRent} onChange={(monthlyRent) => {
-                setForm((current) => ({ ...current, monthlyRent }));
-                updatePaymentMoney({ amountDue: monthlyRent });
-              }} />
-              <MoneyInput label="本次实收金额" value={paymentForm.amountPaid} onChange={(amountPaid) => updatePaymentMoney({ amountPaid, paymentStatus: amountPaid > 0 ? "已收" : "未收" })} />
-              <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+              <div className="field"><label>房间月租（只读）</label><input readOnly value={euro(form.monthlyRent)} /></div>
+              <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />
+              <MoneyInput label="押金金额" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+              <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(form.depositAmount || 0))} /></div>
               <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay || 20} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
@@ -854,9 +862,10 @@ function daysBetween(startDate: string, endDate: string) {
   return Math.ceil((end.getTime() - start.getTime()) / 86400000);
 }
 
-function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment): BusinessRentPayment {
+function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, depositAmount: number): BusinessRentPayment {
   const rentMonth = (draft.coverageStartDate || today()).slice(0, 7);
-  const amountPaid = draft.paymentStatus === "未收" ? 0 : Number(draft.amountPaid || 0);
+  const rentAmount = Number(draft.amountDue || 0);
+  const amountPaid = draft.paymentStatus === "未收" ? 0 : rentAmount + Number(depositAmount || 0);
   const next: BusinessRentPayment = {
     ...draft,
     id: draft.id || crypto.randomUUID(),
@@ -867,9 +876,9 @@ function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment):
     incomeItem: "",
     rentMonth,
     paymentDate: draft.paymentDate || today(),
-    amountDue: Number(draft.amountDue || tenant.monthlyRent || 0),
+    amountDue: rentAmount,
     amountPaid,
-    amountUnpaid: Math.max(Number(draft.amountDue || tenant.monthlyRent || 0) - amountPaid, 0),
+    amountUnpaid: draft.paymentStatus === "未收" ? rentAmount : 0,
     coverageStartDate: draft.coverageStartDate || monthStart(rentMonth),
     coverageEndDate: draft.coverageEndDate || monthEnd(rentMonth),
     paymentMethod: draft.paymentMethod || "转账",
