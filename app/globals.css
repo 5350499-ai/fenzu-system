@@ -1215,11 +1215,16 @@ td:last-child {
   padding: 10px 12px;
 }
 
-.field input[type="date"],
 .field input[type="month"],
 .field input[type="file"] {
   -webkit-appearance: none;
   appearance: none;
+}
+
+.field input[type="date"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  box-sizing: border-box;
 }
 
 .field textarea {

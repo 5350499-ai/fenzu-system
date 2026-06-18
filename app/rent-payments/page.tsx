@@ -66,6 +66,10 @@ const paymentStatusOptions = ["已收", "未收"];
 const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "押金收入", "赔偿收入", "其他收入"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 
+function defaultCoverageEnd(startDate: string) {
+  return startDate ? monthEnd(startDate.slice(0, 7)) : "";
+}
+
 export default function RentPaymentsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -176,7 +180,7 @@ export default function RentPaymentsPage() {
       tenantId,
       amountDue: tenant?.monthlyRent || 0,
       coverageStartDate: nextStart,
-      coverageEndDate: ""
+      coverageEndDate: defaultCoverageEnd(nextStart)
     });
   }
 
@@ -184,14 +188,18 @@ export default function RentPaymentsPage() {
     const tenant = tenants.find((item) => item.id === form.tenantId);
     if (!tenant) return;
     const latest = latestCoverageForTenant(tenant.id, payments.filter((payment) => payment.id !== form.id));
-    setForm((current) => ({
-      ...current,
-      amountDue: tenant.monthlyRent || 0,
-      paymentDate: current.paymentDate || todayString(),
-      rentMonth: (current.paymentDate || todayString()).slice(0, 7),
-      coverageStartDate: latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString(),
-      paymentMethod: current.paymentMethod || "转账"
-    }));
+    setForm((current) => {
+      const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
+      return {
+        ...current,
+        amountDue: tenant.monthlyRent || 0,
+        paymentDate: current.paymentDate || todayString(),
+        rentMonth: (current.paymentDate || todayString()).slice(0, 7),
+        coverageStartDate,
+        coverageEndDate: defaultCoverageEnd(coverageStartDate),
+        paymentMethod: current.paymentMethod || "转账"
+      };
+    });
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -346,7 +354,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">默认显示日期、归属、项目、金额和状态。</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyPayment, paymentDate: todayString(), rentMonth: todayString().slice(0, 7), coverageStartDate: todayString(), coverageEndDate: "" }); setDepositAmount(0); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
+          <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -414,8 +422,8 @@ export default function RentPaymentsPage() {
               <MoneyInput label={isRentPayment(form) ? "实收金额" : "金额"} value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
               {isRentPayment(form) ? <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} /> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明" : "收入项目/说明"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "请输入收入项目"} required value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
-              {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div> : null}
-              {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
+              {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
+              {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
