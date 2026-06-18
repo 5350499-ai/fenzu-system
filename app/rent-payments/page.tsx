@@ -7,9 +7,12 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessProperty,
+  BusinessDeposit,
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
+  depositKey,
+  getInitialDeposits,
   getInitialProperties,
   getInitialRentPayments,
   getInitialRooms,
@@ -31,7 +34,7 @@ import {
   RentPaymentFile,
   uploadRentPaymentFile
 } from "@/lib/rent-payment-files";
-import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, todayString } from "@/lib/rent-coverage";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -64,6 +67,8 @@ export default function RentPaymentsPage() {
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [depositAmount, setDepositAmount] = useState(0);
   const [files, setFiles] = useState<RentPaymentFile[]>([]);
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -90,10 +95,12 @@ export default function RentPaymentsPage() {
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
+      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setPayments(loadedPayments);
+      setDeposits(loadedDeposits);
       try {
         setFiles(await loadRentPaymentFiles(loadedPayments.map((payment) => payment.id)));
         setStorageWarning("");
@@ -129,6 +136,7 @@ export default function RentPaymentsPage() {
   function close() {
     setOpen(false);
     setForm(emptyPayment);
+    setDepositAmount(0);
     setPendingFile(null);
   }
 
@@ -154,7 +162,28 @@ export default function RentPaymentsPage() {
 
   function chooseTenant(tenantId: string) {
     const tenant = tenants.find((item) => item.id === tenantId);
-    updateMoney({ tenantId, amountDue: tenant?.monthlyRent || 0 });
+    const latest = latestCoverageForTenant(tenantId, payments);
+    const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
+    updateMoney({
+      tenantId,
+      amountDue: tenant?.monthlyRent || 0,
+      coverageStartDate: nextStart,
+      coverageEndDate: ""
+    });
+  }
+
+  function autoFill() {
+    const tenant = tenants.find((item) => item.id === form.tenantId);
+    if (!tenant) return;
+    const latest = latestCoverageForTenant(tenant.id, payments.filter((payment) => payment.id !== form.id));
+    setForm((current) => ({
+      ...current,
+      amountDue: tenant.monthlyRent || 0,
+      paymentDate: current.paymentDate || todayString(),
+      rentMonth: (current.paymentDate || todayString()).slice(0, 7),
+      coverageStartDate: latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString(),
+      paymentMethod: current.paymentMethod || "转账"
+    }));
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -165,14 +194,18 @@ export default function RentPaymentsPage() {
     const amountDue = Number(form.amountDue || 0);
     const amountPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
     const amountUnpaid = Math.max(amountDue - amountPaid, 0);
+    const paymentDate = form.paymentDate || todayString();
+    const rentMonth = paymentDate.slice(0, 7);
     const nextPayment = {
       ...form,
       id: paymentId,
+      paymentDate,
+      rentMonth,
       amountDue,
       amountPaid,
       amountUnpaid,
-      coverageStartDate: form.coverageStartDate || monthStart(form.rentMonth),
-      coverageEndDate: form.coverageEndDate || monthEnd(form.rentMonth),
+      coverageStartDate: form.coverageStartDate,
+      coverageEndDate: form.coverageEndDate,
       receivedBy: form.receivedBy || "A",
       paymentStatus: form.paymentStatus || (amountPaid > 0 ? "已收" : "未收"),
       isOverdue: false
@@ -183,6 +216,37 @@ export default function RentPaymentsPage() {
       : [nextPayment, ...payments];
     try {
       await saveBusinessData(rentPaymentKey, next);
+      const marker = depositPaymentMarker(paymentId);
+      const existingDeposit = deposits.find((deposit) => deposit.notes?.includes(marker));
+      const nextDeposits = depositAmount > 0
+        ? existingDeposit
+          ? deposits.map((deposit) => deposit.id === existingDeposit.id ? {
+              ...deposit,
+              propertyId: form.propertyId,
+              roomId: form.roomId,
+              tenantId: form.tenantId,
+              amount: depositAmount,
+              transactionDate: paymentDate,
+              receivedBy: form.receivedBy || "A"
+            } : deposit)
+          : [{
+              id: crypto.randomUUID(),
+              propertyId: form.propertyId,
+              roomId: form.roomId,
+              tenantId: form.tenantId,
+              type: "收取",
+              amount: depositAmount,
+              status: "已收",
+              transactionDate: paymentDate,
+              receivedBy: form.receivedBy || "A",
+              paidBy: "A",
+              notes: marker
+            }, ...deposits]
+        : existingDeposit ? deposits.filter((deposit) => deposit.id !== existingDeposit.id) : deposits;
+      if (nextDeposits !== deposits) {
+        await saveBusinessData(depositKey, nextDeposits);
+        setDeposits(nextDeposits);
+      }
       if (pendingFile) {
         try {
           if (form.id) {
@@ -252,7 +316,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收租记录</h2><p className="muted">默认只显示月份、租客、金额、状态。</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 登记收款</button>
+          <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyPayment, paymentDate: todayString(), rentMonth: todayString().slice(0, 7), coverageStartDate: todayString(), coverageEndDate: "" }); setDepositAmount(0); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -283,8 +347,9 @@ export default function RentPaymentsPage() {
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     tenantName={tenant?.name || "-"}
+                    depositAmount={deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0}
                     files={filesByPayment[payment.id] || []}
-                    onEdit={() => { setForm(payment); setOpen(true); }}
+                    onEdit={() => { setForm(payment); setDepositAmount(deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount || 0); setOpen(true); }}
                     onVoid={() => voidPayment(payment)}
                     onDelete={() => permanentlyDelete(payment)}
                     onFileDelete={removeFile}
@@ -308,20 +373,16 @@ export default function RentPaymentsPage() {
               <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder="搜索房源名称、地址、城市" />
               <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder="先选房源，再搜索房间名称、编号" />
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
-              <div className="field"><label>收款日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} /></div>
-              <div className="field"><label>月份</label><input required value={form.rentMonth} onChange={(event) => {
-                const rentMonth = event.target.value;
-                setForm((current) => ({ ...current, rentMonth, coverageStartDate: current.coverageStartDate || monthStart(rentMonth), coverageEndDate: current.coverageEndDate || monthEnd(rentMonth) }));
-              }} placeholder="例如 2026-06" /></div>
+              <div className="field auto-fill-field"><label>自动填充</label><button className="btn" disabled={!form.tenantId} onClick={autoFill} type="button">带出月租和未覆盖日期</button></div>
               <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
+              <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} />
               <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-              <MoneyInput label="差额参考" readOnly value={form.amountUnpaid} onChange={() => undefined} />
+              <div className="field"><label>租金差额</label><output className={`money-difference ${form.amountPaid - form.amountDue < 0 ? "danger-text" : "profit"}`}>{signedEuro(form.amountPaid - form.amountDue)}</output></div>
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
               <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} />
-              <div className="field"><label>覆盖状态</label><input readOnly value={isCoverageExpired(form) ? "覆盖已过期" : "覆盖中"} /></div>
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
@@ -343,6 +404,7 @@ function PaymentDetail({
   propertyName,
   roomName,
   tenantName,
+  depositAmount,
   files,
   onEdit,
   onVoid,
@@ -354,6 +416,7 @@ function PaymentDetail({
   propertyName: string;
   roomName: string;
   tenantName: string;
+  depositAmount: number;
   files: RentPaymentFile[];
   onEdit: () => void;
   onVoid: () => void;
@@ -370,7 +433,8 @@ function PaymentDetail({
         <DetailField label="收款日期" value={payment.paymentDate || "-"} />
         <DetailField label="月租参考" value={euro(payment.amountDue)} />
         <DetailField label="实收金额" value={euro(payment.amountPaid)} />
-        <DetailField label="差额参考" value={euro(payment.amountUnpaid)} />
+        <DetailField label="押金金额" value={euro(depositAmount)} />
+        <DetailField label="租金差额" value={signedEuro(payment.amountPaid - payment.amountDue)} />
         <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} />
         <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} />
         <DetailField label="收款状态" value={payment.paymentStatus || "-"} />
@@ -428,4 +492,19 @@ function cleanVoidNote(notes?: string) {
 function isLatestExpiredPayment(payment: BusinessRentPayment, payments: BusinessRentPayment[]) {
   const latest = latestCoverageForTenant(payment.tenantId, payments);
   return latest?.id === payment.id && isCoverageExpired(latest);
+}
+
+function signedEuro(value: number) {
+  if (!value) return euro(0);
+  return `${value > 0 ? "+" : "-"}${euro(Math.abs(value))}`;
+}
+
+function addOneDay(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function depositPaymentMarker(paymentId: string) {
+  return `[收租押金:${paymentId}]`;
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
-import { MetricCard } from "@/components/metric-card";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -26,7 +25,11 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { downloadExpenseFile, ExpenseFile, loadExpenseFiles, openExpenseFile } from "@/lib/expense-files";
 import { calculatePropertyProfit, getDateRange, RangePreset } from "@/lib/profit";
+import { downloadRentPaymentFile, loadRentPaymentFiles, openRentPaymentFile, RentPaymentFile } from "@/lib/rent-payment-files";
+import { isCoverageExpired, paymentCoverageEnd } from "@/lib/rent-coverage";
+import { Download, Eye } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -46,6 +49,10 @@ export default function PropertyProfitDetailPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [rentFiles, setRentFiles] = useState<RentPaymentFile[]>([]);
+  const [expenseFiles, setExpenseFiles] = useState<ExpenseFile[]>([]);
+  const [expandedRentId, setExpandedRentId] = useState("");
+  const [expandedExpenseId, setExpandedExpenseId] = useState("");
   const [preset, setPreset] = useState<RangePreset>("thisMonth");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -64,6 +71,12 @@ export default function PropertyProfitDetailPage() {
       setPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
+      const [loadedRentFiles, loadedExpenseFiles] = await Promise.all([
+        loadRentPaymentFiles(loadedPayments.map((payment) => payment.id)).catch(() => []),
+        loadExpenseFiles(loadedExpenses.map((expense) => expense.id)).catch(() => [])
+      ]);
+      setRentFiles(loadedRentFiles);
+      setExpenseFiles(loadedExpenseFiles);
     }
     load().catch((error) => window.alert(`加载房源利润明细失败：${error.message || error}`));
   }, []);
@@ -73,7 +86,7 @@ export default function PropertyProfitDetailPage() {
   const stat = useMemo(() => property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, range) : null, [deposits, expenses, payments, property, range, rooms]);
   const scopedRooms = rooms.filter((room) => room.propertyId === propertyId);
   const vacantRooms = scopedRooms.filter((room) => room.status === "空置" || room.status === "空房");
-  const overduePayments = stat?.payments.filter((payment) => payment.amountUnpaid > 0 || payment.isOverdue) || [];
+  const overduePayments = stat?.payments.filter((payment) => isCoverageExpired(payment)) || [];
 
   if (!property || !stat) {
     return (
@@ -103,26 +116,48 @@ export default function PropertyProfitDetailPage() {
         </div>
       </section>
 
-      <div className="grid metrics">
-        <MetricCard label="收入" value={euro(stat.income)} note="当前范围已收租金" tone="profit" />
-        <MetricCard label="支出" value={euro(stat.expense)} note="当前范围支出合计" />
-        <MetricCard label="净利润" value={euro(stat.netProfit)} note="收入 - 支出" tone={stat.netProfit < 0 ? "danger" : "profit"} hero />
-        <MetricCard label="欠租金额" value={euro(stat.unpaid)} note="当前范围未收金额" tone={stat.unpaid > 0 ? "danger" : "info"} />
-        <MetricCard label="空置房间" value={`${stat.vacantRooms} 间`} note="当前房源空置数量" />
-        <MetricCard label="入住率" value={`${stat.occupancy}%`} note={`${stat.rentedRooms}/${stat.rentableRooms} 间可出租房间`} tone="info" />
-      </div>
+      <section className="card compact-profit-summary" aria-label="利润汇总">
+        <ProfitMetric label="收入" value={euro(stat.income)} tone="profit" />
+        <ProfitMetric label="支出" value={euro(stat.expense)} />
+        <ProfitMetric label="净利润" value={euro(stat.netProfit)} tone={stat.netProfit < 0 ? "danger" : "profit"} />
+        <ProfitMetric label="欠租" value={euro(stat.unpaid)} tone={stat.unpaid > 0 ? "danger" : ""} />
+        <ProfitMetric label="空置" value={`${stat.vacantRooms} 间`} />
+        <ProfitMetric label="入住率" value={`${stat.occupancy}%`} />
+      </section>
 
-      <div className="grid dashboard-panels">
-        <DetailTable title="收租明细" headers={["月份", "房间", "租客", "应收", "已收", "未收", "状态"]}>
-          {stat.payments.map((payment) => {
+      <div className="profit-ledger-grid">
+        <section className="card panel compact-ledger-panel">
+          <h2 className="panel-title">收租明细</h2>
+          <div className="profit-ledger-list">
+          {stat.payments.length ? stat.payments.map((payment) => {
             const room = rooms.find((item) => item.id === payment.roomId);
             const tenant = tenants.find((item) => item.id === payment.tenantId);
-            return <tr key={payment.id}><td>{payment.rentMonth}</td><td>{room?.name || "-"}</td><td>{tenant?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td className={payment.amountUnpaid > 0 ? "danger-text" : ""}>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>;
-          })}
-        </DetailTable>
-        <DetailTable title="支出明细" headers={["日期", "类型", "金额", "付款方式", "状态"]}>
-          {stat.expenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td>{expense.paymentMethod || "-"}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}
-        </DetailTable>
+            const expanded = expandedRentId === payment.id;
+            const relatedFiles = rentFiles.filter((file) => file.rentPaymentId === payment.id);
+            return <div className="profit-ledger-item" key={payment.id}>
+              <button className="profit-ledger-line" onClick={() => setExpandedRentId(expanded ? "" : payment.id)} type="button">
+                <span>{payment.paymentDate || payment.rentMonth}</span><span>{room?.name || tenant?.name || "-"}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isCoverageExpired(payment) ? "已过期" : "已覆盖"}</StatusBadge>
+              </button>
+              {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span><span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span><span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
+            </div>;
+          }) : <p className="muted">暂无收租记录。</p>}
+          </div>
+        </section>
+        <section className="card panel compact-ledger-panel">
+          <h2 className="panel-title">支出明细</h2>
+          <div className="profit-ledger-list">
+          {stat.expenses.length ? stat.expenses.map((expense) => {
+            const expanded = expandedExpenseId === expense.id;
+            const relatedFiles = expenseFiles.filter((file) => file.expenseId === expense.id);
+            return <div className="profit-ledger-item" key={expense.id}>
+              <button className="profit-ledger-line" onClick={() => setExpandedExpenseId(expanded ? "" : expense.id)} type="button">
+                <span>{expense.paymentDate || "-"}</span><span>{expense.category}</span><strong>{euro(expense.amount)}</strong><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
+              </button>
+              {expanded ? <div className="profit-ledger-detail"><span>付款方式：{expense.paymentMethod || "-"}</span><span>付款归属：{expense.paidBy || "A"}</span><span>备注：{expense.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openExpenseFile} onDownload={downloadExpenseFile} /></div> : null}
+            </div>;
+          }) : <p className="muted">暂无支出记录。</p>}
+          </div>
+        </section>
       </div>
 
       <div className="grid dashboard-panels">
@@ -147,16 +182,14 @@ export default function PropertyProfitDetailPage() {
   );
 }
 
-function DetailTable({ title, headers, children }: { title: string; headers: string[]; children: React.ReactNode }) {
+function ProfitMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
+  return <div className={`compact-profit-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function FileLinks<T>({ files, onOpen, onDownload }: { files: T[]; onOpen: (file: T) => void; onDownload: (file: T) => void }) {
   return (
-    <section className="card panel">
-      <h2 className="panel-title">{title}</h2>
-      <div className="table-wrap">
-        <table>
-          <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
-          <tbody>{children}</tbody>
-        </table>
-      </div>
-    </section>
+    <div className="profit-file-links">
+      {files.length ? files.map((file: any) => <span key={file.id}><button className="btn" onClick={() => onOpen(file)} type="button"><Eye size={14} /> 查看附件</button><button className="btn" onClick={() => onDownload(file)} type="button"><Download size={14} /> 下载</button></span>) : <span className="muted">无附件</span>}
+    </div>
   );
 }
