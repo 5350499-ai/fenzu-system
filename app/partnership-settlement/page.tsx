@@ -23,6 +23,7 @@ import { defaultPartnerRatios, loadPartnerRatios, partnerClass, partnerLabel, Pa
 import { useEffect, useMemo, useState } from "react";
 
 const partners = ["A", "B"];
+type RangeMode = "current" | "previous" | "threeMonths" | "custom";
 
 type PartnerStat = {
   collected: number;
@@ -37,9 +38,19 @@ export default function PartnershipSettlementPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [rangeMode, setRangeMode] = useState<RangeMode>("current");
+  const initialRange = presetRange("current");
+  const [customStartDate, setCustomStartDate] = useState(initialRange.startDate);
+  const [customEndDate, setCustomEndDate] = useState(initialRange.endDate);
   const [propertyId, setPropertyId] = useState("all");
   const [ratios, setRatios] = useState<PartnerRatios>(defaultPartnerRatios);
+
+  const activeRange = useMemo(
+    () => rangeMode === "custom"
+      ? { startDate: customStartDate, endDate: customEndDate }
+      : presetRange(rangeMode),
+    [customEndDate, customStartDate, rangeMode]
+  );
 
   useEffect(() => {
     setRatios(loadPartnerRatios());
@@ -55,17 +66,17 @@ export default function PartnershipSettlementPage() {
 
   const settlement = useMemo(() => {
     const scopedPayments = payments.filter((payment) =>
-      payment.rentMonth === month &&
+      isWithinRange(payment.paymentDate || `${payment.rentMonth}-01`, activeRange) &&
       (propertyId === "all" || payment.propertyId === propertyId) &&
       !isVoided(payment.notes)
     );
     const scopedExpenses = expenses.filter((expense) =>
-      (expense.expenseMonth === month || expense.paymentDate.startsWith(month)) &&
+      isWithinRange(expense.paymentDate || `${expense.expenseMonth}-01`, activeRange) &&
       (propertyId === "all" || expense.propertyId === propertyId) &&
       !isVoided(expense.notes)
     );
     const scopedDeposits = deposits.filter((deposit) =>
-      deposit.transactionDate.startsWith(month) &&
+      isWithinRange(deposit.transactionDate, activeRange) &&
       (propertyId === "all" || deposit.propertyId === propertyId) &&
       deposit.status !== "已作废" &&
       !isVoided(deposit.notes)
@@ -118,7 +129,7 @@ export default function PartnershipSettlementPage() {
           : { from: "B", to: "A", amount: Math.abs(aBalance) };
 
     return { scopedPayments, scopedExpenses, scopedDeposits, totalIncome, totalExpense, netProfit, customCollected, partnerStats, transfer };
-  }, [deposits, expenses, month, payments, propertyId, ratios]);
+  }, [activeRange, deposits, expenses, payments, propertyId, ratios]);
 
   return (
     <AppLayout title="合伙结算" description="按 A/B 代收和垫付自动计算月底谁该给谁转账。">
@@ -131,8 +142,13 @@ export default function PartnershipSettlementPage() {
         </div>
         <div className="filter-grid">
           <div className="field">
-            <label>月份</label>
-            <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+            <label>时间范围</label>
+            <select value={rangeMode} onChange={(event) => setRangeMode(event.target.value as RangeMode)}>
+              <option value="current">本月</option>
+              <option value="previous">上月</option>
+              <option value="threeMonths">近3个月</option>
+              <option value="custom">自定义</option>
+            </select>
           </div>
           <div className="field">
             <label>房源</label>
@@ -141,7 +157,12 @@ export default function PartnershipSettlementPage() {
               {properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}
             </select>
           </div>
+          {rangeMode === "custom" ? <>
+            <div className="field"><label>开始日期</label><input required max={customEndDate || undefined} type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} /></div>
+            <div className="field"><label>结束日期</label><input required min={customStartDate || undefined} type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} /></div>
+          </> : null}
         </div>
+        <p className="muted">当前结算：{activeRange.startDate} 至 {activeRange.endDate}</p>
       </section>
 
       <section className="card compact-report-card">
@@ -283,4 +304,37 @@ function normalizePartner(value?: string) {
 
 function isVoided(notes?: string) {
   return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
+}
+
+function presetRange(mode: Exclude<RangeMode, "custom">) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  if (mode === "previous") {
+    return {
+      startDate: formatDate(new Date(year, month - 1, 1)),
+      endDate: formatDate(new Date(year, month, 0))
+    };
+  }
+  if (mode === "threeMonths") {
+    return {
+      startDate: formatDate(new Date(year, month - 2, 1)),
+      endDate: formatDate(today)
+    };
+  }
+  return {
+    startDate: formatDate(new Date(year, month, 1)),
+    endDate: formatDate(new Date(year, month + 1, 0))
+  };
+}
+
+function isWithinRange(date: string, range: { startDate: string; endDate: string }) {
+  return Boolean(date && range.startDate && range.endDate && date >= range.startDate && date <= range.endDate);
+}
+
+function formatDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

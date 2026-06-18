@@ -208,7 +208,7 @@ export default function ExpensesPage() {
     <AppLayout title="支出管理" description="默认压缩显示支出明细，点击一条记录后查看附件和完整信息。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">支出列表</h2><p className="muted">默认只显示日期、类型、金额、状态。</p></div>
+          <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
@@ -225,7 +225,7 @@ export default function ExpensesPage() {
             const expanded = detailExpenseId === expense.id;
             return (
               <article className="finance-list-item" key={expense.id}>
-                <button className="finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
+                <button className="finance-line expense-finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
                   <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy)}</span>
                   <span>{expense.category || "-"}</span>

@@ -1520,6 +1520,20 @@ td:last-child {
   background: var(--surface-soft);
 }
 
+.expense-finance-line {
+  grid-template-columns: 108px 72px minmax(110px, 1fr) 104px 88px;
+}
+
+.expense-finance-line > :nth-child(2) {
+  justify-self: center;
+}
+
+.expense-finance-line > :nth-child(4),
+.expense-finance-line > :nth-child(5) {
+  justify-self: end;
+  text-align: right;
+}
+
 .tenant-compact-list {
   gap: 0;
 }
@@ -1681,6 +1695,17 @@ td:last-child {
   .finance-line .badge {
     font-size: 11px;
     padding-inline: 7px;
+  }
+
+  .expense-finance-line {
+    grid-template-columns: 82px 44px minmax(64px, 1fr) 72px 64px;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .expense-finance-line .partner-tag {
+    max-width: 44px;
+    padding-inline: 5px;
   }
 
   .compact-record-button span {
