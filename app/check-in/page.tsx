@@ -59,6 +59,7 @@ export default function CheckInPage() {
     coverageStartDate: new Date().toISOString().slice(0, 10),
     coverageEndDate: "",
     depositAmount: 0,
+    paymentDay: 20,
     depositStatus: "已收",
     paymentStatus: "已收",
     receivedBy: "A",
@@ -110,6 +111,7 @@ export default function CheckInPage() {
         source: "其他",
         monthlyRent: form.monthlyRent,
         depositAmount: form.depositAmount,
+        paymentDay: form.paymentDay,
         status: "在租",
         notes: [form.documentNumber ? `证件号：${form.documentNumber}` : "", form.notes].filter(Boolean).join("\n")
       };
@@ -238,6 +240,7 @@ export default function CheckInPage() {
           <MoneyInput label="月租金额（参考）" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
           <MoneyInput label="本次实收金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
           <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+          <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <SearchableSelect label="收款归属" value={ownershipMode} options={["A", "B", "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {

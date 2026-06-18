@@ -149,7 +149,7 @@ export default function DepositsPage() {
                   <td><PartnerTag deposit={deposit} /></td>
                   <td>{euro(deposit.amount)}</td>
                   <td><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge></td>
-                  <td>{deposit.type}</td>
+                  <td>{depositTypeLabel(deposit.type)}</td>
                   <td title={deposit.notes || ""}>{noteSummary(cleanVoidNote(deposit.notes))}</td>
                   <td><DepositActions onDelete={() => permanentlyDelete(deposit)} onEdit={() => { setForm(deposit); setOpen(true); }} onVoid={() => voidDeposit(deposit)} saving={saving} /></td>
                 </tr>
@@ -167,7 +167,7 @@ export default function DepositsPage() {
                 <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><PartnerTag deposit={deposit} /> · <StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
-                  <div className="mobile-record-field"><span>类型</span><strong>{deposit.type}</strong></div>
+                  <div className="mobile-record-field"><span>类型</span><strong>{depositTypeLabel(deposit.type)}</strong></div>
                   <div className="mobile-record-field"><span>日期</span><strong>{deposit.transactionDate || "-"}</strong></div>
                   <div className="mobile-record-field"><span>备注</span><strong>{expanded ? cleanVoidNote(deposit.notes) || "-" : noteSummary(cleanVoidNote(deposit.notes))} {cleanVoidNote(deposit.notes).length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : deposit.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
                 </div>
@@ -187,7 +187,7 @@ export default function DepositsPage() {
               <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} />
               <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} />
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} />
-              <SearchableSelect label="押金类型" value={form.type} options={depositTypes.map((type) => ({ value: type, label: type }))} onChange={(type) => setForm((current) => ({ ...current, type }))} />
+              <SearchableSelect label="押金类型" value={form.type} options={depositTypes.map((type) => ({ value: type, label: depositTypeLabel(type) }))} onChange={(type) => setForm((current) => ({ ...current, type }))} />
               <MoneyInput label="押金金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="押金状态" value={form.status} options={depositStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <SearchableSelect label={form.type === "退还" ? "付款归属" : "收款归属"} value={depositPartnerValue(form)} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(partner) => setForm((current) => setDepositPartner(current, partner))} />
@@ -239,6 +239,13 @@ function depositTone(status: string) {
   if (status === "已收" || status === "已退") return "green";
   if (status === "待退") return "amber";
   return "red";
+}
+
+function depositTypeLabel(type: string) {
+  if (type === "收取") return "押金收入";
+  if (type === "退还") return "押金退还";
+  if (type === "扣除") return "押金扣除";
+  return type;
 }
 
 function markVoided(notes?: string) {

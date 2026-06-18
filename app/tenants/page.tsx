@@ -58,6 +58,7 @@ const emptyTenant: BusinessTenant = {
   source: "其他",
   monthlyRent: 0,
   depositAmount: 0,
+  paymentDay: 20,
   status: "在租",
   notes: ""
 };
@@ -571,6 +572,7 @@ export default function TenantsPage() {
               }} />
               <MoneyInput label="本次实收金额" value={paymentForm.amountPaid} onChange={(amountPaid) => updatePaymentMoney({ amountPaid, paymentStatus: amountPaid > 0 ? "已收" : "未收" })} />
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+              <div className="field"><label>每月缴费日</label><input max="28" min="1" required type="number" value={form.paymentDay || 20} onChange={(event) => setForm((current) => ({ ...current, paymentDay: Math.min(28, Math.max(1, Number(event.target.value || 20))) }))} /></div>
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
@@ -674,6 +676,7 @@ function TenantDetail({
         <DetailField label="微信" value={tenant.wechat || "-"} />
         <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
         <DetailField label="押金" value={euro(tenant.depositAmount)} />
+        <DetailField label="每月缴费日" value={`每月${tenant.paymentDay || 20}号`} />
         <DetailField label="入住日期" value={contract?.startDate || "-"} />
         <DetailField label="合同到期" value={contract?.endDate || "-"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />

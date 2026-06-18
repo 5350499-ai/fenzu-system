@@ -34,6 +34,39 @@ export type RentCoverageReminderStage = {
   level: "upcoming" | "urgent" | "critical" | "overdue";
 };
 
+export type RentCollectionReminderStage = RentCoverageReminderStage & {
+  reason: "coverage" | "payment_day";
+  daysPastPaymentDay: number;
+};
+
+export function rentCollectionReminderStage(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): RentCollectionReminderStage | null {
+  const coverageStage = rentCoverageReminderStage(payment, today);
+  if (coverageStage?.level === "overdue") {
+    return { ...coverageStage, reason: "coverage", daysPastPaymentDay: 0 };
+  }
+
+  const paymentDay = Math.min(28, Math.max(1, Number(tenant.paymentDay || 20)));
+  const dueDate = `${today.slice(0, 8)}${String(paymentDay).padStart(2, "0")}`;
+  if (today < dueDate) return null;
+
+  const currentMonthEnd = monthEnd(today.slice(0, 7));
+  if (payment && paymentCoverageEnd(payment) > currentMonthEnd) return null;
+
+  const daysPastPaymentDay = Math.max(0, dateDifference(today, dueDate));
+  const level = daysPastPaymentDay >= 5 ? "critical" : daysPastPaymentDay >= 3 ? "urgent" : "upcoming";
+  return {
+    daysRemaining: 0,
+    overdueDays: 0,
+    level,
+    reason: "payment_day",
+    daysPastPaymentDay
+  };
+}
+
 export function rentCoverageReminderStage(
   payment: BusinessRentPayment | null,
   today = todayString()

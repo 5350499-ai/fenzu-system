@@ -90,8 +90,9 @@ export function calculatePropertyProfit(
   const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes));
   const scopedExpenses = expenses.filter((expense) => expense.propertyId === property.id && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes));
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
-  const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment, scopedDeposits), 0);
-  const expense = sumBy(scopedExpenses, "amount");
+  const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment, scopedDeposits), 0)
+    + depositIncome(scopedDeposits);
+  const expense = sumBy(scopedExpenses, "amount") + depositRefundExpense(scopedDeposits);
   const propertyPayments = payments.filter((payment) => payment.propertyId === property.id && !isVoided(payment.notes));
   const unpaid = scopedRooms.reduce((total, room) => {
     const latest = latestCoverageForRoom(room.id, propertyPayments);
@@ -152,20 +153,35 @@ export function monthlyProfitRows(
 ) {
   const months = recentMonths(monthsBack);
   return months.map((month) => {
+    const monthDeposits = deposits.filter((item) => item.propertyId === propertyId && item.transactionDate.startsWith(month) && !isVoided(item.notes));
     const income = payments
       .filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes))
-      .reduce((total, payment) => total + rentIncomeForPayment(payment, deposits), 0);
-    const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount");
+      .reduce((total, payment) => total + rentIncomeForPayment(payment, deposits), 0)
+      + depositIncome(monthDeposits);
+    const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount")
+      + depositRefundExpense(monthDeposits);
     return { month, income, expense, netProfit: income - expense };
   });
 }
 
-export function rentIncomeForPayment(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {
-  const marker = `[收租押金:${payment.id}]`;
-  const linkedDeposit = deposits
-    .filter((deposit) => deposit.type === "收取" && deposit.notes?.includes(marker) && !isVoided(deposit.notes))
+export function rentIncomeForPayment(payment: BusinessRentPayment, _deposits: BusinessDeposit[] = []) {
+  return Number(payment.amountPaid || 0);
+}
+
+export function depositIncome(deposits: BusinessDeposit[]) {
+  return deposits
+    .filter((deposit) => deposit.type === "收取" && !isLinkedRentDeposit(deposit) && !isVoided(deposit.notes))
     .reduce((total, deposit) => total + Number(deposit.amount || 0), 0);
-  return Math.max(Number(payment.amountPaid || 0) - linkedDeposit, 0);
+}
+
+export function depositRefundExpense(deposits: BusinessDeposit[]) {
+  return deposits
+    .filter((deposit) => deposit.type === "退还" && !isVoided(deposit.notes))
+    .reduce((total, deposit) => total + Number(deposit.amount || 0), 0);
+}
+
+export function isLinkedRentDeposit(deposit: BusinessDeposit) {
+  return Boolean(deposit.notes?.includes("[收租押金:"));
 }
 
 export function isMonthInRange(month: string, range: DateRange) {

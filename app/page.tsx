@@ -28,7 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCoverageReminderStage } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -87,8 +87,8 @@ export default function DashboardPage() {
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
-    () => buildReminderSummary({ rooms, contracts, rentPayments, deposits }),
-    [contracts, deposits, rentPayments, rooms]
+    () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits }),
+    [contracts, deposits, rentPayments, rooms, tenants]
   );
 
   return (
@@ -173,7 +173,7 @@ function buildDashboardReminders({
     .filter((tenant) => !tenant.status.includes("退"))
     .map((tenant) => {
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
-      return { tenant, payment, stage: rentCoverageReminderStage(payment) };
+      return { tenant, payment, stage: rentCollectionReminderStage(tenant, payment) };
     })
     .filter(({ stage }) => Boolean(stage))
     .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
@@ -184,7 +184,7 @@ function buildDashboardReminders({
       const roomLabel = room?.roomNumber || room?.name || tenant.name || "租客";
       reminders.push({
         id: `rent-${tenant.id}`,
-        title: rentReminderTitle(roomLabel, stage.daysRemaining, stage.overdueDays, amount),
+        title: rentReminderTitle(roomLabel, stage, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
         href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
         tone: rentStageTone(stage.level),
@@ -258,11 +258,13 @@ function buildDashboardReminders({
 
 function buildReminderSummary({
   rooms,
+  tenants,
   contracts,
   rentPayments,
   deposits
 }: {
   rooms: BusinessRoom[];
+  tenants: BusinessTenant[];
   contracts: BusinessContract[];
   rentPayments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
@@ -272,13 +274,11 @@ function buildReminderSummary({
     if (!isCoverageExpired(payment) || latestCoverageForTenant(payment.tenantId, rentPayments)?.id !== payment.id) return sum;
     return sum + Number(payment.amountDue || 0);
   }, 0);
-  const rentDueCount = new Set(rentPayments
-    .filter((payment) => latestCoverageForTenant(payment.tenantId, rentPayments)?.id === payment.id)
-    .filter((payment) => {
-      const stage = rentCoverageReminderStage(payment);
-      return stage && stage.level !== "overdue";
-    })
-    .map((payment) => payment.tenantId)).size;
+  const rentDueCount = tenants.filter((tenant) => {
+    const payment = latestCoverageForTenant(tenant.id, rentPayments);
+    const stage = rentCollectionReminderStage(tenant, payment);
+    return stage && stage.level !== "overdue";
+  }).length;
   const expiringCount = contracts.filter((contract) => {
     const days = daysUntil(contract.endDate, today);
     return days <= 30;
@@ -294,11 +294,10 @@ function buildReminderSummary({
   return parts.length ? parts.join("｜") : "暂无待处理提醒";
 }
 
-function rentReminderTitle(room: string, daysRemaining: number, overdueDays: number, amount: number) {
-  if (overdueDays > 0) return `${room}已欠费${overdueDays}天 ${euro(amount)}`;
-  if (daysRemaining <= 3) return `${room}租金还有${daysRemaining}天到期，需重点跟进`;
-  if (daysRemaining <= 5) return `${room}租金还有${daysRemaining}天到期，仍未收到下期房租`;
-  return `${room}租金还有${daysRemaining}天到期，请提醒交下期房租`;
+function rentReminderTitle(room: string, stage: ReturnType<typeof rentCollectionReminderStage> & {}, amount: number) {
+  if (stage.overdueDays > 0) return `${room}已欠费${stage.overdueDays}天 ${euro(amount)}`;
+  if (stage.daysPastPaymentDay === 0) return `${room}今天是缴费日，请提醒交下期房租`;
+  return `${room}已过缴费日${stage.daysPastPaymentDay}天，仍未收到下期房租`;
 }
 
 function rentStagePriority(level?: string) {

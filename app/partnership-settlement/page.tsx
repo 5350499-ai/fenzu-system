@@ -18,7 +18,7 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { rentIncomeForPayment } from "@/lib/profit";
+import { isLinkedRentDeposit, rentIncomeForPayment } from "@/lib/profit";
 import { defaultPartnerRatios, loadPartnerRatios, partnerClass, partnerLabel, PartnerRatios } from "@/lib/partner-settings";
 import { useEffect, useMemo, useState } from "react";
 
@@ -71,20 +71,33 @@ export default function PartnershipSettlementPage() {
       !isVoided(deposit.notes)
     );
 
-    const totalIncome = scopedPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0);
-    const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const standaloneDepositIncome = scopedDeposits.filter((deposit) => deposit.type === "收取" && !isLinkedRentDeposit(deposit));
+    const depositRefunds = scopedDeposits.filter((deposit) => deposit.type === "退还");
+    const totalIncome = scopedPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
+      + standaloneDepositIncome.reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
+    const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
+      + depositRefunds.reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
     const netProfit = totalIncome - totalExpense;
     const customCollected = scopedPayments
       .filter((payment) => !partners.includes(normalizePartner(payment.receivedBy)))
-      .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0);
+      .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
+      + standaloneDepositIncome
+        .filter((deposit) => !partners.includes(normalizePartner(deposit.receivedBy)))
+        .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
 
     const partnerStats = partners.reduce<Record<string, PartnerStat>>((map, partner) => {
       const collected = scopedPayments
         .filter((payment) => normalizePartner(payment.receivedBy) === partner)
-        .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0);
+        .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0)
+        + standaloneDepositIncome
+          .filter((deposit) => normalizePartner(deposit.receivedBy) === partner)
+          .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
       const advanced = scopedExpenses
         .filter((expense) => normalizePartner(expense.paidBy) === partner)
-        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
+        + depositRefunds
+          .filter((deposit) => normalizePartner(deposit.paidBy) === partner)
+          .reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0);
       const actualCash = collected - advanced;
       map[partner] = {
         collected,

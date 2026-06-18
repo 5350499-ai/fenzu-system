@@ -89,7 +89,7 @@ export default function AnalyticsPage() {
         <MetricCard label="支出" value={euro(totals.expense)} note="经营支出合计" />
         <MetricCard label="净利润" value={euro(totals.netProfit)} note="收入 - 支出" tone={totals.netProfit < 0 ? "danger" : "profit"} hero />
         <MetricCard label="欠租" value={euro(totals.unpaid)} note="应收未收金额" tone={totals.unpaid > 0 ? "danger" : "info"} />
-        <MetricCard label="押金" value={euro(totals.depositAmount)} note="本期押金流入净额" />
+        <MetricCard label="押金净流入" value={euro(totals.depositAmount)} note="押金收入 - 押金退还" />
         <MetricCard label="入住率" value={`${totals.occupancy}%`} note={`${totals.rentedRooms}/${totals.rentableRooms} 间可出租房间`} tone="info" />
       </div>
 

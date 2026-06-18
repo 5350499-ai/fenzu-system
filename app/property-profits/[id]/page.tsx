@@ -88,8 +88,6 @@ export default function PropertyProfitDetailPage() {
   const scopedRooms = rooms.filter((room) => room.propertyId === propertyId);
   const vacantRooms = scopedRooms.filter((room) => room.status === "空置" || room.status === "空房");
   const overduePayments = stat?.payments.filter((payment) => isCoverageExpired(payment)) || [];
-  const depositCollected = stat?.deposits.filter((deposit) => deposit.type === "收取").reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0) || 0;
-  const depositRefunded = stat?.deposits.filter((deposit) => deposit.type === "退还").reduce((sum, deposit) => sum + Number(deposit.amount || 0), 0) || 0;
 
   if (!property || !stat) {
     return (
@@ -120,17 +118,13 @@ export default function PropertyProfitDetailPage() {
       </section>
 
       <section className="card compact-profit-summary" aria-label="利润汇总">
-        <ProfitMetric label="租金收入" value={euro(stat.income)} tone="profit" />
+        <ProfitMetric label="收入" value={euro(stat.income)} tone="profit" />
         <ProfitMetric label="支出" value={euro(stat.expense)} />
         <ProfitMetric label="净利润" value={euro(stat.netProfit)} tone={stat.netProfit < 0 ? "danger" : "profit"} />
         <ProfitMetric label="欠租" value={euro(stat.unpaid)} tone={stat.unpaid > 0 ? "danger" : ""} />
         <ProfitMetric label="空置" value={`${stat.vacantRooms} 间`} />
         <ProfitMetric label="入住率" value={`${stat.occupancy}%`} />
       </section>
-
-      <div className="deposit-fund-strip">
-        <strong>押金代管</strong><span>收取 {euro(depositCollected)}</span><span>退还 {euro(depositRefunded)}</span><span>代管余额 {euro(depositCollected - depositRefunded)}</span><small>不计入利润</small>
-      </div>
 
       <div className="profit-ledger-grid">
         <section className="card panel compact-ledger-panel">
@@ -167,6 +161,20 @@ export default function PropertyProfitDetailPage() {
           </div>
         </section>
       </div>
+
+      {stat.deposits.length ? (
+        <section className="card panel compact-ledger-panel">
+          <h2 className="panel-title">押金分类明细</h2>
+          <p className="muted">收取计入收入，退还计入支出；与收租绑定的押金已包含在对应实收金额中，不会重复计算。</p>
+          <div className="profit-ledger-list">
+            {[...stat.deposits].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate)).map((deposit) => {
+              const partner = deposit.type === "退还" ? deposit.paidBy : deposit.receivedBy;
+              const label = deposit.type === "退还" ? "押金退还" : deposit.type === "收取" ? "押金收入" : "押金扣除";
+              return <div className="profit-ledger-item" key={deposit.id}><div className="profit-ledger-line readonly"><span>{deposit.transactionDate}</span><b className={`partner-tag ${partnerClass(partner)}`}>{partnerLabel(partner)}</b><span>{label}</span><strong>{euro(deposit.amount)}</strong><StatusBadge tone={deposit.type === "退还" ? "red" : "green"}>{deposit.status}</StatusBadge></div></div>;
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid dashboard-panels">
         <section className="card panel">

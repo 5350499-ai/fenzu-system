@@ -236,7 +236,7 @@ export default function RentPaymentsPage() {
               tenantId: form.tenantId,
               amount: depositAmount,
               transactionDate: paymentDate,
-              receivedBy: form.receivedBy || "A"
+              receivedBy: nextPayment.receivedBy || "A"
             } : deposit)
           : [{
               id: crypto.randomUUID(),
@@ -247,7 +247,7 @@ export default function RentPaymentsPage() {
               amount: depositAmount,
               status: "已收",
               transactionDate: paymentDate,
-              receivedBy: form.receivedBy || "A",
+              receivedBy: nextPayment.receivedBy || "A",
               paidBy: "A",
               notes: marker
             }, ...deposits]
@@ -385,11 +385,10 @@ export default function RentPaymentsPage() {
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
               <div className="field auto-fill-field"><label>自动填充</label><button className="btn" disabled={!form.tenantId} onClick={autoFill} type="button">带出月租和未覆盖日期</button></div>
               <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
-              <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} />
               <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
+              <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} />
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-              <div className="field"><label>租金差额</label><output className={`money-difference ${form.amountPaid - form.amountDue < 0 ? "danger-text" : "profit"}`}>{signedEuro(form.amountPaid - form.amountDue)}</output></div>
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="收款归属" value={ownershipMode} options={[...partnerOptions, "自定义"].map((partner) => ({ value: partner, label: partner }))} onChange={(choice) => {
                 const mode = choice as "A" | "B" | "自定义";
@@ -449,7 +448,6 @@ function PaymentDetail({
         <DetailField label="月租参考" value={euro(payment.amountDue)} />
         <DetailField label="实收金额" value={euro(payment.amountPaid)} />
         <DetailField label="押金金额" value={euro(depositAmount)} />
-        <DetailField label="租金差额" value={signedEuro(payment.amountPaid - payment.amountDue)} />
         <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} />
         <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} />
         <DetailField label="收款状态" value={payment.paymentStatus || "-"} />
@@ -507,11 +505,6 @@ function cleanVoidNote(notes?: string) {
 function isLatestExpiredPayment(payment: BusinessRentPayment, payments: BusinessRentPayment[]) {
   const latest = latestCoverageForTenant(payment.tenantId, payments);
   return latest?.id === payment.id && isCoverageExpired(latest);
-}
-
-function signedEuro(value: number) {
-  if (!value) return euro(0);
-  return `${value > 0 ? "+" : "-"}${euro(Math.abs(value))}`;
 }
 
 function addOneDay(value: string) {

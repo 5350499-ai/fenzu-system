@@ -26,7 +26,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { rentIncomeForPayment } from "@/lib/profit";
+import { depositIncome, depositRefundExpense, isLinkedRentDeposit, rentIncomeForPayment } from "@/lib/profit";
 import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
 import { Download, HardDriveDownload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -217,11 +217,13 @@ export default function SettingsPage() {
 }
 
 function buildSettlementRows(data: BackupData) {
-  const totalIncome = data.rentPayments.reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0);
-  const totalExpense = data.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalIncome = data.rentPayments.reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0) + depositIncome(data.deposits);
+  const totalExpense = data.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0) + depositRefundExpense(data.deposits);
   const byPartner = ["A", "B"].map((partner) => {
-    const collected = data.rentPayments.filter((item) => normalizePartner(item.receivedBy) === partner).reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0);
-    const advanced = data.expenses.filter((item) => normalizePartner(item.paidBy) === partner).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const collected = data.rentPayments.filter((item) => normalizePartner(item.receivedBy) === partner).reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0)
+      + data.deposits.filter((item) => item.type === "收取" && !isLinkedRentDeposit(item) && normalizePartner(item.receivedBy) === partner).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const advanced = data.expenses.filter((item) => normalizePartner(item.paidBy) === partner).reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      + data.deposits.filter((item) => item.type === "退还" && normalizePartner(item.paidBy) === partner).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     return { partner, collected, advanced, actualCash: collected - advanced };
   });
   return { totalIncome, totalExpense, netProfit: totalIncome - totalExpense, byPartner };
@@ -231,8 +233,8 @@ function buildCsvExport(data: BackupData, settlement: ReturnType<typeof buildSet
   return [
     csvSection("房源", ["id", "名称", "城市", "地址", "房东", "允许分租", "备注"], data.properties.map((item) => [item.id, item.name, item.city, item.address, item.landlordName || "", item.subletAllowed ? "是" : "否", item.notes || ""])),
     csvSection("房间", ["id", "房源ID", "房间", "编号", "月租", "押金", "状态", "备注"], data.rooms.map((item) => [item.id, item.propertyId, item.name, item.roomNumber, item.monthlyRent, item.depositAmount, item.status, item.notes || ""])),
-    csvSection("租客", ["id", "房源ID", "房间ID", "姓名", "电话", "微信", "来源", "月租", "押金", "状态", "备注"], data.tenants.map((item) => [item.id, item.propertyId, item.roomId, item.name, item.phone, item.wechat, item.source, item.monthlyRent, item.depositAmount, item.status, item.notes || ""])),
-    csvSection("收租", ["id", "月份", "租客ID", "收款日期", "月租参考", "实收金额", "差额参考", "覆盖开始", "覆盖结束", "付款方式", "收款归属", "收款状态", "欠费", "备注"], data.rentPayments.map((item) => [item.id, item.rentMonth, item.tenantId, item.paymentDate || "", item.amountDue, item.amountPaid, item.amountUnpaid, item.coverageStartDate || "", item.coverageEndDate || "", item.paymentMethod, item.receivedBy || "A", item.paymentStatus || "", item.isOverdue ? "是" : "否", item.notes || ""])),
+    csvSection("租客", ["id", "房源ID", "房间ID", "姓名", "电话", "微信", "来源", "月租", "押金", "每月缴费日", "状态", "备注"], data.tenants.map((item) => [item.id, item.propertyId, item.roomId, item.name, item.phone, item.wechat, item.source, item.monthlyRent, item.depositAmount, item.paymentDay || 20, item.status, item.notes || ""])),
+    csvSection("收租", ["id", "月份", "租客ID", "收款日期", "月租参考", "实收金额", "覆盖开始", "覆盖结束", "付款方式", "收款归属", "收款状态", "欠费", "备注"], data.rentPayments.map((item) => [item.id, item.rentMonth, item.tenantId, item.paymentDate || "", item.amountDue, item.amountPaid, item.coverageStartDate || "", item.coverageEndDate || "", item.paymentMethod, item.receivedBy || "A", item.paymentStatus || "", item.isOverdue ? "是" : "否", item.notes || ""])),
     csvSection("支出", ["id", "日期", "房源ID", "房间ID", "类型", "金额", "付款方式", "付款归属", "已支付", "备注"], data.expenses.map((item) => [item.id, item.paymentDate, item.propertyId, item.roomId || "", item.category, item.amount, item.paymentMethod || "", item.paidBy || "A", item.isPaid ? "是" : "否", item.notes || ""])),
     csvSection("押金/预收预支", ["id", "日期", "租客ID", "类型", "金额", "状态", "收款归属", "付款归属", "备注"], data.deposits.map((item) => [item.id, item.transactionDate, item.tenantId, item.type, item.amount, item.status, item.receivedBy || "A", item.paidBy || "A", item.notes || ""])),
     csvSection("合同", ["id", "租客ID", "房源ID", "房间ID", "开始日期", "结束日期", "月租", "押金", "状态", "备注"], data.contracts.map((item) => [item.id, item.tenantId, item.propertyId, item.roomId, item.startDate, item.endDate, item.monthlyRent, item.depositAmount, item.status, item.notes || ""])),
