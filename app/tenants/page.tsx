@@ -38,6 +38,7 @@ import {
 import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart } from "@/lib/rent-coverage";
+import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
 import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -106,8 +107,10 @@ export default function TenantsPage() {
   const [detailTenantId, setDetailTenantId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
 
   useEffect(() => {
+    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
@@ -491,6 +494,7 @@ export default function TenantsPage() {
                     contract={contract}
                     coverageEnd={coverageLabel(coveragePayment)}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
+                    partnerNames={partnerNames}
                     files={files}
                     isAdmin={isAdmin}
                     onDeleteFile={removeContractFile}
@@ -559,7 +563,7 @@ export default function TenantsPage() {
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
-              <SearchableSelect label="收款归属" value={paymentForm.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => updatePaymentMoney({ receivedBy })} />
+              <SearchableSelect label="收款归属" value={paymentForm.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(receivedBy) => updatePaymentMoney({ receivedBy })} />
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>备注</label>
@@ -616,6 +620,7 @@ function TenantDetail({
   contract,
   coverageEnd,
   payments,
+  partnerNames,
   propertyName,
   roomName,
   files,
@@ -633,6 +638,7 @@ function TenantDetail({
   contract?: BusinessContract | null;
   coverageEnd: string;
   payments: BusinessRentPayment[];
+  partnerNames: PartnerNames;
   propertyName: string;
   roomName: string;
   files: ContractFile[];
@@ -672,7 +678,7 @@ function TenantDetail({
             .map((payment) => (
               <div className="settlement-detail-line readonly" key={payment.id}>
                 <span>{payment.paymentDate || payment.rentMonth}</span>
-                <b className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{payment.receivedBy || "A"}</b>
+                <b className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{partnerLabel(payment.receivedBy, partnerNames)}</b>
                 <span>至 {payment.coverageEndDate || payment.rentMonth}</span>
                 <strong>{euro(payment.amountPaid)}</strong>
               </div>

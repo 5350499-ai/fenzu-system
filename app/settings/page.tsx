@@ -26,7 +26,8 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
+import { rentIncomeForPayment } from "@/lib/profit";
+import { defaultPartnerNames, loadPartnerNames, loadPartnerRatios, PartnerNames, PartnerRatios, savePartnerNames, savePartnerRatios } from "@/lib/partner-settings";
 import { Download, HardDriveDownload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -54,11 +55,13 @@ export default function SettingsPage() {
   });
   const [lastBackupAt, setLastBackupAt] = useState("");
   const [partnerRatios, setPartnerRatios] = useState<PartnerRatios>({ A: 50, B: 50 });
+  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
     setPartnerRatios(loadPartnerRatios());
+    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const properties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const rooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(properties));
@@ -79,16 +82,21 @@ export default function SettingsPage() {
 
   const settlement = useMemo(() => buildSettlementRows(data), [data]);
 
-  function saveRatios() {
+  async function saveRatios() {
     const a = Number(partnerRatios.A || 0);
     const b = Number(partnerRatios.B || 0);
     if (a < 0 || b < 0 || Math.round(a + b) !== 100) {
       window.alert("A/B比例合计必须等于100%。");
       return;
     }
-    savePartnerRatios({ A: a, B: b });
-    setPartnerRatios({ A: a, B: b });
-    window.alert("合伙人比例已保存。");
+    try {
+      savePartnerRatios({ A: a, B: b });
+      setPartnerRatios({ A: a, B: b });
+      setPartnerNames(await savePartnerNames(partnerNames));
+      window.alert("合伙人名称和比例已保存。");
+    } catch (error: any) {
+      window.alert(error.message || "保存合伙人设置失败。");
+    }
   }
 
   async function loadLastBackupTime() {
@@ -162,6 +170,14 @@ export default function SettingsPage() {
         </div>
         <div className="filter-grid">
           <div className="field">
+            <label>A显示名称</label>
+            <input maxLength={20} placeholder="例如 BBVA 或 赵峰" value={partnerNames.A} onChange={(event) => setPartnerNames((current) => ({ ...current, A: event.target.value }))} />
+          </div>
+          <div className="field">
+            <label>B显示名称</label>
+            <input maxLength={20} placeholder="例如 Openbank 或 妻子" value={partnerNames.B} onChange={(event) => setPartnerNames((current) => ({ ...current, B: event.target.value }))} />
+          </div>
+          <div className="field">
             <label>A比例</label>
             <input type="number" min="0" max="100" value={partnerRatios.A} onChange={(event) => setPartnerRatios((current) => ({ ...current, A: Number(event.target.value || 0) }))} />
           </div>
@@ -173,7 +189,7 @@ export default function SettingsPage() {
             <label>合计</label>
             <input readOnly value={`${Number(partnerRatios.A || 0) + Number(partnerRatios.B || 0)}%`} />
           </div>
-          <button className="btn primary" onClick={saveRatios} type="button">保存比例</button>
+          <button className="btn primary" onClick={saveRatios} type="button">保存名称与比例</button>
         </div>
       </section>
 
@@ -216,10 +232,10 @@ export default function SettingsPage() {
 }
 
 function buildSettlementRows(data: BackupData) {
-  const totalIncome = data.rentPayments.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+  const totalIncome = data.rentPayments.reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0);
   const totalExpense = data.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const byPartner = ["A", "B"].map((partner) => {
-    const collected = data.rentPayments.filter((item) => normalizePartner(item.receivedBy) === partner).reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+    const collected = data.rentPayments.filter((item) => normalizePartner(item.receivedBy) === partner).reduce((sum, item) => sum + rentIncomeForPayment(item, data.deposits), 0);
     const advanced = data.expenses.filter((item) => normalizePartner(item.paidBy) === partner).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     return { partner, collected, advanced, actualCash: collected - advanced };
   });

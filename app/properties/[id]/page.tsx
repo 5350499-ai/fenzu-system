@@ -30,7 +30,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
-import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
+import { calculatePropertyProfit, getDateRange, monthlyProfitRows, rentIncomeForPayment } from "@/lib/profit";
 import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -100,12 +100,12 @@ export default function PropertyDetailPage() {
   const scopedDeposits = deposits.filter((item) => item.propertyId === propertyId);
   const scopedExpenses = expenses.filter((item) => item.propertyId === propertyId);
   const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
-  const monthlyIncome = scopedPayments.reduce((sum, item) => sum + item.amountPaid, 0);
+  const monthlyIncome = scopedPayments.reduce((sum, item) => sum + rentIncomeForPayment(item, deposits), 0);
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
   const monthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("thisMonth")) : null;
   const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last3Months")) : null;
   const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last12Months")) : null;
-  const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, 12) : [];
+  const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, deposits, 12) : [];
 
   const roomOptions = scopedRooms.map((room) => ({
     value: room.id,

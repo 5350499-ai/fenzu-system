@@ -18,7 +18,8 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { defaultPartnerRatios, loadPartnerRatios, PartnerRatios } from "@/lib/partner-settings";
+import { rentIncomeForPayment } from "@/lib/profit";
+import { defaultPartnerNames, defaultPartnerRatios, loadPartnerNames, loadPartnerRatios, partnerLabel, PartnerNames, PartnerRatios } from "@/lib/partner-settings";
 import { useEffect, useMemo, useState } from "react";
 
 const partners = ["A", "B"];
@@ -39,9 +40,11 @@ export default function PartnershipSettlementPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [propertyId, setPropertyId] = useState("all");
   const [ratios, setRatios] = useState<PartnerRatios>(defaultPartnerRatios);
+  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
 
   useEffect(() => {
     setRatios(loadPartnerRatios());
+    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       setProperties(loadedProperties);
@@ -70,14 +73,14 @@ export default function PartnershipSettlementPage() {
       !isVoided(deposit.notes)
     );
 
-    const totalIncome = scopedPayments.reduce((sum, payment) => sum + Number(payment.amountPaid || 0), 0);
+    const totalIncome = scopedPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0);
     const totalExpense = scopedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const netProfit = totalIncome - totalExpense;
 
     const partnerStats = partners.reduce<Record<string, PartnerStat>>((map, partner) => {
       const collected = scopedPayments
         .filter((payment) => normalizePartner(payment.receivedBy) === partner)
-        .reduce((sum, payment) => sum + Number(payment.amountPaid || 0), 0);
+        .reduce((sum, payment) => sum + rentIncomeForPayment(payment, deposits), 0);
       const advanced = scopedExpenses
         .filter((expense) => normalizePartner(expense.paidBy) === partner)
         .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
@@ -131,8 +134,8 @@ export default function PartnershipSettlementPage() {
         <CompactMetric label="总收入" value={euro(settlement.totalIncome)} />
         <CompactMetric label="总支出" value={euro(settlement.totalExpense)} />
         <CompactMetric label="净利润" value={euro(settlement.netProfit)} tone={settlement.netProfit < 0 ? "danger" : "profit"} />
-        <CompactMetric label="A应得" value={euro(settlement.partnerStats.A.shouldHave)} />
-        <CompactMetric label="B应得" value={euro(settlement.partnerStats.B.shouldHave)} />
+        <CompactMetric label={`${partnerLabel("A", partnerNames)}应得`} value={euro(settlement.partnerStats.A.shouldHave)} />
+        <CompactMetric label={`${partnerLabel("B", partnerNames)}应得`} value={euro(settlement.partnerStats.B.shouldHave)} />
       </section>
 
       <section className="card panel">
@@ -147,8 +150,8 @@ export default function PartnershipSettlementPage() {
               <article className="settlement-card" key={partner}>
                 <div className="profit-card-head">
                   <div>
-                    <strong>合伙人 {partner}</strong>
-                    <p>代号结算，不记录真实姓名</p>
+                    <strong>{partnerLabel(partner, partnerNames)}</strong>
+                    <p>结算代码 {partner}</p>
                   </div>
                   <StatusBadge tone={stat.balance > 0 ? "amber" : stat.balance < 0 ? "blue" : "green"}>{stat.balance > 0 ? "需转出" : stat.balance < 0 ? "应收回" : "已平衡"}</StatusBadge>
                 </div>
@@ -167,7 +170,7 @@ export default function PartnershipSettlementPage() {
       <section className="card panel settlement-result compact-settlement-result">
         <h2 className="panel-title">最终结算</h2>
         {settlement.transfer.amount > 0 ? (
-          <p><strong>{settlement.transfer.from}</strong> 应转给 <strong>{settlement.transfer.to}</strong> <span className="danger-text">{euro(settlement.transfer.amount)}</span></p>
+          <p><strong>{partnerLabel(settlement.transfer.from, partnerNames)}</strong> 应转给 <strong>{partnerLabel(settlement.transfer.to, partnerNames)}</strong> <span className="danger-text">{euro(settlement.transfer.amount)}</span></p>
         ) : (
           <p><span className="profit">A/B 当前无需互相转账。</span></p>
         )}
@@ -176,17 +179,19 @@ export default function PartnershipSettlementPage() {
       <div className="grid dashboard-panels">
         <CompactDetailList
           title="收入归属明细"
+          partnerNames={partnerNames}
           rows={settlement.scopedPayments.map((payment) => ({
             id: `income-${payment.id}`,
             date: payment.paymentDate || payment.rentMonth,
             partner: payment.receivedBy || "A",
             type: "收租",
-            amount: payment.amountPaid,
+            amount: rentIncomeForPayment(payment, deposits),
             details: [`月份：${payment.rentMonth}`, `覆盖：${payment.coverageStartDate || "-"} 至 ${payment.coverageEndDate || "-"}`, `月租参考：${euro(payment.amountDue)}`, `收款状态：${payment.paymentStatus || "-"}`, `备注：${payment.notes || "-"}`]
           }))}
         />
         <CompactDetailList
           title="支出归属明细"
+          partnerNames={partnerNames}
           rows={settlement.scopedExpenses.map((expense) => ({
             id: `expense-${expense.id}`,
             date: expense.paymentDate || expense.expenseMonth,
@@ -198,6 +203,7 @@ export default function PartnershipSettlementPage() {
         />
         <CompactDetailList
           title="押金/预收预支归属明细"
+          partnerNames={partnerNames}
           rows={settlement.scopedDeposits.map((deposit) => ({
             id: `deposit-${deposit.id}`,
             date: deposit.transactionDate || "-",
@@ -223,10 +229,12 @@ function CompactMetric({ label, value, tone }: { label: string; value: string; t
 
 function CompactDetailList({
   title,
-  rows
+  rows,
+  partnerNames
 }: {
   title: string;
   rows: { id: string; date: string; partner: string; type: string; amount: number; details: string[] }[];
+  partnerNames: PartnerNames;
 }) {
   const [expandedId, setExpandedId] = useState("");
   return (
@@ -239,7 +247,7 @@ function CompactDetailList({
             <article className="settlement-detail-item" key={row.id}>
               <button className="settlement-detail-line" onClick={() => setExpandedId(expanded ? "" : row.id)} type="button">
                 <span>{row.date}</span>
-                <b className={`partner-tag partner-${row.partner.toLowerCase()}`}>{row.partner}</b>
+                <b className={`partner-tag partner-${row.partner.toLowerCase()}`}>{partnerLabel(row.partner, partnerNames)}</b>
                 <span>{row.type}</span>
                 <strong>{euro(row.amount)}</strong>
               </button>

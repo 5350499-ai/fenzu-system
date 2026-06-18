@@ -26,6 +26,7 @@ import {
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
+import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { FileUp, Save } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -44,6 +45,7 @@ export default function CheckInPage() {
   const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
   const [form, setForm] = useState({
     propertyId: "",
     roomId: "",
@@ -65,6 +67,7 @@ export default function CheckInPage() {
   });
 
   useEffect(() => {
+    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
@@ -234,7 +237,7 @@ export default function CheckInPage() {
           <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-          <SearchableSelect label="收款归属" value={form.receivedBy} options={["A", "B"].map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
+          <SearchableSelect label="收款归属" value={form.receivedBy} options={["A", "B"].map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
           <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : current.amountPaid }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

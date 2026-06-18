@@ -25,6 +25,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { defaultPartnerNames, loadPartnerNames, partnerLabel, PartnerNames } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -82,8 +83,10 @@ export default function RentPaymentsPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
+  const [partnerNames, setPartnerNames] = useState<PartnerNames>(defaultPartnerNames);
 
   useEffect(() => {
+    loadPartnerNames().then(setPartnerNames).catch(() => setPartnerNames(defaultPartnerNames));
     const params = new URLSearchParams(window.location.search);
     setMonthFilter(params.get("month") || "");
     setOverdueOnly(params.get("overdue") === "1");
@@ -331,13 +334,14 @@ export default function RentPaymentsPage() {
             const property = properties.find((item) => item.id === payment.propertyId);
             const room = rooms.find((item) => item.id === payment.roomId);
             const tenant = tenants.find((item) => item.id === payment.tenantId);
+            const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
             const expanded = detailPaymentId === payment.id;
             return (
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{paymentCoverageEnd(payment) || payment.rentMonth}</span>
-                  <span>{tenant?.name || "-"}</span>
-                  <span className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{payment.receivedBy || "A"}</span>
+                  <span className={`partner-tag partner-${(payment.receivedBy || "A").toLowerCase()}`}>{partnerLabel(payment.receivedBy, partnerNames)}</span>
+                  <span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span>
                   <strong>{euro(payment.amountPaid)}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖"}</StatusBadge>
                 </button>
@@ -381,7 +385,7 @@ export default function RentPaymentsPage() {
               <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
               <div className="field"><label>租金差额</label><output className={`money-difference ${form.amountPaid - form.amountDue < 0 ? "danger-text" : "profit"}`}>{signedEuro(form.amountPaid - form.amountDue)}</output></div>
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
+              <SearchableSelect label="收款归属" value={form.receivedBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: `${partner} · ${partnerLabel(partner, partnerNames)}` }))} onChange={(receivedBy) => setForm((current) => ({ ...current, receivedBy }))} />
               <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} />
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>

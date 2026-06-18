@@ -90,7 +90,7 @@ export function calculatePropertyProfit(
   const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes));
   const scopedExpenses = expenses.filter((expense) => expense.propertyId === property.id && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes));
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
-  const income = sumBy(scopedPayments, "amountPaid");
+  const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment, scopedDeposits), 0);
   const expense = sumBy(scopedExpenses, "amount");
   const propertyPayments = payments.filter((payment) => payment.propertyId === property.id && !isVoided(payment.notes));
   const unpaid = scopedRooms.reduce((total, room) => {
@@ -147,14 +147,25 @@ export function monthlyProfitRows(
   propertyId: string,
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
+  deposits: BusinessDeposit[] = [],
   monthsBack = 12
 ) {
   const months = recentMonths(monthsBack);
   return months.map((month) => {
-    const income = sumBy(payments.filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes)), "amountPaid");
+    const income = payments
+      .filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes))
+      .reduce((total, payment) => total + rentIncomeForPayment(payment, deposits), 0);
     const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount");
     return { month, income, expense, netProfit: income - expense };
   });
+}
+
+export function rentIncomeForPayment(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {
+  const marker = `[收租押金:${payment.id}]`;
+  const linkedDeposit = deposits
+    .filter((deposit) => deposit.type === "收取" && deposit.notes?.includes(marker) && !isVoided(deposit.notes))
+    .reduce((total, deposit) => total + Number(deposit.amount || 0), 0);
+  return Math.max(Number(payment.amountPaid || 0) - linkedDeposit, 0);
 }
 
 export function isMonthInRange(month: string, range: DateRange) {
