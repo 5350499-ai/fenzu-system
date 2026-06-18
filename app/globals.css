@@ -510,6 +510,10 @@ a {
   color: var(--amber);
 }
 
+.reminder-summary.yellow {
+  color: #b77900;
+}
+
 .reminder-summary.info {
   color: var(--blue);
 }
@@ -554,6 +558,10 @@ a {
 
 .reminder-item.warning {
   border-color: color-mix(in srgb, var(--amber) 32%, var(--border));
+}
+
+.reminder-item.yellow {
+  border-color: color-mix(in srgb, #eab308 42%, var(--border));
 }
 
 .reminder-item.info {
@@ -1123,6 +1131,12 @@ td:last-child {
   color: var(--amber);
   background: color-mix(in srgb, var(--amber) 13%, var(--surface));
   border-color: color-mix(in srgb, var(--amber) 32%, var(--border));
+}
+
+.badge.yellow {
+  border-color: color-mix(in srgb, #eab308 42%, var(--border));
+  background: color-mix(in srgb, #eab308 14%, var(--surface));
+  color: #a16207;
 }
 
 .badge.blue {

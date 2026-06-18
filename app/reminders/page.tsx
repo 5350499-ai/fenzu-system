@@ -24,7 +24,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd } from "@/lib/rent-coverage";
+import { latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCoverageReminderStage } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -34,7 +34,7 @@ type Reminder = {
   title: string;
   description: string;
   href: string;
-  tone: "danger" | "warning" | "info" | "blue";
+  tone: "danger" | "warning" | "yellow" | "info" | "blue";
   priority: number;
 };
 
@@ -67,7 +67,7 @@ export default function RemindersPage() {
   );
 
   const grouped = useMemo(() => {
-    const groups = ["欠费提醒", "合同30天内到期", "押金异常", "空置房间", "备份提醒"];
+    const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "空置房间", "备份提醒"];
     return groups.map((group) => ({
       title: group,
       items: reminders.filter((item) => item.category === group)
@@ -113,7 +113,7 @@ export default function RemindersPage() {
 function ReminderRow({ item }: { item: Reminder }) {
   return (
     <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
-      <StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : "blue"}>{item.category}</StatusBadge>
+      <StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge>
       <span>{item.title}</span>
       <small>{item.description}</small>
     </Link>
@@ -143,19 +143,24 @@ function buildReminders({
 
   tenants
     .filter((tenant) => !tenant.status.includes("退"))
-    .map((tenant) => ({ tenant, payment: latestCoverageForTenant(tenant.id, payments) }))
-    .filter(({ payment }) => isCoverageExpired(payment))
-    .forEach(({ tenant, payment }) => {
+    .map((tenant) => {
+      const payment = latestCoverageForTenant(tenant.id, payments);
+      return { tenant, payment, stage: rentCoverageReminderStage(payment) };
+    })
+    .filter(({ stage }) => Boolean(stage))
+    .forEach(({ tenant, payment, stage }) => {
+      if (!stage) return;
       const room = roomById.get(tenant.roomId);
       const amount = overdueReferenceAmount(payment, tenant);
+      const roomLabel = room?.roomNumber || room?.name || tenant.name || "房间";
       reminders.push({
         id: `payment-${tenant.id}`,
-        category: "欠费提醒",
-        title: `${room?.roomNumber || room?.name || tenant.name || "房间"}欠费 ${euro(amount)}`,
+        category: stage.level === "overdue" ? "欠费提醒" : "收租提醒",
+        title: rentReminderTitle(roomLabel, stage.daysRemaining, stage.overdueDays, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
-        href: "/rent-payments?overdue=1",
-        tone: "danger",
-        priority: 40_000 + amount
+        href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
+        tone: rentStageTone(stage.level),
+        priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining)
       });
     });
 
@@ -216,6 +221,26 @@ function buildReminders({
   });
 
   return reminders.sort((a, b) => b.priority - a.priority);
+}
+
+function rentReminderTitle(room: string, daysRemaining: number, overdueDays: number, amount: number) {
+  if (overdueDays > 0) return `${room}已欠费${overdueDays}天 ${euro(amount)}`;
+  if (daysRemaining <= 3) return `${room}租金还有${daysRemaining}天到期，需重点跟进`;
+  if (daysRemaining <= 5) return `${room}租金还有${daysRemaining}天到期，仍未收到下期房租`;
+  return `${room}租金还有${daysRemaining}天到期，请提醒交下期房租`;
+}
+
+function rentStagePriority(level: string) {
+  if (level === "overdue") return 50_000;
+  if (level === "critical") return 45_000;
+  if (level === "urgent") return 42_000;
+  return 40_000;
+}
+
+function rentStageTone(level: string): Reminder["tone"] {
+  if (level === "overdue" || level === "critical") return "danger";
+  if (level === "urgent") return "warning";
+  return "yellow";
 }
 
 function daysUntil(date: string, from: Date) {

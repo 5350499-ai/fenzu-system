@@ -28,6 +28,29 @@ export function isCoverageExpired(payment: BusinessRentPayment | null, today = t
   return Boolean(endDate && endDate < today);
 }
 
+export type RentCoverageReminderStage = {
+  daysRemaining: number;
+  overdueDays: number;
+  level: "upcoming" | "urgent" | "critical" | "overdue";
+};
+
+export function rentCoverageReminderStage(
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): RentCoverageReminderStage | null {
+  if (!payment) return null;
+  const endDate = paymentCoverageEnd(payment);
+  if (!endDate) return null;
+  const daysRemaining = dateDifference(endDate, today);
+  if (daysRemaining > 10) return null;
+  if (daysRemaining < 0) {
+    return { daysRemaining, overdueDays: Math.abs(daysRemaining), level: "overdue" };
+  }
+  if (daysRemaining <= 3) return { daysRemaining, overdueDays: 0, level: "critical" };
+  if (daysRemaining <= 5) return { daysRemaining, overdueDays: 0, level: "urgent" };
+  return { daysRemaining, overdueDays: 0, level: "upcoming" };
+}
+
 export function coverageLabel(payment: BusinessRentPayment | null) {
   return payment ? paymentCoverageEnd(payment) || "-" : "-";
 }
@@ -55,6 +78,12 @@ export function monthEnd(month?: string) {
 
 export function todayString() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dateDifference(target: string, from: string) {
+  const targetDate = new Date(`${target}T12:00:00`);
+  const fromDate = new Date(`${from}T12:00:00`);
+  return Math.round((targetDate.getTime() - fromDate.getTime()) / 86400000);
 }
 
 function isVoided(notes?: string) {

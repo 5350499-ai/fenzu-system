@@ -28,7 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
-import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCoverageReminderStage } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -144,7 +144,7 @@ type Reminder = {
   title: string;
   description: string;
   href: string;
-  tone: "danger" | "warning" | "info";
+  tone: "danger" | "warning" | "yellow" | "info";
   priority: number;
 };
 
@@ -171,19 +171,24 @@ function buildDashboardReminders({
 
   tenants
     .filter((tenant) => !tenant.status.includes("退"))
-    .map((tenant) => ({ tenant, payment: latestCoverageForTenant(tenant.id, rentPayments) }))
-    .filter(({ payment }) => isCoverageExpired(payment))
-    .sort((a, b) => overdueReferenceAmount(b.payment, b.tenant) - overdueReferenceAmount(a.payment, a.tenant))
-    .forEach(({ tenant, payment }) => {
+    .map((tenant) => {
+      const payment = latestCoverageForTenant(tenant.id, rentPayments);
+      return { tenant, payment, stage: rentCoverageReminderStage(payment) };
+    })
+    .filter(({ stage }) => Boolean(stage))
+    .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
+    .forEach(({ tenant, payment, stage }) => {
+      if (!stage) return;
       const room = roomById.get(tenant.roomId);
       const amount = overdueReferenceAmount(payment, tenant);
+      const roomLabel = room?.roomNumber || room?.name || tenant.name || "租客";
       reminders.push({
         id: `rent-${tenant.id}`,
-        title: `${room?.roomNumber || room?.name || tenant.name || "租客"}欠费 ${euro(amount)}`,
+        title: rentReminderTitle(roomLabel, stage.daysRemaining, stage.overdueDays, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
-        href: "/rent-payments?overdue=1",
-        tone: "danger",
-        priority: 40_000 + amount
+        href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
+        tone: rentStageTone(stage.level),
+        priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining)
       });
     });
 
@@ -267,6 +272,13 @@ function buildReminderSummary({
     if (!isCoverageExpired(payment) || latestCoverageForTenant(payment.tenantId, rentPayments)?.id !== payment.id) return sum;
     return sum + Number(payment.amountDue || 0);
   }, 0);
+  const rentDueCount = new Set(rentPayments
+    .filter((payment) => latestCoverageForTenant(payment.tenantId, rentPayments)?.id === payment.id)
+    .filter((payment) => {
+      const stage = rentCoverageReminderStage(payment);
+      return stage && stage.level !== "overdue";
+    })
+    .map((payment) => payment.tenantId)).size;
   const expiringCount = contracts.filter((contract) => {
     const days = daysUntil(contract.endDate, today);
     return days <= 30;
@@ -275,10 +287,32 @@ function buildReminderSummary({
   const vacantRooms = rooms.filter((room) => room.status.includes("空置")).length;
   const parts = [];
   if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
+  if (rentDueCount > 0) parts.push(`待收租${rentDueCount}`);
   if (expiringCount > 0) parts.push(`快到期${expiringCount}`);
   if (abnormalDeposits > 0) parts.push(`押金异常${abnormalDeposits}`);
   if (vacantRooms > 0) parts.push(`空置${vacantRooms}`);
   return parts.length ? parts.join("｜") : "暂无待处理提醒";
+}
+
+function rentReminderTitle(room: string, daysRemaining: number, overdueDays: number, amount: number) {
+  if (overdueDays > 0) return `${room}已欠费${overdueDays}天 ${euro(amount)}`;
+  if (daysRemaining <= 3) return `${room}租金还有${daysRemaining}天到期，需重点跟进`;
+  if (daysRemaining <= 5) return `${room}租金还有${daysRemaining}天到期，仍未收到下期房租`;
+  return `${room}租金还有${daysRemaining}天到期，请提醒交下期房租`;
+}
+
+function rentStagePriority(level?: string) {
+  if (level === "overdue") return 50_000;
+  if (level === "critical") return 45_000;
+  if (level === "urgent") return 42_000;
+  if (level === "upcoming") return 40_000;
+  return 0;
+}
+
+function rentStageTone(level: string): Reminder["tone"] {
+  if (level === "overdue" || level === "critical") return "danger";
+  if (level === "urgent") return "warning";
+  return "yellow";
 }
 
 function daysUntil(date: string, from: Date) {
