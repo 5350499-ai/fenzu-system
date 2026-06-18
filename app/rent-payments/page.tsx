@@ -45,6 +45,8 @@ const emptyPayment: BusinessRentPayment = {
   propertyId: "",
   roomId: "",
   tenantId: "",
+  incomeType: "房租收入",
+  incomeItem: "",
   rentMonth: new Date().toISOString().slice(0, 7),
   paymentDate: new Date().toISOString().slice(0, 10),
   amountDue: 0,
@@ -61,6 +63,7 @@ const emptyPayment: BusinessRentPayment = {
 
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const paymentStatusOptions = ["已收", "未收"];
+const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "押金收入", "赔偿收入", "其他收入"];
 const maxAttachmentSize = 5 * 1024 * 1024;
 
 export default function RentPaymentsPage() {
@@ -128,7 +131,7 @@ export default function RentPaymentsPage() {
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
       const tenant = tenants.find((item) => item.id === payment.tenantId);
-      const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
+      const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.incomeType || "房租收入"} ${payment.incomeItem || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
       return (!keyword || text.includes(keyword)) &&
         (!monthFilter || payment.rentMonth.includes(monthFilter)) &&
         (!overdueOnly || isLatestExpiredPayment(payment, payments));
@@ -198,11 +201,21 @@ export default function RentPaymentsPage() {
       window.alert("请填写自定义归属名称。");
       return;
     }
+    const incomeType = form.incomeType || "房租收入";
+    const isRent = incomeType === "房租收入";
+    if (isRent && (!form.coverageStartDate || !form.coverageEndDate)) {
+      window.alert("请填写租金覆盖开始日期和结束日期。");
+      return;
+    }
+    if ((incomeType === "赔偿收入" || incomeType === "其他收入") && !form.incomeItem?.trim()) {
+      window.alert(incomeType === "赔偿收入" ? "请填写赔偿项目或说明。" : "请填写收入项目或说明。");
+      return;
+    }
     setSaving(true);
     const paymentId = form.id || crypto.randomUUID();
-    const amountDue = Number(form.amountDue || 0);
+    const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const amountPaid = form.paymentStatus === "未收" ? 0 : Number(form.amountPaid || 0);
-    const amountUnpaid = Math.max(amountDue - amountPaid, 0);
+    const amountUnpaid = isRent ? Math.max(amountDue - amountPaid, 0) : 0;
     const paymentDate = form.paymentDate || todayString();
     const rentMonth = paymentDate.slice(0, 7);
     const nextPayment = {
@@ -210,13 +223,15 @@ export default function RentPaymentsPage() {
       id: paymentId,
       paymentDate,
       rentMonth,
+      incomeType,
+      incomeItem: isRent || incomeType === "押金收入" ? "" : form.incomeItem?.trim() || "",
       amountDue,
       amountPaid,
       amountUnpaid,
-      coverageStartDate: form.coverageStartDate,
-      coverageEndDate: form.coverageEndDate,
+      coverageStartDate: isRent ? form.coverageStartDate : "",
+      coverageEndDate: isRent ? form.coverageEndDate : "",
       receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode,
-      paymentStatus: form.paymentStatus || (amountPaid > 0 ? "已收" : "未收"),
+      paymentStatus: isRent ? form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
       isOverdue: false
     };
     nextPayment.isOverdue = isCoverageExpired(nextPayment);
@@ -227,14 +242,15 @@ export default function RentPaymentsPage() {
       await saveBusinessData(rentPaymentKey, next);
       const marker = depositPaymentMarker(paymentId);
       const existingDeposit = deposits.find((deposit) => deposit.notes?.includes(marker));
-      const nextDeposits = depositAmount > 0
+      const depositIncomeAmount = incomeType === "押金收入" ? amountPaid : isRent ? depositAmount : 0;
+      const nextDeposits = depositIncomeAmount > 0
         ? existingDeposit
           ? deposits.map((deposit) => deposit.id === existingDeposit.id ? {
               ...deposit,
               propertyId: form.propertyId,
               roomId: form.roomId,
               tenantId: form.tenantId,
-              amount: depositAmount,
+              amount: depositIncomeAmount,
               transactionDate: paymentDate,
               receivedBy: nextPayment.receivedBy || "A"
             } : deposit)
@@ -244,7 +260,7 @@ export default function RentPaymentsPage() {
               roomId: form.roomId,
               tenantId: form.tenantId,
               type: "收取",
-              amount: depositAmount,
+              amount: depositIncomeAmount,
               status: "已收",
               transactionDate: paymentDate,
               receivedBy: nextPayment.receivedBy || "A",
@@ -321,10 +337,10 @@ export default function RentPaymentsPage() {
   }
 
   return (
-    <AppLayout title="收租管理" description="默认压缩显示收租明细，点击一条记录后查看完整信息。">
+    <AppLayout title="收款管理" description="登记房租、押金、赔偿和其他收入，点击一条记录查看完整信息。">
       <section className="card panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">收租记录</h2><p className="muted">默认只显示月份、租客、金额、状态。</p></div>
+          <div><h2 className="panel-title">收款记录</h2><p className="muted">默认显示日期、归属、项目、金额和状态。</p></div>
           <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyPayment, paymentDate: todayString(), rentMonth: todayString().slice(0, 7), coverageStartDate: todayString(), coverageEndDate: "" }); setDepositAmount(0); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
@@ -345,11 +361,11 @@ export default function RentPaymentsPage() {
             return (
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
-                  <span>{paymentCoverageEnd(payment) || payment.rentMonth}</span>
+                  <span>{isRentPayment(payment) ? paymentCoverageEnd(payment) || payment.rentMonth : payment.paymentDate || payment.rentMonth}</span>
                   <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</span>
-                  <span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span>
+                  <span>{paymentItemLabel(payment, room?.name || "-", Boolean(linkedDeposit?.amount))}</span>
                   <strong>{euro(payment.amountPaid)}</strong>
-                  <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖"}</StatusBadge>
+                  <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isRentPayment(payment) ? isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
                 </button>
                 {expanded ? (
                   <PaymentDetail
@@ -380,21 +396,27 @@ export default function RentPaymentsPage() {
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑收款" : "登记收款"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
             <form className="form-grid" onSubmit={submit}>
+              <SearchableSelect label="收款类型" value={form.incomeType || "房租收入"} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
+                const nextType = incomeType as BusinessRentPayment["incomeType"];
+                setForm((current) => ({ ...current, incomeType: nextType, incomeItem: "", amountDue: nextType === "房租收入" ? current.amountDue : 0, amountUnpaid: 0, coverageStartDate: nextType === "房租收入" ? current.coverageStartDate : "", coverageEndDate: nextType === "房租收入" ? current.coverageEndDate : "", paymentStatus: "已收" }));
+                if (nextType !== "房租收入") setDepositAmount(0);
+              }} />
               <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder="搜索房源名称、地址、城市" />
               <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder="先选房源，再搜索房间名称、编号" />
               <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
-              <div className="field auto-fill-field"><label>自动填充</label><button className="btn" disabled={!form.tenantId} onClick={autoFill} type="button">带出月租和未覆盖日期</button></div>
-              <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} />
-              <MoneyInput label="实收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
-              <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} />
-              <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
-              <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
+              {isRentPayment(form) ? <div className="field auto-fill-field"><label>自动填充</label><button className="btn" disabled={!form.tenantId} onClick={autoFill} type="button">带出月租和未覆盖日期</button></div> : null}
+              {isRentPayment(form) ? <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} /> : null}
+              <MoneyInput label={isRentPayment(form) ? "实收金额" : "金额"} value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />
+              {isRentPayment(form) ? <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} /> : null}
+              {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明" : "收入项目/说明"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "请输入收入项目"} required value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
+              {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div> : null}
+              {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
-              <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} />
+              {isRentPayment(form) ? <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus, amountPaid: paymentStatus === "未收" ? 0 : form.amountPaid })} /> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
@@ -442,13 +464,15 @@ function PaymentDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="租客" value={tenantName} />
+        <DetailField label="收款类型" value={payment.incomeType || "房租收入"} />
+        {payment.incomeItem ? <DetailField label="项目/说明" value={payment.incomeItem} /> : null}
         <DetailField label="收款日期" value={payment.paymentDate || "-"} />
-        <DetailField label="月租参考" value={euro(payment.amountDue)} />
+        {isRentPayment(payment) ? <DetailField label="月租参考" value={euro(payment.amountDue)} /> : null}
         <DetailField label="实收金额" value={euro(payment.amountPaid)} />
-        <DetailField label="押金金额" value={euro(depositAmount)} />
-        <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} />
-        <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} />
-        <DetailField label="收款状态" value={payment.paymentStatus || "-"} />
+        {isRentPayment(payment) && depositAmount > 0 ? <DetailField label="押金金额" value={euro(depositAmount)} /> : null}
+        {isRentPayment(payment) ? <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} /> : null}
+        {isRentPayment(payment) ? <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
+        {isRentPayment(payment) ? <DetailField label="收款状态" value={payment.paymentStatus || "-"} /> : null}
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
         <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
@@ -503,6 +527,16 @@ function cleanVoidNote(notes?: string) {
 function isLatestExpiredPayment(payment: BusinessRentPayment, payments: BusinessRentPayment[]) {
   const latest = latestCoverageForTenant(payment.tenantId, payments);
   return latest?.id === payment.id && isCoverageExpired(latest);
+}
+
+function isRentPayment(payment: BusinessRentPayment) {
+  return !payment.incomeType || payment.incomeType === "房租收入";
+}
+
+function paymentItemLabel(payment: BusinessRentPayment, roomName: string, hasLinkedDeposit: boolean) {
+  if (isRentPayment(payment)) return `${roomName}房租${hasLinkedDeposit ? "+押金" : ""}`;
+  if (payment.incomeType === "押金收入") return `${roomName}押金收入`;
+  return payment.incomeItem || payment.incomeType || "其他收入";
 }
 
 function addOneDay(value: string) {

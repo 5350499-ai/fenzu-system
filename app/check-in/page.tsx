@@ -161,6 +161,8 @@ export default function CheckInPage() {
         propertyId: form.propertyId,
         roomId: form.roomId,
         tenantId,
+        incomeType: "房租收入",
+        incomeItem: "",
         rentMonth,
         paymentDate: form.paymentDate,
         amountDue: form.monthlyRent,

@@ -62,6 +62,8 @@ export type BusinessRentPayment = {
   propertyId: string;
   roomId: string;
   tenantId: string;
+  incomeType?: "房租收入" | "押金收入" | "赔偿收入" | "其他收入";
+  incomeItem?: string;
   rentMonth: string;
   paymentDate?: string;
   amountDue: number;
@@ -226,6 +228,8 @@ const tableConfigs: Record<string, TableConfig> = {
       propertyId: row.property_id || "",
       roomId: row.room_id || "",
       tenantId: row.tenant_id || "",
+      incomeType: normalizeIncomeType(row.income_type || "房租收入"),
+      incomeItem: row.income_item || "",
       rentMonth: dateToMonth(row.rent_month),
       paymentDate: row.payment_date || "",
       amountDue: Number(row.amount_due || 0),
@@ -245,6 +249,8 @@ const tableConfigs: Record<string, TableConfig> = {
       property_id: row.propertyId,
       room_id: row.roomId,
       tenant_id: row.tenantId,
+      income_type: normalizeIncomeType(row.incomeType || "房租收入"),
+      income_item: row.incomeItem || null,
       rent_month: monthToDate(row.rentMonth),
       payment_date: row.paymentDate || null,
       amount_due: Number(row.amountDue || 0),
@@ -592,6 +598,13 @@ function normalizePartner(value?: string) {
   if (!partner) return "A";
   const fixedCode = partner.toUpperCase();
   return fixedCode === "A" || fixedCode === "B" ? fixedCode : partner.slice(0, 50);
+}
+
+function normalizeIncomeType(value?: string): BusinessRentPayment["incomeType"] {
+  const type = (value || "房租收入").trim();
+  return ["房租收入", "押金收入", "赔偿收入", "其他收入"].includes(type)
+    ? type as BusinessRentPayment["incomeType"]
+    : "其他收入";
 }
 
 function normalizeSource(source: string) {

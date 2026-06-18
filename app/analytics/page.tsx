@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
       </section>
 
       <div className="grid metrics">
-        <MetricCard label="收入" value={euro(totals.income)} note="已收租金合计" tone="profit" />
+        <MetricCard label="收入" value={euro(totals.income)} note="房租、押金、赔偿及其他收入" tone="profit" />
         <MetricCard label="支出" value={euro(totals.expense)} note="经营支出合计" />
         <MetricCard label="净利润" value={euro(totals.netProfit)} note="收入 - 支出" tone={totals.netProfit < 0 ? "danger" : "profit"} hero />
         <MetricCard label="欠租" value={euro(totals.unpaid)} note="应收未收金额" tone={totals.unpaid > 0 ? "danger" : "info"} />
@@ -123,14 +123,14 @@ export default function AnalyticsPage() {
 
       {selected ? (
         <div className="grid dashboard-panels">
-          <DetailTable title="收租明细" headers={["月份", "金额", "已收", "未收", "状态"]}>
+          <DetailTable title="收入明细" headers={["日期", "类型/项目", "实收", "未收", "状态"]}>
             {selected.payments.map((payment) => (
               <tr key={payment.id}>
-                <td>{payment.rentMonth}</td>
-                <td>{euro(payment.amountDue)}</td>
+                <td>{payment.paymentDate || payment.rentMonth}</td>
+                <td>{payment.incomeItem || payment.incomeType || "房租收入"}</td>
                 <td>{euro(payment.amountPaid)}</td>
                 <td>{euro(payment.amountUnpaid)}</td>
-                <td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td>
+                <td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收"}</StatusBadge></td>
               </tr>
             ))}
           </DetailTable>

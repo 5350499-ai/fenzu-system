@@ -29,7 +29,7 @@ import { downloadExpenseFile, ExpenseFile, loadExpenseFiles, openExpenseFile } f
 import { calculatePropertyProfit, getDateRange, RangePreset } from "@/lib/profit";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { downloadRentPaymentFile, loadRentPaymentFiles, openRentPaymentFile, RentPaymentFile } from "@/lib/rent-payment-files";
-import { isCoverageExpired, paymentCoverageEnd } from "@/lib/rent-coverage";
+import { isCoverageExpired, isRentIncome, paymentCoverageEnd } from "@/lib/rent-coverage";
 import { Download, Eye } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -128,7 +128,7 @@ export default function PropertyProfitDetailPage() {
 
       <div className="profit-ledger-grid">
         <section className="card panel compact-ledger-panel">
-          <h2 className="panel-title">收租明细</h2>
+          <h2 className="panel-title">收入明细</h2>
           <div className="profit-ledger-list">
           {stat.payments.length ? [...stat.payments].sort((a, b) => (b.paymentDate || b.rentMonth).localeCompare(a.paymentDate || a.rentMonth)).map((payment) => {
             const room = rooms.find((item) => item.id === payment.roomId);
@@ -138,9 +138,9 @@ export default function PropertyProfitDetailPage() {
             const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
             return <div className="profit-ledger-item" key={payment.id}>
               <button className="profit-ledger-line" onClick={() => setExpandedRentId(expanded ? "" : payment.id)} type="button">
-                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{room?.name || "-"}房租{linkedDeposit?.amount ? "+押金" : ""}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isCoverageExpired(payment) ? "已过期" : "已覆盖"}</StatusBadge>
+                <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{profitPaymentLabel(payment, room?.name || "-", Boolean(linkedDeposit?.amount))}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isRentIncome(payment) ? isCoverageExpired(payment) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
               </button>
-              {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span><span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span><span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
+              {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span>{isRentIncome(payment) ? <span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span> : null}<span>类型：{payment.incomeType || "房租收入"}</span>{payment.incomeItem ? <span>项目：{payment.incomeItem}</span> : null}<span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
             </div>;
           }) : <p className="muted">暂无收租记录。</p>}
           </div>
@@ -212,4 +212,10 @@ function FileLinks<T>({ files, onOpen, onDownload }: { files: T[]; onOpen: (file
 
 function depositPaymentMarker(paymentId: string) {
   return `[收租押金:${paymentId}]`;
+}
+
+function profitPaymentLabel(payment: BusinessRentPayment, roomName: string, hasDeposit: boolean) {
+  if (isRentIncome(payment)) return `${roomName}房租${hasDeposit ? "+押金" : ""}`;
+  if (payment.incomeType === "押金收入") return `${roomName}押金收入`;
+  return payment.incomeItem || payment.incomeType || "其他收入";
 }

@@ -10,7 +10,7 @@ export function paymentCoverageEnd(payment: BusinessRentPayment) {
 
 export function latestCoveragePayment(payments: BusinessRentPayment[]) {
   return [...payments]
-    .filter((payment) => !isVoided(payment.notes))
+    .filter((payment) => isRentIncome(payment) && !isVoided(payment.notes))
     .sort((a, b) => paymentCoverageEnd(b).localeCompare(paymentCoverageEnd(a)))[0] || null;
 }
 
@@ -23,7 +23,7 @@ export function latestCoverageForRoom(roomId: string, payments: BusinessRentPaym
 }
 
 export function isCoverageExpired(payment: BusinessRentPayment | null, today = todayString()) {
-  if (!payment) return false;
+  if (!payment || !isRentIncome(payment)) return false;
   const endDate = paymentCoverageEnd(payment);
   return Boolean(endDate && endDate < today);
 }
@@ -91,6 +91,10 @@ export function coverageLabel(payment: BusinessRentPayment | null) {
 export function overdueReferenceAmount(payment: BusinessRentPayment | null, tenant?: BusinessTenant) {
   if (!payment) return 0;
   return Number(payment.amountDue || tenant?.monthlyRent || 0);
+}
+
+export function isRentIncome(payment: BusinessRentPayment) {
+  return !payment.incomeType || payment.incomeType === "房租收入";
 }
 
 export function monthStart(month?: string) {
