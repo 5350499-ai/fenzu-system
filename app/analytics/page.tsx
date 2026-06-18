@@ -23,7 +23,7 @@ import {
   roomKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { calculatePropertyProfits, calculateTotals, getDateRange, RangePreset, rangeOptions } from "@/lib/profit";
+import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, RangePreset, rangeOptions } from "@/lib/profit";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
     return stats.sort((a, b) => a.netProfit - b.netProfit);
   }, [deposits, expenses, payments, properties, range, rooms]);
   const visibleStats = propertyId === "all" ? propertyStats : propertyStats.filter((item) => item.property.id === propertyId);
-  const totals = calculateTotals(visibleStats);
+  const totals = calculateTotals(visibleStats, propertyId === "all" ? calculateUnassignedIncome(payments, range) : 0);
   const selected = propertyId === "all" ? null : visibleStats[0];
 
   return (

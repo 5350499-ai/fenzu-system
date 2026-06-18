@@ -246,9 +246,9 @@ const tableConfigs: Record<string, TableConfig> = {
     toDb: (row, userId) => ({
       id: row.id,
       user_id: userId,
-      property_id: row.propertyId,
-      room_id: row.roomId,
-      tenant_id: row.tenantId,
+      property_id: row.propertyId || null,
+      room_id: row.roomId || null,
+      tenant_id: row.tenantId || null,
       income_type: normalizeIncomeType(row.incomeType || "房租收入"),
       income_item: row.incomeItem || null,
       rent_month: monthToDate(row.rentMonth),

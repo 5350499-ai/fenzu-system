@@ -196,13 +196,18 @@ export default function RentPaymentsPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!loaded || !form.propertyId || !form.roomId || !form.tenantId) return;
+    if (!loaded) return;
     if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
       window.alert("请填写自定义归属名称。");
       return;
     }
     const incomeType = form.incomeType || "房租收入";
     const isRent = incomeType === "房租收入";
+    const requiresBusinessLink = isRent || incomeType === "押金收入";
+    if (requiresBusinessLink && (!form.propertyId || !form.roomId || !form.tenantId)) {
+      window.alert(incomeType === "押金收入" ? "押金收入需要选择房源、房间和租客。" : "房租收入需要选择房源、房间和租客。");
+      return;
+    }
     if (isRent && (!form.coverageStartDate || !form.coverageEndDate)) {
       window.alert("请填写租金覆盖开始日期和结束日期。");
       return;
@@ -401,9 +406,9 @@ export default function RentPaymentsPage() {
                 setForm((current) => ({ ...current, incomeType: nextType, incomeItem: "", amountDue: nextType === "房租收入" ? current.amountDue : 0, amountUnpaid: 0, coverageStartDate: nextType === "房租收入" ? current.coverageStartDate : "", coverageEndDate: nextType === "房租收入" ? current.coverageEndDate : "", paymentStatus: "已收" }));
                 if (nextType !== "房租收入") setDepositAmount(0);
               }} />
-              <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder="搜索房源名称、地址、城市" />
-              <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder="先选房源，再搜索房间名称、编号" />
-              <SearchableSelect label="租客" value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder="先选房间，再搜索租客姓名、电话、微信" />
+              <SearchableSelect label={isRentPayment(form) || form.incomeType === "押金收入" ? "房源" : "房源（可选）"} value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder={isRentPayment(form) || form.incomeType === "押金收入" ? "搜索房源名称、地址、城市" : "可直接留空"} />
+              <SearchableSelect label={isRentPayment(form) || form.incomeType === "押金收入" ? "房间" : "房间（可选）"} value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder={form.propertyId ? "搜索房间名称、编号" : "可直接留空"} />
+              <SearchableSelect label={isRentPayment(form) || form.incomeType === "押金收入" ? "租客" : "租客（可选）"} value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone} · ${tenant.wechat || "无微信"}`, keywords: `${tenant.phone} ${tenant.wechat}` }))} onChange={chooseTenant} placeholder={form.roomId ? "搜索租客姓名、电话、微信" : "可直接留空"} />
               {isRentPayment(form) ? <div className="field auto-fill-field"><label>自动填充</label><button className="btn" disabled={!form.tenantId} onClick={autoFill} type="button">带出月租和未覆盖日期</button></div> : null}
               {isRentPayment(form) ? <MoneyInput label="月租金额（参考）" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} /> : null}
               <MoneyInput label={isRentPayment(form) ? "实收金额" : "金额"} value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />

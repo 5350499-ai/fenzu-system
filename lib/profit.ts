@@ -124,8 +124,8 @@ export function calculatePropertyProfit(
   };
 }
 
-export function calculateTotals(stats: PropertyProfit[]) {
-  const income = sumBy(stats, "income");
+export function calculateTotals(stats: PropertyProfit[], unassignedIncome = 0) {
+  const income = sumBy(stats, "income") + unassignedIncome;
   const expense = sumBy(stats, "expense");
   const unpaid = sumBy(stats, "unpaid");
   const depositAmount = sumBy(stats, "depositAmount");
@@ -142,6 +142,12 @@ export function calculateTotals(stats: PropertyProfit[]) {
     vacantRooms: sumBy(stats, "vacantRooms"),
     occupancy: rentableRooms ? Math.round((rentedRooms / rentableRooms) * 100) : 0
   };
+}
+
+export function calculateUnassignedIncome(payments: BusinessRentPayment[], range: DateRange) {
+  return payments
+    .filter((payment) => !payment.propertyId && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes))
+    .reduce((total, payment) => total + Number(payment.amountPaid || 0), 0);
 }
 
 export function monthlyProfitRows(

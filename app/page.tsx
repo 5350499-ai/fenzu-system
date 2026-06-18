@@ -27,7 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { calculatePropertyProfits, calculateTotals, getDateRange } from "@/lib/profit";
+import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     () => calculatePropertyProfits(properties, rooms, rentPayments, expenses, deposits, thisMonthRange),
     [deposits, expenses, properties, rentPayments, rooms, thisMonthRange]
   );
-  const totals = calculateTotals(propertyStats);
+  const totals = calculateTotals(propertyStats, calculateUnassignedIncome(rentPayments, thisMonthRange));
   const reminders = useMemo(
     () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits }),
     [contracts, deposits, properties, rentPayments, rooms, tenants]
@@ -94,7 +94,7 @@ export default function DashboardPage() {
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
       <div className="grid metrics">
-        <MetricCard label="本月总收入" value={euro(totals.income)} note="点击查看本月收租" href={`/rent-payments?month=${currentMonth}`} />
+        <MetricCard label="本月总收入" value={euro(totals.income)} note="点击查看本月收款" href={`/rent-payments?month=${currentMonth}`} />
         <MetricCard label="本月总支出" value={euro(totals.expense)} note="点击查看本月支出" href={`/expenses?month=${currentMonth}`} />
         <MetricCard label="本月净利润" value={euro(totals.netProfit)} note="收入减支出" tone={totals.netProfit < 0 ? "danger" : "profit"} href="/property-profits" hero />
         <MetricCard label="应收未收金额" value={euro(totals.unpaid)} note="点击查看欠费" tone={totals.unpaid > 0 ? "danger" : "info"} href="/rent-payments?overdue=1" />
