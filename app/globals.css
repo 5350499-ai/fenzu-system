@@ -2272,18 +2272,31 @@ td:last-child {
 
   .room-finance-line {
     grid-template-columns:
-      minmax(36px, 0.65fr)
-      minmax(38px, 0.65fr)
-      minmax(52px, auto)
-      minmax(68px, auto)
-      minmax(72px, auto)
-      minmax(58px, auto);
-    gap: 5px;
-    font-size: 11px;
+      minmax(4.2em, 0.72fr)
+      minmax(8.5em, 1.7fr)
+      max-content
+      minmax(62px, auto)
+      minmax(28px, auto);
+    gap: 4px;
+    font-size: 10.5px;
   }
 
   .room-finance-line .badge {
-    padding-inline: 6px;
-    font-size: 10px;
+    min-height: 22px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+
+  .room-finance-line > :nth-child(5) {
+    display: none;
+  }
+
+  .room-finance-line .room-property-name {
+    min-width: 4.2em;
+  }
+
+  .room-finance-line .room-display-name {
+    min-width: 8.5em;
+    font-weight: 800;
   }
 }

@@ -187,8 +187,8 @@ export default function RoomsPage() {
             return (
               <article className="finance-list-item" key={room.id}>
                 <button className="finance-line room-finance-line" onClick={() => setExpandedRoomId(expanded ? "" : room.id)} type="button">
-                  <span>{property?.name || "-"}</span>
-                  <span>{room.roomNumber || room.name}</span>
+                  <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
+                  <span className="room-display-name" title={room.roomNumber || room.name}>{room.roomNumber || room.name}</span>
                   <StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge>
                   <strong>{euro(room.monthlyRent)}</strong>
                   <strong className={unpaid > 0 ? "danger-text" : "muted"}>{unpaid > 0 ? `欠费${euro(unpaid)}` : "-"}</strong>
