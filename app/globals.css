@@ -1221,6 +1221,7 @@ td:last-child {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   min-height: 42px;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1236,9 +1237,25 @@ td:last-child {
 }
 
 .field input[type="date"] {
-  -webkit-appearance: auto;
-  appearance: auto;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+  overflow: hidden;
+  line-height: normal;
+  background-clip: padding-box;
+}
+
+.field input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+.field input[type="date"]::-webkit-calendar-picker-indicator {
+  flex: 0 0 auto;
+  max-width: 22px;
+  margin: 0;
 }
 
 .field textarea {
@@ -2225,6 +2242,20 @@ td:last-child {
   .attachment-preview {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
+  }
+
+  .field {
+    overflow: hidden;
+  }
+
+  .field input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-right: 10px;
   }
 
   .top-actions {
