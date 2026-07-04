@@ -2324,7 +2324,7 @@ td:last-child {
   .form-grid {
     grid-template-columns: 1fr;
     width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .form-grid > *,
@@ -2345,6 +2345,14 @@ td:last-child {
   }
 
   .combobox {
+    overflow: visible;
+  }
+
+  .tap-select-field {
+    overflow: visible;
+  }
+
+  .tap-select {
     overflow: visible;
   }
 

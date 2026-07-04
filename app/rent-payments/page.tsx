@@ -37,7 +37,7 @@ import {
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, todayString } from "@/lib/rent-coverage";
 import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TapOption = {
   value: string;
@@ -545,12 +545,40 @@ function TapSelect({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOnOutside(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnOutside);
+    return () => document.removeEventListener("pointerdown", closeOnOutside);
+  }, [open]);
+
+  function openMenu(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!disabled) setOpen(true);
+  }
+
+  function choose(nextValue: string, event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    onChange(nextValue);
+    setOpen(false);
+  }
+
   return (
-    <div className="field tap-select-field">
+    <div className="field tap-select-field" ref={rootRef}>
       <label>{label}</label>
       <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
-        <button className="tap-select-trigger" disabled={disabled} onClick={() => setOpen((current) => !current)} type="button">
+        <button className="tap-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
           <span>
             <strong>{selected?.label || placeholder}</strong>
             {selected?.description ? <small>{selected.description}</small> : null}
