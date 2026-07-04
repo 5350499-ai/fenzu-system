@@ -1347,6 +1347,97 @@ td:last-child {
   padding: 12px;
 }
 
+.tap-select-field {
+  position: relative;
+}
+
+.tap-select {
+  position: relative;
+}
+
+.tap-select.disabled {
+  opacity: 0.55;
+}
+
+.tap-select-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.tap-select-trigger span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tap-select-trigger strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tap-select-trigger small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tap-select-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 80;
+  display: grid;
+  max-height: min(360px, 48vh);
+  gap: 6px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  padding: 8px;
+}
+
+.tap-select-menu button {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  padding: 11px;
+  text-align: left;
+}
+
+.tap-select-menu button.active {
+  border-color: rgba(65, 185, 129, 0.36);
+  background: rgba(65, 185, 129, 0.14);
+}
+
+.tap-select-menu button span,
+.tap-select-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tap-select-empty {
+  padding: 12px;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

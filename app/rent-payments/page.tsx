@@ -4,7 +4,6 @@ import { AppLayout } from "@/components/app-layout";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
-import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessProperty,
@@ -37,8 +36,14 @@ import {
   uploadRentPaymentFile
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, todayString } from "@/lib/rent-coverage";
-import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
+import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+type TapOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
 
 const emptyPayment: BusinessRentPayment = {
   id: "",
@@ -206,19 +211,41 @@ export default function RentPaymentsPage() {
     const tenant = tenants.find((item) => item.id === tenantId);
     const latest = latestCoverageForTenant(tenantId, payments);
     const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
+    const room = rooms.find((item) => item.id === (tenant?.roomId || form.roomId));
+    const defaultRent = Number(tenant?.monthlyRent || room?.monthlyRent || 0);
+    const defaultDeposit = form.incomeType === "续交房租" ? 0 : Number(tenant?.depositAmount || room?.depositAmount || 0);
     updateMoney({
       tenantId,
-      amountDue: 0,
+      amountDue: defaultRent,
       coverageStartDate: nextStart,
       coverageEndDate: defaultCoverageEnd(nextStart),
       paymentMethod: form.incomeType === "续交房租" ? latest?.paymentMethod || form.paymentMethod : form.paymentMethod
     });
-    setDepositAmount(0);
+    setDepositAmount(defaultDeposit);
     if (form.incomeType === "续交房租" && latest?.receivedBy) {
       const mode = ownershipChoice(latest.receivedBy);
       setOwnershipMode(mode);
       setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latest.receivedBy) : "");
     }
+  }
+
+  function chooseRoom(roomId: string) {
+    const room = rooms.find((item) => item.id === roomId);
+    const roomTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === roomId && tenant.status !== "已退房");
+    const onlyTenant = roomTenants.length === 1 ? roomTenants[0] : null;
+    const latest = onlyTenant ? latestCoverageForTenant(onlyTenant.id, payments) : null;
+    const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : form.coverageStartDate || todayString();
+    const defaultRent = Number(onlyTenant?.monthlyRent || room?.monthlyRent || 0);
+    const defaultDeposit = form.incomeType === "续交房租" ? 0 : Number(onlyTenant?.depositAmount || room?.depositAmount || 0);
+    updateMoney({
+      roomId,
+      tenantId: onlyTenant?.id || "",
+      amountDue: defaultRent,
+      coverageStartDate: nextStart,
+      coverageEndDate: defaultCoverageEnd(nextStart),
+      paymentMethod: form.incomeType === "续交房租" && latest?.paymentMethod ? latest.paymentMethod : form.paymentMethod
+    });
+    setDepositAmount(defaultDeposit);
   }
 
   async function createTenantForPayment() {
@@ -254,7 +281,8 @@ export default function RentPaymentsPage() {
       setNewTenantName("");
       setNewTenantPhone("");
       const coverageStartDate = todayString();
-      updateMoney({ tenantId: tenant.id, amountDue: 0, coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) });
+      updateMoney({ tenantId: tenant.id, amountDue: tenant.monthlyRent || room?.monthlyRent || 0, coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) });
+      setDepositAmount(form.incomeType === "续交房租" ? 0 : tenant.depositAmount || room?.depositAmount || 0);
     } catch (error: any) {
       window.alert(error.message || "新增租客失败，请稍后重试。");
     } finally {
@@ -462,27 +490,27 @@ export default function RentPaymentsPage() {
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑收款" : "登记收款"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
             <form className="form-grid" onSubmit={submit}>
-              <SearchableSelect label="收款类型" value={form.incomeType || "房租收入"} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
+              <TapSelect label="收款类型" value={form.incomeType || "房租收入"} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
                 const nextType = incomeType as BusinessRentPayment["incomeType"];
                 const nextIsRent = nextType === "房租收入" || nextType === "续交房租";
                 setForm((current) => ({ ...current, incomeType: nextType, incomeItem: "", amountDue: nextIsRent ? current.amountDue : 0, amountUnpaid: 0, coverageStartDate: nextIsRent ? current.coverageStartDate : "", coverageEndDate: nextIsRent ? current.coverageEndDate : "", paymentStatus: "已收" }));
                 if (!nextIsRent) setDepositAmount(0);
               }} />
-              <SearchableSelect label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "" }))} placeholder={isRentPayment(form) ? "搜索房源名称、地址、城市" : "可直接留空"} />
-              <SearchableSelect label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId, tenantId: "" }))} placeholder={form.propertyId ? "搜索房间名称、编号" : "可直接留空"} />
-              <SearchableSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: tenant.phone || "无电话", keywords: tenant.phone }))} onChange={chooseTenant} placeholder={form.roomId ? "搜索租客姓名、电话" : "可直接留空"} />
+              <TapSelect label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city || "-"} · ${property.address || "-"}` }))} onChange={(propertyId) => { setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "", amountDue: 0 })); setDepositAmount(0); }} placeholder={isRentPayment(form) ? "点这里选择房源" : "不关联房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `月租 ${euro(room.monthlyRent || 0)} · 押金 ${euro(room.depositAmount || 0)} · ${room.status}` }))} onChange={chooseRoom} placeholder={form.propertyId ? "点这里选择房间" : "先选择房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone || "无电话"} · 月租 ${euro(tenant.monthlyRent || 0)} · 押金 ${euro(tenant.depositAmount || 0)}` }))} onChange={chooseTenant} placeholder={form.roomId ? "点这里选择租客" : "先选择房间"} allowEmpty={!isRentPayment(form)} />
               {isRentPayment(form) ? <MoneyInput label="本次房租金额" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} /> : <MoneyInput label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
               {isRentPayment(form) ? <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} /> : null}
               {isRentPayment(form) ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
-              <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
-              {isRentPayment(form) ? <SearchableSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus })} /> : null}
+              {isRentPayment(form) ? <TapSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus })} /> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
@@ -496,6 +524,52 @@ export default function RentPaymentsPage() {
         </div>
       ) : null}
     </AppLayout>
+  );
+}
+
+function TapSelect({
+  label,
+  value,
+  options,
+  placeholder = "点这里选择",
+  disabled,
+  allowEmpty,
+  onChange
+}: {
+  label: string;
+  value: string;
+  options: TapOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  allowEmpty?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+  return (
+    <div className="field tap-select-field">
+      <label>{label}</label>
+      <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
+        <button className="tap-select-trigger" disabled={disabled} onClick={() => setOpen((current) => !current)} type="button">
+          <span>
+            <strong>{selected?.label || placeholder}</strong>
+            {selected?.description ? <small>{selected.description}</small> : null}
+          </span>
+          <ChevronDown size={18} />
+        </button>
+        {open && !disabled ? (
+          <div className="tap-select-menu">
+            {allowEmpty ? <button className={!value ? "active" : ""} type="button" onClick={() => { onChange(""); setOpen(false); }}><strong>不选择</strong><span>可直接留空</span></button> : null}
+            {options.length ? options.map((option) => (
+              <button className={option.value === value ? "active" : ""} key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); }}>
+                <strong>{option.label}</strong>
+                {option.description ? <span>{option.description}</span> : null}
+              </button>
+            )) : <div className="tap-select-empty">暂无可选项</div>}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
