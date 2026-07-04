@@ -27,3 +27,5 @@ expense-uploads/
 *.pdf
 *.jpg
 *.jpeg
+.vercel
+.env*
