@@ -41,7 +41,15 @@ export function SearchableSelect({
   return (
     <div className="field combobox-field">
       <label>{label}</label>
-      <div className={`combobox ${disabled ? "disabled" : ""}`}>
+      <div
+        className={`combobox ${disabled ? "disabled" : ""}`}
+        onMouseDown={() => {
+          if (!disabled) setOpen(true);
+        }}
+        onTouchStart={() => {
+          if (!disabled) setOpen(true);
+        }}
+      >
         <Search size={17} />
         <input
           disabled={disabled}
@@ -59,7 +67,10 @@ export function SearchableSelect({
             aria-label="清空"
             className="icon-button"
             type="button"
-            onClick={() => {
+            onMouseDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
               onChange("");
               setQuery("");
               setOpen(false);

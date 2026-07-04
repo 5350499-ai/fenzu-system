@@ -2340,6 +2340,14 @@ td:last-child {
     overflow: hidden;
   }
 
+  .combobox-field {
+    overflow: visible;
+  }
+
+  .combobox {
+    overflow: visible;
+  }
+
   .field input[type="date"] {
     -webkit-appearance: none;
     appearance: none;
