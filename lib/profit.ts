@@ -5,7 +5,7 @@ import {
   BusinessRentPayment,
   BusinessRoom
 } from "./business-data";
-import { isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount } from "./rent-coverage";
+import { isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount, roomOccupancyStatus } from "./rent-coverage";
 
 export type RangePreset = "thisMonth" | "lastMonth" | "last30Days" | "last3Months" | "last6Months" | "last12Months" | "custom";
 
@@ -85,8 +85,9 @@ export function calculatePropertyProfit(
 ): PropertyProfit {
   const scopedRooms = rooms.filter((room) => room.propertyId === property.id && !isArchived(room.status));
   const rentableRooms = scopedRooms.filter((room) => !isStoppedStatus(room.status)).length;
-  const rentedRooms = scopedRooms.filter((room) => isRentedStatus(room.status)).length;
-  const vacantRooms = scopedRooms.filter((room) => isVacantStatus(room.status)).length;
+  const roomsWithDynamicStatus = scopedRooms.map((room) => ({ room, status: roomOccupancyStatus(room, payments) }));
+  const rentedRooms = roomsWithDynamicStatus.filter((item) => isRentedStatus(item.status)).length;
+  const vacantRooms = roomsWithDynamicStatus.filter((item) => isVacantStatus(item.status)).length;
   const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isPaymentInRange(payment, range) && !isVoided(payment.notes));
   const scopedExpenses = expenses.filter((expense) => expense.propertyId === property.id && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes));
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));

@@ -27,7 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount } from "@/lib/rent-coverage";
+import { activeCoveragePaymentForRoom, coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -89,9 +89,10 @@ export default function RoomsPage() {
     if (!keyword) return rooms;
     return rooms.filter((room) => {
       const property = properties.find((item) => item.id === room.propertyId);
-      return `${property?.name || ""} ${room.name} ${room.roomNumber} ${room.status} ${room.notes || ""}`.toLowerCase().includes(keyword);
+      const displayStatus = roomOccupancyStatus(room, payments);
+      return `${property?.name || ""} ${room.name} ${room.roomNumber} ${room.status} ${displayStatus} ${room.notes || ""}`.toLowerCase().includes(keyword);
     });
-  }, [properties, query, rooms]);
+  }, [payments, properties, query, rooms]);
   const visibleRooms = pageRows(filteredRooms, page, pageSize);
 
   function close() {
@@ -179,17 +180,19 @@ export default function RoomsPage() {
           {visibleRooms.map((room) => {
             const property = properties.find((item) => item.id === room.propertyId);
             const contract = latestContractForRoom(room.id, contracts);
-            const expiry = room.status.includes("已租") || room.status.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
+            const displayStatus = roomOccupancyStatus(room, payments);
+            const expiry = displayStatus.includes("已租") || displayStatus.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
             const latestPayment = latestCoverageForRoom(room.id, payments);
-            const currentTenants = tenants.filter((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
-            const unpaid = roomUnpaidAmount(room.id, payments);
+            const activePayment = activeCoveragePaymentForRoom(room.id, payments);
+            const currentTenant = activePayment ? tenants.find((tenant) => tenant.id === activePayment.tenantId) : null;
+            const unpaid = displayStatus === "已租" ? roomUnpaidAmount(room.id, payments) : 0;
             const expanded = expandedRoomId === room.id;
             return (
               <article className="finance-list-item" key={room.id}>
                 <button className="finance-line room-finance-line" onClick={() => setExpandedRoomId(expanded ? "" : room.id)} type="button">
                   <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
                   <span className="room-display-name" title={room.roomNumber || room.name}>{room.roomNumber || room.name}</span>
-                  <StatusBadge tone={roomTone(room.status)}>{room.status}</StatusBadge>
+                  <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <strong>{euro(room.monthlyRent)}</strong>
                   <strong className={unpaid > 0 ? "danger-text" : "muted"}>{unpaid > 0 ? `欠费${euro(unpaid)}` : "-"}</strong>
                   <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
@@ -200,7 +203,7 @@ export default function RoomsPage() {
                     propertyName={property?.name || "-"}
                     room={room}
                     unpaid={unpaid}
-                    currentTenantName={currentTenants.map((tenant) => tenant.name).join("、") || "-"}
+                    currentTenantName={currentTenant?.name || "-"}
                     coverageEnd={coverageLabel(latestPayment)}
                     contractEndDate={contract?.endDate || "-"}
                     payments={payments.filter((payment) => payment.roomId === room.id)}

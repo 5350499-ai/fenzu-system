@@ -28,7 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
-import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -237,7 +237,7 @@ function buildDashboardReminders({
     });
 
   const vacantByProperty = rooms
-    .filter((room) => room.status.includes("空置"))
+    .filter((room) => roomOccupancyStatus(room, rentPayments).includes("空置"))
     .reduce<Record<string, number>>((map, room) => {
       map[room.propertyId] = (map[room.propertyId] || 0) + 1;
       return map;
@@ -284,7 +284,7 @@ function buildReminderSummary({
     return days <= 30;
   }).length;
   const abnormalDeposits = deposits.filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes)).length;
-  const vacantRooms = rooms.filter((room) => room.status.includes("空置")).length;
+  const vacantRooms = rooms.filter((room) => roomOccupancyStatus(room, rentPayments).includes("空置")).length;
   const parts = [];
   if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
   if (rentDueCount > 0) parts.push(`待收租${rentDueCount}`);

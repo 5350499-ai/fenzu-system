@@ -172,7 +172,7 @@ export default function TenantsPage() {
       const leftContract = latestContractForTenant(left.id, contracts);
       const rightContract = latestContractForTenant(right.id, contracts);
       const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortKey === "rent") return (left.monthlyRent - right.monthlyRent) * direction;
+      if (sortKey === "rent") return (latestReceivedAmount(left.id, payments) - latestReceivedAmount(right.id, payments)) * direction;
       if (sortKey === "property") return leftProperty.localeCompare(rightProperty, "zh-Hans-CN") * direction;
       if (sortKey === "status") return tenantDisplayStatus(left, payments).localeCompare(tenantDisplayStatus(right, payments), "zh-Hans-CN") * direction;
       return (expirySortValue(leftContract?.endDate) - expirySortValue(rightContract?.endDate)) * direction;
@@ -504,7 +504,7 @@ export default function TenantsPage() {
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span>{tenant.name || "-"}</span>
                   <span>{property?.name || "-"}-{room?.name || "-"}</span>
-                  <strong>{euro(tenant.monthlyRent)}</strong>
+                  <strong>{euro(coveragePayment?.amountPaid || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
@@ -814,13 +814,20 @@ function tenantTone(status: string) {
   if (status.includes("欠")) return "red";
   if (status.includes("退")) return "red";
   if (status.includes("预")) return "amber";
+  if (status.includes("无")) return "blue";
   return "green";
 }
 
 function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayment[]) {
-  const hasDebt = isCoverageExpired(latestCoverageForTenant(tenant.id, payments));
-  if (hasDebt) return "欠租";
+  if (tenant.status.includes("退") || tenant.status.includes("归档")) return tenant.status;
+  const latestPayment = latestCoverageForTenant(tenant.id, payments);
+  if (!latestPayment) return "无收款";
+  if (isCoverageExpired(latestPayment)) return "欠租";
   return tenant.status || "在租";
+}
+
+function latestReceivedAmount(tenantId: string, payments: BusinessRentPayment[]) {
+  return Number(latestCoverageForTenant(tenantId, payments)?.amountPaid || 0);
 }
 
 function syncRoomsAfterTenantChange(

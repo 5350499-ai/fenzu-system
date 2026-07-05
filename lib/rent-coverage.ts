@@ -1,4 +1,4 @@
-import type { BusinessRentPayment, BusinessTenant } from "./business-data";
+import type { BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 
 export function paymentCoverageStart(payment: BusinessRentPayment) {
   return payment.coverageStartDate || monthStart(payment.rentMonth);
@@ -20,6 +20,26 @@ export function latestCoverageForTenant(tenantId: string, payments: BusinessRent
 
 export function latestCoverageForRoom(roomId: string, payments: BusinessRentPayment[]) {
   return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId));
+}
+
+export function activeCoveragePaymentForTenant(tenantId: string, payments: BusinessRentPayment[], today = todayString()) {
+  return latestCoveragePayment(payments.filter((payment) => payment.tenantId === tenantId && isPaymentActiveOnDate(payment, today)));
+}
+
+export function activeCoveragePaymentForRoom(roomId: string, payments: BusinessRentPayment[], today = todayString()) {
+  return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId && isPaymentActiveOnDate(payment, today)));
+}
+
+export function roomOccupancyStatus(room: BusinessRoom, payments: BusinessRentPayment[], today = todayString()) {
+  if (["维修中", "暂停出租", "已归档"].includes(room.status)) return room.status;
+  return activeCoveragePaymentForRoom(room.id, payments, today) ? "已租" : "空置";
+}
+
+export function isPaymentActiveOnDate(payment: BusinessRentPayment, today = todayString()) {
+  if (!isRentIncome(payment) || isVoided(payment.notes)) return false;
+  const startDate = paymentCoverageStart(payment);
+  const endDate = paymentCoverageEnd(payment);
+  return Boolean(startDate && endDate && startDate <= today && today <= endDate);
 }
 
 export function isCoverageExpired(payment: BusinessRentPayment | null, today = todayString()) {
