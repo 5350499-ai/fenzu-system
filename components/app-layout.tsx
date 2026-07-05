@@ -15,11 +15,8 @@ import {
   Home,
   LineChart,
   LogIn,
-  LogOut,
-  Moon,
   ReceiptText,
   Settings,
-  Sun,
   Users,
   WalletCards
 } from "lucide-react";
@@ -168,14 +165,12 @@ export function AppLayout({ children, title, description }: { children: React.Re
             <h1 className="page-title">{title}</h1>
             {description ? <p className="page-desc">{description}</p> : null}
           </div>
-          <div className="top-actions">
-            <button className="btn" onClick={toggleTheme} type="button">
-              {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-              主题
+          <div className="top-actions zanjia-top-actions">
+            <button className="zanjia-theme-toggle" onClick={toggleTheme} type="button" aria-label="切换主题">
+              {theme === "light" ? "🌙" : "☀️"}
             </button>
-            <button className="btn danger" onClick={logout} type="button">
-              <LogOut size={17} />
-              退出
+            <button className="zanjia-avatar-button" onClick={logout} type="button" aria-label="退出登录">
+              👤
             </button>
           </div>
         </header>
