@@ -346,7 +346,7 @@ export default function RentPaymentsPage() {
         source: "其他",
         monthlyRent: Number(form.amountDue || room?.monthlyRent || 0),
         depositAmount: Number(depositAmount || room?.depositAmount || 0),
-        paymentDay: undefined,
+        paymentDay: 20,
         status: "在租",
         notes: "由收款登记自动创建"
       };
