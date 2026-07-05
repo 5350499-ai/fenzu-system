@@ -87,7 +87,7 @@ export function calculatePropertyProfit(
   const rentableRooms = scopedRooms.filter((room) => !isStoppedStatus(room.status)).length;
   const rentedRooms = scopedRooms.filter((room) => isRentedStatus(room.status)).length;
   const vacantRooms = scopedRooms.filter((room) => isVacantStatus(room.status)).length;
-  const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes));
+  const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isPaymentInRange(payment, range) && !isVoided(payment.notes));
   const scopedExpenses = expenses.filter((expense) => expense.propertyId === property.id && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes));
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
   const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
@@ -141,7 +141,7 @@ export function calculateTotals(stats: PropertyProfit[], unassignedIncome = 0) {
 
 export function calculateUnassignedIncome(payments: BusinessRentPayment[], range: DateRange) {
   return payments
-    .filter((payment) => !payment.propertyId && isMonthInRange(payment.rentMonth, range) && !isVoided(payment.notes))
+    .filter((payment) => !payment.propertyId && isPaymentInRange(payment, range) && !isVoided(payment.notes))
     .reduce((total, payment) => total + Number(payment.amountPaid || 0), 0);
 }
 
@@ -155,7 +155,7 @@ export function monthlyProfitRows(
   const months = recentMonths(monthsBack);
   return months.map((month) => {
     const income = payments
-      .filter((item) => item.propertyId === propertyId && item.rentMonth === month && !isVoided(item.notes))
+      .filter((item) => item.propertyId === propertyId && paymentAccountingMonth(item) === month && !isVoided(item.notes))
       .reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
     const expense = sumBy(expenses.filter((item) => item.propertyId === propertyId && item.expenseMonth === month && !isVoided(item.notes)), "amount");
     return { month, income, expense, netProfit: income - expense };
@@ -186,6 +186,15 @@ export function isMonthInRange(month: string, range: DateRange) {
   if (!month) return false;
   const date = month.length === 7 ? `${month}-01` : month;
   return isDateInRange(date, range);
+}
+
+export function isPaymentInRange(payment: BusinessRentPayment, range: DateRange) {
+  const date = payment.paymentDate || (payment.rentMonth ? `${payment.rentMonth}-01` : "");
+  return isDateInRange(date, range);
+}
+
+function paymentAccountingMonth(payment: BusinessRentPayment) {
+  return (payment.paymentDate || (payment.rentMonth ? `${payment.rentMonth}-01` : "")).slice(0, 7);
 }
 
 export function isDateInRange(date: string, range: DateRange) {
