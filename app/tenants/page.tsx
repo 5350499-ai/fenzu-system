@@ -172,7 +172,7 @@ export default function TenantsPage() {
       const leftContract = latestContractForTenant(left.id, contracts);
       const rightContract = latestContractForTenant(right.id, contracts);
       const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortKey === "rent") return (latestReceivedAmount(left.id, payments) - latestReceivedAmount(right.id, payments)) * direction;
+      if (sortKey === "rent") return (left.monthlyRent - right.monthlyRent) * direction;
       if (sortKey === "property") return leftProperty.localeCompare(rightProperty, "zh-Hans-CN") * direction;
       if (sortKey === "status") return tenantDisplayStatus(left, payments).localeCompare(tenantDisplayStatus(right, payments), "zh-Hans-CN") * direction;
       return (expirySortValue(leftContract?.endDate) - expirySortValue(rightContract?.endDate)) * direction;
@@ -495,7 +495,6 @@ export default function TenantsPage() {
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract);
             const contract = latestContractForTenant(tenant.id, contracts);
-            const coveragePayment = latestCoverageForTenant(tenant.id, payments);
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expanded = detailTenantId === tenant.id;
@@ -504,14 +503,14 @@ export default function TenantsPage() {
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span>{tenant.name || "-"}</span>
                   <span>{property?.name || "-"}-{room?.name || "-"}</span>
-                  <strong>{euro(coveragePayment?.amountPaid || 0)}</strong>
+                  <strong>{euro(tenant.monthlyRent || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
                 {expanded ? (
                   <TenantDetail
                     contract={contract}
-                    coverageEnd={coverageLabel(coveragePayment)}
+                    coverageEnd={coverageLabel(latestCoverageForTenant(tenant.id, payments))}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
                     files={files}
@@ -824,10 +823,6 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
   if (!latestPayment) return "无收款";
   if (isCoverageExpired(latestPayment)) return "欠租";
   return tenant.status || "在租";
-}
-
-function latestReceivedAmount(tenantId: string, payments: BusinessRentPayment[]) {
-  return Number(latestCoverageForTenant(tenantId, payments)?.amountPaid || 0);
 }
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
