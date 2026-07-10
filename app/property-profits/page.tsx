@@ -7,17 +7,20 @@ import {
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
+  BusinessTenant,
   BusinessRoom,
   depositKey,
   expenseKey,
   getInitialDeposits,
   getInitialExpenses,
   getInitialProperties,
+  getInitialTenants,
   getInitialRentPayments,
   getInitialRooms,
   loadBusinessData,
   propertyKey,
   rentPaymentKey,
+  tenantKey,
   roomKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
@@ -28,6 +31,7 @@ import { useEffect, useMemo, useState } from "react";
 export default function PropertyProfitsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
@@ -36,11 +40,13 @@ export default function PropertyProfitsPage() {
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
+      setTenants(loadedTenants);
       setPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
@@ -49,9 +55,9 @@ export default function PropertyProfitsPage() {
   }, []);
 
   const stats = useMemo(() => {
-    return calculatePropertyProfits(properties, rooms, payments, expenses, deposits, getDateRange("thisMonth"))
+    return calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth"))
       .sort((a, b) => a.netProfit - b.netProfit);
-  }, [deposits, expenses, payments, properties, rooms]);
+  }, [deposits, expenses, payments, properties, rooms, tenants]);
 
   return (
     <AppLayout title="房源利润分析" description="每套房源单独核算，本页先看本月概览，点击房源进入明细。">

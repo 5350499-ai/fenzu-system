@@ -9,17 +9,20 @@ import {
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
+  BusinessTenant,
   BusinessRoom,
   depositKey,
   expenseKey,
   getInitialDeposits,
   getInitialExpenses,
   getInitialProperties,
+  getInitialTenants,
   getInitialRentPayments,
   getInitialRooms,
   loadBusinessData,
   propertyKey,
   rentPaymentKey,
+  tenantKey,
   roomKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
@@ -30,6 +33,7 @@ import { useEffect, useMemo, useState } from "react";
 export default function AnalyticsPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
@@ -42,11 +46,13 @@ export default function AnalyticsPage() {
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
+      setTenants(loadedTenants);
       setPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
@@ -56,9 +62,9 @@ export default function AnalyticsPage() {
 
   const range = useMemo(() => getDateRange(preset, customStart, customEnd), [customEnd, customStart, preset]);
   const propertyStats = useMemo(() => {
-    const stats = calculatePropertyProfits(properties, rooms, payments, expenses, deposits, range);
+    const stats = calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range);
     return stats.sort((a, b) => a.netProfit - b.netProfit);
-  }, [deposits, expenses, payments, properties, range, rooms]);
+  }, [deposits, expenses, payments, properties, range, rooms, tenants]);
   const visibleStats = propertyId === "all" ? propertyStats : propertyStats.filter((item) => item.property.id === propertyId);
   const totals = calculateTotals(visibleStats, propertyId === "all" ? calculateUnassignedIncome(payments, range) : 0);
   const selected = propertyId === "all" ? null : visibleStats[0];

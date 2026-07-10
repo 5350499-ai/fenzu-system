@@ -611,13 +611,6 @@ function TapSelect({
     if (!disabled) setOpen(true);
   }
 
-  function choose(nextValue: string, event: React.PointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    onChange(nextValue);
-    setOpen(false);
-  }
-
   return (
     <div className="field tap-select-field" ref={rootRef}>
       <label>{label}</label>
@@ -631,9 +624,9 @@ function TapSelect({
         </button>
         {open && !disabled ? (
           <div className="tap-select-menu">
-            {allowEmpty ? <button className={!value ? "active" : ""} type="button" onClick={() => { onChange(""); setOpen(false); }}><strong>不选择</strong><span>可直接留空</span></button> : null}
+            {allowEmpty ? <button className={!value ? "active" : ""} type="button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); setOpen(false); }}><strong>不选择</strong><span>可直接留空</span></button> : null}
             {options.length ? options.map((option) => (
-              <button className={option.value === value ? "active" : ""} key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); }}>
+              <button className={option.value === value ? "active" : ""} key={option.value} type="button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); onChange(option.value); setOpen(false); }}>
                 <strong>{option.label}</strong>
                 {option.description ? <span>{option.description}</span> : null}
               </button>

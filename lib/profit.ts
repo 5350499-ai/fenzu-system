@@ -3,9 +3,10 @@ import {
   BusinessExpense,
   BusinessProperty,
   BusinessRentPayment,
-  BusinessRoom
+  BusinessRoom,
+  BusinessTenant
 } from "./business-data";
-import { isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount, roomOccupancyStatus } from "./rent-coverage";
+import { isCoverageExpired, isCurrentRentalTenant, latestCoverageForTenant, roomOccupancyStatus } from "./rent-coverage";
 
 export type RangePreset = "thisMonth" | "lastMonth" | "last30Days" | "last3Months" | "last6Months" | "last12Months" | "custom";
 
@@ -67,23 +68,26 @@ export function getDateRange(preset: RangePreset, customStart?: string, customEn
 export function calculatePropertyProfits(
   properties: BusinessProperty[],
   rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
   range: DateRange
 ): PropertyProfit[] {
-  return properties.map((property) => calculatePropertyProfit(property, rooms, payments, expenses, deposits, range));
+  return properties.map((property) => calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, range));
 }
 
 export function calculatePropertyProfit(
   property: BusinessProperty,
   rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
   range: DateRange
 ): PropertyProfit {
   const scopedRooms = rooms.filter((room) => room.propertyId === property.id && !isArchived(room.status));
+  const scopedTenants = tenants.filter((tenant) => tenant.propertyId === property.id && isCurrentRentalTenant(tenant));
   const rentableRooms = scopedRooms.filter((room) => !isStoppedStatus(room.status)).length;
   const roomsWithDynamicStatus = scopedRooms.map((room) => ({ room, status: roomOccupancyStatus(room, payments) }));
   const rentedRooms = roomsWithDynamicStatus.filter((item) => isRentedStatus(item.status)).length;
@@ -93,10 +97,9 @@ export function calculatePropertyProfit(
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
   const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
   const expense = sumBy(scopedExpenses, "amount");
-  const propertyPayments = payments.filter((payment) => payment.propertyId === property.id && !isVoided(payment.notes));
-  const unpaid = scopedRooms.reduce((total, room) => {
-    const latest = latestCoverageForRoom(room.id, propertyPayments);
-    return total + (isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0);
+  const unpaid = scopedTenants.reduce((total, tenant) => {
+    const latest = latestCoverageForTenant(tenant.id, payments);
+    return total + (isCoverageExpired(latest) ? Number(latest?.amountDue || tenant.monthlyRent || 0) : 0);
   }, 0);
   const depositAmount = 0;
   const netProfit = income - expense;

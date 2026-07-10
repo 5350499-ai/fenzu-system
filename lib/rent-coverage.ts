@@ -30,6 +30,13 @@ export function activeCoveragePaymentForRoom(roomId: string, payments: BusinessR
   return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId && isPaymentActiveOnDate(payment, today)));
 }
 
+export function isCurrentRentalTenant(tenant: BusinessTenant) {
+  const status = tenant.status || "";
+  if (["已退租", "已归档", "已结束", "非在租"].some((item) => status.includes(item))) return false;
+  if (status.includes("空置") || status.includes("预定入住")) return false;
+  return true;
+}
+
 export function roomOccupancyStatus(room: BusinessRoom, payments: BusinessRentPayment[], today = todayString()) {
   if (["维修中", "暂停出租", "已归档"].includes(room.status)) return room.status;
   return activeCoveragePaymentForRoom(room.id, payments, today) ? "已租" : "空置";
@@ -64,6 +71,7 @@ export function rentCollectionReminderStage(
   payment: BusinessRentPayment | null,
   today = todayString()
 ): RentCollectionReminderStage | null {
+  if (!isCurrentRentalTenant(tenant)) return null;
   const coverageStage = rentCoverageReminderStage(payment, today);
   if (coverageStage?.level === "overdue") {
     return { ...coverageStage, reason: "coverage", daysPastPaymentDay: 0 };

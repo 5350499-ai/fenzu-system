@@ -28,7 +28,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
-import { isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage, roomOccupancyStatus } from "@/lib/rent-coverage";
+import { isCoverageExpired, isCurrentRentalTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -77,8 +77,8 @@ export default function DashboardPage() {
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const propertyStats = useMemo(
-    () => calculatePropertyProfits(properties, rooms, rentPayments, expenses, deposits, thisMonthRange),
-    [deposits, expenses, properties, rentPayments, rooms, thisMonthRange]
+    () => calculatePropertyProfits(properties, rooms, tenants, rentPayments, expenses, deposits, thisMonthRange),
+    [deposits, expenses, properties, rentPayments, rooms, tenants, thisMonthRange]
   );
   const totals = calculateTotals(propertyStats, calculateUnassignedIncome(rentPayments, thisMonthRange));
   const reminders = useMemo(
@@ -170,7 +170,7 @@ function buildDashboardReminders({
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
 
   tenants
-    .filter((tenant) => !tenant.status.includes("退"))
+    .filter((tenant) => isCurrentRentalTenant(tenant))
     .map((tenant) => {
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
       return { tenant, payment, stage: rentCollectionReminderStage(tenant, payment) };
@@ -270,11 +270,13 @@ function buildReminderSummary({
   deposits: BusinessDeposit[];
 }) {
   const today = new Date();
-  const unpaid = rentPayments.reduce((sum, payment) => {
-    if (!isCoverageExpired(payment) || latestCoverageForTenant(payment.tenantId, rentPayments)?.id !== payment.id) return sum;
-    return sum + Number(payment.amountDue || 0);
+  const unpaid = tenants.reduce((sum, tenant) => {
+    if (!isCurrentRentalTenant(tenant)) return sum;
+    const payment = latestCoverageForTenant(tenant.id, rentPayments);
+    return sum + (isCoverageExpired(payment) ? overdueReferenceAmount(payment, tenant) : 0);
   }, 0);
   const rentDueCount = tenants.filter((tenant) => {
+    if (!isCurrentRentalTenant(tenant)) return false;
     const payment = latestCoverageForTenant(tenant.id, rentPayments);
     const stage = rentCollectionReminderStage(tenant, payment);
     return stage && stage.level !== "overdue";

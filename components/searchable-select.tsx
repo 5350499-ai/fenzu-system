@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type SelectOption = {
   value: string;
@@ -27,6 +27,7 @@ export function SearchableSelect({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
   const visibleOptions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -38,22 +39,39 @@ export function SearchableSelect({
     return matched.slice(0, 8);
   }, [options, query]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOnOutside(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnOutside);
+    return () => document.removeEventListener("pointerdown", closeOnOutside);
+  }, [open]);
+
+  function closeMenu() {
+    setOpen(false);
+  }
+
   return (
-    <div className="field combobox-field">
+    <div className="field combobox-field" ref={rootRef}>
       <label>{label}</label>
       <div
         className={`combobox ${disabled ? "disabled" : ""}`}
-        onMouseDown={() => {
-          if (!disabled) setOpen(true);
+        onMouseDown={(event) => {
+          if (!disabled && event.target === event.currentTarget) setOpen(true);
         }}
-        onTouchStart={() => {
-          if (!disabled) setOpen(true);
+        onTouchStart={(event) => {
+          if (!disabled && event.target === event.currentTarget) setOpen(true);
         }}
       >
         <Search size={17} />
         <input
           disabled={disabled}
-          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onBlur={() => window.setTimeout(closeMenu, 120)}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
@@ -62,21 +80,21 @@ export function SearchableSelect({
           placeholder={selected ? selected.label : placeholder || "搜索并选择"}
           value={open ? query : selected?.label || ""}
         />
-        {value ? (
-          <button
-            aria-label="清空"
-            className="icon-button"
-            type="button"
-            onMouseDown={(event) => event.stopPropagation()}
-            onTouchStart={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              onChange("");
-              setQuery("");
-              setOpen(false);
-            }}
-          >
-            <X size={15} />
+          {value ? (
+            <button
+              aria-label="清空"
+              className="icon-button"
+              type="button"
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange("");
+                setQuery("");
+                closeMenu();
+              }}
+            >
+              <X size={15} />
           </button>
         ) : null}
         {open && !disabled ? (
@@ -87,11 +105,12 @@ export function SearchableSelect({
                   className="combobox-option"
                   key={option.value}
                   type="button"
-                  onMouseDown={(event) => {
+                  onPointerDown={(event) => {
                     event.preventDefault();
+                    event.stopPropagation();
                     onChange(option.value);
                     setQuery("");
-                    setOpen(false);
+                    closeMenu();
                   }}
                 >
                   <strong>{option.label}</strong>

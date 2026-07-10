@@ -204,6 +204,8 @@ export default function RoomsPage() {
                     room={room}
                     unpaid={unpaid}
                     currentTenantName={currentTenant?.name || "-"}
+                    currentMonthlyRent={currentTenant?.monthlyRent ?? room.monthlyRent}
+                    currentDepositAmount={currentTenant?.depositAmount ?? room.depositAmount}
                     coverageEnd={coverageLabel(latestPayment)}
                     contractEndDate={contract?.endDate || "-"}
                     payments={payments.filter((payment) => payment.roomId === room.id)}
@@ -261,6 +263,8 @@ function RoomDetail({
   expiryLabel,
   unpaid,
   currentTenantName,
+  currentMonthlyRent,
+  currentDepositAmount,
   coverageEnd,
   contractEndDate,
   payments,
@@ -276,6 +280,8 @@ function RoomDetail({
   expiryLabel: string;
   unpaid: number;
   currentTenantName: string;
+  currentMonthlyRent: number;
+  currentDepositAmount: number;
   coverageEnd: string;
   contractEndDate: string;
   payments: BusinessRentPayment[];
@@ -293,8 +299,8 @@ function RoomDetail({
         <DetailField label="房间名称" value={room.name || "-"} />
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
         <DetailField label="当前租客" value={currentTenantName} />
-        <DetailField label="月租" value={euro(room.monthlyRent)} />
-        <DetailField label="押金" value={euro(room.depositAmount)} />
+        <DetailField label="月租" value={euro(currentMonthlyRent)} />
+        <DetailField label="押金" value={euro(currentDepositAmount)} />
         <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
         <DetailField label="合同到期日期" value={contractEndDate} />

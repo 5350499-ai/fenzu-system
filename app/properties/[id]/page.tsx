@@ -101,10 +101,10 @@ export default function PropertyDetailPage() {
   const scopedExpenses = expenses.filter((item) => item.propertyId === propertyId);
   const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
-  const monthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("thisMonth")) : null;
+  const monthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth")) : null;
   const monthlyIncome = monthProfit?.income || 0;
-  const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last3Months")) : null;
-  const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, getDateRange("last12Months")) : null;
+  const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last3Months")) : null;
+  const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last12Months")) : null;
   const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, deposits, 12) : [];
 
   const roomOptions = scopedRooms.map((room) => ({

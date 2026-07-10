@@ -24,7 +24,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
+import { isCurrentRentalTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -141,11 +141,11 @@ function buildReminders({
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
   const reminders: Reminder[] = [];
 
-  tenants
-    .filter((tenant) => !tenant.status.includes("退"))
-    .map((tenant) => {
-      const payment = latestCoverageForTenant(tenant.id, payments);
-      return { tenant, payment, stage: rentCollectionReminderStage(tenant, payment) };
+    tenants
+      .filter((tenant) => isCurrentRentalTenant(tenant))
+      .map((tenant) => {
+        const payment = latestCoverageForTenant(tenant.id, payments);
+        return { tenant, payment, stage: rentCollectionReminderStage(tenant, payment) };
     })
     .filter(({ stage }) => Boolean(stage))
     .forEach(({ tenant, payment, stage }) => {

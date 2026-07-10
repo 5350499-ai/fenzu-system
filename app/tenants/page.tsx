@@ -495,9 +495,9 @@ export default function TenantsPage() {
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract);
             const contract = latestContractForTenant(tenant.id, contracts);
-            const expiry = getExpiryInfo(contract?.endDate);
             const coveragePayment = latestCoverageForTenant(tenant.id, payments);
             const displayStatus = tenantDisplayStatus(tenant, payments);
+            const depositStatus = tenantDepositStatus(tenant, deposits);
             const expanded = detailTenantId === tenant.id;
             return (
               <article className="finance-list-item" key={tenant.id}>
@@ -506,7 +506,7 @@ export default function TenantsPage() {
                   <span>{property?.name || "-"}-{room?.name || "-"}</span>
                   <strong>{euro(coveragePayment?.amountPaid || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
+                  <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
                 {expanded ? (
                   <TenantDetail
@@ -828,6 +828,12 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 
 function latestReceivedAmount(tenantId: string, payments: BusinessRentPayment[]) {
   return Number(latestCoverageForTenant(tenantId, payments)?.amountPaid || 0);
+}
+
+function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
+  const tenantDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !deposit.notes?.includes("[已作废]"));
+  if (tenantDeposits.some((deposit) => deposit.status === "已退")) return "押金已退";
+  return "押金待退";
 }
 
 function syncRoomsAfterTenantChange(

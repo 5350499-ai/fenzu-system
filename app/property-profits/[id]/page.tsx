@@ -84,7 +84,7 @@ export default function PropertyProfitDetailPage() {
 
   const property = properties.find((item) => item.id === propertyId);
   const range = useMemo(() => getDateRange(preset, customStart, customEnd), [customEnd, customStart, preset]);
-  const stat = useMemo(() => property ? calculatePropertyProfit(property, rooms, payments, expenses, deposits, range) : null, [deposits, expenses, payments, property, range, rooms]);
+  const stat = useMemo(() => property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, range) : null, [deposits, expenses, payments, property, range, rooms, tenants]);
   const scopedRooms = rooms.filter((room) => room.propertyId === propertyId);
   const vacantRooms = scopedRooms.filter((room) => room.status === "空置" || room.status === "空房");
   const overduePayments = stat?.payments.filter((payment) => isCoverageExpired(payment)) || [];
