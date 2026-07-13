@@ -509,9 +509,10 @@ export default function TenantsPage() {
             return (
               <article className="finance-list-item" key={tenant.id}>
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
-                  <span>{tenant.name || "-"}</span>
-                  <span className="tenant-location" title={(property?.name || "-") + " - " + (room?.name || room?.roomNumber || "-")}>{room?.name || room?.roomNumber || "-"}</span>
-                  <strong>{euro(tenant.monthlyRent || 0)}</strong>
+                  <span className="tenant-name">{tenant.name || "-"}</span>
+                  <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
+                  <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
+                  <strong className="tenant-rent">{euro(tenant.monthlyRent || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
@@ -891,6 +892,21 @@ function daysBetween(startDate: string, endDate: string) {
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T00:00:00`);
   return Math.ceil((end.getTime() - start.getTime()) / 86400000);
+}
+
+function compactPropertyName(name?: string) {
+  const value = (name || "").replace(/\s+/g, "").trim();
+  return value ? value.slice(0, 7) + (value.length > 7 ? "..." : "") : "-";
+}
+
+function compactRoomName(room?: BusinessRoom) {
+  const value = (room?.name || room?.roomNumber || "").trim();
+  if (!value) return "-";
+  const number = room?.roomNumber?.trim() || value.match(/^\d{1,4}/)?.[0] || "";
+  if (!number) return value.slice(0, 8) + (value.length > 8 ? "..." : "");
+  const description = value.slice(value.indexOf(number) + number.length).trim();
+  const compact = description ? number + " " + description.slice(0, 5) : number;
+  return compact.slice(0, 9) + (compact.length > 9 ? "..." : "");
 }
 
 function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, depositAmount: number): BusinessRentPayment {
