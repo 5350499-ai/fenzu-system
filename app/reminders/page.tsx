@@ -24,7 +24,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { isCurrentRentalTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, rentCollectionReminderStage } from "@/lib/rent-coverage";
+import { fixedRentCollectionReminderStage, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -142,10 +142,10 @@ function buildReminders({
   const reminders: Reminder[] = [];
 
     tenants
-      .filter((tenant) => isCurrentRentalTenant(tenant))
+      .filter((tenant) => strictCurrentRentalTenant(tenant))
       .map((tenant) => {
         const payment = latestCoverageForTenant(tenant.id, payments);
-        return { tenant, payment, stage: rentCollectionReminderStage(tenant, payment) };
+        return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
     })
     .filter(({ stage }) => Boolean(stage))
     .forEach(({ tenant, payment, stage }) => {
@@ -156,7 +156,7 @@ function buildReminders({
       reminders.push({
         id: `payment-${tenant.id}`,
         category: stage.level === "overdue" ? "欠费提醒" : "收租提醒",
-        title: rentReminderTitle(roomLabel, stage, amount),
+        title: fixedRentReminderTitle(roomLabel, stage, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
         href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
         tone: rentStageTone(stage.level),
@@ -223,7 +223,14 @@ function buildReminders({
   return reminders.sort((a, b) => b.priority - a.priority);
 }
 
-function rentReminderTitle(room: string, stage: ReturnType<typeof rentCollectionReminderStage> & {}, amount: number) {
+function fixedRentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
+  if (stage.overdueDays > 0) return `${room}\u5df2\u5230\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
+  if (stage.daysRemaining === 0) return `${room}\u4eca\u65e5\u5230\u671f`;
+  if (stage.level === "urgent") return `${room}\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
+  return `${room}\u5269\u4f59${stage.daysRemaining}\u5929`;
+}
+
+function rentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
   if (stage.overdueDays > 0) return `${room}已欠费${stage.overdueDays}天 ${euro(amount)}`;
   if (stage.daysPastPaymentDay === 0) return `${room}今天是缴费日，请提醒交下期房租`;
   return `${room}已过缴费日${stage.daysPastPaymentDay}天，仍未收到下期房租`;

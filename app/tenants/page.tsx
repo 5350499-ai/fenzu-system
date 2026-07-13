@@ -38,7 +38,7 @@ import {
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
-import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
+import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -46,7 +46,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
 const maxAttachmentSize = 5 * 1024 * 1024;
-type TenantSortKey = "expiry" | "rent" | "property" | "status";
+type TenantSortKey = "priority" | "expiry" | "rent" | "property" | "status";
 
 const emptyTenant: BusinessTenant = {
   id: "",
@@ -104,7 +104,7 @@ export default function TenantsPage() {
   const [propertyFilterId, setPropertyFilterId] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
-  const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
+  const [sortKey, setSortKey] = useState<TenantSortKey>("priority");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -209,15 +209,18 @@ export default function TenantsPage() {
     return [...filteredTenants].sort((left, right) => {
       const leftProperty = properties.find((item) => item.id === left.propertyId)?.name || "";
       const rightProperty = properties.find((item) => item.id === right.propertyId)?.name || "";
-      const leftContract = latestContractForTenant(left.id, contracts);
-      const rightContract = latestContractForTenant(right.id, contracts);
+      const leftCoverage = latestCoverageForTenant(left.id, payments);
+      const rightCoverage = latestCoverageForTenant(right.id, payments);
+      const leftExpiry = fixedCoverageExpiryInfo(left, leftCoverage);
+      const rightExpiry = fixedCoverageExpiryInfo(right, rightCoverage);
       const direction = sortDirection === "asc" ? 1 : -1;
+      if (sortKey === "priority") return compareTenantPriority(left, right, leftExpiry, rightExpiry, leftProperty, rightProperty, rooms) * direction;
       if (sortKey === "rent") return (left.monthlyRent - right.monthlyRent) * direction;
-      if (sortKey === "property") return leftProperty.localeCompare(rightProperty, "zh-Hans-CN") * direction;
-      if (sortKey === "status") return tenantDisplayStatus(left, payments).localeCompare(tenantDisplayStatus(right, payments), "zh-Hans-CN") * direction;
-      return (expirySortValue(leftContract?.endDate) - expirySortValue(rightContract?.endDate)) * direction;
+      if (sortKey === "property") return compareTenantProperty(left, right, leftProperty, rightProperty, rooms) * direction;
+      if (sortKey === "status") return compareTenantStatus(left, right, leftExpiry, rightExpiry, payments) * direction;
+      return compareExpiryDates(leftCoverage?.coverageEndDate, rightCoverage?.coverageEndDate, direction);
     });
-  }, [contracts, filteredTenants, payments, properties, sortDirection, sortKey]);
+  }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
   const visibleTenants = pageRows(sortedTenants, page, pageSize);
 
@@ -592,6 +595,7 @@ export default function TenantsPage() {
             const contract = latestContractForTenant(tenant.id, contracts);
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
+            const expiryInfo = fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments));
             const expanded = detailTenantId === tenant.id;
             return (
               <article className="finance-list-item" key={tenant.id}>
@@ -600,13 +604,17 @@ export default function TenantsPage() {
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
                   <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
                   <strong className="tenant-rent">{euro(tenant.monthlyRent || 0)}</strong>
-                  <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
+                  <span className="tenant-status-stack">
+                    <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
+                    {expiryInfo.label ? <StatusBadge tone={expiryInfo.level === "yellow" ? "yellow" : expiryInfo.level === "orange" ? "orange" : "red"}>{expiryInfo.label}</StatusBadge> : null}
+                  </span>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
                 {expanded ? (
                   <TenantDetail
                     contract={contract}
                     coverageEnd={coverageLabel(latestCoverageForTenant(tenant.id, payments))}
+                    coverageExpiry={expiryInfo.label}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
                     files={files}
@@ -738,6 +746,7 @@ function TenantDetail({
   tenant,
   contract,
   coverageEnd,
+  coverageExpiry,
   payments,
   deposits,
   propertyName,
@@ -756,6 +765,7 @@ function TenantDetail({
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
   coverageEnd: string;
+  coverageExpiry: string;
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   propertyName: string;
@@ -776,6 +786,7 @@ function TenantDetail({
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
+        {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
         <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
         <DetailField label="电话" value={tenant.phone || "-"} />
         <DetailField label="微信" value={tenant.wechat || "-"} />
@@ -891,6 +902,65 @@ function SortButton({ active, direction, label, onClick }: { active: boolean; di
   );
 }
 
+function compareTenantPriority(
+  left: BusinessTenant,
+  right: BusinessTenant,
+  leftExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  rightExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  leftProperty: string,
+  rightProperty: string,
+  rooms: BusinessRoom[]
+) {
+  const groupDifference = leftExpiry.sortGroup - rightExpiry.sortGroup;
+  if (groupDifference) return groupDifference;
+  const leftEnd = leftExpiry.endDate || "9999-12-31";
+  const rightEnd = rightExpiry.endDate || "9999-12-31";
+  const endDifference = leftEnd.localeCompare(rightEnd);
+  if (endDifference) return endDifference;
+  return compareTenantProperty(left, right, leftProperty, rightProperty, rooms) || left.name.localeCompare(right.name, "zh-Hans-CN");
+}
+
+function compareTenantProperty(left: BusinessTenant, right: BusinessTenant, leftProperty: string, rightProperty: string, rooms: BusinessRoom[]) {
+  const propertyDifference = leftProperty.localeCompare(rightProperty, "zh-Hans-CN", { numeric: true, sensitivity: "base" });
+  if (propertyDifference) return propertyDifference;
+  const leftRoom = rooms.find((room) => room.id === left.roomId);
+  const rightRoom = rooms.find((room) => room.id === right.roomId);
+  const leftRoomValue = leftRoom?.roomNumber || leftRoom?.name || "";
+  const rightRoomValue = rightRoom?.roomNumber || rightRoom?.name || "";
+  return leftRoomValue.localeCompare(rightRoomValue, "zh-Hans-CN", { numeric: true, sensitivity: "base" });
+}
+
+function compareTenantStatus(
+  left: BusinessTenant,
+  right: BusinessTenant,
+  leftExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  rightExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  payments: BusinessRentPayment[]
+) {
+  const leftRank = tenantStatusRank(left, leftExpiry);
+  const rightRank = tenantStatusRank(right, rightExpiry);
+  if (leftRank !== rightRank) return leftRank - rightRank;
+  const leftPayment = latestCoverageForTenant(left.id, payments);
+  const rightPayment = latestCoverageForTenant(right.id, payments);
+  const leftEnd = leftPayment?.coverageEndDate || "9999-12-31";
+  const rightEnd = rightPayment?.coverageEndDate || "9999-12-31";
+  return leftEnd.localeCompare(rightEnd);
+}
+
+function tenantStatusRank(tenant: BusinessTenant, expiry: ReturnType<typeof fixedCoverageExpiryInfo>) {
+  if (!strictCurrentRentalTenant(tenant)) return isArchivedTenant(tenant) ? 4 : 3;
+  if (expiry.level === "red") return 0;
+  if (expiry.level === "orange" || expiry.level === "yellow") return 1;
+  return 2;
+}
+
+function compareExpiryDates(leftEnd?: string, rightEnd?: string, direction = 1) {
+  if (!leftEnd && !rightEnd) return 0;
+  if (!leftEnd) return 1;
+  if (!rightEnd) return -1;
+  return leftEnd.localeCompare(rightEnd) * direction;
+}
+
 function latestContractForTenant(tenantId: string, contracts: BusinessContract[]) {
   if (!tenantId) return null;
   return contracts
@@ -968,11 +1038,6 @@ function getExpiryInfo(endDate?: string) {
   if (diff < 30) return { label: `${diff}天`, tone: "red" as const };
   if (diff <= 90) return { label: `${diff}天`, tone: "amber" as const };
   return { label: `${diff}天`, tone: "green" as const };
-}
-
-function expirySortValue(endDate?: string) {
-  if (!endDate) return Number.MAX_SAFE_INTEGER;
-  return daysBetween(today(), endDate);
 }
 
 function daysBetween(startDate: string, endDate: string) {

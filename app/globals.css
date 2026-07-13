@@ -1161,6 +1161,12 @@ td:last-child {
   border-color: color-mix(in srgb, var(--amber) 32%, var(--border));
 }
 
+.badge.orange {
+  color: #ea580c;
+  background: color-mix(in srgb, #f97316 13%, var(--surface));
+  border-color: color-mix(in srgb, #f97316 34%, var(--border));
+}
+
 .badge.yellow {
   border-color: color-mix(in srgb, #eab308 42%, var(--border));
   background: color-mix(in srgb, #eab308 14%, var(--surface));
@@ -2576,5 +2582,27 @@ td:last-child {
 @media (max-width: 720px) {
   .tenant-property-menu {
     max-height: 230px;
+  }
+}
+
+.tenant-status-stack {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 2px;
+}
+
+.tenant-status-stack .badge {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding-inline: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tenant-status-stack .badge {
+    font-size: 9px;
   }
 }

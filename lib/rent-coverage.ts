@@ -137,6 +137,65 @@ export function rentCoverageReminderStage(
   return { daysRemaining, overdueDays: 0, level: "upcoming" };
 }
 
+export function strictCurrentRentalTenant(tenant: BusinessTenant) {
+  const status = tenant.status || "";
+  if (["\u5df2\u9000\u79df", "\u5df2\u5f52\u6863", "\u5df2\u7ed3\u675f", "\u975e\u5728\u79df", "\u7a7a\u7f6e", "\u9884\u5b9a\u5165\u4f4f"].some((item) => status.includes(item))) return false;
+  return status.includes("\u5728\u79df");
+}
+
+export function fixedRentCollectionReminderStage(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): RentCollectionReminderStage | null {
+  if (!strictCurrentRentalTenant(tenant)) return null;
+  const stage = rentCoverageReminderStageFixed(payment, today);
+  return stage ? { ...stage, reason: "coverage", daysPastPaymentDay: 0 } : null;
+}
+
+export function rentCoverageReminderStageFixed(
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): RentCoverageReminderStage | null {
+  if (!payment) return null;
+  const endDate = payment?.coverageEndDate || "";
+  if (!endDate) return null;
+  const daysRemaining = dateDifference(endDate, today);
+  if (daysRemaining > 30) return null;
+  if (daysRemaining < 0) return { daysRemaining, overdueDays: Math.abs(daysRemaining), level: "overdue" };
+  if (daysRemaining === 0) return { daysRemaining, overdueDays: 0, level: "critical" };
+  if (daysRemaining <= 15) return { daysRemaining, overdueDays: 0, level: "urgent" };
+  return { daysRemaining, overdueDays: 0, level: "upcoming" };
+}
+
+export type CoverageExpiryInfo = {
+  daysRemaining: number | null;
+  endDate: string;
+  level: "normal" | "yellow" | "orange" | "red";
+  label: string;
+  sortGroup: number;
+};
+
+export function fixedCoverageExpiryInfo(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): CoverageExpiryInfo {
+  if (!strictCurrentRentalTenant(tenant)) {
+    return { daysRemaining: null, endDate: "", level: "normal", label: "", sortGroup: 5 };
+  }
+  const endDate = payment?.coverageEndDate || "";
+  if (!endDate) {
+    return { daysRemaining: null, endDate: "", level: "normal", label: "", sortGroup: 4 };
+  }
+  const daysRemaining = dateDifference(endDate, today);
+  if (daysRemaining >= 31) return { daysRemaining, endDate, level: "normal", label: "", sortGroup: 3 };
+  if (daysRemaining >= 16) return { daysRemaining, endDate, level: "yellow", label: `\u5269\u4f59${daysRemaining}\u5929`, sortGroup: 2 };
+  if (daysRemaining >= 1) return { daysRemaining, endDate, level: "orange", label: `\u5373\u5c06\u5230\u671f${daysRemaining}\u5929`, sortGroup: 1 };
+  if (daysRemaining === 0) return { daysRemaining, endDate, level: "red", label: "\u4eca\u65e5\u5230\u671f", sortGroup: 0 };
+  return { daysRemaining, endDate, level: "red", label: `\u5df2\u5230\u671f${Math.abs(daysRemaining)}\u5929`, sortGroup: 0 };
+}
+
 export function coverageLabel(payment: BusinessRentPayment | null) {
   return payment ? paymentCoverageEnd(payment) || "-" : "-";
 }
