@@ -96,3 +96,18 @@
 - 兼容性影响：仅增加租客列表搜索框的房源筛选交互，不改变现有列表布局、排序、财务数据和房态逻辑。
 - 2026-07-13：修复租客到期提醒与排序逻辑。到期提醒改为覆盖结束日期的31/30/16/15/1/0天分段；租客页默认按红、橙、黄、正常优先级排序；到期日、月租、房源、状态按钮改为真实比较当前筛选结果；展开详情增加距离租金到期；首页和提醒中心使用同一套覆盖期提醒阶段。涉及 `lib/rent-coverage.ts`、`app/tenants/page.tsx`、`app/page.tsx`、`app/reminders/page.tsx`、`app/globals.css`。未修改数据库结构、历史流水、金额、房态或现有列表字段；无需迁移数据。
 - 2026-07-13：优化提醒展示层。首页收租提醒拆为房源/房间与独立到期状态两行，并显示租客和覆盖结束日期；租客列表将到期提醒移到主行下方，保留原有六列主信息。涉及 `app/page.tsx`、`app/reminders/page.tsx`、`app/tenants/page.tsx`、`app/globals.css`。未修改提醒计算、排序、收款、押金、房态或数据库；无需迁移数据。
+
+## 2026-07-13
+
+- 完成账号与权限功能阶段一：新增 `user_profiles`、`user_permissions`、`user_sensitive_permissions`、`user_property_access`、`app_sessions`、`audit_logs` 六张基础表，并为全部新表启用 RLS。
+- 将邮箱 `5350499@qq.com`、Auth User ID `57b1a78b-d3fe-4e6f-bd9a-055ce1527936` 精确匹配的现有账号建立为固定 `owner`；赋予 14 个模块全部操作权限、全部敏感权限和全部房源访问模式，未修改 Auth 密码。
+- 新增 `app_private` 私有权限函数、owner 保护触发器和 audit log 防修改触发器；`app_sessions` 只保存 JWT `session_id` 撤销信息，不保存 Refresh Token。
+- 保留原 19 条业务 RLS 和 Storage 策略，额外为 12 张业务及附件元数据表增加 `stage1_owner_compatibility` 策略；未删除或替换任何旧策略。
+- 保存迁移前 owner、业务数量和 RLS 基线，并提供只撤销兼容策略的非破坏性回滚 SQL。
+- 修正 owner 显示名称的 SQL 传输编码，并补齐新权限表 6 个外键覆盖索引；Supabase 安全顾问对本阶段新增对象无安全告警。
+- 事务内模拟 owner `authenticated` JWT，验证读取、临时新增和编辑房源成功；测试数据已回滚，线上业务数量仍为房源1、房间4、租客3、合同1、收款3、支出22、附件2。
+- 涉及文件：`supabase/migrations/20260713154204_accounts_permissions_stage1.sql`、`supabase/migrations/20260713155640_accounts_permissions_stage1_owner_name_fix.sql`、`supabase/migrations/20260713160156_accounts_permissions_stage1_indexes.sql`、`supabase/backups/20260713_accounts_permissions_stage1_preflight.md`、`supabase/rollbacks/20260713154204_accounts_permissions_stage1_rollback.sql`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
+- 是否修改数据库：是，只新增权限基础对象、owner 权限资料、兼容策略和索引；未修改业务表结构、金额、历史流水或附件。
+- 是否新增业务规则：是，新增两类账号、固定 owner、最小权限、房源 ID 授权、Service Role 限制、会话撤销和日志防篡改规则。
+- 是否需要迁移数据：仅为现有主管理员建立新的 owner 权限资料；无需迁移或改写任何业务数据。
+- 兼容性影响：阶段一不修改登录页、数据层、页面按钮或现有业务访问流程。新旧 permissive 策略并存产生的性能提示是验收期内的临时兼容安排。

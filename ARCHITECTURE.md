@@ -106,3 +106,44 @@
 - 新增业务规则要同步写入 `BUSINESS_RULES.md`。
 - 结构变化要同步写入本文件。
 - 修改完成后要更新 `CHANGELOG.md`。
+
+## 7. 账号与权限基础（阶段一）
+
+### 数据表
+
+- `user_profiles`：Auth 用户对应的应用账号资料，保存 `owner/custom` 类型、启停状态、房源授权模式和全设备会话撤销时间。
+- `user_permissions`：模块与查看、新增、编辑、归档、永久删除权限矩阵。
+- `user_sensitive_permissions`：租客敏感字段、附件、导出、利润、结算、日志、账号和设置权限。
+- `user_property_access`：`selected` 模式下按真实 `property_id` 保存房源授权。
+- `app_sessions`：按 Supabase JWT `session_id` 保存应用会话状态，不保存 Refresh Token。
+- `audit_logs`：追加式业务和安全日志基础表；阶段二才接入服务端日志写入。
+
+### 私有权限函数
+
+- `app_private.is_active_account()`：检查当前 Auth 用户资料是否启用。
+- `app_private.is_owner()`：检查当前用户是否为启用的 owner。
+- `app_private.current_workspace_owner_id()`：返回当前账号所属 owner。
+- `app_private.has_module_permission()`：检查模块操作权限。
+- `app_private.has_sensitive_permission()`：检查敏感权限。
+- `app_private.can_access_property()`：按 `property_id` 检查房源范围。
+- `app_private.is_app_session_valid()`：检查账号状态、全设备撤销时间和 `session_id` 撤销状态；阶段一尚未接入原业务策略。
+
+函数位于非公开 `app_private` schema，使用固定空 `search_path`，并只向 `authenticated` 授予必要执行权限。
+
+### RLS 兼容方式
+
+- 原业务表的 `auth.uid() = user_id` 策略保持不变。
+- 阶段一为 12 张业务及附件元数据表新增 `stage1_owner_compatibility` permissive 策略。
+- 兼容策略只允许数据库中启用的 owner 访问 owner 名下数据。
+- Storage 原有私有 bucket 和 owner 路径策略完全不变。
+- 新旧策略同时存在会产生临时的多 permissive 策略性能提示，这是阶段验收期间避免管理员锁定的有意安排；安全替换旧策略必须在后续阶段另行迁移。
+
+### 迁移与回滚
+
+- 主迁移：`supabase/migrations/20260713154204_accounts_permissions_stage1.sql`
+- owner 名称编码修复：`supabase/migrations/20260713155640_accounts_permissions_stage1_owner_name_fix.sql`
+- 外键索引补充：`supabase/migrations/20260713160156_accounts_permissions_stage1_indexes.sql`
+- 迁移前基线：`supabase/backups/20260713_accounts_permissions_stage1_preflight.md`
+- 非破坏性回滚：`supabase/rollbacks/20260713154204_accounts_permissions_stage1_rollback.sql`
+
+回滚只移除新增兼容策略，不删除新表、owner 资料或任何业务数据，原 RLS 会立即继续生效。
