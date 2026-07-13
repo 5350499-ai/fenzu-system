@@ -42,7 +42,7 @@ import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, mo
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
 const maxAttachmentSize = 5 * 1024 * 1024;
@@ -101,6 +101,9 @@ export default function TenantsPage() {
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [propertyFilterId, setPropertyFilterId] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
   const [sortKey, setSortKey] = useState<TenantSortKey>("expiry");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
@@ -154,24 +157,53 @@ export default function TenantsPage() {
     loadAdmin().catch(() => setIsAdmin(false));
   }, []);
 
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    function closeSearchOnOutside(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && searchBoxRef.current?.contains(target)) return;
+      setSearchOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeSearchOnOutside);
+    return () => document.removeEventListener("pointerdown", closeSearchOnOutside);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [propertyFilterId, query]);
+
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
     map[file.contractId] = [...(map[file.contractId] || []), file];
     return map;
   }, {}), [contractFiles]);
 
+  const propertyOptions = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    return properties.filter((property) => {
+      if (!keyword) return true;
+      return [property.name, property.address, property.city].join(" ").toLowerCase().includes(keyword);
+    });
+  }, [properties, query]);
+
   const filteredTenants = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     const visible = tenants.filter((tenant) => showArchived || !isArchivedTenant(tenant));
-    if (!keyword) return visible;
-    return visible.filter((tenant) => {
+    const propertyVisible = propertyFilterId
+      ? visible.filter((tenant) => tenant.propertyId === propertyFilterId)
+      : visible;
+    if (!keyword) return propertyVisible;
+    return propertyVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract).map((file) => file.fileName).join(" ");
       const displayStatus = tenantDisplayStatus(tenant, payments);
-      return `${tenant.name} ${tenant.phone} ${tenant.wechat} ${property?.name || ""} ${room?.name || ""} ${tenant.status} ${displayStatus} ${fileNames}`.toLowerCase().includes(keyword);
+      return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, payments, properties, query, rooms, showArchived, tenants]);
+  }, [contracts, filesByContract, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
+
 
   const sortedTenants = useMemo(() => {
     return [...filteredTenants].sort((left, right) => {
@@ -188,6 +220,27 @@ export default function TenantsPage() {
   }, [contracts, filteredTenants, payments, properties, sortDirection, sortKey]);
 
   const visibleTenants = pageRows(sortedTenants, page, pageSize);
+
+  function selectPropertyFilter(property: BusinessProperty) {
+    setPropertyFilterId(property.id);
+    setQuery(property.name);
+    setSearchOpen(false);
+  }
+
+  function updateTenantSearch(value: string) {
+    setQuery(value);
+    if (propertyFilterId) {
+      const selected = properties.find((property) => property.id === propertyFilterId);
+      if (value !== selected?.name) setPropertyFilterId("");
+    }
+    setSearchOpen(true);
+  }
+
+  function clearTenantSearch() {
+    setQuery("");
+    setPropertyFilterId("");
+    setSearchOpen(false);
+  }
 
   function close() {
     setOpen(false);
@@ -486,9 +539,43 @@ export default function TenantsPage() {
         </div>
 
         <div className="list-controls">
-          <label className="search-box">
-            <input placeholder="搜索姓名、电话、微信、房源、房间、合同附件" value={query} onChange={(event) => setQuery(event.target.value)} />
-          </label>
+          <div className="tenant-search-box search-box" ref={searchBoxRef}>
+            <input
+              autoComplete="off"
+              onChange={(event) => updateTenantSearch(event.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="搜索姓名、电话、微信、房源、房间、合同附件"
+              value={query}
+            />
+            {query ? (
+              <button aria-label="清除搜索和房源筛选" className="icon-button" onClick={clearTenantSearch} type="button">
+                <X size={15} />
+              </button>
+            ) : null}
+            {searchOpen ? (
+              <div className="tenant-property-menu" role="listbox">
+                {propertyOptions.length ? (
+                  propertyOptions.map((property) => (
+                    <button
+                      className="tenant-property-option"
+                      key={property.id}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        selectPropertyFilter(property);
+                      }}
+                      type="button"
+                    >
+                      <strong title={property.name}>{compactPropertyName(property.name)}</strong>
+                      <span title={property.address || property.city || "-"}>{property.address || property.city || "-"}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="tenant-property-empty">没有匹配的房源</div>
+                )}
+              </div>
+            ) : null}
+          </div>
           <div className="sort-pills">
             <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
             <SortButton active={sortKey === "rent"} direction={sortDirection} label="月租" onClick={() => toggleSort("rent")} />

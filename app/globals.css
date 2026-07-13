@@ -2512,3 +2512,69 @@ td:last-child {
     font-weight: 800;
   }
 }
+
+.tenant-search-box {
+  position: relative;
+  z-index: 30;
+}
+
+.tenant-search-box .icon-button {
+  flex: 0 0 auto;
+}
+
+.tenant-property-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: min(260px, 42vh);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tenant-property-option {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 9px 10px;
+  color: var(--text);
+  text-align: left;
+}
+
+.tenant-property-option:hover,
+.tenant-property-option:focus-visible {
+  background: var(--surface-soft);
+}
+
+.tenant-property-option strong,
+.tenant-property-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-property-option span,
+.tenant-property-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tenant-property-empty {
+  padding: 12px 10px;
+}
+
+@media (max-width: 720px) {
+  .tenant-property-menu {
+    max-height: 230px;
+  }
+}
