@@ -604,12 +604,16 @@ export default function TenantsPage() {
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
                   <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
                   <strong className="tenant-rent">{euro(tenant.monthlyRent || 0)}</strong>
-                  <span className="tenant-status-stack">
-                    <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
-                    {expiryInfo.label ? <StatusBadge tone={expiryInfo.level === "yellow" ? "yellow" : expiryInfo.level === "orange" ? "orange" : "red"}>{expiryInfo.label}</StatusBadge> : null}
-                  </span>
+                  <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
+                {expiryInfo.label ? (
+                  <div className={`tenant-expiry-row ${expiryInfo.level}`}>
+                    <span className="tenant-expiry-dot" aria-hidden="true" />
+                    <strong>{expiryInfo.label}</strong>
+                    <span className="tenant-expiry-date">覆盖至 {expiryInfo.endDate}</span>
+                  </div>
+                ) : null}
                 {expanded ? (
                   <TenantDetail
                     contract={contract}

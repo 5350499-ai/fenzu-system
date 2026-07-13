@@ -125,9 +125,21 @@ export default function DashboardPage() {
         {remindersOpen ? (
           <div className="reminder-list">
             {visibleReminders.length ? visibleReminders.map((item) => (
-              <Link className={`reminder-item ${item.tone}`} href={item.href} key={item.id}>
-                <span>{item.title}</span>
-                <small>{item.description}</small>
+              <Link className={`reminder-item ${item.tone}${item.rentContext ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
+                {item.rentContext ? (
+                  <>
+                    <span className="reminder-rent-head">
+                      <strong>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}</strong>
+                      <em className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</em>
+                    </span>
+                    <small>{item.rentContext.tenantName}｜覆盖至：{item.rentContext.coverageEnd}</small>
+                  </>
+                ) : (
+                  <>
+                    <span>{item.title}</span>
+                    <small>{item.description}</small>
+                  </>
+                )}
               </Link>
             )) : <p className="muted">暂无需要处理的提醒。</p>}
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
@@ -146,6 +158,13 @@ type Reminder = {
   href: string;
   tone: "danger" | "warning" | "yellow" | "info";
   priority: number;
+  rentContext?: {
+    propertyLabel: string;
+    roomLabel: string;
+    tenantName: string;
+    coverageEnd: string;
+    statusLabel: string;
+  };
 };
 
 function buildDashboardReminders({
@@ -188,7 +207,14 @@ function buildDashboardReminders({
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
         href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
         tone: rentStageTone(stage.level),
-        priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining)
+        priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining),
+        rentContext: {
+          propertyLabel: compactReminderPropertyName(propertyById.get(tenant.propertyId)?.name),
+          roomLabel: compactReminderRoomName(room),
+          tenantName: tenant.name || "未命名租客",
+          coverageEnd: payment ? paymentCoverageEnd(payment) : "-",
+          statusLabel: fixedRentReminderStatus(stage, amount)
+        }
       });
     });
 
@@ -294,6 +320,27 @@ function buildReminderSummary({
   if (abnormalDeposits > 0) parts.push(`押金异常${abnormalDeposits}`);
   if (vacantRooms > 0) parts.push(`空置${vacantRooms}`);
   return parts.length ? parts.join("｜") : "暂无待处理提醒";
+}
+
+function fixedRentReminderStatus(stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
+  if (stage.overdueDays > 0) return `\u5df2\u5230\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
+  if (stage.daysRemaining === 0) return "\u4eca\u65e5\u5230\u671f";
+  if (stage.level === "urgent") return `\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
+  return `\u5269\u4f59${stage.daysRemaining}\u5929`;
+}
+
+function compactReminderPropertyName(name?: string) {
+  const value = (name || "").replace(/\s+/g, "").trim();
+  return value ? value.slice(0, 7) + (value.length > 7 ? "..." : "") : "房源";
+}
+
+function compactReminderRoomName(room?: BusinessRoom) {
+  const value = (room?.name || room?.roomNumber || "").trim();
+  if (!value) return "房间";
+  const number = room?.roomNumber?.trim() || value.match(/^\d{1,4}/)?.[0] || "";
+  if (!number) return value.slice(0, 10) + (value.length > 10 ? "..." : "");
+  const description = value.slice(value.indexOf(number) + number.length).trim();
+  return description ? `${number} ${description.slice(0, 6)}` : number;
 }
 
 function fixedRentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {

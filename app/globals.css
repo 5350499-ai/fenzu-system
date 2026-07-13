@@ -556,14 +556,66 @@ a {
   text-decoration: none;
 }
 
-.reminder-item span {
+.reminder-item > span {
   color: var(--text);
   font-size: 14px;
   font-weight: 850;
 }
 
-.reminder-item small {
+.reminder-item > small {
   color: var(--muted);
+}
+
+.reminder-rent-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-rent-head strong,
+.reminder-rent-head em,
+.reminder-item.rent-reminder small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-rent-head em,
+.reminder-page-rent-content b {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.reminder-rent-status.danger,
+.reminder-rent-status.red {
+  color: var(--red);
+}
+
+.reminder-rent-status.warning,
+.reminder-rent-status.orange {
+  color: #ea580c;
+}
+
+.reminder-rent-status.yellow {
+  color: #d39a00;
+}
+
+.reminder-page-rent-content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.reminder-page-rent-content strong,
+.reminder-page-rent-content small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reminder-item.danger {
@@ -1719,6 +1771,55 @@ td:last-child {
   margin: 2px 0 8px;
 }
 
+.tenant-expiry-row {
+  display: grid;
+  grid-template-columns: 7px minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 2px 5px;
+  padding: 3px 7px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 7px 7px 0;
+  background: var(--surface-soft);
+  font-size: 11px;
+}
+
+.tenant-expiry-row > span,
+.tenant-expiry-row > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-expiry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tenant-expiry-row.yellow {
+  color: #d39a00;
+  border-left-color: #d39a00;
+}
+
+.tenant-expiry-row.orange {
+  color: #ea580c;
+  border-left-color: #ea580c;
+}
+
+.tenant-expiry-row.red {
+  color: var(--red);
+  border-left-color: var(--red);
+}
+
+.tenant-expiry-date {
+  color: var(--muted);
+  text-align: right;
+}
+
 .attachment-panel {
   display: grid;
   gap: 8px;
@@ -2602,6 +2703,25 @@ td:last-child {
 }
 
 @media (max-width: 640px) {
+  .reminder-rent-head {
+    gap: 5px;
+  }
+
+  .reminder-rent-head strong {
+    font-size: 13px;
+  }
+
+  .reminder-rent-head em,
+  .reminder-page-rent-content b {
+    font-size: 11px;
+  }
+
+  .tenant-expiry-row {
+    gap: 5px;
+    padding-inline: 5px;
+    font-size: 10px;
+  }
+
   .tenant-status-stack .badge {
     font-size: 9px;
   }
