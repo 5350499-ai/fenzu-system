@@ -2,7 +2,7 @@
 
 import { AppLayout, navGroups } from "@/components/app-layout";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ScrollText, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -35,10 +35,16 @@ export default function MorePage() {
             );
           })}
           {isOwner ? (
-            <Link className="shortcut-card" href="/accounts">
-              <span className="shortcut-icon blue"><ShieldCheck size={20} /></span>
-              <strong>账号与权限</strong>
-            </Link>
+            <>
+              <Link className="shortcut-card" href="/accounts">
+                <span className="shortcut-icon blue"><ShieldCheck size={20} /></span>
+                <strong>账号与权限</strong>
+              </Link>
+              <Link className="shortcut-card" href="/audit-logs">
+                <span className="shortcut-icon blue"><ScrollText size={20} /></span>
+                <strong>操作日志</strong>
+              </Link>
+            </>
           ) : null}
         </div>
       </section>
