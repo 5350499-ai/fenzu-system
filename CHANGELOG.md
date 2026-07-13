@@ -111,3 +111,18 @@
 - 是否新增业务规则：是，新增两类账号、固定 owner、最小权限、房源 ID 授权、Service Role 限制、会话撤销和日志防篡改规则。
 - 是否需要迁移数据：仅为现有主管理员建立新的 owner 权限资料；无需迁移或改写任何业务数据。
 - 兼容性影响：阶段一不修改登录页、数据层、页面按钮或现有业务访问流程。新旧 permissive 策略并存产生的性能提示是验收期内的临时兼容安排。
+
+## 2026-07-13
+
+- 完成账号与权限阶段二：新增自定义登录名映射、账号与权限页面、操作日志页面、服务端账号管理 Route Handlers、应用会话校验和基础安全日志。
+- 新增阶段二迁移 20260713163836_accounts_permissions_stage2.sql：建立 account_auth_identities，为既有业务、文件元数据、权限表和三个业务 Storage bucket 的策略叠加启用账号与有效应用会话校验；不删除原策略或业务数据。
+- 新增会话边界迁移 20260713165000_accounts_permissions_stage2_session_guard.sql：custom 账号以 JWT session_id 精确校验撤销状态，避免重新登录被同一秒的全局撤销时间误伤；owner 保持阶段一兼容会话路径。
+- 主管理员身份已再次校验为 5350499@qq.com / 57b1a78b-d3fe-4e6f-bd9a-055ce1527936，状态 active、owner、全部房源、14 个模块权限和全部敏感权限资料保持完整。
+- 服务端仅在创建 Auth 用户、重置密码、停用或启用账号和必要账号维护时使用 SUPABASE_SERVICE_ROLE_KEY；业务页面未改为 Service Role 查询。
+- 账号管理支持 custom 账号的最小权限创建、全部或指定房源 property_id 授权、模块与敏感权限保存、密码重置、停用或启用和强制退出全部设备。账号与权限和操作日志页面仅 owner 可访问。
+- 安全日志已接入登录成功或失败、退出、创建账号、更新账号、修改权限、修改房源范围、重置密码、停用、启用和强制退出；日志不保存密码、Token、Cookie 或密钥。
+- 涉及文件：app/login/page.tsx、components/app-layout.tsx、app/more/page.tsx、app/accounts/page.tsx、app/audit-logs/page.tsx、app/api/auth/*、app/api/accounts/*、app/api/audit-logs/route.ts、lib/account-permissions.ts、lib/supabase-admin.ts、lib/server/account-auth.ts、lib/server/account-management.ts、app/globals.css 和两份阶段二迁移。
+- 是否修改数据库：是，新增登录映射表并安全叠加会话门槛；未修改、删除或重建任何业务表、金额、历史流水、附件或原主管理员密码。
+- 是否新增业务规则：是，补充 custom 登录映射、服务端账号管理、app session 强制退出边界和阶段二或三职责边界。
+- 是否需要迁移数据：仅为固定 owner 写入登录映射；已有业务数据无需迁移。
+- 验证：生产构建 npm run build 通过；线上迁移成功；以模拟 owner JWT 验证 is_app_session_valid()=true，并可读取房源 1、收款 3。由于本机未配置 SUPABASE_SERVICE_ROLE_KEY，未在生产环境创建永久测试账号；部署前需在 Vercel 仅添加该服务器端变量。

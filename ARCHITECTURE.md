@@ -147,3 +147,35 @@
 - 非破坏性回滚：`supabase/rollbacks/20260713154204_accounts_permissions_stage1_rollback.sql`
 
 回滚只移除新增兼容策略，不删除新表、owner 资料或任何业务数据，原 RLS 会立即继续生效。
+
+## 8. 账号与权限（阶段二）
+
+### 新增接口与页面
+
+- app/accounts/page.tsx：仅 owner 使用的账号列表、新建或编辑权限、房源范围和安全操作页面。
+- app/audit-logs/page.tsx：仅 owner 查询的追加式操作和安全日志页面。
+- app/api/auth/login：使用自定义登录名映射至内部 Supabase Auth 邮箱，成功后写入 app_sessions。
+- app/api/auth/logout：撤销当前应用会话并清除浏览器 Supabase 会话。
+- app/api/accounts/*：owner 专用的账号、权限、房源范围、密码、启停与强制退出 Route Handlers。
+- app/api/audit-logs：owner 专用日志查询。
+
+### 服务端鉴权流
+
+1. 浏览器携带当前 Supabase Access Token 调用 Route Handler。
+2. 服务端用 anon 客户端的 auth.getUser(token) 验证 Token。
+3. 服务端通过 Service Role 读取 user_profiles、检查启停状态、owner 身份和精确 app_sessions.session_id。
+4. 账号管理接口只接受 owner；浏览器传入的 owner、actor、权限提升字段不被信任。
+5. 服务端以已验证上下文写入 audit_logs，并过滤密码、Token、Cookie、密钥等敏感字段。
+
+### 自定义登录映射
+
+- account_auth_identities.normalized_username 是唯一、不区分大小写的登录标识。
+- owner 保持真实邮箱 5350499@qq.com；custom 账号生成 account-UUID@accounts.fenzu.invalid 作为仅服务器端可见的 Supabase Auth 邮箱。
+- 内部邮箱不出现在任何浏览器接口、账号页面或日志中。
+
+### 阶段二 RLS 会话门槛
+
+- 既有业务策略和阶段一兼容策略仍保留，但均叠加 app_private.is_app_session_valid()。
+- active custom 账号必须匹配 app_sessions 中未撤销的 JWT session_id；owner 暂兼容既有会话。
+- disabled 状态会直接阻断 RLS；custom 的旧会话也会被精确 session 撤销阻断。
+- 阶段三才将模块权限和 property_id 过滤全面接入每一条业务页面、关联查询、Storage 签名链接与统计。

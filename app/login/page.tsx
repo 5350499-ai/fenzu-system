@@ -7,8 +7,8 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("5350499@qq.com");
-  const [password, setPassword] = useState("123456");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,19 +29,32 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    setLoading(false);
-
-    if (loginError) {
-      setError("登录失败，请检查邮箱和密码是否正确。");
-      return;
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(payload.error || "账号或密码错误。");
+        return;
+      }
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: payload.accessToken,
+        refresh_token: payload.refreshToken
+      });
+      if (sessionError) {
+        setError("登录会话创建失败，请重试。");
+        return;
+      }
+      router.replace("/");
+      router.refresh();
+    } catch {
+      setError("登录服务暂时不可用，请稍后重试。");
+    } finally {
+      setLoading(false);
     }
-
-    router.replace("/");
-    router.refresh();
   }
 
   return (
@@ -58,18 +71,18 @@ export default function LoginPage() {
         </div>
         <form className="grid" onSubmit={submit}>
           <div className="field">
-            <label>邮箱</label>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+            <label>登录账号或邮箱</label>
+            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="例如 zhangsan 或 5350499@qq.com" />
           </div>
           <div className="field">
             <label>密码</label>
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
           </div>
           <button className="btn primary" type="submit">
             {loading ? "登录中..." : "登录系统"}
           </button>
           {error ? <p className="danger-text">{error}</p> : null}
-          <p className="muted">请输入管理员邮箱和密码。未登录用户不能访问系统页面。</p>
+          <p className="muted">请输入登录账号或邮箱与密码。未登录用户不能访问系统页面。</p>
         </form>
       </section>
     </main>

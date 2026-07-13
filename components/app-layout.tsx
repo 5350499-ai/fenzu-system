@@ -94,6 +94,15 @@ export function AppLayout({ children, title, description }: { children: React.Re
         return;
       }
 
+      const response = await fetch("/api/accounts/me", {
+        headers: { Authorization: `Bearer ${data.session.access_token}` }
+      });
+      if (!response.ok) {
+        await supabase.auth.signOut({ scope: "local" });
+        router.replace("/login");
+        return;
+      }
+
       setAuthChecked(true);
     }
 
@@ -117,7 +126,14 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }
 
   async function logout() {
-    await supabase?.auth.signOut();
+    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    if (data.session) {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` }
+      }).catch(() => undefined);
+    }
+    await supabase?.auth.signOut({ scope: "local" });
     router.push("/login");
   }
 
