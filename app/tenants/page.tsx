@@ -510,7 +510,7 @@ export default function TenantsPage() {
               <article className="finance-list-item" key={tenant.id}>
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span>{tenant.name || "-"}</span>
-                  <span className="tenant-location" title={(property?.name || "-") + "-" + (room?.name || "-")}>{room?.name || room?.roomNumber || "-"}<small>{property?.name ? " · " + property.name : ""}</small></span>
+                  <span className="tenant-location" title={(property?.name || "-") + " - " + (room?.name || room?.roomNumber || "-")}>{room?.name || room?.roomNumber || "-"}</span>
                   <strong>{euro(tenant.monthlyRent || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
