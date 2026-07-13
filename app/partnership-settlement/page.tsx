@@ -15,7 +15,7 @@ import {
   rentPaymentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { rentIncomeForPayment } from "@/lib/profit";
+import { paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import { defaultPartnerRatios, loadPartnerRatios, partnerClass, partnerLabel, PartnerRatios } from "@/lib/partner-settings";
 import { useEffect, useMemo, useState } from "react";
 
@@ -61,7 +61,7 @@ export default function PartnershipSettlementPage() {
 
   const settlement = useMemo(() => {
     const scopedPayments = payments.filter((payment) =>
-      isWithinRange(payment.paymentDate || `${payment.rentMonth}-01`, activeRange) &&
+      isWithinRange(paymentAccountingDate(payment), activeRange) &&
       (propertyId === "all" || payment.propertyId === propertyId) &&
       !isVoided(payment.notes)
     );
@@ -193,7 +193,7 @@ export default function PartnershipSettlementPage() {
           title="收入归属明细"
           rows={settlement.scopedPayments.map((payment) => ({
             id: `income-${payment.id}`,
-            date: payment.paymentDate || payment.rentMonth,
+            date: paymentAccountingDate(payment),
             partner: payment.receivedBy || "A",
             type: payment.incomeItem || payment.incomeType || "房租收入",
             amount: rentIncomeForPayment(payment),

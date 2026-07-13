@@ -193,12 +193,16 @@ export function isMonthInRange(month: string, range: DateRange) {
 }
 
 export function isPaymentInRange(payment: BusinessRentPayment, range: DateRange) {
-  const date = payment.paymentDate || (payment.rentMonth ? `${payment.rentMonth}-01` : "");
-  return isDateInRange(date, range);
+  return isDateInRange(paymentAccountingDate(payment), range);
+}
+
+export function paymentAccountingDate(payment: BusinessRentPayment) {
+  // Legacy rows without payment_date use the historic accounting month once only.
+  return payment.paymentDate || (payment.rentMonth ? payment.rentMonth + "-01" : "");
 }
 
 function paymentAccountingMonth(payment: BusinessRentPayment) {
-  return (payment.paymentDate || (payment.rentMonth ? `${payment.rentMonth}-01` : "")).slice(0, 7);
+  return paymentAccountingDate(payment).slice(0, 7);
 }
 
 export function isDateInRange(date: string, range: DateRange) {

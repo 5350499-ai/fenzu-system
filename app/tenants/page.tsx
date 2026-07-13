@@ -38,7 +38,7 @@ import {
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
-import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart } from "@/lib/rent-coverage";
+import { coverageLabel, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -123,7 +123,15 @@ export default function TenantsPage() {
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
-      setTenants(loadedTenants);
+      const repairedTenants = repairMissingTenantMonthlyRents(loadedTenants, loadedPayments);
+      if (repairedTenants !== loadedTenants) {
+        try {
+          await saveBusinessData(tenantKey, repairedTenants);
+        } catch (error: any) {
+          throw new Error(`月租标准修复写回失败：${error.message || error}`);
+        }
+      }
+      setTenants(repairedTenants);
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
@@ -502,7 +510,7 @@ export default function TenantsPage() {
               <article className="finance-list-item" key={tenant.id}>
                 <button className="finance-line tenant-finance-line" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span>{tenant.name || "-"}</span>
-                  <span>{property?.name || "-"}-{room?.name || "-"}</span>
+                  <span className="tenant-location" title={(property?.name || "-") + "-" + (room?.name || "-")}>{room?.name || room?.roomNumber || "-"}<small>{property?.name ? " · " + property.name : ""}</small></span>
                   <strong>{euro(tenant.monthlyRent || 0)}</strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>

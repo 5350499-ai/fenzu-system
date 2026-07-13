@@ -1684,9 +1684,22 @@ td:last-child {
 }
 
 .tenant-finance-line {
-  grid-template-columns: minmax(54px, 0.9fr) minmax(72px, 1.25fr) minmax(76px, auto) auto minmax(56px, auto);
+  grid-template-columns: minmax(48px, 72px) minmax(0, 1fr) minmax(70px, auto) auto auto;
   min-height: 32px;
   padding-block: 5px;
+}
+
+.tenant-finance-line .tenant-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-finance-line .tenant-location small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .tenant-finance-line .contract-count {
@@ -1858,10 +1871,33 @@ td:last-child {
   }
 
 .tenant-compact-list .tenant-finance-line {
-  grid-template-columns: minmax(54px, 0.9fr) minmax(72px, 1.25fr) minmax(76px, auto) auto minmax(56px, auto);
+  grid-template-columns: minmax(44px, 0.65fr) minmax(88px, 1.35fr) 68px 42px 56px;
+  gap: 3px;
   min-height: 32px;
   padding-block: 5px;
+  font-size: 11px;
 }
+
+.tenant-compact-list .tenant-finance-line > span,
+.tenant-compact-list .tenant-finance-line > strong,
+.tenant-compact-list .tenant-finance-line > .badge {
+  min-width: 0;
+}
+
+.tenant-compact-list .tenant-finance-line .tenant-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-finance-line .badge {
+  min-width: 0;
+  padding-inline: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 
 .room-compact-list {
   gap: 0;

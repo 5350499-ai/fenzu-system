@@ -18,6 +18,27 @@ export function latestCoverageForTenant(tenantId: string, payments: BusinessRent
   return latestCoveragePayment(payments.filter((payment) => payment.tenantId === tenantId));
 }
 
+export function latestRentPaymentForTenantByPaymentDate(tenantId: string, payments: BusinessRentPayment[]) {
+  return payments
+    .filter((payment) => payment.tenantId === tenantId && isRentIncome(payment) && !isVoided(payment.notes) && Number(payment.amountDue || 0) > 0)
+    .sort((a, b) => (b.paymentDate || b.rentMonth || "").localeCompare(a.paymentDate || a.rentMonth || ""))[0] || null;
+}
+
+// Legacy payment-created tenants may have missed their persistent rent standard.
+// Repair only a zero value from the latest rent payment; never change payment history.
+export function repairMissingTenantMonthlyRents(tenants: BusinessTenant[], payments: BusinessRentPayment[]) {
+  let changed = false;
+  const repaired = tenants.map((tenant) => {
+    if (Number(tenant.monthlyRent || 0) > 0) return tenant;
+    const latest = latestRentPaymentForTenantByPaymentDate(tenant.id, payments);
+    const monthlyRent = Number(latest?.amountDue || 0);
+    if (monthlyRent <= 0) return tenant;
+    changed = true;
+    return { ...tenant, monthlyRent };
+  });
+  return changed ? repaired : tenants;
+}
+
 export function latestCoverageForRoom(roomId: string, payments: BusinessRentPayment[]) {
   return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId));
 }
