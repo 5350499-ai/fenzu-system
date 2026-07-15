@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { ACCOUNT_MODULES, emptyModulePermissions, emptySensitivePermissions, SENSITIVE_PERMISSIONS, type ModulePermission, type SensitivePermissions } from "@/lib/account-permissions";
 import { supabase } from "@/lib/supabase";
 import { KeyRound, LockKeyhole, Plus, RotateCcw, Save, ShieldCheck, UserRoundCheck, UserRoundX, UsersRound } from "lucide-react";
@@ -54,10 +55,10 @@ function blankEditor(): EditorState {
 }
 
 export default function AccountsPage() {
+  const access = useAccountAccess();
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [editor, setEditor] = useState<EditorState>(blankEditor());
-  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -85,9 +86,6 @@ export default function AccountsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const me = await request("/api/accounts/me");
-      setIsOwner(Boolean(me.isOwner));
-      if (!me.isOwner) return;
       const payload = await request("/api/accounts");
       setAccounts(payload.accounts || []);
       setProperties(payload.properties || []);
@@ -99,8 +97,13 @@ export default function AccountsPage() {
   }, [request]);
 
   useEffect(() => {
+    if (!access.ready) return;
+    if (!access.isOwner) {
+      setLoading(false);
+      return;
+    }
     load().catch(() => undefined);
-  }, [load]);
+  }, [access.isOwner, access.ready, load]);
 
   function startCreate() {
     setEditor(blankEditor());
@@ -194,7 +197,7 @@ export default function AccountsPage() {
     return <AppLayout title="账号与权限" description="正在加载账号授权资料。"><section className="card panel">正在加载...</section></AppLayout>;
   }
 
-  if (!isOwner) {
+  if (access.ready && !access.isOwner) {
     return <AppLayout title="账号与权限" description="账号管理仅对主管理员开放。"><section className="card panel"><p className="danger-text">没有权限访问账号与权限管理。</p></section></AppLayout>;
   }
 

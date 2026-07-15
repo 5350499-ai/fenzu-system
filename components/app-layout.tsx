@@ -21,7 +21,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 
@@ -68,8 +68,6 @@ export function AppLayout({ children, title, description }: { children: React.Re
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState("light");
-  const [authChecked, setAuthChecked] = useState(false);
-  const [authError, setAuthError] = useState("");
   const access = useAccountAccess();
   const routeModule = moduleForPath(pathname);
   const canOpenModule = (moduleKey: AccountModuleKey) => {
@@ -88,47 +86,8 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }, []);
 
   useEffect(() => {
-    let alive = true;
-
-    async function checkAuth() {
-      if (!isSupabaseConfigured || !supabase) {
-        if (!alive) return;
-        setAuthError("系统尚未配置 Supabase 登录服务。");
-        setAuthChecked(true);
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      if (!alive) return;
-
-      if (!data.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const response = await fetch("/api/accounts/me", {
-        headers: { Authorization: `Bearer ${data.session.access_token}` }
-      });
-      if (!response.ok) {
-        await supabase.auth.signOut({ scope: "local" });
-        router.replace("/login");
-        return;
-      }
-
-      setAuthChecked(true);
-    }
-
-    checkAuth();
-
-    const { data: listener } = supabase?.auth.onAuthStateChange((_event, session) => {
-      if (!session) router.replace("/login");
-    }) || { data: { subscription: null } };
-
-    return () => {
-      alive = false;
-      listener.subscription?.unsubscribe();
-    };
-  }, [router]);
+    if (access.ready && !access.authenticated && !access.invalidReason) router.replace("/login");
+  }, [access.authenticated, access.invalidReason, access.ready, router]);
 
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -146,22 +105,25 @@ export function AppLayout({ children, title, description }: { children: React.Re
       }).catch(() => undefined);
     }
     await supabase?.auth.signOut({ scope: "local" });
-    router.push("/login");
+    router.replace("/login");
   }
 
-  if (!authChecked) {
+  if (!access.ready) {
     return (
       <main className="login-page">
         <section className="card login-card">
           <div className="brand-title">正在检查登录状态...</div>
-          {authError ? <p className="danger-text">{authError}</p> : null}
         </section>
       </main>
     );
   }
 
-  if (access.ready && routeModule && !canOpenModule(routeModule)) {
-    return <main className="login-page"><section className="card login-card"><div className="brand-title">没有权限访问此页面</div><p className="muted">请联系主管理员调整账号权限。</p></section></main>;
+  if (!access.authenticated) {
+    return <AccessRecovery description={access.invalidReason || "登录状态已失效，请重新登录。"} onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
+  }
+
+  if (routeModule && !canOpenModule(routeModule)) {
+    return <AccessRecovery description="当前账号没有查看此页面的权限。请联系主管理员调整权限。" onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
   return (
@@ -222,6 +184,22 @@ export function AppLayout({ children, title, description }: { children: React.Re
         })}
       </nav>
     </div>
+  );
+}
+
+function AccessRecovery({ description, onHome, onBack, onLogout }: { description: string; onHome: () => void; onBack: () => void; onLogout: () => void }) {
+  return (
+    <main className="login-page">
+      <section className="card login-card">
+        <div className="brand-title">没有权限访问此页面</div>
+        <p className="muted">{description}</p>
+        <div className="modal-actions">
+          <button className="btn" type="button" onClick={onHome}>返回首页</button>
+          <button className="btn" type="button" onClick={onBack}>返回上一页</button>
+          <button className="btn primary" type="button" onClick={onLogout}>退出并重新登录</button>
+        </div>
+      </section>
+    </main>
   );
 }
 
