@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -40,7 +41,6 @@ import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
-import { supabase } from "@/lib/supabase";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -86,6 +86,7 @@ const emptyTenantPayment: BusinessRentPayment = {
 };
 
 export default function TenantsPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -107,7 +108,6 @@ export default function TenantsPage() {
   const [sortKey, setSortKey] = useState<TenantSortKey>("priority");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
@@ -142,19 +142,6 @@ export default function TenantsPage() {
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载租客失败：${error.message || error}`));
-  }, []);
-
-  useEffect(() => {
-    async function loadAdmin() {
-      const { data } = await supabase?.auth.getUser() || { data: { user: null } };
-      const email = data.user?.email?.toLowerCase() || "";
-      const admins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "5350499@qq.com")
-        .split(",")
-        .map((item) => item.trim().toLowerCase())
-        .filter(Boolean);
-      setIsAdmin(Boolean(email && admins.includes(email)));
-    }
-    loadAdmin().catch(() => setIsAdmin(false));
   }, []);
 
   useEffect(() => {
@@ -422,7 +409,7 @@ export default function TenantsPage() {
   }
 
   async function permanentlyDeleteTenant(tenant: BusinessTenant) {
-    if (!isAdmin) return;
+    if (!access.can("tenants", "delete")) return;
     const confirmText = window.prompt(
       "⚠️ 此操作不可恢复\n\n将删除：\n- 租客资料\n- 收租记录\n- 押金记录\n- 合同记录\n- 合同附件\n- 收款附件\n\n请输入 DELETE 确认永久删除。"
     );
@@ -535,9 +522,9 @@ export default function TenantsPage() {
             <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
               {showArchived ? "隐藏归档" : "显示归档"}
             </button>
-            <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
+            {access.can("tenants", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
               <Plus size={17} /> 新增租客
-            </button>
+            </button> : null}
           </div>
         </div>
 
@@ -622,7 +609,14 @@ export default function TenantsPage() {
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
                     files={files}
-                    isAdmin={isAdmin}
+                    isAdmin={access.can("tenants", "delete")}
+                    canEdit={access.can("tenants", "edit")}
+                    canArchive={access.can("tenants", "archive")}
+                    canCollectRent={access.can("rent_payments", "create")}
+                    canViewFiles={access.can("attachments") && access.canSensitive("canViewContractFiles")}
+                    canDownloadFiles={access.canSensitive("canDownloadFiles")}
+                    canReplaceFiles={access.can("attachments", "edit") && access.canSensitive("canReplaceFiles")}
+                    canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                     onDeleteFile={removeContractFile}
                     onArchive={() => archiveTenant(tenant)}
                     onPermanentDelete={() => permanentlyDeleteTenant(tenant)}
@@ -700,7 +694,7 @@ export default function TenantsPage() {
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
               </div>
-              <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
+              {access.can("attachments", form.id ? "edit" : "create") && access.canSensitive(form.id ? "canReplaceFiles" : "canUploadFiles") ? <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
                 <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
                   <span><FileUp size={16} /> 附件管理</span>
                   <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
@@ -733,7 +727,7 @@ export default function TenantsPage() {
                 ) : (
                   <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>
                 )}
-              </div>
+              </div> : null}
               <div className="modal-actions">
                 <button className="btn" onClick={close} type="button">取消</button>
                 <button className="btn primary" disabled={saving} type="submit">保存</button>
@@ -757,6 +751,13 @@ function TenantDetail({
   roomName,
   files,
   isAdmin,
+  canEdit,
+  canArchive,
+  canCollectRent,
+  canViewFiles,
+  canDownloadFiles,
+  canReplaceFiles,
+  canDeleteFiles,
   onArchive,
   saving,
   onDeleteFile,
@@ -776,6 +777,13 @@ function TenantDetail({
   roomName: string;
   files: ContractFile[];
   isAdmin: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
+  canCollectRent: boolean;
+  canViewFiles: boolean;
+  canDownloadFiles: boolean;
+  canReplaceFiles: boolean;
+  canDeleteFiles: boolean;
   saving: boolean;
   onArchive: () => void;
   onDeleteFile: (file: ContractFile) => void;
@@ -830,27 +838,27 @@ function TenantDetail({
         </div>
       </div>
 
-      <div className="attachment-panel">
+      {canViewFiles ? <div className="attachment-panel">
         <div className="detail-section-title">合同附件</div>
-        <TenantAttachmentActions files={files} onDelete={onDeleteFile} />
-        <label className="btn file-action-button">
+        <TenantAttachmentActions files={files} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        {canReplaceFiles ? <label className="btn file-action-button">
           <FileUp size={15} /> 替换合同
           <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => onReplaceFile(event.target.files?.[0])} />
-        </label>
+        </label> : null}
         <p className="muted">支持 PDF、JPG、PNG，单个文件不超过 5MB。</p>
-      </div>
+      </div> : null}
 
       <div className="top-actions detail-actions">
-        <a className="btn primary" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a>
-        <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button>
-        {archived ? (
+        {canCollectRent ? <a className="btn primary" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : null}
+        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
+        {canArchive && archived ? (
           <button className="btn" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
-        ) : (
+        ) : canArchive ? (
           <>
             <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button>
             <button className="btn" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
           </>
-        )}
+        ) : null}
         {isAdmin ? (
           <button className="btn danger" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
         ) : null}
@@ -859,7 +867,7 @@ function TenantDetail({
   );
 }
 
-function TenantAttachmentActions({ files, onDelete }: { files: ContractFile[]; onDelete: (file: ContractFile) => void }) {
+function TenantAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {
   if (!files.length) return <span className="muted">暂无合同附件</span>;
   return (
     <div className="attachment-list compact-attachment-list">
@@ -868,8 +876,8 @@ function TenantAttachmentActions({ files, onDelete }: { files: ContractFile[]; o
           <FileUp size={16} />
           <span>{file.fileName} ｜ {formatFileSize(file.fileSize)}</span>
           <button className="btn" type="button" onClick={() => openContractFile(file)}><Eye size={15} /> 查看</button>
-          <button className="btn" type="button" onClick={() => downloadContractFile(file)}><Download size={15} /> 下载</button>
-          <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button>
+          {canDownload ? <button className="btn" type="button" onClick={() => downloadContractFile(file)}><Download size={15} /> 下载</button> : null}
+          {canDelete ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}
         </div>
       ))}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { MetricCard } from "@/components/metric-card";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -31,6 +32,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 export default function AnalyticsPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -43,13 +45,14 @@ export default function AnalyticsPage() {
   const [propertyId, setPropertyId] = useState("all");
 
   useEffect(() => {
+    if (!access.ready) return;
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
-      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
+      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
+      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
+      const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : [];
+      const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
+      const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
@@ -58,7 +61,7 @@ export default function AnalyticsPage() {
       setDeposits(loadedDeposits);
     }
     load().catch((error) => window.alert(`加载统计数据失败：${error.message || error}`));
-  }, []);
+  }, [access.ready]);
 
   const range = useMemo(() => getDateRange(preset, customStart, customEnd), [customEnd, customStart, preset]);
   const propertyStats = useMemo(() => {

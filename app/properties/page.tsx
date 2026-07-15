@@ -30,6 +30,7 @@ import { noteSummary } from "@/lib/format";
 import { Archive, Edit3, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAccountAccess } from "@/components/account-access";
 
 const emptyProperty: BusinessProperty = {
   id: "",
@@ -42,6 +43,7 @@ const emptyProperty: BusinessProperty = {
 };
 
 export default function PropertiesPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -150,9 +152,9 @@ export default function PropertiesPage() {
             <h2 className="panel-title">房源列表</h2>
             <p className="muted">点击房源名称进入集中管理。</p>
           </div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button">
+          {access.can("properties", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button">
             <Plus size={17} /> 新增房源
-          </button>
+          </button> : null}
         </div>
         <div className="list-controls">
           <label className="search-box">
@@ -183,7 +185,7 @@ export default function PropertiesPage() {
                   <td><StatusBadge tone={property.subletAllowed ? "green" : "red"}>{property.subletAllowed ? "允许" : "不允许"}</StatusBadge></td>
                   <td><StatusBadge tone={isArchived(property.notes) ? "amber" : "green"}>{isArchived(property.notes) ? "已归档" : "正常"}</StatusBadge></td>
                   <td title={property.notes || ""}>{noteSummary(cleanArchiveNote(property.notes))}</td>
-                  <td><ActionButtons onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} /></td>
+                  <td><ActionButtons canArchive={access.can("properties", "archive")} canDelete={access.can("properties", "delete")} canEdit={access.can("properties", "edit")} onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} /></td>
                 </tr>
               ))}
             </tbody>
@@ -202,7 +204,7 @@ export default function PropertiesPage() {
                 <div className="mobile-record-field"><span>房东</span><strong>{property.landlordName || "-"}</strong></div>
                 <div className="mobile-record-field"><span>备注</span><strong>{noteSummary(cleanArchiveNote(property.notes))}</strong></div>
               </div>
-              <ActionButtons onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} />
+              <ActionButtons canArchive={access.can("properties", "archive")} canDelete={access.can("properties", "delete")} canEdit={access.can("properties", "edit")} onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} />
               <Link className="btn" href={`/properties/${property.id}`}>进入管理</Link>
             </article>
           ))}
@@ -245,12 +247,13 @@ export default function PropertiesPage() {
   );
 }
 
-function ActionButtons({ onEdit, onArchive, onDelete, saving }: { onEdit: () => void; onArchive: () => void; onDelete: () => void; saving: boolean }) {
+function ActionButtons({ onEdit, onArchive, onDelete, saving, canEdit, canArchive, canDelete }: { onEdit: () => void; onArchive: () => void; onDelete: () => void; saving: boolean; canEdit: boolean; canArchive: boolean; canDelete: boolean }) {
+  if (!canEdit && !canArchive && !canDelete) return null;
   return (
     <div className="top-actions">
-      <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
-      <button className="btn" disabled={saving} onClick={onArchive} type="button"><Archive size={15} /> 归档</button>
-      <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button>
+      {canEdit ? <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button> : null}
+      {canArchive ? <button className="btn" disabled={saving} onClick={onArchive} type="button"><Archive size={15} /> 归档</button> : null}
+      {canDelete ? <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button> : null}
     </div>
   );
 }

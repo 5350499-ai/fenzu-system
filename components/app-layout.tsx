@@ -22,43 +22,45 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useAccountAccess } from "@/components/account-access";
+import type { AccountModuleKey } from "@/lib/account-permissions";
 
 export const navGroups = [
   {
     title: "分租管理",
     items: [
-      { href: "/", label: "首页", icon: Home },
-      { href: "/check-in", label: "一键入住", icon: LogIn },
-      { href: "/properties", label: "房源管理", icon: Building2 },
-      { href: "/rooms", label: "房间管理", icon: CalendarCheck },
-      { href: "/tenants", label: "租客管理", icon: Users },
-      { href: "/rent-payments", label: "收租管理", icon: ReceiptText },
-      { href: "/expenses", label: "支出管理", icon: CreditCard },
-      { href: "/partnership-settlement", label: "合伙结算", icon: HandCoins },
-      { href: "/deposits", label: "押金管理", icon: WalletCards }
+      { href: "/", label: "首页", icon: Home, module: "home" },
+      { href: "/check-in", label: "一键入住", icon: LogIn, module: "check_in" },
+      { href: "/properties", label: "房源管理", icon: Building2, module: "properties" },
+      { href: "/rooms", label: "房间管理", icon: CalendarCheck, module: "rooms" },
+      { href: "/tenants", label: "租客管理", icon: Users, module: "tenants" },
+      { href: "/rent-payments", label: "收租管理", icon: ReceiptText, module: "rent_payments" },
+      { href: "/expenses", label: "支出管理", icon: CreditCard, module: "expenses" },
+      { href: "/partnership-settlement", label: "合伙结算", icon: HandCoins, module: "partnership_settlement" },
+      { href: "/deposits", label: "押金管理", icon: WalletCards, module: "deposits" }
     ]
   },
   {
     title: "运营工具",
     items: [
-      { href: "/reminders", label: "提醒中心", icon: Bell },
-      { href: "/property-profits", label: "利润分析", icon: BarChart3 },
-      { href: "/analytics", label: "统计分析", icon: LineChart },
-      { href: "/archive", label: "档案中心", icon: FileArchive },
-      { href: "/tasks", label: "待办管理", icon: ClipboardList }
+      { href: "/reminders", label: "提醒中心", icon: Bell, module: "reminders" },
+      { href: "/property-profits", label: "利润分析", icon: BarChart3, module: "profits" },
+      { href: "/analytics", label: "统计分析", icon: LineChart, module: "analytics" },
+      { href: "/archive", label: "档案中心", icon: FileArchive, module: "archive" },
+      { href: "/tasks", label: "待办管理", icon: ClipboardList, module: "tasks" }
     ]
   },
   {
     title: "系统",
-    items: [{ href: "/settings", label: "设置", icon: Settings }]
+    items: [{ href: "/settings", label: "设置", icon: Settings, module: "settings" }]
   }
 ];
 
 const mobileItems = [
-  { href: "/", label: "首页", icon: Home },
-  { href: "/tasks", label: "待办", icon: ClipboardList },
-  { href: "/property-profits", label: "利润", icon: BarChart3 },
-  { href: "/analytics", label: "统计", icon: LineChart },
+  { href: "/", label: "首页", icon: Home, module: "home" },
+  { href: "/tasks", label: "待办", icon: ClipboardList, module: "tasks" },
+  { href: "/property-profits", label: "利润", icon: BarChart3, module: "profits" },
+  { href: "/analytics", label: "统计", icon: LineChart, module: "analytics" },
   { href: "/more", label: "更多", icon: ChevronRight }
 ];
 
@@ -68,6 +70,16 @@ export function AppLayout({ children, title, description }: { children: React.Re
   const [theme, setTheme] = useState("light");
   const [authChecked, setAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
+  const access = useAccountAccess();
+  const routeModule = moduleForPath(pathname);
+  const canOpenModule = (moduleKey: AccountModuleKey) => {
+    if (!access.can(moduleKey)) return false;
+    if (moduleKey === "profits") return access.canSensitive("canViewProfits");
+    if (moduleKey === "partnership_settlement") return access.canSensitive("canViewPartnershipSettlement");
+    if (moduleKey === "audit_logs") return access.canSensitive("canViewAuditLogs");
+    if (moduleKey === "accounts") return access.isOwner;
+    return true;
+  };
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme") || "light";
@@ -148,6 +160,10 @@ export function AppLayout({ children, title, description }: { children: React.Re
     );
   }
 
+  if (access.ready && routeModule && !canOpenModule(routeModule)) {
+    return <main className="login-page"><section className="card login-card"><div className="brand-title">没有权限访问此页面</div><p className="muted">请联系主管理员调整账号权限。</p></section></main>;
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -158,7 +174,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
             <div className="brand-subtitle">经营管理系统</div>
           </div>
         </div>
-        {navGroups.map((group) => (
+        {navGroups.map((group) => ({ ...group, items: group.items.filter((item) => canOpenModule(item.module as AccountModuleKey)) })).filter((group) => group.items.length).map((group) => (
           <nav className="nav-group" key={group.title}>
             <p className="nav-heading">{group.title}</p>
             {group.items.map((item) => {
@@ -194,7 +210,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
       </main>
 
       <nav className="mobile-nav">
-        {mobileItems.map((item) => {
+        {mobileItems.filter((item) => !item.module || canOpenModule(item.module as AccountModuleKey)).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
           return (
@@ -207,4 +223,25 @@ export function AppLayout({ children, title, description }: { children: React.Re
       </nav>
     </div>
   );
+}
+
+function moduleForPath(pathname: string): AccountModuleKey | null {
+  if (pathname === "/") return "home";
+  if (pathname.startsWith("/check-in")) return "check_in";
+  if (pathname.startsWith("/properties")) return "properties";
+  if (pathname.startsWith("/rooms")) return "rooms";
+  if (pathname.startsWith("/tenants") || pathname.startsWith("/contracts")) return "tenants";
+  if (pathname.startsWith("/rent-payments")) return "rent_payments";
+  if (pathname.startsWith("/expenses")) return "expenses";
+  if (pathname.startsWith("/deposits")) return "deposits";
+  if (pathname.startsWith("/partnership-settlement")) return "partnership_settlement";
+  if (pathname.startsWith("/reminders")) return "reminders";
+  if (pathname.startsWith("/property-profits")) return "profits";
+  if (pathname.startsWith("/analytics")) return "analytics";
+  if (pathname.startsWith("/archive")) return "archive";
+  if (pathname.startsWith("/tasks")) return "tasks";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/accounts")) return "accounts";
+  if (pathname.startsWith("/audit-logs")) return "audit_logs";
+  return null;
 }

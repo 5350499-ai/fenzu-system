@@ -3,23 +3,18 @@
 import { AppLayout, navGroups } from "@/components/app-layout";
 import Link from "next/link";
 import { ScrollText, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useAccountAccess } from "@/components/account-access";
+import type { AccountModuleKey } from "@/lib/account-permissions";
 
 export default function MorePage() {
-  const items = navGroups.flatMap((group) => group.items).filter((item) => item.href !== "/");
-  const [isOwner, setIsOwner] = useState(false);
-
-  useEffect(() => {
-    async function loadAccount() {
-      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
-      if (!data.session) return;
-      const response = await fetch("/api/accounts/me", { headers: { Authorization: `Bearer ${data.session.access_token}` } });
-      const payload = await response.json().catch(() => null);
-      setIsOwner(Boolean(payload?.isOwner));
-    }
-    loadAccount().catch(() => undefined);
-  }, []);
+  const access = useAccountAccess();
+  const canOpenModule = (moduleKey: AccountModuleKey) => {
+    if (!access.can(moduleKey)) return false;
+    if (moduleKey === "profits") return access.canSensitive("canViewProfits");
+    if (moduleKey === "partnership_settlement") return access.canSensitive("canViewPartnershipSettlement");
+    return true;
+  };
+  const items = navGroups.flatMap((group) => group.items).filter((item) => item.href !== "/" && canOpenModule(item.module as AccountModuleKey));
 
   return (
     <AppLayout title="更多" description="完整菜单集中放在这里，手机端首页优先显示经营数据。">
@@ -34,16 +29,16 @@ export default function MorePage() {
               </Link>
             );
           })}
-          {isOwner ? (
+          {(access.isOwner && access.can("accounts")) || (access.can("audit_logs") && access.canSensitive("canViewAuditLogs")) ? (
             <>
-              <Link className="shortcut-card" href="/accounts">
+              {access.isOwner && access.can("accounts") ? <Link className="shortcut-card" href="/accounts">
                 <span className="shortcut-icon blue"><ShieldCheck size={20} /></span>
                 <strong>账号与权限</strong>
-              </Link>
-              <Link className="shortcut-card" href="/audit-logs">
+              </Link> : null}
+              {access.can("audit_logs") && access.canSensitive("canViewAuditLogs") ? <Link className="shortcut-card" href="/audit-logs">
                 <span className="shortcut-icon blue"><ScrollText size={20} /></span>
                 <strong>操作日志</strong>
-              </Link>
+              </Link> : null}
             </>
           ) : null}
         </div>

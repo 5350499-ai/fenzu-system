@@ -1,6 +1,8 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
+import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MoneyInput } from "@/components/money-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -33,7 +35,7 @@ import { euro, noteSummary } from "@/lib/format";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "profit" | "notes";
 type Editor = "room" | "tenant" | "contract" | "payment" | "deposit" | "expense" | null;
@@ -49,8 +51,10 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "profit", label: "利润" },
   { id: "notes", label: "备注" }
 ];
+const ScopedModuleContext = createContext<AccountModuleKey>("properties");
 
 export default function PropertyDetailPage() {
+  const access = useAccountAccess();
   const params = useParams<{ id: string }>();
   const propertyId = params.id;
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -72,14 +76,27 @@ export default function PropertyDetailPage() {
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    if (!access.ready) return;
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
-      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants));
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
-      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
+      const loadedRooms = access.can("rooms")
+        ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties))
+        : [];
+      const loadedTenants = access.can("tenants")
+        ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms))
+        : [];
+      const loadedContracts = access.can("tenants")
+        ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts(loadedProperties, loadedRooms, loadedTenants))
+        : [];
+      const loadedPayments = access.can("rent_payments")
+        ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants))
+        : [];
+      const loadedDeposits = access.can("deposits")
+        ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants))
+        : [];
+      const loadedExpenses = access.can("expenses")
+        ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties))
+        : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
@@ -90,7 +107,7 @@ export default function PropertyDetailPage() {
       setLoaded(true);
     }
     load().catch(console.error);
-  }, []);
+  }, [access.ready]);
 
   const property = properties.find((item) => item.id === propertyId);
   const scopedRooms = rooms.filter((item) => item.propertyId === propertyId);
@@ -137,6 +154,7 @@ export default function PropertyDetailPage() {
   }
 
   function savePropertyNotes(notes: string) {
+    if (!access.can("properties", "edit")) return;
     const next = properties.map((item) => (item.id === propertyId ? { ...item, notes } : item));
     setProperties(next);
     saveBusinessData(propertyKey, next).catch(console.error);
@@ -174,7 +192,7 @@ export default function PropertyDetailPage() {
       </section>
 
       <div className="tabs">
-        {tabs.map((item) => (
+        {tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits")).map((item) => (
           <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">
             {item.label}
           </button>
@@ -282,7 +300,7 @@ export default function PropertyDetailPage() {
       {tab === "notes" ? (
         <section className="card panel">
           <h2 className="panel-title">房源备注</h2>
-          <textarea className="notes-editor" value={property.notes || ""} onChange={(event) => savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
+          <textarea className="notes-editor" value={property.notes || ""} readOnly={!access.can("properties", "edit")} onChange={(event) => savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
         </section>
       ) : null}
 
@@ -402,15 +420,22 @@ function ExpenseFields({ form, setForm }: any) {
 }
 
 function ScopedTable({ title, action, onAdd, children }: { title: string; action: string; onAdd: () => void; children: React.ReactNode }) {
-  return <section className="card panel"><div className="panel-header"><h2 className="panel-title">{title}</h2><button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button></div><div className="table-wrap"><table>{children}</table></div></section>;
+  const access = useAccountAccess();
+  const moduleKey: AccountModuleKey = title === "房间" ? "rooms" : title === "租客" || title === "合同" ? "tenants" : title === "收租" ? "rent_payments" : title === "押金" ? "deposits" : "expenses";
+  return <ScopedModuleContext.Provider value={moduleKey}><section className="card panel"><div className="panel-header"><h2 className="panel-title">{title}</h2>{access.can(moduleKey, "create") ? <button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button> : null}</div><div className="table-wrap"><table>{children}</table></div></section></ScopedModuleContext.Provider>;
 }
 
 function ScopedReadOnlyTable({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="card panel"><h2 className="panel-title">{title}</h2><div className="table-wrap"><table>{children}</table></div></section>;
 }
 
-function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn danger" onClick={onDelete} type="button"><Trash2 size={15} /> 删除</button></div>;
+function RowActions({ onEdit, onDelete, canEdit = true, canDelete = true }: { onEdit: () => void; onDelete: () => void; canEdit?: boolean; canDelete?: boolean }) {
+  const access = useAccountAccess();
+  const moduleKey = useContext(ScopedModuleContext);
+  const showEdit = canEdit && access.can(moduleKey, "edit");
+  const showDelete = canDelete && access.can(moduleKey, "delete");
+  if (!showEdit && !showDelete) return null;
+  return <div className="top-actions">{showEdit ? <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button> : null}{showDelete ? <button className="btn danger" onClick={onDelete} type="button"><Trash2 size={15} /> 删除</button> : null}</div>;
 }
 
 function Summary({ label, value, tone }: { label: string; value: string; tone?: string }) {

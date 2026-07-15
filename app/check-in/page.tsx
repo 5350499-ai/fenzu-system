@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -31,6 +32,7 @@ import { useEffect, useState } from "react";
 const maxAttachmentSize = 5 * 1024 * 1024;
 
 export default function CheckInPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -257,7 +259,7 @@ export default function CheckInPage() {
               </div>
             ) : <p className="muted">收款日期默认今天，押金默认已收；需要修改时再展开。</p>}
           </div>
-          <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
+          {access.can("attachments", "create") && access.canSensitive("canUploadFiles") ? <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
             <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
               <span><FileUp size={16} /> 附件管理</span>
               <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
@@ -276,8 +278,8 @@ export default function CheckInPage() {
                 </div>
               </div>
             ) : <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>}
-          </div>
-          <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div>
+          </div> : null}
+          {access.can("check_in", "create") ? <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div> : null}
         </form>
       </section>
     </AppLayout>

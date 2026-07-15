@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -42,6 +43,7 @@ const detailRanges: { value: RangePreset; label: string }[] = [
 ];
 
 export default function PropertyProfitDetailPage() {
+  const access = useAccountAccess();
   const params = useParams<{ id: string }>();
   const propertyId = params.id;
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -59,13 +61,14 @@ export default function PropertyProfitDetailPage() {
   const [customEnd, setCustomEnd] = useState("");
 
   useEffect(() => {
+    if (!access.ready) return;
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
-      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
+      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
+      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
+      const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : [];
+      const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
+      const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
@@ -73,14 +76,14 @@ export default function PropertyProfitDetailPage() {
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
       const [loadedRentFiles, loadedExpenseFiles] = await Promise.all([
-        loadRentPaymentFiles(loadedPayments.map((payment) => payment.id)).catch(() => []),
-        loadExpenseFiles(loadedExpenses.map((expense) => expense.id)).catch(() => [])
+        access.can("attachments") && access.canSensitive("canViewRentFiles") ? loadRentPaymentFiles(loadedPayments.map((payment) => payment.id)).catch(() => []) : [],
+        access.can("attachments") && access.canSensitive("canViewExpenseFiles") ? loadExpenseFiles(loadedExpenses.map((expense) => expense.id)).catch(() => []) : []
       ]);
       setRentFiles(loadedRentFiles);
       setExpenseFiles(loadedExpenseFiles);
     }
     load().catch((error) => window.alert(`加载房源利润明细失败：${error.message || error}`));
-  }, []);
+  }, [access.ready]);
 
   const property = properties.find((item) => item.id === propertyId);
   const range = useMemo(() => getDateRange(preset, customStart, customEnd), [customEnd, customStart, preset]);
@@ -139,7 +142,7 @@ export default function PropertyProfitDetailPage() {
               <button className="profit-ledger-line" onClick={() => setExpandedRentId(expanded ? "" : payment.id)} type="button">
                 <span>{payment.paymentDate || payment.rentMonth}</span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b><span>{profitPaymentLabel(payment, room?.name || "-", Number(payment.amountPaid || 0) > Number(payment.amountDue || 0))}</span><strong>{euro(payment.amountPaid)}</strong><StatusBadge tone={isCoverageExpired(payment) ? "red" : "green"}>{isRentIncome(payment) ? isCoverageExpired(payment) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
               </button>
-              {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span>{isRentIncome(payment) ? <span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span> : null}<span>类型：{payment.incomeType || "房租收入"}</span>{payment.incomeItem ? <span>项目：{payment.incomeItem}</span> : null}<span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /></div> : null}
+              {expanded ? <div className="profit-ledger-detail"><span>租客：{tenant?.name || "-"}</span>{isRentIncome(payment) ? <span>覆盖至：{paymentCoverageEnd(payment) || "-"}</span> : null}<span>类型：{payment.incomeType || "房租收入"}</span>{payment.incomeItem ? <span>项目：{payment.incomeItem}</span> : null}<span>付款方式：{payment.paymentMethod || "-"}</span><span>备注：{payment.notes || "-"}</span>{access.can("attachments") && access.canSensitive("canViewRentFiles") ? <FileLinks canDownload={access.canSensitive("canDownloadFiles")} files={relatedFiles} onOpen={openRentPaymentFile} onDownload={downloadRentPaymentFile} /> : null}</div> : null}
             </div>;
           }) : <p className="muted">暂无收租记录。</p>}
           </div>
@@ -154,7 +157,7 @@ export default function PropertyProfitDetailPage() {
               <button className="profit-ledger-line" onClick={() => setExpandedExpenseId(expanded ? "" : expense.id)} type="button">
                 <span>{expense.paymentDate || "-"}</span><b className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy)}</b><span>{expense.category}</span><strong>{euro(expense.amount)}</strong><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge>
               </button>
-              {expanded ? <div className="profit-ledger-detail"><span>付款方式：{expense.paymentMethod || "-"}</span><span>付款归属：{expense.paidBy || "A"}</span><span>备注：{expense.notes || "-"}</span><FileLinks files={relatedFiles} onOpen={openExpenseFile} onDownload={downloadExpenseFile} /></div> : null}
+              {expanded ? <div className="profit-ledger-detail"><span>付款方式：{expense.paymentMethod || "-"}</span><span>付款归属：{expense.paidBy || "A"}</span><span>备注：{expense.notes || "-"}</span>{access.can("attachments") && access.canSensitive("canViewExpenseFiles") ? <FileLinks canDownload={access.canSensitive("canDownloadFiles")} files={relatedFiles} onOpen={openExpenseFile} onDownload={downloadExpenseFile} /> : null}</div> : null}
             </div>;
           }) : <p className="muted">暂无支出记录。</p>}
           </div>
@@ -187,10 +190,10 @@ function ProfitMetric({ label, value, tone = "" }: { label: string; value: strin
   return <div className={`compact-profit-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function FileLinks<T>({ files, onOpen, onDownload }: { files: T[]; onOpen: (file: T) => void; onDownload: (file: T) => void }) {
+function FileLinks<T>({ files, onOpen, onDownload, canDownload }: { files: T[]; onOpen: (file: T) => void; onDownload: (file: T) => void; canDownload: boolean }) {
   return (
     <div className="profit-file-links">
-      {files.length ? files.map((file: any) => <span key={file.id}><button className="btn" onClick={() => onOpen(file)} type="button"><Eye size={14} /> 查看附件</button><button className="btn" onClick={() => onDownload(file)} type="button"><Download size={14} /> 下载</button></span>) : <span className="muted">无附件</span>}
+      {files.length ? files.map((file: any) => <span key={file.id}><button className="btn" onClick={() => onOpen(file)} type="button"><Eye size={14} /> 查看附件</button>{canDownload ? <button className="btn" onClick={() => onDownload(file)} type="button"><Download size={14} /> 下载</button> : null}</span>) : <span className="muted">无附件</span>}
     </div>
   );
 }

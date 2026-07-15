@@ -23,6 +23,7 @@ import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { isLinkedRentDeposit } from "@/lib/profit";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useAccountAccess } from "@/components/account-access";
 
 const emptyDeposit: BusinessDeposit = {
   id: "",
@@ -43,6 +44,7 @@ const depositStatuses = ["已收", "待退", "已退", "部分扣除", "已作�
 const partnerOptions = ["A", "B"];
 
 export default function DepositsPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -134,7 +136,7 @@ export default function DepositsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">押金列表</h2><p className="muted">押金记录必须关联房源、房间、租客。</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增押金记录</button>
+          {access.can("deposits", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增押金记录</button> : null}
         </div>
         <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间、租客、状态、类型" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
         <div className="table-wrap">
@@ -153,7 +155,7 @@ export default function DepositsPage() {
                   <td><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge></td>
                   <td>{depositTypeLabel(deposit.type)}</td>
                   <td title={deposit.notes || ""}>{noteSummary(cleanVoidNote(deposit.notes))}</td>
-                  <td><DepositActions onDelete={() => permanentlyDelete(deposit)} onEdit={() => { setForm(deposit); setOpen(true); }} onVoid={() => voidDeposit(deposit)} saving={saving} /></td>
+                  <td><DepositActions canArchive={access.can("deposits", "archive")} canDelete={access.can("deposits", "delete")} canEdit={access.can("deposits", "edit")} onDelete={() => permanentlyDelete(deposit)} onEdit={() => { setForm(deposit); setOpen(true); }} onVoid={() => voidDeposit(deposit)} saving={saving} /></td>
                 </tr>
               );
             })}</tbody>
@@ -173,7 +175,7 @@ export default function DepositsPage() {
                   <div className="mobile-record-field"><span>日期</span><strong>{deposit.transactionDate || "-"}</strong></div>
                   <div className="mobile-record-field"><span>备注</span><strong>{expanded ? cleanVoidNote(deposit.notes) || "-" : noteSummary(cleanVoidNote(deposit.notes))} {cleanVoidNote(deposit.notes).length > 10 ? <button className="note-expand" onClick={() => setExpandedNoteId(expanded ? "" : deposit.id)} type="button">{expanded ? "收起" : "展开"}</button> : null}</strong></div>
                 </div>
-                <DepositActions onDelete={() => permanentlyDelete(deposit)} onEdit={() => { setForm(deposit); setOpen(true); }} onVoid={() => voidDeposit(deposit)} saving={saving} />
+                <DepositActions canArchive={access.can("deposits", "archive")} canDelete={access.can("deposits", "delete")} canEdit={access.can("deposits", "edit")} onDelete={() => permanentlyDelete(deposit)} onEdit={() => { setForm(deposit); setOpen(true); }} onVoid={() => voidDeposit(deposit)} saving={saving} />
               </article>
             );
           })}
@@ -204,8 +206,9 @@ export default function DepositsPage() {
   );
 }
 
-function DepositActions({ onEdit, onVoid, onDelete, saving }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean }) {
-  return <div className="top-actions"><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button><button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button></div>;
+function DepositActions({ onEdit, onVoid, onDelete, saving, canEdit, canArchive, canDelete }: { onEdit: () => void; onVoid: () => void; onDelete: () => void; saving: boolean; canEdit: boolean; canArchive: boolean; canDelete: boolean }) {
+  if (!canEdit && !canArchive && !canDelete) return null;
+  return <div className="top-actions">{canEdit ? <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button> : null}{canArchive ? <button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button> : null}{canDelete ? <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button> : null}</div>;
 }
 
 function PartnerTag({ deposit }: { deposit: BusinessDeposit }) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -76,6 +77,7 @@ function defaultCoverageEnd(startDate: string) {
 }
 
 export default function RentPaymentsPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -484,7 +486,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button>
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -534,6 +536,12 @@ export default function RentPaymentsPage() {
                     onDelete={() => permanentlyDelete(payment)}
                     onFileDelete={removeFile}
                     saving={saving}
+                    canEdit={access.can("rent_payments", "edit")}
+                    canArchive={access.can("rent_payments", "archive")}
+                    canDelete={access.can("rent_payments", "delete")}
+                    canViewFiles={access.can("attachments") && access.canSensitive("canViewRentFiles")}
+                    canDownloadFiles={access.canSensitive("canDownloadFiles")}
+                    canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                   />
                 ) : null}
               </article>
@@ -574,12 +582,12 @@ export default function RentPaymentsPage() {
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
               {isRentPayment(form) ? <TapSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus })} /> : null}
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
+              {(form.id ? access.canSensitive("canReplaceFiles") : access.canSensitive("canUploadFiles")) && access.can(form.id ? "attachments" : "attachments", form.id ? "edit" : "create") ? <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>收款附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
                 {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">{form.id ? "选择新文件并保存后，会替换当前收款附件。" : "可上传付款截图、票据或 PDF，单个附件最大 5MB。"}</p>}
                 {form.id && (filesByPayment[form.id] || []).length ? <RentPaymentAttachmentActions files={filesByPayment[form.id] || []} onDelete={removeFile} /> : null}
-              </div>
+              </div> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
@@ -668,7 +676,13 @@ function PaymentDetail({
   onVoid,
   onDelete,
   onFileDelete,
-  saving
+  saving,
+  canEdit,
+  canArchive,
+  canDelete,
+  canViewFiles,
+  canDownloadFiles,
+  canDeleteFiles
 }: {
   payment: BusinessRentPayment;
   propertyName: string;
@@ -681,6 +695,12 @@ function PaymentDetail({
   onDelete: () => void;
   onFileDelete: (file: RentPaymentFile) => void;
   saving: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
+  canDelete: boolean;
+  canViewFiles: boolean;
+  canDownloadFiles: boolean;
+  canDeleteFiles: boolean;
 }) {
   return (
     <div className="record-detail-panel">
@@ -701,14 +721,14 @@ function PaymentDetail({
         <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
       </div>
-      <div>
+      {canViewFiles ? <div>
         <div className="detail-section-title">收款附件</div>
-        <RentPaymentAttachmentActions files={files} onDelete={onFileDelete} />
-      </div>
+        <RentPaymentAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+      </div> : null}
       <div className="top-actions detail-actions">
-        <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button>
-        <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button>
-        <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button>
+        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button> : null}
+        {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
+        {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
       </div>
     </div>
   );
@@ -723,7 +743,7 @@ function paymentDepositAmount(payment: BusinessRentPayment, legacyLinkedDeposit?
   return Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
 }
 
-function RentPaymentAttachmentActions({ files, onDelete }: { files: RentPaymentFile[]; onDelete: (file: RentPaymentFile) => void }) {
+function RentPaymentAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: RentPaymentFile[]; onDelete: (file: RentPaymentFile) => void; canDownload?: boolean; canDelete?: boolean }) {
   if (!files.length) return <span className="muted">暂无附件</span>;
   return (
     <div className="attachment-list">
@@ -732,8 +752,8 @@ function RentPaymentAttachmentActions({ files, onDelete }: { files: RentPaymentF
           <FileUp size={16} />
           <span>{file.fileName} · {formatFileSize(file.fileSize)}</span>
           <button className="btn" type="button" onClick={() => openRentPaymentFile(file)}><Eye size={15} /> 查看</button>
-          <button className="btn" type="button" onClick={() => downloadRentPaymentFile(file)}><Download size={15} /> 下载</button>
-          <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button>
+          {canDownload ? <button className="btn" type="button" onClick={() => downloadRentPaymentFile(file)}><Download size={15} /> 下载</button> : null}
+          {canDelete ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}
         </div>
       ))}
     </div>

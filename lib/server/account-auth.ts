@@ -31,6 +31,7 @@ export class AccountApiError extends Error {
 type JwtClaims = { session_id?: string; iat?: number };
 
 export type AccountRequestContext = {
+  accessToken: string;
   userId: string;
   sessionId: string | null;
   profile: AccountProfileRow;
@@ -140,6 +141,7 @@ export async function requireActiveAccount(request: Request, ownerOnly = false):
   }
 
   return {
+    accessToken: token,
     userId: userData.user.id,
     sessionId,
     profile,
@@ -147,6 +149,29 @@ export async function requireActiveAccount(request: Request, ownerOnly = false):
     ipAddress: requestIp(request),
     userAgent: request.headers.get("user-agent")
   };
+}
+
+export async function requireModulePermission(context: AccountRequestContext, moduleKey: string, action: "view" | "create" | "edit" | "archive" | "delete" = "view") {
+  if (context.profile.account_type === "owner") return;
+  const column = action === "view" ? "can_view" : action === "create" ? "can_create" : action === "edit" ? "can_edit" : action === "archive" ? "can_archive" : "can_delete";
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("user_permissions").select(column).eq("user_id", context.userId).eq("module_key", moduleKey).maybeSingle();
+  if (!data || !Boolean((data as Record<string, unknown>)[column])) throw new AccountApiError("没有权限执行此操作。", 403);
+}
+
+export async function requireSensitivePermission(context: AccountRequestContext, permissionColumn: string) {
+  if (context.profile.account_type === "owner") return;
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("user_sensitive_permissions").select(permissionColumn).eq("user_id", context.userId).maybeSingle();
+  if (!data || !Boolean((data as unknown as Record<string, unknown>)[permissionColumn])) throw new AccountApiError("没有权限执行此操作。", 403);
+}
+
+export async function requirePropertyAccess(context: AccountRequestContext, propertyId: string | null | undefined) {
+  if (context.profile.account_type === "owner" || context.profile.property_access_mode === "all") return;
+  if (!propertyId) throw new AccountApiError("该记录不在当前账号的房源授权范围内。", 403);
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("user_property_access").select("property_id").eq("user_id", context.userId).eq("property_id", propertyId).maybeSingle();
+  if (!data) throw new AccountApiError("该记录不在当前账号的房源授权范围内。", 403);
 }
 
 const SENSITIVE_KEY_PATTERN = /password|token|authorization|cookie|secret|service_role|api[_-]?key/i;

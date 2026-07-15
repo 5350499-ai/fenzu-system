@@ -125,6 +125,7 @@ export const depositKey = "business-deposits";
 export const taskKey = "v1-tasks";
 
 const remoteIdKey = (key: string) => `supabase-ids:${key}`;
+const remoteSnapshotKey = (key: string) => `supabase-snapshot:${key}`;
 const contractMetaMarker = "__contractMeta";
 
 const tableConfigs: Record<string, TableConfig> = {
@@ -398,13 +399,16 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
   } = await supabase.auth.getSession();
   if (!session) return [];
 
-  let query = supabase.from(config.table).select(config.select || "*");
-  if (config.order) query = query.order(config.order, { ascending: false });
+  let query = key === tenantKey
+    ? supabase.rpc("get_authorized_tenants")
+    : supabase.from(config.table).select(config.select || "*");
+  if (config.order && key !== tenantKey) query = query.order(config.order, { ascending: false });
   const { data, error } = await query;
   if (error) throw new Error(toBusinessError(error.message));
 
   const rows = ((data || []) as unknown as AnyRecord[]).map((row) => config.fromDb(row)) as T[];
   writeRemoteIds(key, rows.map((row) => row.id));
+  writeRemoteSnapshot(key, rows);
   return rows;
 }
 
@@ -420,36 +424,40 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   } = await supabase.auth.getSession();
   if (!session) return;
 
+  const account = await loadAccountSnapshot(session.access_token);
   const previousIds = readRemoteIds(key);
+  const previousRows = readRemoteSnapshot<T>(key);
+  const previousById = new Map(previousRows.map((row) => [row.id, JSON.stringify(row)]));
   if (!previousIds.length && !value.length) return;
 
   const nextIds = value.map((row) => row.id).filter(Boolean);
   const removedIds = previousIds.filter((id) => !nextIds.includes(id));
-  if (removedIds.length) {
-    const { error } = await supabase.from(config.table).delete().in("id", removedIds);
-    if (error) throw new Error(toBusinessError(error.message));
-  }
-
-  const rows = value.filter((row) => row.id).map((row) => config.toDb(row, session.user.id));
-  if (rows.length) {
-    const { error } = await supabase.from(config.table).upsert(rows);
-    if (error) {
-      if (config.table === "expenses" && isMissingExpenseOptionalColumn(error.message)) {
-        const fallbackRows = rows.map((row) => {
-          const next = { ...row };
-          if (error.message.includes("room_id")) delete next.room_id;
-          if (error.message.includes("payment_method")) delete next.payment_method;
-          return next;
-        });
-        const { error: fallbackError } = await supabase.from(config.table).upsert(fallbackRows);
-        if (fallbackError) throw new Error(toBusinessError(fallbackError.message));
-      } else {
-        throw new Error(toBusinessError(error.message));
-      }
-    }
+  const changedRows = value.filter((row) => row.id && previousById.get(row.id) !== JSON.stringify(row));
+  const rows = changedRows.map((row) => config.toDb(row, account.workspaceOwnerId));
+  if (!rows.length && !removedIds.length) return;
+  const response = await fetch("/api/business-data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ key, rows, removedIds })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "没有权限保存该记录。");
   }
 
   writeRemoteIds(key, nextIds);
+  writeRemoteSnapshot(key, value);
+}
+
+let accountSnapshot: { token: string; workspaceOwnerId: string } | null = null;
+
+async function loadAccountSnapshot(accessToken: string) {
+  if (accountSnapshot?.token === accessToken) return accountSnapshot;
+  const response = await fetch("/api/accounts/me", { cache: "no-store", headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("当前账号权限已失效，请重新登录。");
+  const payload = await response.json();
+  accountSnapshot = { token: accessToken, workspaceOwnerId: payload.profile?.workspaceOwnerId || payload.profile?.id || "" };
+  return accountSnapshot;
 }
 
 function propertyConfig(): TableConfig {
@@ -512,6 +520,17 @@ function readRemoteIds(key: string): string[] {
 function writeRemoteIds(key: string, ids: string[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(remoteIdKey(key), JSON.stringify(ids));
+}
+
+function readRemoteSnapshot<T extends AnyRecord>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  const stored = window.localStorage.getItem(remoteSnapshotKey(key));
+  return stored ? (JSON.parse(stored) as T[]) : [];
+}
+
+function writeRemoteSnapshot<T extends AnyRecord>(key: string, rows: T[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(remoteSnapshotKey(key), JSON.stringify(rows));
 }
 
 function monthToDate(value?: string) {

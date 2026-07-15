@@ -1,6 +1,8 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
+import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MetricCard } from "@/components/metric-card";
 import {
   BusinessContract,
@@ -34,17 +36,18 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const shortcuts = [
-  { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green" },
-  { title: "支出", href: "/expenses", icon: CreditCard, tone: "red" },
-  { title: "收款", href: "/rent-payments", icon: ReceiptText, tone: "green" },
-  { title: "房源", href: "/properties", icon: Building2, tone: "amber" },
-  { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue" },
-  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue" },
-  { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue" },
+  { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
+  { title: "支出", href: "/expenses", icon: CreditCard, tone: "red", module: "expenses" },
+  { title: "收款", href: "/rent-payments", icon: ReceiptText, tone: "green", module: "rent_payments" },
+  { title: "房源", href: "/properties", icon: Building2, tone: "amber", module: "properties" },
+  { title: "租客", href: "/tenants", icon: UserPlus, tone: "blue", module: "tenants" },
+  { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue", module: "rooms" },
+  { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue", module: "partnership_settlement", sensitive: "canViewPartnershipSettlement" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
-];
+] satisfies Array<{ title: string; href: string; icon: typeof LogIn; tone: string; module?: AccountModuleKey; sensitive?: "canViewPartnershipSettlement" }>;
 
 export default function DashboardPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -55,14 +58,15 @@ export default function DashboardPage() {
   const [remindersOpen, setRemindersOpen] = useState(false);
 
   useEffect(() => {
+    if (!access.ready) return;
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
-      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
-      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants));
+      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
+      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
+      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
+      const loadedContracts = access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : [];
+      const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
+      const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
+      const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
@@ -72,7 +76,7 @@ export default function DashboardPage() {
       setDeposits(loadedDeposits);
     }
     load().catch((error) => window.alert(`加载首页数据失败：${error.message || error}`));
-  }, []);
+  }, [access.ready]);
 
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -104,7 +108,7 @@ export default function DashboardPage() {
 
       <section className="card compact-shortcuts home-shortcuts">
         <div className="shortcut-grid compact-icon-grid">
-          {shortcuts.map((item) => {
+          {shortcuts.filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
             const Icon = item.icon;
             return (
               <Link className="shortcut-card compact-icon-card" href={item.href} key={item.title}>

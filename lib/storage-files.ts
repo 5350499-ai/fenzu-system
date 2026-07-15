@@ -55,6 +55,8 @@ export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): 
     data: { session }
   } = await supabase.auth.getSession();
   if (!session) return [];
+  const account = await loadFileAccount(session.access_token);
+  if (!account.canViewAttachments || !account[viewPermissionFor(config)]) return [];
 
   let query = supabase.from(config.table).select("*").order("uploaded_at", { ascending: false });
   if (ownerIds?.length) query = query.in(config.ownerColumn, ownerIds);
@@ -73,12 +75,14 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     data: { session }
   } = await supabase.auth.getSession();
   if (!session) throw new Error("请先登录后再上传附件。");
+  const account = await loadFileAccount(session.access_token);
+  if (!account.canCreateAttachments || !account.canUploadFiles) throw new Error("当前账号没有上传附件权限。");
 
   const file = sourceFile.type.startsWith("image/") ? await compressImage(sourceFile) : sourceFile;
   if (file.size > maxFileSize) throw new Error("压缩后文件仍超过 5MB，请选择更小的文件。");
 
   const fileId = crypto.randomUUID();
-  const storagePath = `${session.user.id}/${ownerId}/${fileId}-${sanitizeFileName(sourceFile.name)}`;
+  const storagePath = `${account.workspaceOwnerId}/${ownerId}/${fileId}-${sanitizeFileName(sourceFile.name)}`;
   const { error: uploadError } = await supabase.storage.from(config.bucket).upload(storagePath, file, {
     contentType: file.type || sourceFile.type,
     upsert: false
@@ -87,7 +91,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
 
   const row = {
     id: fileId,
-    user_id: session.user.id,
+    user_id: account.workspaceOwnerId,
     [config.ownerColumn]: ownerId,
     storage_bucket: config.bucket,
     storage_path: storagePath,
@@ -106,12 +110,12 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
 }
 
 export async function openStoredFile(file: StoredFile) {
-  const url = await getSignedUrl(file);
+  const url = await getSignedUrl(file, "view");
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export async function downloadStoredFile(file: StoredFile) {
-  const url = await getSignedUrl(file);
+  const url = await getSignedUrl(file, "download");
   const link = document.createElement("a");
   link.href = url;
   link.download = file.fileName;
@@ -122,6 +126,10 @@ export async function downloadStoredFile(file: StoredFile) {
 
 export async function deleteStoredFile(file: StoredFile) {
   if (!isSupabaseConfigured || !supabase) return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("请先登录。");
+  const account = await loadFileAccount(session.access_token);
+  if (!account.canDeleteAttachments || !account.canDeleteFiles) throw new Error("当前账号没有删除附件权限。");
   const { error: storageError } = await supabase.storage.from(file.storageBucket).remove([file.storagePath]);
   if (storageError) throw new Error(storageError.message);
   const table =
@@ -154,11 +162,54 @@ function fromDb(row: any, config: FileConfig): StoredFile {
   };
 }
 
-async function getSignedUrl(file: StoredFile) {
+async function getSignedUrl(file: StoredFile, action: "view" | "download") {
   if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置。");
-  const { data, error } = await supabase.storage.from(file.storageBucket).createSignedUrl(file.storagePath, 60 * 10);
-  if (error || !data?.signedUrl) throw new Error(error?.message || "无法生成附件访问链接。");
-  return data.signedUrl;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("请先登录。");
+  const response = await fetch("/api/files/signed-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ id: file.id, bucket: file.storageBucket, action })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.signedUrl) throw new Error(payload?.error || "无法生成附件访问链接。");
+  return payload.signedUrl as string;
+}
+
+type FileAccount = {
+  workspaceOwnerId: string;
+  canViewAttachments: boolean;
+  canCreateAttachments: boolean;
+  canDeleteAttachments: boolean;
+  canViewContractFiles?: boolean;
+  canViewRentFiles?: boolean;
+  canViewExpenseFiles?: boolean;
+  canDownloadFiles?: boolean;
+  canUploadFiles?: boolean;
+  canReplaceFiles?: boolean;
+  canDeleteFiles?: boolean;
+};
+let cachedFileAccount: { token: string; value: FileAccount } | null = null;
+async function loadFileAccount(token: string): Promise<FileAccount> {
+  if (cachedFileAccount?.token === token) return cachedFileAccount.value;
+  const response = await fetch("/api/accounts/me", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error("当前账号权限已失效，请重新登录。");
+  const payload = await response.json();
+  const modules = new Map((payload.modulePermissions || []).map((item: any) => [item.moduleKey, item]));
+  const attachments: any = modules.get("attachments") || {};
+  const value: FileAccount = {
+    workspaceOwnerId: payload.profile?.workspaceOwnerId || payload.profile?.id || "",
+    canViewAttachments: Boolean(payload.isOwner || attachments.canView),
+    canCreateAttachments: Boolean(payload.isOwner || attachments.canCreate),
+    canDeleteAttachments: Boolean(payload.isOwner || attachments.canDelete),
+    ...payload.sensitivePermissions
+  };
+  cachedFileAccount = { token, value };
+  return value;
+}
+
+function viewPermissionFor(config: FileConfig) {
+  return config.bucket === "contract-files" ? "canViewContractFiles" : config.bucket === "expense-files" ? "canViewExpenseFiles" : "canViewRentFiles";
 }
 
 async function compressImage(file: File): Promise<File> {

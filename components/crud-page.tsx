@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { loadBusinessData, saveBusinessData } from "@/lib/business-data";
+import { useAccountAccess } from "@/components/account-access";
 
 type CrudValue = string | number | boolean | undefined;
 type CrudRecord = Record<string, CrudValue> & { id: string };
@@ -29,6 +30,7 @@ export function CrudPage({
   columns: { name: string; label: string; render?: (row: CrudRecord) => React.ReactNode }[];
   createLabel: string;
 }) {
+  const access = useAccountAccess();
   const [rows, setRows] = useState<CrudRecord[]>(initialRows);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CrudRecord>(() => createEmpty(fields));
@@ -143,7 +145,7 @@ export function CrudPage({
           </div>
           <div className="top-actions">
             <span className="badge blue">{filteredRows.length} 条</span>
-            <button
+            {access.can("tasks", "create") ? <button
               className="btn primary"
               disabled={!loaded || saving}
               type="button"
@@ -155,7 +157,7 @@ export function CrudPage({
             >
               <Plus size={17} />
               {createLabel}
-            </button>
+            </button> : null}
           </div>
         </div>
 
@@ -197,16 +199,16 @@ export function CrudPage({
                   </div>
                 ))}
               </div>
-              <div className="top-actions">
-                <button className="btn" type="button" onClick={() => edit(row)}>
+              {access.can("tasks", "edit") || access.can("tasks", "delete") ? <div className="top-actions">
+                {access.can("tasks", "edit") ? <button className="btn" type="button" onClick={() => edit(row)}>
                   <Edit3 size={15} />
                   编辑
-                </button>
-                <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
+                </button> : null}
+                {access.can("tasks", "delete") ? <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
                   <Trash2 size={15} />
                   删除
-                </button>
-              </div>
+                </button> : null}
+              </div> : null}
             </article>
           ))}
         </div>
@@ -228,16 +230,16 @@ export function CrudPage({
                     <td key={column.name}>{column.render ? column.render(row) : String(row[column.name] ?? "-")}</td>
                   ))}
                   <td>
-                    <div className="top-actions">
-                      <button className="btn" type="button" onClick={() => edit(row)}>
+                    {access.can("tasks", "edit") || access.can("tasks", "delete") ? <div className="top-actions">
+                      {access.can("tasks", "edit") ? <button className="btn" type="button" onClick={() => edit(row)}>
                         <Edit3 size={15} />
                         编辑
-                      </button>
-                      <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
+                      </button> : null}
+                      {access.can("tasks", "delete") ? <button className="btn danger" disabled={saving} type="button" onClick={() => remove(row.id)}>
                         <Trash2 size={15} />
                         删除
-                      </button>
-                    </div>
+                      </button> : null}
+                    </div> : null}
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -44,6 +45,7 @@ type BackupData = {
 };
 
 export default function SettingsPage() {
+  const access = useAccountAccess();
   const [data, setData] = useState<BackupData>({
     properties: [],
     rooms: [],
@@ -59,15 +61,30 @@ export default function SettingsPage() {
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
+    if (!access.ready) return;
     setPartnerRatios(loadPartnerRatios());
     async function load() {
-      const properties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const rooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(properties));
-      const tenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(properties, rooms));
-      const contracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
-      const rentPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(properties, rooms, tenants));
-      const expenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(properties));
-      const deposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      const properties = access.can("properties", "view")
+        ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties())
+        : [];
+      const rooms = access.can("rooms", "view")
+        ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(properties))
+        : [];
+      const tenants = access.can("tenants", "view")
+        ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(properties, rooms))
+        : [];
+      const contracts = access.can("tenants", "view")
+        ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts())
+        : [];
+      const rentPayments = access.can("rent_payments", "view")
+        ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(properties, rooms, tenants))
+        : [];
+      const expenses = access.can("expenses", "view")
+        ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(properties))
+        : [];
+      const deposits = access.can("deposits", "view")
+        ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits())
+        : [];
       setData({ properties, rooms, tenants, contracts, rentPayments, expenses, deposits });
       await loadLastBackupTime();
       setLoading(false);
@@ -76,7 +93,7 @@ export default function SettingsPage() {
       setLoading(false);
       window.alert(`加载设置数据失败：${error.message || error}`);
     });
-  }, []);
+  }, [access.ready]);
 
   const settlement = useMemo(() => buildSettlementRows(data), [data]);
 
@@ -174,7 +191,7 @@ export default function SettingsPage() {
             <label>合计</label>
             <input readOnly value={`${Number(partnerRatios.A || 0) + Number(partnerRatios.B || 0)}%`} />
           </div>
-          <button className="btn primary" onClick={saveRatios} type="button">保存比例</button>
+          {access.canSensitive("canManageSettings") ? <button className="btn primary" onClick={saveRatios} type="button">保存比例</button> : null}
         </div>
       </section>
 
@@ -186,15 +203,15 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="settings-actions">
-          <button className="btn primary" disabled={loading || working} onClick={backupNow} type="button">
+          {access.canSensitive("canManageSettings") ? <button className="btn primary" disabled={loading || working} onClick={backupNow} type="button">
             <HardDriveDownload size={17} /> 立即备份
-          </button>
-          <button className="btn" disabled={loading || working} onClick={exportExcel} type="button">
+          </button> : null}
+          {access.canSensitive("canExportData") ? <button className="btn" disabled={loading || working} onClick={exportExcel} type="button">
             <Download size={17} /> 导出Excel
-          </button>
-          <button className="btn" disabled={loading || working} onClick={exportCsv} type="button">
+          </button> : null}
+          {access.canSensitive("canExportData") ? <button className="btn" disabled={loading || working} onClick={exportCsv} type="button">
             <Download size={17} /> 导出CSV
-          </button>
+          </button> : null}
         </div>
         <div className="detail-grid">
           <div className="detail-field"><span>最近备份时间</span><strong>{lastBackupAt ? formatDateTime(lastBackupAt) : "暂无备份"}</strong></div>

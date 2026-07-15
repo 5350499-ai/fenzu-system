@@ -179,3 +179,35 @@
 - active custom 账号必须匹配 app_sessions 中未撤销的 JWT session_id；owner 暂兼容既有会话。
 - disabled 状态会直接阻断 RLS；custom 的旧会话也会被精确 session 撤销阻断。
 - 阶段三才将模块权限和 property_id 过滤全面接入每一条业务页面、关联查询、Storage 签名链接与统计。
+
+## 9. 全业务权限接入（阶段三）
+
+### 页面与权限上下文
+
+- `components/account-access.tsx` 在应用根布局加载 `/api/accounts/me`，向菜单和业务页面提供模块权限、敏感权限、owner workspace ID 与授权房源 ID。
+- `components/app-layout.tsx` 统一隐藏未授权桌面与手机菜单，并阻止直接打开无查看权限页面；利润、合伙结算和日志额外检查敏感权限。
+- 各业务页面只显示获准的新增、编辑、归档、永久删除和附件操作；房源详情页的子标签和操作按钮按对应模块独立判断。
+
+### 业务读写数据流
+
+1. 读取使用浏览器当前 Supabase 会话，由数据库 RLS 按 active session、workspace owner、模块查看权限和 `property_id` 过滤。
+2. 租客读取使用 `public.get_authorized_tenants()`，在数据库内按敏感权限返回完整或脱敏电话、微信和备注。
+3. `lib/business-data.ts` 只提交相对最近一次远端快照发生变化的记录，避免只读或仅新增账号重复更新未修改数据。
+4. 写入统一发送到 `app/api/business-data/route.ts`；Route Handler 验证真实 Token、app session、模块操作、workspace owner 和房源范围，再用当前用户 JWT 执行 upsert/delete，RLS 进行第二次校验。
+5. 业务数据继续保存固定 owner 的 `user_id`，custom 账号通过 `current_workspace_owner_id()` 访问同一数据空间。
+
+### RLS、附件和审计
+
+- `202607150001_account_permissions_stage3.sql` 为 properties、rooms、tenants、contracts、rent_payments、expenses、deposits、tasks、tenant_notes 增加 custom 模块操作和房源范围策略，不删除阶段一、二兼容策略。
+- 更新权限触发器区分普通编辑与归档；业务审计触发器记录新增、修改、归档和删除，并从日志快照移除租客电话、微信和证件类字段。
+- 合同、收款和支出附件元数据及三个私有 Storage bucket 同时检查附件模块、敏感附件权限、有效 app session、owner 路径和关联房源。
+- `app/api/files/signed-url/route.ts` 使用当前用户 JWT生成短时签名链接；查看和下载分别校验权限并写入真实操作人日志。
+- `app/api/audit-logs/route.ts` 校验日志模块与敏感日志权限，并只返回当前 workspace 内账号产生的日志。日志表继续禁止更新和删除。
+- `202607150002_stage3_audit_sensitive_filter.sql` 在不改变业务表的前提下替换审计函数，额外从租客与跟进记录快照中移除备注、沟通内容和认证字段；owner 保留完整安全日志查询，自定义账号仍限制在当前 workspace。
+- `202607150003_stage3_tenant_rpc_grants.sql` 显式撤销租客脱敏 RPC 的匿名执行资格，仅允许通过有效 Supabase 登录会话调用。
+
+### 迁移与兼容
+
+- 阶段三迁移仅增加函数、策略和触发器，不新增或修改业务表字段，不改写任何业务记录。
+- 迁移应用前后核对基线均为房源1、房间4、租客3、合同1、收款3、支出22、支出附件2；押金、合同附件和收款附件记录数量保持原值。
+- owner 继续由数据库 `user_profiles.account_type=owner` 识别并保留全部权限；Service Role 仍只用于账号管理和服务端日志等管理操作。

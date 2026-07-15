@@ -30,6 +30,7 @@ import { euro } from "@/lib/format";
 import { activeCoveragePaymentForRoom, coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useAccountAccess } from "@/components/account-access";
 
 const roomStatuses = ["空置", "已租", "预订中", "即将退租", "维修中", "暂停出租", "已归档"];
 const emptyRoom: BusinessRoom = {
@@ -44,6 +45,7 @@ const emptyRoom: BusinessRoom = {
 };
 
 export default function RoomsPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -173,7 +175,7 @@ export default function RoomsPage() {
             <h2 className="panel-title">房间列表</h2>
             <p className="muted">有历史业务的房间可设为空置或归档，不直接删除。</p>
           </div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增房间</button>
+          {access.can("rooms", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增房间</button> : null}
         </div>
         <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间名称、房间编号、状态" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
         <div className="finance-list room-compact-list">
@@ -211,6 +213,9 @@ export default function RoomsPage() {
                     payments={payments.filter((payment) => payment.roomId === room.id)}
                     deposits={deposits.filter((deposit) => deposit.roomId === room.id)}
                     saving={saving}
+                    canEdit={access.can("rooms", "edit")}
+                    canArchive={access.can("rooms", "archive")}
+                    canDelete={access.can("rooms", "delete")}
                     onArchive={() => archiveRoom(room)}
                     onDelete={() => permanentlyDelete(room)}
                     onEdit={() => { setForm(room); setOpen(true); }}
@@ -246,13 +251,13 @@ export default function RoomsPage() {
   );
 }
 
-function RoomActions({ onEdit, onVacant, onArchive, onDelete, saving }: { onEdit: () => void; onVacant: () => void; onArchive: () => void; onDelete: () => void; saving: boolean }) {
+function RoomActions({ onEdit, onVacant, onArchive, onDelete, saving, canEdit, canArchive, canDelete }: { onEdit: () => void; onVacant: () => void; onArchive: () => void; onDelete: () => void; saving: boolean; canEdit: boolean; canArchive: boolean; canDelete: boolean }) {
+  if (!canEdit && !canArchive && !canDelete) return null;
   return (
     <div className="top-actions">
-      <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button>
-      <button className="btn" disabled={saving} onClick={onVacant} type="button"><Home size={15} /> 设为空置</button>
-      <button className="btn" disabled={saving} onClick={onArchive} type="button"><Archive size={15} /> 归档</button>
-      <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button>
+      {canEdit ? <><button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button><button className="btn" disabled={saving} onClick={onVacant} type="button"><Home size={15} /> 设为空置</button></> : null}
+      {canArchive ? <button className="btn" disabled={saving} onClick={onArchive} type="button"><Archive size={15} /> 归档</button> : null}
+      {canDelete ? <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button> : null}
     </div>
   );
 }
@@ -270,6 +275,9 @@ function RoomDetail({
   payments,
   deposits,
   saving,
+  canEdit,
+  canArchive,
+  canDelete,
   onEdit,
   onVacant,
   onArchive,
@@ -287,6 +295,9 @@ function RoomDetail({
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   saving: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
+  canDelete: boolean;
   onEdit: () => void;
   onVacant: () => void;
   onArchive: () => void;
@@ -321,7 +332,7 @@ function RoomDetail({
           {!payments.length ? <span className="muted">暂无收款记录</span> : null}
         </div>
       </div>
-      <RoomActions onArchive={onArchive} onDelete={onDelete} onEdit={onEdit} onVacant={onVacant} saving={saving} />
+      <RoomActions canArchive={canArchive} canDelete={canDelete} canEdit={canEdit} onArchive={onArchive} onDelete={onDelete} onEdit={onEdit} onVacant={onVacant} saving={saving} />
     </div>
   );
 }

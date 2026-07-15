@@ -73,6 +73,7 @@ export async function POST(request: Request) {
     await admin.from("user_profiles").update({ last_login_at: now, last_activity_at: now }).eq("auth_user_id", identity.auth_user_id);
 
     const context: AccountRequestContext = {
+      accessToken: authData.session.access_token,
       userId: identity.auth_user_id,
       sessionId,
       profile: profileData,

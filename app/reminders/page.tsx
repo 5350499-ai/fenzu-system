@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessContract,
@@ -46,6 +47,7 @@ type Reminder = {
 };
 
 export default function RemindersPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -54,19 +56,20 @@ export default function RemindersPage() {
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
 
   useEffect(() => {
+    if (!access.ready) return;
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
+      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
+      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
-      setContracts(await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()));
-      setPayments(await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)));
-      setDeposits(await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)));
+      setContracts(access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : []);
+      setPayments(access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : []);
+      setDeposits(access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : []);
     }
     load().catch((error) => window.alert(`加载提醒中心失败：${error.message || error}`));
-  }, []);
+  }, [access.ready]);
 
   const reminders = useMemo(
     () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits }),

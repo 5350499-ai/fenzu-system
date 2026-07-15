@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessExpense,
@@ -31,6 +32,7 @@ type PartnerStat = {
 };
 
 export default function PartnershipSettlementPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -49,15 +51,16 @@ export default function PartnershipSettlementPage() {
   );
 
   useEffect(() => {
+    if (!access.ready) return;
     setRatios(loadPartnerRatios());
     async function load() {
-      const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
+      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
       setProperties(loadedProperties);
-      setPayments(await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()));
-      setExpenses(await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)));
+      setPayments(access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : []);
+      setExpenses(access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : []);
     }
     load().catch((error) => window.alert(`加载合伙结算失败：${error.message || error}`));
-  }, []);
+  }, [access.ready]);
 
   const settlement = useMemo(() => {
     const scopedPayments = payments.filter((payment) =>

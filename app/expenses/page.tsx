@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { useAccountAccess } from "@/components/account-access";
 import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -52,6 +53,7 @@ const emptyExpense: BusinessExpense = {
 };
 
 export default function ExpensesPage() {
+  const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -209,7 +211,7 @@ export default function ExpensesPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
-          <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button>
+          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -243,6 +245,12 @@ export default function ExpensesPage() {
                     onDelete={() => permanentlyDelete(expense)}
                     onFileDelete={removeFile}
                     saving={saving}
+                    canEdit={access.can("expenses", "edit")}
+                    canArchive={access.can("expenses", "archive")}
+                    canDelete={access.can("expenses", "delete")}
+                    canViewFiles={access.can("attachments") && access.canSensitive("canViewExpenseFiles")}
+                    canDownloadFiles={access.canSensitive("canDownloadFiles")}
+                    canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                   />
                 ) : null}
               </article>
@@ -267,12 +275,12 @@ export default function ExpensesPage() {
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
+              {(form.id ? access.can("attachments", "edit") && access.canSensitive("canReplaceFiles") : access.can("attachments", "create") && access.canSensitive("canUploadFiles")) ? <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件 PDF/JPG/PNG</label>
                 <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
                 {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">{form.id ? "选择新文件并保存后，会替换当前支出附件。" : "可上传票据、截图或照片，单个附件最大 5MB。"}</p>}
                 {form.id && (filesByExpense[form.id] || []).length ? <ExpenseAttachmentActions files={filesByExpense[form.id] || []} onDelete={removeFile} /> : null}
-              </div>
+              </div> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
@@ -292,7 +300,13 @@ function ExpenseDetail({
   onVoid,
   onDelete,
   onFileDelete,
-  saving
+  saving,
+  canEdit,
+  canArchive,
+  canDelete,
+  canViewFiles,
+  canDownloadFiles,
+  canDeleteFiles
 }: {
   expense: BusinessExpense;
   propertyName: string;
@@ -303,6 +317,12 @@ function ExpenseDetail({
   onDelete: () => void;
   onFileDelete: (file: ExpenseFile) => void;
   saving: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
+  canDelete: boolean;
+  canViewFiles: boolean;
+  canDownloadFiles: boolean;
+  canDeleteFiles: boolean;
 }) {
   return (
     <div className="record-detail-panel">
@@ -313,14 +333,14 @@ function ExpenseDetail({
         <DetailField label="付款归属" value={expense.paidBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
       </div>
-      <div>
+      {canViewFiles ? <div>
         <div className="detail-section-title">附件</div>
-        <ExpenseAttachmentActions files={files} onDelete={onFileDelete} />
-      </div>
+        <ExpenseAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+      </div> : null}
       <div className="top-actions detail-actions">
-        <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button>
-        <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button>
-        <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button>
+        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button> : null}
+        {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
+        {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
       </div>
     </div>
   );
@@ -330,7 +350,7 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function ExpenseAttachmentActions({ files, onDelete }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void }) {
+function ExpenseAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void; canDownload?: boolean; canDelete?: boolean }) {
   if (!files.length) return <span className="muted">暂无附件</span>;
   return (
     <div className="attachment-list">
@@ -339,8 +359,8 @@ function ExpenseAttachmentActions({ files, onDelete }: { files: ExpenseFile[]; o
           <FileUp size={16} />
           <span>{file.fileName} · {formatFileSize(file.fileSize)}</span>
           <button className="btn" type="button" onClick={() => openExpenseFile(file)}><Eye size={15} /> 查看</button>
-          <button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button>
-          <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button>
+          {canDownload ? <button className="btn" type="button" onClick={() => downloadExpenseFile(file)}><Download size={15} /> 下载</button> : null}
+          {canDelete ? <button className="btn danger" type="button" onClick={() => onDelete(file)}><Trash2 size={15} /> 删除</button> : null}
         </div>
       ))}
     </div>
