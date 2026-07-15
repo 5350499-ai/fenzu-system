@@ -72,7 +72,7 @@ export default function LoginPage() {
         <form className="grid" onSubmit={submit}>
           <div className="field">
             <label>登录账号或邮箱</label>
-            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="例如 zhangsan 或 5350499@qq.com" />
+            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="请输入登录账号或邮箱" />
           </div>
           <div className="field">
             <label>密码</label>

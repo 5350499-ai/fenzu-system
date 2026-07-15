@@ -104,7 +104,7 @@
 ## 2026-07-13
 
 - 完成账号与权限功能阶段一：新增 `user_profiles`、`user_permissions`、`user_sensitive_permissions`、`user_property_access`、`app_sessions`、`audit_logs` 六张基础表，并为全部新表启用 RLS。
-- 将邮箱 `5350499@qq.com`、Auth User ID `57b1a78b-d3fe-4e6f-bd9a-055ce1527936` 精确匹配的现有账号建立为固定 `owner`；赋予 14 个模块全部操作权限、全部敏感权限和全部房源访问模式，未修改 Auth 密码。
+- 将邮箱 `主管理员保密邮箱（仅数据库与安全配置）`、Auth User ID `主管理员保密 Auth ID（仅数据库与安全配置）` 精确匹配的现有账号建立为固定 `owner`；赋予 14 个模块全部操作权限、全部敏感权限和全部房源访问模式，未修改 Auth 密码。
 - 新增 `app_private` 私有权限函数、owner 保护触发器和 audit log 防修改触发器；`app_sessions` 只保存 JWT `session_id` 撤销信息，不保存 Refresh Token。
 - 保留原 19 条业务 RLS 和 Storage 策略，额外为 12 张业务及附件元数据表增加 `stage1_owner_compatibility` 策略；未删除或替换任何旧策略。
 - 保存迁移前 owner、业务数量和 RLS 基线，并提供只撤销兼容策略的非破坏性回滚 SQL。
@@ -121,7 +121,7 @@
 - 完成账号与权限阶段二：新增自定义登录名映射、账号与权限页面、操作日志页面、服务端账号管理 Route Handlers、应用会话校验和基础安全日志。
 - 新增阶段二迁移 20260713163836_accounts_permissions_stage2.sql：建立 account_auth_identities，为既有业务、文件元数据、权限表和三个业务 Storage bucket 的策略叠加启用账号与有效应用会话校验；不删除原策略或业务数据。
 - 新增会话边界迁移 20260713165000_accounts_permissions_stage2_session_guard.sql：custom 账号以 JWT session_id 精确校验撤销状态，避免重新登录被同一秒的全局撤销时间误伤；owner 保持阶段一兼容会话路径。
-- 主管理员身份已再次校验为 5350499@qq.com / 57b1a78b-d3fe-4e6f-bd9a-055ce1527936，状态 active、owner、全部房源、14 个模块权限和全部敏感权限资料保持完整。
+- 主管理员身份已再次校验为 主管理员保密邮箱（仅数据库与安全配置） / 主管理员保密 Auth ID（仅数据库与安全配置），状态 active、owner、全部房源、14 个模块权限和全部敏感权限资料保持完整。
 - 服务端仅在创建 Auth 用户、重置密码、停用或启用账号和必要账号维护时使用 SUPABASE_SERVICE_ROLE_KEY；业务页面未改为 Service Role 查询。
 - 账号管理支持 custom 账号的最小权限创建、全部或指定房源 property_id 授权、模块与敏感权限保存、密码重置、停用或启用和强制退出全部设备。账号与权限和操作日志页面仅 owner 可访问。
 - 安全日志已接入登录成功或失败、退出、创建账号、更新账号、修改权限、修改房源范围、重置密码、停用、启用和强制退出；日志不保存密码、Token、Cookie 或密钥。
@@ -195,3 +195,9 @@
 - 数据库：未修改表、字段、RLS、房源授权或业务数据；复用现有 `user_profiles`、`account_auth_identities`、`app_sessions` 和 `audit_logs`。
 - 安全：分享内容不含密码、内部邮箱或 token；自助改密必须验证当前密码，并撤销应用会话、记录已过滤的成功/失败安全日志。
 - 兼容性：未变更现有 owner 重置其他账号密码、权限矩阵、房源隔离或业务模块。
+
+## 2026-07-15 - 登录页隐私提示修复
+
+- 登录账号输入框改为通用提示，不再公开主管理员真实邮箱。
+- 清理公开维护文档与阶段一备份说明中的主管理员邮箱和 Auth ID，后端权限身份识别与登录能力不变。
+- 未修改认证、RLS、房源隔离或业务数据。

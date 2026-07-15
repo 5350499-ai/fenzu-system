@@ -170,7 +170,7 @@
 ### 自定义登录映射
 
 - account_auth_identities.normalized_username 是唯一、不区分大小写的登录标识。
-- owner 保持真实邮箱 5350499@qq.com；custom 账号生成 account-UUID@accounts.fenzu.invalid 作为仅服务器端可见的 Supabase Auth 邮箱。
+- owner 保持真实邮箱 主管理员保密邮箱（仅数据库与安全配置）；custom 账号生成 account-UUID@accounts.fenzu.invalid 作为仅服务器端可见的 Supabase Auth 邮箱。
 - 内部邮箱不出现在任何浏览器接口、账号页面或日志中。
 
 ### 阶段二 RLS 会话门槛

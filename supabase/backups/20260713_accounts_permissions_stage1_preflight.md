@@ -10,8 +10,8 @@ Captured: 2026-07-13 before applying the accounts and permissions migration.
 
 ## Fixed Owner
 
-- Email: `5350499@qq.com`
-- Auth user ID: `57b1a78b-d3fe-4e6f-bd9a-055ce1527936`
+- Email: `主管理员保密邮箱（仅数据库与安全配置）`
+- Auth user ID: `主管理员保密 Auth ID（仅数据库与安全配置）`
 - Auth row is present, not deleted, and not banned.
 - Email and Auth user ID matched in both lookup directions.
 
