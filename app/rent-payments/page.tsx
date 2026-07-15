@@ -783,7 +783,7 @@ function isRentPayment(payment: BusinessRentPayment) {
 }
 
 function paymentListAmount(payment: BusinessRentPayment) {
-  return isRentPayment(payment) ? Number(payment.amountDue || 0) : Number(payment.amountPaid || 0);
+  return Number(payment.amountPaid || 0);
 }
 
 function paymentAccountingDate(payment: BusinessRentPayment) {
