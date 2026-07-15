@@ -187,6 +187,7 @@ export default function RoomsPage() {
             const latestPayment = latestCoverageForRoom(room.id, payments);
             const activePayment = activeCoveragePaymentForRoom(room.id, payments);
             const currentTenant = activePayment ? tenants.find((tenant) => tenant.id === activePayment.tenantId) : null;
+            const currentMonthlyRent = currentTenant?.monthlyRent ?? room.monthlyRent;
             const unpaid = displayStatus === "已租" ? roomUnpaidAmount(room.id, payments) : 0;
             const expanded = expandedRoomId === room.id;
             return (
@@ -195,7 +196,7 @@ export default function RoomsPage() {
                   <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
                   <span className="room-display-name" title={room.roomNumber || room.name}>{room.roomNumber || room.name}</span>
                   <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <strong>{euro(room.monthlyRent)}</strong>
+                  <strong>{euro(currentMonthlyRent)}</strong>
                   <strong className={unpaid > 0 ? "danger-text" : "muted"}>{unpaid > 0 ? `欠费${euro(unpaid)}` : "-"}</strong>
                   <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
@@ -206,7 +207,7 @@ export default function RoomsPage() {
                     room={room}
                     unpaid={unpaid}
                     currentTenantName={currentTenant?.name || "-"}
-                    currentMonthlyRent={currentTenant?.monthlyRent ?? room.monthlyRent}
+                    currentMonthlyRent={currentMonthlyRent}
                     currentDepositAmount={currentTenant?.depositAmount ?? room.depositAmount}
                     coverageEnd={coverageLabel(latestPayment)}
                     contractEndDate={contract?.endDate || "-"}
@@ -324,8 +325,8 @@ function RoomDetail({
           {[...payments]
             .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
             .map((payment) => {
-              const deposit = linkedDepositAmount(payment.id, deposits);
-              const rent = Math.max(Number(payment.amountPaid || 0) - deposit, 0);
+              const deposit = paymentDepositAmount(payment, deposits);
+              const rent = Number(payment.amountDue || 0);
               const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
               return <div className="payment-history-line" key={payment.id}><span>{payment.paymentDate || payment.rentMonth}</span><span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span><span>押金 {euro(deposit)}</span><strong>实收 {euro(payment.amountPaid)}</strong></div>;
             })}
@@ -341,8 +342,12 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function linkedDepositAmount(paymentId: string, deposits: BusinessDeposit[]) {
-  return Number(deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${paymentId}]`))?.amount || 0);
+function paymentDepositAmount(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {
+  const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${payment.id}]`));
+  if (linkedDeposit) return Number(linkedDeposit.amount || 0);
+
+  // Legacy receipts store rent in amount_due and the collected total in amount_paid.
+  return Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
 }
 
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {

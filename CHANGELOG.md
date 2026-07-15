@@ -1,3 +1,10 @@
+## 2026-07-15 - Room amount display mapping
+
+- Fixed the room list to use the active tenant current monthly rent standard, falling back to the room standard only when no active tenant exists.
+- Fixed room payment history: rent reads rent_payments.amount_due, deposit uses the linked deposit record when available and the existing legacy receipt compatibility mapping otherwise, and received total reads rent_payments.amount_paid.
+- Database: no schema or data changes. Financial calculations, RLS, permissions, and historical records are unchanged.
+- Files: app/rooms/page.tsx, CHANGELOG.md.
+
 ## 2026-07-13
 - 优化租客手机列表主行：恢复房源简称，并将房源简称、房间简称拆为独立字段；房间号优先保留，长名称仅截断显示。
 - 涉及文件：app/tenants/page.tsx、app/globals.css、CHANGELOG.md。
