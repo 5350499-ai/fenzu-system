@@ -2900,3 +2900,74 @@ td:last-child {
     font-size: 9px;
   }
 }
+
+.account-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.account-share-card,
+.account-center-card {
+  width: min(560px, 100%);
+}
+
+.account-share-preview,
+.account-center-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.account-share-preview span,
+.account-center-summary span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.account-share-preview strong,
+.account-center-summary strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.account-share-preview small {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .account-list-panel .panel-header {
+    align-items: flex-start;
+  }
+
+  .account-list-actions {
+    width: 100%;
+  }
+
+  .account-list-actions .btn {
+    flex: 1 1 132px;
+    justify-content: center;
+  }
+
+  .account-share-preview,
+  .account-center-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .account-center-card .modal-actions,
+  .account-share-card .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .account-center-card .modal-actions .btn,
+  .account-share-card .modal-actions .btn {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+}

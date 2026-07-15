@@ -217,3 +217,9 @@
 - `AccountAccessProvider` 位于根 `app/layout.tsx`，首次打开、硬刷新恢复会话或刚完成登录时加载一次账号资料与权限快照。
 - 站内路由切换直接复用同一快照，不在各业务页或 `AppLayout` 重复调用 `getSession`、`/api/accounts/me` 或注册 Session 监听。
 - 浏览器重新聚焦及 Supabase Token 事件仅执行静默校验；网络暂时失败时保持已授权页面，账号停用、会话撤销或权限失效时显示可返回或退出重登的恢复页。
+
+### 自助密码与登录分享（2026-07-15）
+
+- `components/account-center.tsx` 由全局 `AppLayout` 的头像入口加载，展示当前已验证 profile 的显示名称、登录账号、账号类型与状态，并调用 `POST /api/auth/change-password`。
+- `POST /api/auth/change-password` 使用当前 Bearer Token 调用 `requireActiveAccount`，从仅服务端可见的 `account_auth_identities` 读取认证邮箱，再以非持久化 Supabase Auth 客户端验证当前密码。服务端随后更新 Auth 密码、撤销 Supabase refresh token 和应用会话，并写入过滤后的安全日志。
+- `POST /api/accounts/[id]/share-login` 仅接受 owner；只允许目标为 custom 账号，且仅记录“复制”或“系统分享”动作。登录信息始终在浏览器中按固定正式 URL 和 username 生成，不读取或返回内部认证邮箱。

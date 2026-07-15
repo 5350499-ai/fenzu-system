@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { ACCOUNT_MODULES, emptyModulePermissions, emptySensitivePermissions, SENSITIVE_PERMISSIONS, type ModulePermission, type SensitivePermissions } from "@/lib/account-permissions";
 import { supabase } from "@/lib/supabase";
-import { KeyRound, LockKeyhole, Plus, RotateCcw, Save, ShieldCheck, UserRoundCheck, UserRoundX, UsersRound } from "lucide-react";
+import { Copy, KeyRound, LockKeyhole, Plus, RotateCcw, Save, Share2, ShieldCheck, UserRoundCheck, UserRoundX, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type PropertyOption = { id: string; name: string; address?: string; city?: string };
@@ -64,8 +64,19 @@ export default function AccountsPage() {
   const [notice, setNotice] = useState("");
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirmation, setResetConfirmation] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareAccountId, setShareAccountId] = useState("");
+  const [shareNotice, setShareNotice] = useState("");
+
 
   const activeAccount = useMemo(() => accounts.find((account) => account.id === editor.id) || null, [accounts, editor.id]);
+  const shareableAccounts = useMemo(() => accounts.filter((account) => account.accountType === "custom"), [accounts]);
+  const selectedShareAccount = useMemo(() => shareableAccounts.find((account) => account.id === shareAccountId) || null, [shareAccountId, shareableAccounts]);
+  const shareText = selectedShareAccount ? `分租管理系统
+登录地址：https://fenzu-system.vercel.app
+登录账号：${selectedShareAccount.username}
+请使用管理员提供的密码登录。` : "";
+
 
   const request = useCallback(async (url: string, init: RequestInit = {}) => {
     const { data } = await supabase?.auth.getSession() || { data: { session: null } };
@@ -193,6 +204,56 @@ export default function AccountsPage() {
     }
   }
 
+  async function recordLoginShare(action: "copied" | "shared") {
+    if (!selectedShareAccount) return;
+    await request(`/api/accounts/${selectedShareAccount.id}/share-login`, {
+      method: "POST",
+      body: JSON.stringify({ action })
+    });
+  }
+
+  async function copyLoginInfo() {
+    if (!selectedShareAccount) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = shareText;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+      }
+      await recordLoginShare("copied");
+      setShareNotice("登录信息已复制");
+    } catch (error) {
+      setShareNotice(error instanceof Error ? error.message : "复制登录信息失败，请稍后重试。");
+    }
+  }
+
+  async function shareLoginInfo() {
+    if (!selectedShareAccount) return;
+    if (!navigator.share) {
+      await copyLoginInfo();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: "分租管理系统登录信息",
+        text: shareText
+      });
+      await recordLoginShare("shared");
+      setShareNotice("已打开系统分享菜单");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      await copyLoginInfo();
+    }
+  }
+
   if (loading) {
     return <AppLayout title="账号与权限" description="正在加载账号授权资料。"><section className="card panel">正在加载...</section></AppLayout>;
   }
@@ -206,7 +267,10 @@ export default function AccountsPage() {
       <section className="card panel account-list-panel">
         <div className="panel-header">
           <div><h2 className="panel-title">账号列表</h2><p className="muted">账号只支持启用或停用，历史日志始终保留。</p></div>
-          <button className="btn primary" type="button" onClick={startCreate}><Plus size={17} /> 新建账号</button>
+                    <div className="account-list-actions">
+            <button className="btn primary" type="button" onClick={startCreate}><Plus size={17} /> 新建账号</button>
+            <button className="btn" type="button" onClick={() => { setShareAccountId(shareableAccounts.find((account) => account.status === "active")?.id || shareableAccounts[0]?.id || ""); setShareNotice(""); setShareOpen(true); }}><Share2 size={17} /> 分享登录</button>
+          </div>
         </div>
         <div className="account-list">
           {accounts.map((account) => (
@@ -219,6 +283,37 @@ export default function AccountsPage() {
           ))}
         </div>
       </section>
+
+      {shareOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShareOpen(false); }}>
+          <section className="card modal-card account-share-card" role="dialog" aria-modal="true" aria-label="分享登录">
+            <div className="panel-header">
+              <div><h2 className="panel-title">分享登录</h2><p className="muted">仅分享登录地址和账号，不包含密码或内部邮箱。</p></div>
+              <button className="icon-btn" type="button" onClick={() => setShareOpen(false)} aria-label="关闭">×</button>
+            </div>
+            <div className="field">
+              <label>选择自定义账号</label>
+              <select value={shareAccountId} onChange={(event) => { setShareAccountId(event.target.value); setShareNotice(""); }}>
+                <option value="">请选择账号</option>
+                {shareableAccounts.map((account) => <option value={account.id} key={account.id}>{account.displayName}｜{account.username}{account.status === "disabled" ? "（已停用）" : ""}</option>)}
+              </select>
+            </div>
+            {selectedShareAccount ? (
+              <div className="account-share-preview">
+                <span>显示名称<strong>{selectedShareAccount.displayName}</strong></span>
+                <span>登录账号<strong>{selectedShareAccount.username}</strong></span>
+                <span>登录地址<strong>https://fenzu-system.vercel.app</strong></span>
+                <small className={selectedShareAccount.status === "disabled" ? "danger-text" : "muted"}>{selectedShareAccount.status === "disabled" ? "该账号已停用，暂时无法登录。" : "请使用管理员提供的密码登录。"}</small>
+              </div>
+            ) : null}
+            {shareNotice ? <p className={shareNotice.includes("失败") ? "danger-text" : "success-text"}>{shareNotice}</p> : null}
+            <div className="modal-actions">
+              <button className="btn" type="button" disabled={!selectedShareAccount} onClick={copyLoginInfo}><Copy size={16} /> 复制登录信息</button>
+              <button className="btn primary" type="button" disabled={!selectedShareAccount} onClick={shareLoginInfo}><Share2 size={16} /> 系统分享</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <section className="card panel account-editor">
         <div className="panel-header"><div><h2 className="panel-title">{editor.id ? "编辑自定义账号" : "新建自定义账号"}</h2><p className="muted">默认没有任何权限和房源范围，必须由主管理员主动授权。</p></div>{editor.id ? <button className="btn" type="button" onClick={startCreate}><Plus size={16} /> 新建</button> : null}</div>

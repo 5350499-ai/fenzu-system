@@ -23,6 +23,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAccountAccess } from "@/components/account-access";
+import { AccountCenter } from "@/components/account-center";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 
 export const navGroups = [
@@ -163,9 +164,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
             <button className="zanjia-theme-toggle" onClick={toggleTheme} type="button" aria-label="切换主题">
               {theme === "light" ? "🌙" : "☀️"}
             </button>
-            <button className="zanjia-avatar-button" onClick={logout} type="button" aria-label="退出登录">
-              👤
-            </button>
+            <AccountCenter />
           </div>
         </header>
         {children}

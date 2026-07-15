@@ -187,3 +187,11 @@
 - 是否新增业务规则：是，明确收款列表主金额为本次合计收入。
 - 是否需要迁移数据：否。
 - 兼容性影响：仅修正收款列表的显示字段。
+
+## 2026-07-15 - 分享登录信息与自助修改密码
+
+- 原因：主管理员需要安全分享自定义账号登录方式，所有启用账号需要能在不依赖管理员的情况下修改自己的密码。
+- 涉及文件：`app/accounts/page.tsx`、`components/app-layout.tsx`、`components/account-center.tsx`、`components/account-access.tsx`、`app/api/auth/change-password/route.ts`、`app/api/accounts/[id]/share-login/route.ts`、`app/globals.css`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`。
+- 数据库：未修改表、字段、RLS、房源授权或业务数据；复用现有 `user_profiles`、`account_auth_identities`、`app_sessions` 和 `audit_logs`。
+- 安全：分享内容不含密码、内部邮箱或 token；自助改密必须验证当前密码，并撤销应用会话、记录已过滤的成功/失败安全日志。
+- 兼容性：未变更现有 owner 重置其他账号密码、权限矩阵、房源隔离或业务模块。

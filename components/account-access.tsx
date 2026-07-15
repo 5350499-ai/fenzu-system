@@ -11,6 +11,8 @@ type AccountAccessState = {
   invalidReason: string;
   isOwner: boolean;
   userId: string;
+  profileUsername: string;
+  profileDisplayName: string;
   workspaceOwnerId: string;
   propertyAccessMode: "all" | "selected";
   propertyIds: string[];
@@ -32,6 +34,8 @@ const emptyState = (): AccountAccessState => ({
   invalidReason: "",
   isOwner: false,
   userId: "",
+  profileUsername: "",
+  profileDisplayName: "",
   workspaceOwnerId: "",
   propertyAccessMode: "selected",
   propertyIds: [],
@@ -78,6 +82,8 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     invalidReason: "",
     isOwner: Boolean(payload.isOwner),
     userId: payload.profile?.id || "",
+    profileUsername: payload.profile?.username || "",
+    profileDisplayName: payload.profile?.displayName || "",
     workspaceOwnerId: payload.profile?.workspaceOwnerId || "",
     propertyAccessMode: payload.profile?.propertyAccessMode === "all" ? "all" : "selected",
     propertyIds: Array.isArray(payload.propertyIds) ? payload.propertyIds : [],
