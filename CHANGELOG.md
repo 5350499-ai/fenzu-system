@@ -208,3 +208,11 @@
 - 登录账号输入框改为通用提示，不再公开主管理员真实邮箱。
 - 清理公开维护文档与阶段一备份说明中的主管理员邮箱和 Auth ID，后端权限身份识别与登录能力不变。
 - 未修改认证、RLS、房源隔离或业务数据。
+
+## 2026-07-17 - Fix expense creation pre-save lookup
+
+- Fixed the unified business write handler for `expenses`: it now looks up only `id`, `notes`, and `property_id`, because the `expenses` table has no `status` column.
+- This prevents new expense creation from failing before the INSERT with "读取现有记录失败"; no attachment remains a valid optional state.
+- Successful business writes now return persisted row IDs to the client. Existing database audit triggers continue recording creates and edits without requiring `before_data` for new rows.
+- Files: `app/api/business-data/route.ts`, `CHANGELOG.md`.
+- Database schema/data: unchanged. No historical expense, financial amount, permission, RLS policy, or attachment was changed.

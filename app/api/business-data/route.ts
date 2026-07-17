@@ -24,6 +24,14 @@ function isArchiveChange(before: Record<string, unknown> | undefined, after: Rec
     || (oldNotes !== newNotes && words.some((word) => oldNotes.includes(word) || newNotes.includes(word)));
 }
 
+function existingLookupColumns(table: string) {
+  if (table === "properties") return "id,notes";
+  if (table === "tenants") return "id,status,property_id";
+  // Expenses use notes for archival state but do not have a status column.
+  if (table === "expenses") return "id,notes,property_id";
+  return "id,status,notes,property_id";
+}
+
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
     const client = getSupabaseAuthVerifier(context.accessToken);
     const ids = rows.map((row) => String(row.id || "")).filter(Boolean);
     const lookupIds = [...new Set([...ids, ...removedIds])];
-    const lookupColumns = resource.table === "properties" ? "id,notes" : resource.table === "tenants" ? "id,status,property_id" : "id,status,notes,property_id";
+    const lookupColumns = existingLookupColumns(resource.table);
     const { data: existingData, error: lookupError } = lookupIds.length
       ? await client.from(resource.table).select(lookupColumns).in("id", lookupIds)
       : { data: [], error: null };
@@ -64,8 +72,9 @@ export async function POST(request: Request) {
       if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
     }
     if (rows.length) {
-      const { error } = await client.from(resource.table).upsert(rows);
+      const { data: savedRows, error } = await client.from(resource.table).upsert(rows).select("id");
       if (error) throw new AccountApiError("没有权限保存该记录。", 403);
+      return NextResponse.json({ ok: true, rows: savedRows || [] });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
