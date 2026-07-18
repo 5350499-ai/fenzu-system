@@ -429,9 +429,15 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   const nextIds = value.map((row) => row.id).filter(Boolean);
   const removedIds = previousIds.filter((id) => !nextIds.includes(id));
   const changedRows = value.filter((row) => row.id && previousById.get(row.id) !== JSON.stringify(row));
-  const rows = changedRows.map((row) => config.toDb(row, account.workspaceOwnerId));
-  if (!rows.length && !removedIds.length) return;
-  const requestBody = JSON.stringify({ key, rows, removedIds });
+  const operations = [
+    ...changedRows.map((row) => ({
+      action: previousIds.includes(row.id) ? "update" : "create",
+      row: config.toDb(row, account.workspaceOwnerId)
+    })),
+    ...removedIds.map((id) => ({ action: "delete", id }))
+  ];
+  if (!operations.length) return;
+  const requestBody = JSON.stringify({ key, operations });
   const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },

@@ -20,14 +20,14 @@ import {
   loadBusinessData,
   rentPaymentKey,
   roomKey,
-  saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
+import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const maxAttachmentSize = 5 * 1024 * 1024;
 
@@ -45,6 +45,7 @@ export default function CheckInPage() {
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
+  const requestIdRef = useRef<string | null>(null);
   const [form, setForm] = useState({
     propertyId: "",
     roomId: "",
@@ -99,10 +100,49 @@ export default function CheckInPage() {
     }
     setSaving(true);
     try {
-      const tenantId = crypto.randomUUID();
-      const contractId = crypto.randomUUID();
-      const paymentId = crypto.randomUUID();
+      const clientRequestId = requestIdRef.current || crypto.randomUUID();
+      requestIdRef.current = clientRequestId;
       const finalReceivedBy = ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode;
+      const session = await getValidSupabaseSession();
+      if (!session) throw new Error("登录状态已失效，请重新登录。");
+      const response = await fetch("/api/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          clientRequestId,
+          propertyId: form.propertyId,
+          roomId: form.roomId,
+          tenantName: form.tenantName,
+          phone: form.phone,
+          documentNumber: form.documentNumber,
+          monthlyRent: form.monthlyRent,
+          rentAmount: form.amountPaid,
+          depositAmount: form.depositAmount,
+          paymentDay: form.paymentDay ?? 20,
+          paymentDate: form.paymentDate,
+          coverageStartDate: form.coverageStartDate,
+          coverageEndDate: form.coverageEndDate,
+          contractEndDate: form.contractEndDate,
+          depositStatus: form.depositStatus,
+          paymentStatus: form.paymentStatus,
+          paymentMethod: form.paymentMethod,
+          receivedBy: finalReceivedBy,
+          notes: form.notes
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "保存入住失败，本次没有产生任何记录。");
+      const result = payload?.result as {
+        tenantId: string;
+        contractId: string;
+        rentPaymentId: string;
+        depositId?: string | null;
+        monthlyRent: number;
+      };
+      const tenantId = result.tenantId;
+      const contractId = result.contractId;
+      const paymentId = result.rentPaymentId;
+      const effectiveMonthlyRent = Number(result.monthlyRent || form.amountPaid || 0);
       const nextTenant: BusinessTenant = {
         id: tenantId,
         propertyId: form.propertyId,
@@ -111,19 +151,19 @@ export default function CheckInPage() {
         phone: form.phone,
         wechat: "",
         source: "其他",
-        monthlyRent: form.monthlyRent,
+        monthlyRent: effectiveMonthlyRent,
         depositAmount: form.depositAmount,
         paymentDay: form.paymentDay,
         status: "在租",
         notes: [form.documentNumber ? `证件号：${form.documentNumber}` : "", form.notes].filter(Boolean).join("\n")
       };
-      const nextTenants = [nextTenant, ...tenants];
+      const nextTenants = [nextTenant, ...tenants.filter((tenant) => tenant.id !== tenantId)];
       const nextRooms = rooms.map((room) => {
         if (room.id !== form.roomId) return room;
         return {
           ...room,
           status: "已租",
-          monthlyRent: form.monthlyRent || room.monthlyRent,
+          monthlyRent: effectiveMonthlyRent,
           depositAmount: form.depositAmount || room.depositAmount
         };
       });
@@ -134,7 +174,7 @@ export default function CheckInPage() {
         tenantId,
         startDate: form.coverageStartDate || form.paymentDate,
         endDate: form.contractEndDate,
-        monthlyRent: form.monthlyRent,
+        monthlyRent: effectiveMonthlyRent,
         depositAmount: form.depositAmount,
         status: "有效",
         notes: form.notes
@@ -166,21 +206,23 @@ export default function CheckInPage() {
       };
       nextPayment.isOverdue = isCoverageExpired(nextPayment);
 
-      await saveBusinessData(tenantKey, nextTenants);
-      await saveBusinessData(roomKey, nextRooms);
-      await saveBusinessData(contractKey, [nextContract, ...contracts]);
-      if (attachment) await uploadContractFile(contractId, attachment);
-      await saveBusinessData(rentPaymentKey, [nextPayment, ...payments]);
-      if (paymentAttachment) await uploadRentPaymentFile(nextPayment.id, paymentAttachment);
+      let attachmentFailed = false;
+      try {
+        if (attachment) await uploadContractFile(contractId, attachment);
+        if (paymentAttachment) await uploadRentPaymentFile(paymentId, paymentAttachment);
+      } catch {
+        attachmentFailed = true;
+      }
       setTenants(nextTenants);
       setRooms(nextRooms);
-      setContracts([nextContract, ...contracts]);
-      setPayments([nextPayment, ...payments]);
+      setContracts([nextContract, ...contracts.filter((contract) => contract.id !== contractId)]);
+      setPayments([nextPayment, ...payments.filter((payment) => payment.id !== paymentId)]);
       setAttachment(null);
       setPaymentAttachment(null);
       setAdvancedOpen(false);
       setAttachmentsOpen(false);
-      window.alert("一键入住已保存，首页统计会同步更新。");
+      requestIdRef.current = null;
+      window.alert(attachmentFailed ? "入住已保存，但附件上传失败，请在详情中重新上传。" : "一键入住已保存，首页统计会同步更新。");
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
     } finally {

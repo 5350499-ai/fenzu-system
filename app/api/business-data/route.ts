@@ -25,75 +25,86 @@ function isArchiveChange(before: Record<string, unknown> | undefined, after: Rec
 }
 
 function existingLookupColumns(table: string) {
-  if (table === "properties") return "id,notes";
-  if (table === "tenants") return "id,status,property_id";
-  // Expenses use notes for archival state but do not have a status column.
-  if (table === "expenses") return "id,notes,property_id";
-  return "id,status,notes,property_id";
+  const columns: Record<string, string> = {
+    properties: "id,notes",
+    rooms: "id,status,notes,property_id",
+    tenants: "id,status,property_id",
+    contracts: "id,status,notes,property_id",
+    rent_payments: "id,notes,property_id",
+    expenses: "id,notes,property_id",
+    deposits: "id,status,notes,property_id",
+    tasks: "id,status,notes,property_id"
+  };
+  return columns[table] || "id,property_id";
 }
+
+type BusinessOperation = {
+  action: "create" | "update" | "delete";
+  row?: Record<string, unknown>;
+  id?: string;
+};
 
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    const body = await parseJson(request) as { key?: string; rows?: Array<Record<string, unknown>>; removedIds?: string[] };
+    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[] };
     const resource = body.key ? resources[body.key] : null;
     if (!resource) throw new AccountApiError("不支持的业务数据类型。", 400);
-    const rows = Array.isArray(body.rows) ? body.rows : [];
-    const removedIds = Array.isArray(body.removedIds) ? body.removedIds.filter((id): id is string => typeof id === "string") : [];
+    if (!Array.isArray(body.operations)) throw new AccountApiError("页面版本已更新，请刷新后重试。", 400);
+    const operations = body.operations.filter((operation) => operation && ["create", "update", "delete"].includes(operation.action));
     const client = getSupabaseAuthVerifier(context.accessToken);
-    const ids = rows.map((row) => String(row.id || "")).filter(Boolean);
-    const lookupIds = [...new Set([...ids, ...removedIds])];
+    const lookupIds = [...new Set(operations
+      .filter((operation) => operation.action !== "create")
+      .map((operation) => String(operation.id || operation.row?.id || ""))
+      .filter(Boolean))];
     const lookupColumns = existingLookupColumns(resource.table);
     const { data: existingData, error: lookupError } = lookupIds.length
       ? await client.from(resource.table).select(lookupColumns).in("id", lookupIds)
       : { data: [], error: null };
-    if (lookupError) throw new AccountApiError("读取现有记录失败。", 403);
+    if (lookupError) throw new AccountApiError("读取目标记录失败，请稍后重试。", 500);
     const existingRows = (existingData || []) as unknown as Array<Record<string, unknown>>;
     const existing = new Map(existingRows.map((row) => [String(row.id), row]));
+    const savedRows: Array<{ id: string }> = [];
 
-    if (removedIds.length) {
-      await requireModulePermission(context, resource.module, "delete");
-      for (const id of removedIds) {
-        const before = existing.get(id);
-        const propertyId = resource.propertyColumn === "id" ? id : before?.[resource.propertyColumn];
+    for (const operation of operations) {
+      const row = operation.row || {};
+      const id = String(operation.id || row.id || "");
+      if (!id) throw new AccountApiError("记录ID不能为空。", 400);
+
+      if (operation.action === "create") {
+        await requireModulePermission(context, resource.module, "create");
+        const propertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
         await requirePropertyAccess(context, propertyId as string | undefined);
+        if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
+        const { data, error } = await client.from(resource.table).insert(row).select("id");
+        if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+        savedRows.push(...((data || []) as Array<{ id: string }>));
+        continue;
       }
-      const { error } = await client.from(resource.table).delete().in("id", removedIds);
-      if (error) throw new AccountApiError("没有权限删除该记录。", 403);
-    }
 
-    for (const row of rows) {
-      const id = String(row.id || "");
       const before = existing.get(id);
-      const action = before ? (isArchiveChange(before, row) ? "archive" : "edit") : "create";
-      await requireModulePermission(context, resource.module, action);
-      const propertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
-      await requirePropertyAccess(context, propertyId as string | undefined);
-      if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
-    }
-    if (rows.length) {
-      const rowsToInsert = rows.filter((row) => !existing.has(String(row.id || "")));
-      const rowsToUpdate = rows.filter((row) => existing.has(String(row.id || "")));
-      const savedRows: Array<{ id: string }> = [];
+      if (!before) throw new AccountApiError("目标记录不存在或无权访问。", 404);
+      const oldPropertyId = resource.propertyColumn === "id" ? id : before[resource.propertyColumn];
+      await requirePropertyAccess(context, oldPropertyId as string | undefined);
 
-      // Tenant sensitive columns intentionally have no browser SELECT grant.
-      // Postgres UPSERT requires extra SELECT privileges for ON CONFLICT, so a
-      // legitimate owner insert was rejected even though INSERT was allowed.
-      // Keep create and edit paths explicit, matching the permission checks above.
-      if (rowsToInsert.length) {
-        const { data, error } = await client.from(resource.table).insert(rowsToInsert).select("id");
-        if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
-        savedRows.push(...((data || []) as Array<{ id: string }>));
+      if (operation.action === "delete") {
+        await requireModulePermission(context, resource.module, "delete");
+        const { error } = await client.from(resource.table).delete().eq("id", id);
+        if (error) throw new AccountApiError("没有权限删除该记录。", 403);
+        continue;
       }
-      for (const row of rowsToUpdate) {
-        const id = String(row.id || "");
-        const { data, error } = await client.from(resource.table).update(row).eq("id", id).select("id");
-        if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
-        savedRows.push(...((data || []) as Array<{ id: string }>));
-      }
-      return NextResponse.json({ ok: true, rows: savedRows });
+
+      const permission = isArchiveChange(before, row) ? "archive" : "edit";
+      await requireModulePermission(context, resource.module, permission);
+      const newPropertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
+      await requirePropertyAccess(context, newPropertyId as string | undefined);
+      if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
+      const { data, error } = await client.from(resource.table).update(row).eq("id", id).select("id");
+      if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+      savedRows.push(...((data || []) as Array<{ id: string }>));
     }
-    return NextResponse.json({ ok: true });
+
+    return NextResponse.json({ ok: true, rows: savedRows });
   } catch (error) {
     return apiErrorResponse(error);
   }

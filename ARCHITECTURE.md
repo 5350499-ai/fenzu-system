@@ -232,3 +232,11 @@
 - `components/account-center.tsx` 由全局 `AppLayout` 的头像入口加载，展示当前已验证 profile 的显示名称、登录账号、账号类型与状态，并调用 `POST /api/auth/change-password`。
 - `POST /api/auth/change-password` 使用当前 Bearer Token 调用 `requireActiveAccount`，从仅服务端可见的 `account_auth_identities` 读取认证邮箱，再以非持久化 Supabase Auth 客户端验证当前密码。服务端随后更新 Auth 密码、撤销 Supabase refresh token 和应用会话，并写入过滤后的安全日志。
 - `POST /api/accounts/[id]/share-login` 仅接受 owner；只允许目标为 custom 账号，且仅记录“复制”或“系统分享”动作。登录信息始终在浏览器中按固定正式 URL 和 username 生成，不读取或返回内部认证邮箱。
+
+### 一键入住原子事务（2026-07-18）
+
+- `app/check-in/page.tsx` 只向 `POST /api/check-in` 提交一次完整入住请求，不再从浏览器依次写入租客、房间、合同和收款。
+- `app/api/check-in/route.ts` 验证 Supabase Token、应用会话、账号状态、模块权限、房源范围及输入字段，然后使用当前登录用户 JWT 调用 `public.create_atomic_check_in`；普通业务写入不使用 Service Role。
+- `public.create_atomic_check_in` 在单个 PostgreSQL 事务中锁定目标房间，创建租客、合同、收款和押金记录，更新房态与租金标准，并写入安全摘要审计日志。函数内部再次校验应用会话、账号状态、模块权限和 `property_id`。
+- `public.check_in_requests` 保存服务端幂等结果。浏览器和普通角色无表级访问权；独立 `client_request_id` 重复提交时返回同一组业务 ID，不重复写入。
+- 合同和收款附件仍在业务事务成功后通过现有 Storage 权限接口上传；附件失败不会伪装为入住失败，页面会提示用户在详情中重试附件。

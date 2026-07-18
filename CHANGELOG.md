@@ -235,3 +235,14 @@
 - 验证：线上业务数量保持 1 套房源、4 个房间、3 个租客、3 笔收款、23 笔支出；owner 新增/编辑租客事务测试成功并回滚，测试行 0；只读 custom 的租客新增权限仍为 false；明确 revoked 会话仍被数据库拒绝。
 - 涉及文件：`components/account-access.tsx`、`components/app-layout.tsx`、`lib/supabase.ts`、`lib/business-data.ts`、`lib/storage-files.ts`、`app/api/business-data/route.ts`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
 - 数据库：无新 Migration、无结构修改、无业务数据修改、无需数据迁移。
+
+## 2026-07-18 - Atomic and idempotent one-click check-in
+
+- 修复统一业务写入路由：新增操作不再预读旧记录；更新、归档和删除才读取合法的表级字段。`rent_payments` 不再查询不存在的 `status` 字段，新增日志的 `before_data` 保持为空。
+- 一键入住由四次独立浏览器写入改为一次 `POST /api/check-in`，再由 `public.create_atomic_check_in` 在单个 PostgreSQL 事务内创建租客、合同、收款、押金记录，更新房态和月租标准，并写入审计日志。
+- 新增 `public.check_in_requests` 和独立 `client_request_id` 幂等机制；重复点击返回首次创建的业务 ID，不会生成第二套租客、合同、收款或押金记录。
+- 新增迁移：`supabase/migrations/20260718154112_atomic_check_in.sql`、`supabase/migrations/20260718161200_atomic_check_in_indexes.sql`。回滚 SQL 已写在迁移文件末尾。
+- 验证：owner 完整事务成功；重复请求只生成一组记录；模拟收款插入失败时全部回滚；只读 custom 被拒绝；临时授予完整必要权限的 custom 可执行；全部测试事务均已回滚，未污染正式数据。
+- Aymane chakri 的现有租客、合同和 502 已租房态保持不变。本次真实房租金额无法从数据库、审计摘要、Vercel 请求日志或前端草稿可靠恢复，因此尚未补建收款、押金与覆盖记录，也未把月租写为猜测值。
+- 涉及文件：`app/api/business-data/route.ts`、`lib/business-data.ts`、`app/api/check-in/route.ts`、`app/check-in/page.tsx`、两份迁移及三份长期文档。
+- 兼容性：不修改既有收款、支出、租客、合同、房间或附件记录；不改变财务公式、权限矩阵、RLS 房源隔离或现有账号密码。
