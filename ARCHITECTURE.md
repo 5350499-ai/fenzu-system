@@ -215,10 +215,17 @@
 ## 10. 认证状态体验
 
 - `AccountAccessProvider` 位于根 `app/layout.tsx`，首次打开、硬刷新恢复会话或刚完成登录时加载一次账号资料与权限快照。
-- 在读取 `/api/accounts/me` 前，Provider 调用 `POST /api/auth/restore-session`：仅当 Supabase Token 有效、账号 active、JWT `session_id` 未被撤销且撤销时间边界允许时，补建缺失的 `app_sessions` 行；已撤销会话和已停用账号不会被恢复。
+- `lib/supabase.ts` 统一提供有效 Session：先恢复 localStorage 中的持久 Session，仅在 Access Token 即将到期或服务器返回 401 时单例刷新，避免多个恢复/保存请求并发轮换 Refresh Token。
+- Provider 优先用有效 Token 读取 `/api/accounts/me`；仅在非明确撤销的 401 且刷新重试仍失败时调用 `POST /api/auth/restore-session`。补建只允许账号 active、JWT `session_id` 未被撤销且撤销时间边界允许的会话；已撤销会话和已停用账号不会被恢复。
 - 站内路由切换直接复用同一快照，不在各业务页或 `AppLayout` 重复调用 `getSession`、`/api/accounts/me` 或注册 Session 监听。
-- 浏览器重新聚焦及 Supabase Token 事件仅执行静默校验；网络暂时失败时保持已授权页面，账号停用、会话撤销或权限失效时显示可返回或退出重登的恢复页。
+- `SIGNED_IN` 在浏览器恢复焦点时可能再次出现，因此 `SIGNED_IN`、`TOKEN_REFRESHED`、`visibilitychange`、`pageshow` 和网络恢复事件全部走去重的静默校验；只保留一个全局 Auth 监听，不再用 `focus` 触发第二套校验。
+- 静默校验期间保持已有账号、权限、房源范围和页面数据。网络暂时失败时保持已授权页面；账号停用、精确会话撤销或确认失效时才显示可返回或退出重登的恢复页。
 - 首页业务读取与认证初始化分离：读取失败保留加载/错误状态，不把 RLS 或会话错误渲染成零金额。
+
+### 业务写入与租客列权限兼容（2026-07-18）
+
+- 租客敏感列不向浏览器授予普通 `SELECT`，因此统一业务写接口不得对租客使用需要额外列读取权限的 `UPSERT ... ON CONFLICT`。
+- `app/api/business-data` 根据已经校验的旧记录明确拆分 `INSERT` 与 `UPDATE`，继续使用当前用户 JWT 并接受模块、房源、workspace 和 RLS 双重校验；不使用 Service Role 执行业务写入。
 
 ### 自助密码与登录分享（2026-07-15）
 

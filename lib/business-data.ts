@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabase";
+import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
 
 export type ContractAttachment = {
   name: string;
@@ -394,10 +394,8 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
     return readStored<T[]>(key) || fallback;
   }
 
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-  if (!session) return [];
+  const session = await getValidSupabaseSession();
+  if (!session) throw new Error("登录状态已失效，请重新登录。");
 
   let query = key === tenantKey
     ? supabase.rpc("get_authorized_tenants")
@@ -419,10 +417,8 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   }
 
   const config = tableConfigs[key];
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-  if (!session) return;
+  let session = await getValidSupabaseSession();
+  if (!session) throw new Error("登录状态已失效，请重新登录。");
 
   const account = await loadAccountSnapshot(session.access_token);
   const previousIds = readRemoteIds(key);
@@ -435,14 +431,23 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   const changedRows = value.filter((row) => row.id && previousById.get(row.id) !== JSON.stringify(row));
   const rows = changedRows.map((row) => config.toDb(row, account.workspaceOwnerId));
   if (!rows.length && !removedIds.length) return;
-  const response = await fetch("/api/business-data", {
+  const requestBody = JSON.stringify({ key, rows, removedIds });
+  const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ key, rows, removedIds })
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: requestBody
   });
+  let response = await submit(session.access_token);
+  if (response.status === 401) {
+    session = await getValidSupabaseSession(true);
+    if (!session) throw new Error("登录状态已失效，请重新登录。");
+    accountSnapshot = null;
+    await loadAccountSnapshot(session.access_token);
+    response = await submit(session.access_token);
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error || "没有权限保存该记录。");
+    throw new Error(payload?.error || (response.status === 403 ? "没有权限执行此操作。" : "保存失败，请稍后重试。"));
   }
 
   writeRemoteIds(key, nextIds);
@@ -664,8 +669,11 @@ function toBusinessError(message: string, operation: "load" | "save" = "save") {
   }
   if (message.includes("permission") || message.includes("row-level security")) {
     return operation === "load"
-      ? "登录状态需要重新验证，请重新登录。"
-      : "当前账号没有权限保存这条数据，请确认已经登录。";
+      ? "加载数据失败，请稍后重试。"
+      : "没有权限执行此操作。";
+  }
+  if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("network")) {
+    return "网络连接异常，请稍后重试。";
   }
   if (message.includes("paid_by") || message.includes("received_by")) {
     return "A/B归属字段未初始化，请先执行合伙结算迁移 SQL。为避免丢失归属数据，本次保存已停止。";

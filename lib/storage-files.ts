@@ -1,6 +1,6 @@
 "use client";
 
-import { isSupabaseConfigured, supabase } from "./supabase";
+import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
 
 export type StoredFile = {
   id: string;
@@ -51,9 +51,7 @@ export const rentPaymentFileConfig: FileConfig = {
 
 export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): Promise<StoredFile[]> {
   if (!isSupabaseConfigured || !supabase) return [];
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
+  const session = await getValidSupabaseSession();
   if (!session) return [];
   const account = await loadFileAccount(session.access_token);
   if (!account.canViewAttachments || !account[viewPermissionFor(config)]) return [];
@@ -71,9 +69,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
   if (!allowedTypes.includes(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
   if (sourceFile.size > maxFileSize) throw new Error("单个附件不能超过 5MB。");
 
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
+  const session = await getValidSupabaseSession();
   if (!session) throw new Error("请先登录后再上传附件。");
   const account = await loadFileAccount(session.access_token);
   if (!account.canCreateAttachments || !account.canUploadFiles) throw new Error("当前账号没有上传附件权限。");
@@ -126,7 +122,7 @@ export async function downloadStoredFile(file: StoredFile) {
 
 export async function deleteStoredFile(file: StoredFile) {
   if (!isSupabaseConfigured || !supabase) return;
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getValidSupabaseSession();
   if (!session) throw new Error("请先登录。");
   const account = await loadFileAccount(session.access_token);
   if (!account.canDeleteAttachments || !account.canDeleteFiles) throw new Error("当前账号没有删除附件权限。");
@@ -164,7 +160,7 @@ function fromDb(row: any, config: FileConfig): StoredFile {
 
 async function getSignedUrl(file: StoredFile, action: "view" | "download") {
   if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置。");
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getValidSupabaseSession();
   if (!session) throw new Error("请先登录。");
   const response = await fetch("/api/files/signed-url", {
     method: "POST",

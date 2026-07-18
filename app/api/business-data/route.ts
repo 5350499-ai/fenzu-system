@@ -72,9 +72,26 @@ export async function POST(request: Request) {
       if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
     }
     if (rows.length) {
-      const { data: savedRows, error } = await client.from(resource.table).upsert(rows).select("id");
-      if (error) throw new AccountApiError("没有权限保存该记录。", 403);
-      return NextResponse.json({ ok: true, rows: savedRows || [] });
+      const rowsToInsert = rows.filter((row) => !existing.has(String(row.id || "")));
+      const rowsToUpdate = rows.filter((row) => existing.has(String(row.id || "")));
+      const savedRows: Array<{ id: string }> = [];
+
+      // Tenant sensitive columns intentionally have no browser SELECT grant.
+      // Postgres UPSERT requires extra SELECT privileges for ON CONFLICT, so a
+      // legitimate owner insert was rejected even though INSERT was allowed.
+      // Keep create and edit paths explicit, matching the permission checks above.
+      if (rowsToInsert.length) {
+        const { data, error } = await client.from(resource.table).insert(rowsToInsert).select("id");
+        if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+        savedRows.push(...((data || []) as Array<{ id: string }>));
+      }
+      for (const row of rowsToUpdate) {
+        const id = String(row.id || "");
+        const { data, error } = await client.from(resource.table).update(row).eq("id", id).select("id");
+        if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+        savedRows.push(...((data || []) as Array<{ id: string }>));
+      }
+      return NextResponse.json({ ok: true, rows: savedRows });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {

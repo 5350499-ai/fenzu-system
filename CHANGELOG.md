@@ -224,3 +224,14 @@
 - Home data loading now waits for an authenticated account, keeps a local loading/error state, and no longer displays failed data reads as zero financial figures or labels a read failure as a save-permission failure.
 - Files: `components/account-access.tsx`, `lib/server/account-auth.ts`, `app/api/auth/restore-session/route.ts`, `lib/business-data.ts`, `app/page.tsx`, `CHANGELOG.md`.
 - Database schema and business records: unchanged.
+
+## 2026-07-18 - Stabilize Safari/PWA session resume
+
+- 修复真实原因：Supabase 在页面恢复时可能再次发送 `SIGNED_IN`，原 Provider 将其当成首次登录并把 `ready` 重置为 false；同时 `focus`、`visibilitychange` 和 Auth 事件并发校验，使业务保存可能继续使用刷新前的短期 Token。
+- `AccountAccessProvider` 现在只在首次冷启动显示认证初始化；`SIGNED_IN`、`TOKEN_REFRESHED`、`visibilitychange`、`pageshow` 和网络恢复均使用去重的静默校验，网络瞬断不清空账号、权限、房源范围或当前页面数据。
+- `lib/supabase.ts` 新增单例 Session 刷新流程。业务读取和写入统一先取得有效短期 Access Token；保存遇到 401 时只刷新并安全重试一次，不延长 Access Token 有效期。
+- 修复 owner 一键入住写入的独立数据库兼容问题：租客敏感列采用列级 SELECT 授权，原 `upsert().select()` 因 `ON CONFLICT` 额外读取权限被 PostgreSQL 拒绝。统一业务写接口改为已校验后的显式 INSERT/UPDATE，仍使用当前用户 JWT 和原 RLS，不使用 Service Role。
+- 错误提示区分会话失效、账号停用、管理员撤销、权限不足、网络异常和业务保存失败；读取失败不再提示“没有权限保存”。
+- 验证：线上业务数量保持 1 套房源、4 个房间、3 个租客、3 笔收款、23 笔支出；owner 新增/编辑租客事务测试成功并回滚，测试行 0；只读 custom 的租客新增权限仍为 false；明确 revoked 会话仍被数据库拒绝。
+- 涉及文件：`components/account-access.tsx`、`components/app-layout.tsx`、`lib/supabase.ts`、`lib/business-data.ts`、`lib/storage-files.ts`、`app/api/business-data/route.ts`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
+- 数据库：无新 Migration、无结构修改、无业务数据修改、无需数据迁移。

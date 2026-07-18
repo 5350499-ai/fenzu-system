@@ -129,3 +129,11 @@
 
 - 公开登录页面、前端帮助文字、接口响应、前端日志和可见维护文档不得展示主管理员真实邮箱、Auth User ID、内部认证邮箱、令牌或密码。
 - 主管理员仍可通过其真实邮箱正常登录；该邮箱仅可保留在数据库迁移和服务器端安全校验中。
+
+## 长期登录与应用恢复（2026-07-18）
+
+- 长期登录依赖 Supabase 持久化 Refresh Token 和短期 Access Token 自动刷新；不得人为延长 Access Token，也不得用前端计时器模拟长期登录。
+- 首次恢复本地 Session 时允许显示一次认证初始化；站内导航、Safari/PWA 回到前台、`SIGNED_IN` 重发和 `TOKEN_REFRESHED` 只能静默校验，不得清空账号、权限、房源范围或业务数据快照。
+- 正常网络错误或恢复竞态不得等同于退出、停用或无权限。只有明确退出、账号停用、精确 `session_id` 被撤销或 Refresh Token 确认失效时才清除登录状态。
+- Supabase Session 有效且账号 active 时，可以补建意外缺失的 `app_sessions` 行；明确 revoked 的 `session_id` 或早于全设备撤销边界的会话不得恢复。
+- 普通业务读写必须先取得当前有效短期 Token；并发恢复只允许一次 Refresh Token 轮换，避免页面校验和保存请求分别使用新旧 Token。

@@ -120,11 +120,18 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }
 
   if (!access.authenticated) {
-    return <AccessRecovery description={access.invalidReason || "登录状态已失效，请重新登录。"} onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
+    const title = access.authState === "account_disabled"
+      ? "当前账号已停用"
+      : access.authState === "session_revoked"
+        ? "当前登录已被结束"
+        : access.authState === "network_error"
+          ? "网络连接异常"
+          : "登录状态已失效";
+    return <AccessRecovery title={title} description={access.invalidReason || "登录状态已失效，请重新登录。"} onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
   if (routeModule && !canOpenModule(routeModule)) {
-    return <AccessRecovery description="当前账号没有查看此页面的权限。请联系主管理员调整权限。" onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
+    return <AccessRecovery title="没有权限访问此页面" description="当前账号没有查看此页面的权限。请联系主管理员调整权限。" onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
   return (
@@ -186,11 +193,11 @@ export function AppLayout({ children, title, description }: { children: React.Re
   );
 }
 
-function AccessRecovery({ description, onHome, onBack, onLogout }: { description: string; onHome: () => void; onBack: () => void; onLogout: () => void }) {
+function AccessRecovery({ title, description, onHome, onBack, onLogout }: { title: string; description: string; onHome: () => void; onBack: () => void; onLogout: () => void }) {
   return (
     <main className="login-page">
       <section className="card login-card">
-        <div className="brand-title">没有权限访问此页面</div>
+        <div className="brand-title">{title}</div>
         <p className="muted">{description}</p>
         <div className="modal-actions">
           <button className="btn" type="button" onClick={onHome}>返回首页</button>
