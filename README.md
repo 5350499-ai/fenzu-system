@@ -87,3 +87,12 @@ iPhone 使用方式：
 2. 点击底部分享按钮。
 3. 选择“添加到主屏幕”。
 4. 名称会显示为“分租管理”。
+
+
+## How Codex and GPT-5.6 were used
+
+Codex was used throughout the project as an AI development partner. It helped inspect the codebase, translate real rental-management requirements into implementation tasks, diagnose defects, implement features, verify changes, and document development decisions.
+
+GPT-5.6 was used for higher-level reasoning, requirement clarification, workflow design, debugging strategy, and reviewing whether the implemented behavior matched the intended business rules.
+
+The project was developed iteratively. I provided real operational requirements and tested each change, while Codex and GPT-5.6 helped convert those requirements into working software.
