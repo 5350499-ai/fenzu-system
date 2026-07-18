@@ -215,8 +215,10 @@
 ## 10. 认证状态体验
 
 - `AccountAccessProvider` 位于根 `app/layout.tsx`，首次打开、硬刷新恢复会话或刚完成登录时加载一次账号资料与权限快照。
+- 在读取 `/api/accounts/me` 前，Provider 调用 `POST /api/auth/restore-session`：仅当 Supabase Token 有效、账号 active、JWT `session_id` 未被撤销且撤销时间边界允许时，补建缺失的 `app_sessions` 行；已撤销会话和已停用账号不会被恢复。
 - 站内路由切换直接复用同一快照，不在各业务页或 `AppLayout` 重复调用 `getSession`、`/api/accounts/me` 或注册 Session 监听。
 - 浏览器重新聚焦及 Supabase Token 事件仅执行静默校验；网络暂时失败时保持已授权页面，账号停用、会话撤销或权限失效时显示可返回或退出重登的恢复页。
+- 首页业务读取与认证初始化分离：读取失败保留加载/错误状态，不把 RLS 或会话错误渲染成零金额。
 
 ### 自助密码与登录分享（2026-07-15）
 

@@ -216,3 +216,11 @@
 - Successful business writes now return persisted row IDs to the client. Existing database audit triggers continue recording creates and edits without requiring `before_data` for new rows.
 - Files: `app/api/business-data/route.ts`, `CHANGELOG.md`.
 - Database schema/data: unchanged. No historical expense, financial amount, permission, RLS policy, or attachment was changed.
+
+## 2026-07-18 - Restore persistent application sessions
+
+- Added a server-side restore step for persisted Supabase sessions. A missing `app_sessions` row is recreated only for an active account with a valid, non-revoked Supabase session; revoked rows and disabled accounts remain blocked.
+- The account provider now restores the application session before loading its permission snapshot and distinguishes unauthenticated, revoked, disabled, forbidden, and network-error states.
+- Home data loading now waits for an authenticated account, keeps a local loading/error state, and no longer displays failed data reads as zero financial figures or labels a read failure as a save-permission failure.
+- Files: `components/account-access.tsx`, `lib/server/account-auth.ts`, `app/api/auth/restore-session/route.ts`, `lib/business-data.ts`, `app/page.tsx`, `CHANGELOG.md`.
+- Database schema and business records: unchanged.

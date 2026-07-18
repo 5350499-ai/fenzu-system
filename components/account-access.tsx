@@ -8,6 +8,7 @@ type AccountAccessState = {
   ready: boolean;
   authenticated: boolean;
   isRefreshing: boolean;
+  authState: "initializing" | "authenticated" | "unauthenticated" | "session_revoked" | "account_disabled" | "forbidden" | "network_error";
   invalidReason: string;
   isOwner: boolean;
   userId: string;
@@ -31,6 +32,7 @@ const emptyState = (): AccountAccessState => ({
   ready: false,
   authenticated: false,
   isRefreshing: false,
+  authState: "initializing",
   invalidReason: "",
   isOwner: false,
   userId: "",
@@ -56,11 +58,34 @@ let accessRequest: Promise<AccountAccessState> | null = null;
 
 async function resolveAccessState(): Promise<AccountAccessState> {
   if (!isSupabaseConfigured || !supabase) {
-    return { ...emptyState(), ready: true, invalidReason: "系统尚未配置 Supabase 登录服务。" };
+    return { ...emptyState(), ready: true, authState: "network_error", invalidReason: "系统尚未配置 Supabase 登录服务。" };
   }
 
   const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) return { ...emptyState(), ready: true };
+  if (error || !data.session) return { ...emptyState(), ready: true, authState: "unauthenticated" };
+
+  const restoreResponse = await fetch("/api/auth/restore-session", {
+    method: "POST",
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${data.session.access_token}` }
+  });
+  const restorePayload = await restoreResponse.json().catch(() => ({}));
+  if (!restoreResponse.ok) {
+    const reason = typeof restorePayload.error === "string" ? restorePayload.error : "登录状态需要重新验证，请重新登录。";
+    const authState = restoreResponse.status === 401
+      ? "session_revoked"
+      : restoreResponse.status === 403 && reason.includes("停用")
+        ? "account_disabled"
+        : restoreResponse.status === 403
+          ? "forbidden"
+          : "network_error";
+    return {
+      ...emptyState(),
+      ready: true,
+      authState,
+      invalidReason: reason
+    };
+  }
 
   const response = await fetch("/api/accounts/me", {
     cache: "no-store",
@@ -68,9 +93,17 @@ async function resolveAccessState(): Promise<AccountAccessState> {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const authState = response.status === 401
+      ? "session_revoked"
+      : response.status === 403 && typeof payload.error === "string" && payload.error.includes("停用")
+        ? "account_disabled"
+        : response.status === 403
+          ? "forbidden"
+          : "network_error";
     return {
       ...emptyState(),
       ready: true,
+      authState,
       invalidReason: typeof payload.error === "string" ? payload.error : "账号权限已更新，请重新登录。"
     };
   }
@@ -79,6 +112,7 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     ready: true,
     authenticated: true,
     isRefreshing: false,
+    authState: "authenticated",
     invalidReason: "",
     isOwner: Boolean(payload.isOwner),
     userId: payload.profile?.id || "",
@@ -126,7 +160,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
       if (mountedRef.current) {
         setState((current) => {
           if (shouldKeepScreen && current.authenticated) return { ...current, isRefreshing: false };
-          return { ...emptyState(), ready: true, invalidReason: "无法校验账号状态，请检查网络后重新登录。" };
+          return { ...emptyState(), ready: true, authState: "network_error", invalidReason: "无法校验账号状态，请检查网络后重新登录。" };
         });
       }
     }

@@ -404,7 +404,7 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
     : supabase.from(config.table).select(config.select || "*");
   if (config.order && key !== tenantKey) query = query.order(config.order, { ascending: false });
   const { data, error } = await query;
-  if (error) throw new Error(toBusinessError(error.message));
+  if (error) throw new Error(toBusinessError(error.message, "load"));
 
   const rows = ((data || []) as unknown as AnyRecord[]).map((row) => config.fromDb(row)) as T[];
   writeRemoteIds(key, rows.map((row) => row.id));
@@ -653,7 +653,7 @@ function normalize(value: string, dictionary: Record<string, string>) {
   return dictionary[value] || value || "";
 }
 
-function toBusinessError(message: string) {
+function toBusinessError(message: string, operation: "load" | "save" = "save") {
   if (message.includes("violates foreign key constraint") || message.includes("foreign key")) {
     if (message.includes("rooms_property_id_fkey") || message.includes("properties")) {
       return "该房源下还有房间或业务数据，不能直接删除。请先归档房源，或处理关联房间。";
@@ -663,7 +663,9 @@ function toBusinessError(message: string) {
     }
   }
   if (message.includes("permission") || message.includes("row-level security")) {
-    return "当前账号没有权限保存这条数据，请确认已经登录。";
+    return operation === "load"
+      ? "登录状态需要重新验证，请重新登录。"
+      : "当前账号没有权限保存这条数据，请确认已经登录。";
   }
   if (message.includes("paid_by") || message.includes("received_by")) {
     return "A/B归属字段未初始化，请先执行合伙结算迁移 SQL。为避免丢失归属数据，本次保存已停止。";

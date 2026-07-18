@@ -56,10 +56,16 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [dataError, setDataError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    if (!access.ready) return;
+    if (!access.ready || !access.authenticated) return;
+    let active = true;
     async function load() {
+      setDataStatus("loading");
+      setDataError("");
       const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
       const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
       const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
@@ -67,6 +73,7 @@ export default function DashboardPage() {
       const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
       const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
       const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
+      if (!active) return;
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
@@ -74,9 +81,15 @@ export default function DashboardPage() {
       setRentPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
+      setDataStatus("ready");
     }
-    load().catch((error) => window.alert(`加载首页数据失败：${error.message || error}`));
-  }, [access.ready]);
+    load().catch((error) => {
+      if (!active) return;
+      setDataStatus("error");
+      setDataError(error instanceof Error ? error.message : "加载首页数据失败，请稍后重试。");
+    });
+    return () => { active = false; };
+  }, [access.authenticated, access.ready, loadAttempt]);
 
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -97,6 +110,15 @@ export default function DashboardPage() {
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
+      {dataStatus !== "ready" ? (
+        <section className="card panel">
+          <p className={dataStatus === "error" ? "danger-text" : "muted"}>
+            {dataStatus === "error" ? `加载首页数据失败：${dataError || "请稍后重试。"}` : "正在加载首页数据..."}
+          </p>
+          {dataStatus === "error" ? <button className="btn" type="button" onClick={() => setLoadAttempt((current) => current + 1)}>重新加载</button> : null}
+        </section>
+      ) : (
+        <>
       <div className="grid metrics">
         <MetricCard label="本月总收入" value={euro(totals.income)} note="点击查看本月收款" href={`/rent-payments?month=${currentMonth}`} />
         <MetricCard label="本月总支出" value={euro(totals.expense)} note="点击查看本月支出" href={`/expenses?month=${currentMonth}`} />
@@ -119,7 +141,6 @@ export default function DashboardPage() {
           })}
         </div>
       </section>
-
       <section className="card panel reminder-center">
         <button className="reminder-toggle" onClick={() => setRemindersOpen((current) => !current)} type="button">
           <span className="reminder-toggle-title"><AlertTriangle size={17} /> 提醒中心（{reminders.length}）</span>
@@ -150,6 +171,8 @@ export default function DashboardPage() {
           </div>
         ) : null}
       </section>
+        </>
+      )}
 
     </AppLayout>
   );
