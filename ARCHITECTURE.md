@@ -240,3 +240,11 @@
 - `public.create_atomic_check_in` 在单个 PostgreSQL 事务中锁定目标房间，创建租客、合同、收款和押金记录，更新房态与租金标准，并写入安全摘要审计日志。函数内部再次校验应用会话、账号状态、模块权限和 `property_id`。
 - `public.check_in_requests` 保存服务端幂等结果。浏览器和普通角色无表级访问权；独立 `client_request_id` 重复提交时返回同一组业务 ID，不重复写入。
 - 合同和收款附件仍在业务事务成功后通过现有 Storage 权限接口上传；附件失败不会伪装为入住失败，页面会提示用户在详情中重试附件。
+
+### 租客当前调房事务（2026-07-18）
+
+- `app/tenants/page.tsx` 编辑已有租客时调用 `lib/tenant-room-move.ts`，不再把租客、房间、最新合同和历史收款组成多次独立保存。
+- `POST /api/tenants/move-room` 验证当前 Supabase Token、有效应用会话、租客编辑权限、房间编辑权限和目标房源范围，再使用当前用户 JWT 调用数据库 RPC。
+- `public.update_tenant_current_assignment` 锁定目标租客及新旧房间，在一个 PostgreSQL 事务内更新租客当前资料、统计两间房的当前在租租客、更新房态并追加 `move_tenant_room` 审计日志。
+- 该 RPC 只写 `tenants`、`rooms.status/updated_at` 和 `audit_logs`；不读取或改写 `contracts`、`rent_payments`、`deposits`，也不修改 `rooms.monthly_rent`。
+- 迁移：`supabase/migrations/20260718163321_atomic_tenant_room_move.sql`，文件末尾包含非破坏性函数回滚 SQL。

@@ -41,6 +41,7 @@ import { euro } from "@/lib/format";
 import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -328,6 +329,27 @@ export default function TenantsPage() {
     }
     try {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
+      if (form.id) {
+        if (!previousTenant) throw new Error("租客不存在，请刷新后重试。");
+        setSaving(true);
+        await updateTenantCurrentAssignment(form);
+        const [loadedTenants, loadedRooms] = await Promise.all([
+          loadBusinessData<BusinessTenant>(tenantKey, tenants),
+          loadBusinessData<BusinessRoom>(roomKey, rooms)
+        ]);
+        setTenants(loadedTenants);
+        setRooms(loadedRooms);
+
+        const currentContract = latestContractForTenant(form.id, contracts);
+        if (pendingContractFile && currentContract) {
+          const uploaded = await uploadContractFile(currentContract.id, pendingContractFile);
+          setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== currentContract.id)]);
+        }
+        if (pendingPaymentFile && paymentForm.id) await uploadRentPaymentFile(paymentForm.id, pendingPaymentFile);
+        close();
+        return;
+      }
+
       const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
       const next = form.id
         ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
@@ -375,6 +397,8 @@ export default function TenantsPage() {
     } catch (error: any) {
       window.alert(error.message || "保存租客、收款或附件失败，请稍后重试。");
       return;
+    } finally {
+      setSaving(false);
     }
     close();
   }
@@ -672,7 +696,9 @@ export default function TenantsPage() {
                 }))}
                 onChange={(roomId) => {
                   const room = rooms.find((item) => item.id === roomId);
-                  setForm((current) => ({ ...current, roomId, monthlyRent: room?.monthlyRent || 0, depositAmount: room?.depositAmount || current.depositAmount }));
+                  setForm((current) => current.id
+                    ? { ...current, roomId }
+                    : { ...current, roomId, monthlyRent: room?.monthlyRent || 0, depositAmount: room?.depositAmount || current.depositAmount });
                 }}
                 placeholder="先选房源，再搜索房间名称、编号"
               />
