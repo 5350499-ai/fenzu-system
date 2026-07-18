@@ -89,7 +89,7 @@ export function calculatePropertyProfit(
   const scopedRooms = rooms.filter((room) => room.propertyId === property.id && !isArchived(room.status));
   const scopedTenants = tenants.filter((tenant) => tenant.propertyId === property.id && isCurrentRentalTenant(tenant));
   const rentableRooms = scopedRooms.filter((room) => !isStoppedStatus(room.status)).length;
-  const roomsWithDynamicStatus = scopedRooms.map((room) => ({ room, status: roomOccupancyStatus(room, payments) }));
+  const roomsWithDynamicStatus = scopedRooms.map((room) => ({ room, status: roomOccupancyStatus(room, tenants) }));
   const rentedRooms = roomsWithDynamicStatus.filter((item) => isRentedStatus(item.status)).length;
   const vacantRooms = roomsWithDynamicStatus.filter((item) => isVacantStatus(item.status)).length;
   const scopedPayments = payments.filter((payment) => payment.propertyId === property.id && isPaymentInRange(payment, range) && !isVoided(payment.notes));

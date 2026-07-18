@@ -267,3 +267,14 @@
 - 事务回归：模拟 Aymane 504→502 时504变空置、502因林仍在租而保持已租；移回504后502继续已租；合同、收款、押金及两间房自身月租全程不变，测试事务已回滚。只读 custom 调用被数据库拒绝。
 - 涉及文件：`app/tenants/page.tsx`、`app/api/tenants/move-room/route.ts`、`lib/tenant-room-move.ts`、`supabase/migrations/20260718163321_atomic_tenant_room_move.sql`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
 - 数据库：新增一个事务 RPC，不新增业务表或字段；执行一次严格幂等的数据修复。现有权限矩阵、RLS、财务计算和其他业务记录不变。
+
+## 2026-07-18 - Move the active rental relationship and unify room occupancy
+
+- 按最新业务确认升级正式调房：当前在租租客、未结束的有效合同、尚未退还的押金和最新覆盖周期房租流水在同一 PostgreSQL 事务中整体迁移；已结束/归档合同、较早覆盖周期流水和已退押金保持不变。
+- 精确修复 Aymane 当前关系：租客、合同 `b94a572b-db69-4cbd-a9c9-2af415957015`、收款 `7d5e2a7f-8df5-4206-80cf-c959b98f744d` 和押金 `5c103b53-922e-4bc2-84fa-09ff93e9f982` 全部归属504；金额 €130/€300/€430 与覆盖期未改变，未新增或删除业务记录。
+- 房间当前租客和房态不再从最新合同或收款推断，只读取当前 `tenants` 关系；同房多人逐人显示，列表显示当前月租合计，详情显示月租与有效押金合计及逐人明细，历史收款继续逐笔显示。
+- 首页入住率、空置提醒和房间页统一按当前在租租客计算。线上当前四个房间各有一名在租租客，口径为4/4、100%、空置0间。
+- 修复移动端底部布局：全局导航固定并适配 iPhone 安全区，主内容增加导航高度加安全区的底部留白，房间详情操作按钮保持文档流且可完整滚动到导航上方。
+- 事务回归已回滚：Aymane 504→502 时当前有效合同、押金和最新覆盖期收款同步迁移，504变空置，502因林仍在租保持已租；同房两人月租合计 €430，结束一人后另一人仍保持房间已租；只读 custom 被拒绝。
+- 涉及文件：`app/rooms/page.tsx`、`app/tenants/page.tsx`、`app/page.tsx`、`app/globals.css`、`lib/rent-coverage.ts`、`lib/profit.ts`、`supabase/migrations/20260718190000_move_active_rental_relationship.sql`、三份长期文档。
+- 数据库：替换现有 RPC 函数定义，不新增表或字段；一次严格前置检查的数据修复和一条明确审计日志。回滚不删除业务行。

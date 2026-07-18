@@ -58,9 +58,10 @@ export function isCurrentRentalTenant(tenant: BusinessTenant) {
   return true;
 }
 
-export function roomOccupancyStatus(room: BusinessRoom, payments: BusinessRentPayment[], today = todayString()) {
+export function roomOccupancyStatus(room: BusinessRoom, tenants: BusinessTenant[]) {
+  if (tenants.some((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant))) return "已租";
   if (["维修中", "暂停出租", "已归档"].includes(room.status)) return room.status;
-  return activeCoveragePaymentForRoom(room.id, payments, today) ? "已租" : "空置";
+  return "空置";
 }
 
 export function isPaymentActiveOnDate(payment: BusinessRentPayment, today = todayString()) {

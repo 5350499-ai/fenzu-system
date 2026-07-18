@@ -245,6 +245,9 @@
 
 - `app/tenants/page.tsx` 编辑已有租客时调用 `lib/tenant-room-move.ts`，不再把租客、房间、最新合同和历史收款组成多次独立保存。
 - `POST /api/tenants/move-room` 验证当前 Supabase Token、有效应用会话、租客编辑权限、房间编辑权限和目标房源范围，再使用当前用户 JWT 调用数据库 RPC。
-- `public.update_tenant_current_assignment` 锁定目标租客及新旧房间，在一个 PostgreSQL 事务内更新租客当前资料、统计两间房的当前在租租客、更新房态并追加 `move_tenant_room` 审计日志。
-- 该 RPC 只写 `tenants`、`rooms.status/updated_at` 和 `audit_logs`；不读取或改写 `contracts`、`rent_payments`、`deposits`，也不修改 `rooms.monthly_rent`。
-- 迁移：`supabase/migrations/20260718163321_atomic_tenant_room_move.sql`，文件末尾包含非破坏性函数回滚 SQL。
+- `public.update_tenant_current_assignment` 锁定目标租客及新旧房间，在一个 PostgreSQL 事务内更新 `tenants`、当前有效 `contracts`、当前有效 `deposits`、最新覆盖周期 `rent_payments`、两间房状态和审计日志。
+- 当前有效关系按业务状态和覆盖期筛选；已结束/归档合同、旧覆盖周期收款和已退押金不更新。RPC 不修改任何金额、覆盖日期或 `rooms.monthly_rent`。
+- `app/rooms/page.tsx` 以 `tenants.room_id + status=在租` 生成房间当前租客、月租合计、押金合计和房态；合同与收款只提供当前期限信息和逐笔历史，不再决定“当前租客”。
+- `lib/rent-coverage.ts` 的房态函数及 `lib/profit.ts`、首页均使用当前在租租客集合，保证房间列表、首页入住率和空置数口径一致。
+- 迁移：`supabase/migrations/20260718190000_move_active_rental_relationship.sql`；非破坏性回滚为重新应用前一版 `20260718163321_atomic_tenant_room_move.sql` 函数定义。
+- 移动端全局导航固定在底部并包含 `env(safe-area-inset-bottom)`；主内容底部预留导航高度和安全区，房间操作按钮保持普通文档流。

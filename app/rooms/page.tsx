@@ -27,8 +27,9 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { activeCoveragePaymentForRoom, coverageLabel, isCoverageExpired, latestCoverageForRoom, overdueReferenceAmount, roomOccupancyStatus } from "@/lib/rent-coverage";
+import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
 
@@ -91,10 +92,10 @@ export default function RoomsPage() {
     if (!keyword) return rooms;
     return rooms.filter((room) => {
       const property = properties.find((item) => item.id === room.propertyId);
-      const displayStatus = roomOccupancyStatus(room, payments);
+      const displayStatus = roomOccupancyStatus(room, tenants);
       return `${property?.name || ""} ${room.name} ${room.roomNumber} ${room.status} ${displayStatus} ${room.notes || ""}`.toLowerCase().includes(keyword);
     });
-  }, [payments, properties, query, rooms]);
+  }, [properties, query, rooms, tenants]);
   const visibleRooms = pageRows(filteredRooms, page, pageSize);
 
   function close() {
@@ -181,14 +182,18 @@ export default function RoomsPage() {
         <div className="finance-list room-compact-list">
           {visibleRooms.map((room) => {
             const property = properties.find((item) => item.id === room.propertyId);
-            const contract = latestContractForRoom(room.id, contracts);
-            const displayStatus = roomOccupancyStatus(room, payments);
-            const expiry = displayStatus.includes("已租") || displayStatus.includes("即将退租") ? getRoomExpiryInfo(contract?.endDate) : { label: "-", tone: "info" as const };
+            const currentTenants = tenants.filter((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant));
+            const currentTenantIds = new Set(currentTenants.map((tenant) => tenant.id));
+            const currentContracts = contracts.filter((contract) => currentTenantIds.has(contract.tenantId) && isActiveContract(contract));
+            const nearestContract = [...currentContracts].filter((contract) => contract.endDate).sort((a, b) => a.endDate.localeCompare(b.endDate))[0] || null;
+            const displayStatus = roomOccupancyStatus(room, tenants);
+            const expiry = displayStatus.includes("已租") || displayStatus.includes("即将退租") ? getRoomExpiryInfo(nearestContract?.endDate) : { label: "-", tone: "info" as const };
             const latestPayment = latestCoverageForRoom(room.id, payments);
-            const activePayment = activeCoveragePaymentForRoom(room.id, payments);
-            const currentTenant = activePayment ? tenants.find((tenant) => tenant.id === activePayment.tenantId) : null;
-            const currentMonthlyRent = currentTenant?.monthlyRent ?? room.monthlyRent;
-            const unpaid = displayStatus === "已租" ? roomUnpaidAmount(room.id, payments) : 0;
+            const currentMonthlyRent = currentTenants.length
+              ? currentTenants.reduce((total, tenant) => total + Number(tenant.monthlyRent || 0), 0)
+              : room.monthlyRent;
+            const currentDepositAmount = currentTenants.reduce((total, tenant) => total + currentDepositForTenant(tenant, deposits), 0);
+            const unpaid = displayStatus === "已租" ? roomUnpaidAmount(currentTenants, payments) : 0;
             const expanded = expandedRoomId === room.id;
             return (
               <article className="finance-list-item" key={room.id}>
@@ -206,11 +211,15 @@ export default function RoomsPage() {
                     propertyName={property?.name || "-"}
                     room={room}
                     unpaid={unpaid}
-                    currentTenantName={currentTenant?.name || "-"}
+                    currentTenants={currentTenants}
                     currentMonthlyRent={currentMonthlyRent}
-                    currentDepositAmount={currentTenant?.depositAmount ?? room.depositAmount}
+                    currentDepositAmount={currentDepositAmount}
                     coverageEnd={coverageLabel(latestPayment)}
-                    contractEndDate={contract?.endDate || "-"}
+                    contractEndDate={nearestContract?.endDate || "-"}
+                    contracts={contracts}
+                    allPayments={payments}
+                    allDeposits={deposits}
+                    allTenants={tenants}
                     payments={payments.filter((payment) => payment.roomId === room.id)}
                     deposits={deposits.filter((deposit) => deposit.roomId === room.id)}
                     saving={saving}
@@ -268,11 +277,15 @@ function RoomDetail({
   propertyName,
   expiryLabel,
   unpaid,
-  currentTenantName,
+  currentTenants,
   currentMonthlyRent,
   currentDepositAmount,
   coverageEnd,
   contractEndDate,
+  contracts,
+  allPayments,
+  allDeposits,
+  allTenants,
   payments,
   deposits,
   saving,
@@ -288,11 +301,15 @@ function RoomDetail({
   propertyName: string;
   expiryLabel: string;
   unpaid: number;
-  currentTenantName: string;
+  currentTenants: BusinessTenant[];
   currentMonthlyRent: number;
   currentDepositAmount: number;
   coverageEnd: string;
   contractEndDate: string;
+  contracts: BusinessContract[];
+  allPayments: BusinessRentPayment[];
+  allDeposits: BusinessDeposit[];
+  allTenants: BusinessTenant[];
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   saving: boolean;
@@ -310,14 +327,32 @@ function RoomDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间名称" value={room.name || "-"} />
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
-        <DetailField label="当前租客" value={currentTenantName} />
-        <DetailField label="月租" value={euro(currentMonthlyRent)} />
-        <DetailField label="押金" value={euro(currentDepositAmount)} />
+        <DetailField label="当前在租租客" value={`${currentTenants.length}人`} />
+        <DetailField label="当前月租合计" value={euro(currentMonthlyRent)} />
+        <DetailField label="当前押金合计" value={euro(currentDepositAmount)} />
         <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
         <DetailField label="合同到期日期" value={contractEndDate} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
+      </div>
+      <div className="room-current-tenants">
+        <div className="detail-section-title">当前在租租客（{currentTenants.length}人）</div>
+        {currentTenants.map((tenant) => {
+          const payment = latestCoverageForTenant(tenant.id, allPayments);
+          const contract = latestActiveContractForTenant(tenant.id, contracts);
+          return (
+            <Link className="room-current-tenant" href={`/tenants?tenantId=${tenant.id}`} key={tenant.id}>
+              <strong>{tenant.name}</strong>
+              <span>月租 {euro(tenant.monthlyRent)}</span>
+              <span>押金 {euro(currentDepositForTenant(tenant, allDeposits))}</span>
+              <span>入住 {contract?.startDate || "-"}</span>
+              <span>覆盖至 {coverageLabel(payment)}</span>
+              <StatusBadge tone="green">{tenant.status}</StatusBadge>
+            </Link>
+          );
+        })}
+        {!currentTenants.length ? <span className="muted">当前无在租租客</span> : null}
       </div>
       <div className="attachment-panel">
         <div className="detail-section-title">历史收款记录（{payments.length}笔）</div>
@@ -328,7 +363,8 @@ function RoomDetail({
               const deposit = paymentDepositAmount(payment, deposits);
               const rent = Number(payment.amountDue || 0);
               const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
-              return <div className="payment-history-line" key={payment.id}><span>{payment.paymentDate || payment.rentMonth}</span><span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span><span>押金 {euro(deposit)}</span><strong>实收 {euro(payment.amountPaid)}</strong></div>;
+              const tenantName = allTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "未填写租客";
+              return <div className="payment-history-line room-payment-history-line" key={payment.id}><span>{payment.paymentDate || payment.rentMonth}</span><span>{tenantName}</span><span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span><span>押金 {euro(deposit)}</span><span>归属 {payment.receivedBy || "-"}</span><span>状态 {payment.paymentStatus || "-"}</span><strong>实收 {euro(payment.amountPaid)}</strong></div>;
             })}
           {!payments.length ? <span className="muted">暂无收款记录</span> : null}
         </div>
@@ -345,6 +381,12 @@ function DetailField({ label, value }: { label: string; value: string }) {
 function paymentDepositAmount(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {
   const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${payment.id}]`));
   if (linkedDeposit) return Number(linkedDeposit.amount || 0);
+
+  const matchingDeposit = deposits.find((deposit) => deposit.tenantId === payment.tenantId
+    && deposit.roomId === payment.roomId
+    && deposit.transactionDate === payment.paymentDate
+    && isActiveDeposit(deposit));
+  if (matchingDeposit) return Number(matchingDeposit.amount || 0);
 
   // Legacy receipts store rent in amount_due and the collected total in amount_paid.
   return Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
@@ -367,9 +409,30 @@ function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
     .sort((a, b) => (b.endDate || "").localeCompare(a.endDate || ""))[0] || null;
 }
 
-function roomUnpaidAmount(roomId: string, payments: BusinessRentPayment[]) {
-  const latest = latestCoverageForRoom(roomId, payments);
-  return isCoverageExpired(latest) ? overdueReferenceAmount(latest) : 0;
+function roomUnpaidAmount(tenants: BusinessTenant[], payments: BusinessRentPayment[]) {
+  return tenants.reduce((total, tenant) => {
+    const latest = latestCoverageForTenant(tenant.id, payments);
+    return total + (isCoverageExpired(latest) ? overdueReferenceAmount(latest, tenant) : 0);
+  }, 0);
+}
+
+function currentDepositForTenant(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
+  const active = deposits.filter((deposit) => deposit.tenantId === tenant.id && isActiveDeposit(deposit));
+  return active.length ? active.reduce((total, deposit) => total + Number(deposit.amount || 0), 0) : Number(tenant.depositAmount || 0);
+}
+
+function isActiveDeposit(deposit: BusinessDeposit) {
+  return deposit.type === "收取" && !["已退", "已退还", "已作废", "已归档"].includes(deposit.status) && !isVoided(deposit.notes);
+}
+
+function isActiveContract(contract: BusinessContract) {
+  return !["已结束", "已归档", "已退租"].includes(contract.status) && (!contract.endDate || contract.endDate >= new Date().toISOString().slice(0, 10));
+}
+
+function latestActiveContractForTenant(tenantId: string, contracts: BusinessContract[]) {
+  return [...contracts]
+    .filter((contract) => contract.tenantId === tenantId && isActiveContract(contract))
+    .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))[0] || null;
 }
 
 function isActiveTenant(tenant: BusinessTenant) {

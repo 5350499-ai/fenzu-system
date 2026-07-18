@@ -140,6 +140,10 @@ export default function TenantsPage() {
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
       setContractFiles(await loadContractFiles(loadedContracts.map((contract) => contract.id)));
+      const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
+      if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
+        setDetailTenantId(requestedTenantId);
+      }
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载租客失败：${error.message || error}`));
