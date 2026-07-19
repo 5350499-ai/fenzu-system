@@ -221,6 +221,10 @@
 - `SIGNED_IN` 在浏览器恢复焦点时可能再次出现，因此 `SIGNED_IN`、`TOKEN_REFRESHED`、`visibilitychange`、`pageshow` 和网络恢复事件全部走去重的静默校验；只保留一个全局 Auth 监听，不再用 `focus` 触发第二套校验。
 - 静默校验期间保持已有账号、权限、房源范围和页面数据。网络暂时失败时保持已授权页面；账号停用、精确会话撤销或确认失效时才显示可返回或退出重登的恢复页。
 - 首页业务读取与认证初始化分离：读取失败保留加载/错误状态，不把 RLS 或会话错误渲染成零金额。
+- `AccountAccessProvider` 将可显示页面外壳与已完成服务端校验拆分：`restoring_snapshot` 从 `localStorage` 的 `fenzu.account-access.v1` 恢复非敏感账号、菜单权限、房源 ID 范围和上次路径，`isServerVerified` 只有 `/api/accounts/me` 成功后才为真。
+- 冷启动快照包含固定 `cacheVersion`、账号/工作区标识、公开账号资料、账号类型与 active 状态、模块及敏感权限布尔值、房源授权模式和 ID、上次验证时间、权限版本标记及上次路径；不复制 Supabase Access/Refresh Token，不缓存密码、Cookie、内部认证邮箱或业务敏感字段。
+- `AppLayout` 在快照恢复期立即显示标题、导航和局部同步骨架，但不挂载业务页面；因此缓存不能触发读取敏感字段或任何写操作。真实 Session、应用会话、账号状态和权限在后台通过原有 `/api/accounts/me` 与必要时的 `/api/auth/restore-session` 校验。
+- 主动退出、修改密码后的退出、明确 `SIGNED_OUT`、停用、撤销或确认无 Session 会清除快照。临时网络失败保留外壳和最近已验证快照，`online`、`pageshow`、`visibilitychange` 继续使用同一个去重请求静默重试。
 
 ### 业务写入与租客列权限兼容（2026-07-18）
 

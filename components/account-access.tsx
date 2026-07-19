@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { emptyModulePermissions, emptySensitivePermissions, type AccountModuleKey, type ModulePermission, type PermissionAction, type SensitivePermissionKey, type SensitivePermissions } from "@/lib/account-permissions";
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -8,9 +8,12 @@ type AccountAccessState = {
   ready: boolean;
   authenticated: boolean;
   isRefreshing: boolean;
-  authState: "initializing" | "authenticated" | "unauthenticated" | "session_revoked" | "account_disabled" | "forbidden" | "network_error";
+  isServerVerified: boolean;
+  authState: "initializing" | "restoring_snapshot" | "authenticated" | "refreshing" | "unauthenticated" | "session_revoked" | "account_disabled" | "forbidden" | "network_error";
   invalidReason: string;
   isOwner: boolean;
+  accountType: "owner" | "custom";
+  accountStatus: "active" | "disabled";
   userId: string;
   profileUsername: string;
   profileDisplayName: string;
@@ -19,6 +22,8 @@ type AccountAccessState = {
   propertyIds: string[];
   modulePermissions: ModulePermission[];
   sensitivePermissions: SensitivePermissions;
+  lastVerifiedAt: string;
+  permissionVersion: string;
 };
 
 type AccountAccessValue = AccountAccessState & {
@@ -35,6 +40,8 @@ type AccountApiPayload = {
     id?: string;
     username?: string;
     displayName?: string;
+    accountType?: string;
+    status?: string;
     workspaceOwnerId?: string;
     propertyAccessMode?: string;
   };
@@ -43,13 +50,35 @@ type AccountApiPayload = {
   sensitivePermissions?: Partial<SensitivePermissions>;
 };
 
+type AccountAccessSnapshot = {
+  cacheVersion: 1;
+  accountId: string;
+  workspaceOwnerId: string;
+  profileUsername: string;
+  profileDisplayName: string;
+  accountType: "owner" | "custom";
+  accountStatus: "active";
+  propertyAccessMode: "all" | "selected";
+  propertyIds: string[];
+  modulePermissions: ModulePermission[];
+  sensitivePermissions: SensitivePermissions;
+  lastVerifiedAt: string;
+  permissionVersion: string;
+  lastPath: string;
+};
+
+const ACCESS_SNAPSHOT_KEY = "fenzu.account-access.v1";
+
 const emptyState = (): AccountAccessState => ({
   ready: false,
   authenticated: false,
   isRefreshing: false,
+  isServerVerified: false,
   authState: "initializing",
   invalidReason: "",
   isOwner: false,
+  accountType: "custom",
+  accountStatus: "active",
   userId: "",
   profileUsername: "",
   profileDisplayName: "",
@@ -57,8 +86,94 @@ const emptyState = (): AccountAccessState => ({
   propertyAccessMode: "selected",
   propertyIds: [],
   modulePermissions: emptyModulePermissions(),
-  sensitivePermissions: emptySensitivePermissions()
+  sensitivePermissions: emptySensitivePermissions(),
+  lastVerifiedAt: "",
+  permissionVersion: ""
 });
+
+function readAccessSnapshot(): AccountAccessSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(ACCESS_SNAPSHOT_KEY) || "null") as Partial<AccountAccessSnapshot> | null;
+    if (!parsed || parsed.cacheVersion !== 1 || parsed.accountStatus !== "active" || !parsed.accountId || !parsed.workspaceOwnerId) return null;
+    if (!Array.isArray(parsed.modulePermissions) || !Array.isArray(parsed.propertyIds) || !parsed.sensitivePermissions) return null;
+    return parsed as AccountAccessSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function snapshotState(snapshot: AccountAccessSnapshot): AccountAccessState {
+  return {
+    ready: true,
+    authenticated: true,
+    isRefreshing: true,
+    isServerVerified: false,
+    authState: "restoring_snapshot",
+    invalidReason: "",
+    isOwner: snapshot.accountType === "owner",
+    accountType: snapshot.accountType,
+    accountStatus: snapshot.accountStatus,
+    userId: snapshot.accountId,
+    profileUsername: snapshot.profileUsername,
+    profileDisplayName: snapshot.profileDisplayName,
+    workspaceOwnerId: snapshot.workspaceOwnerId,
+    propertyAccessMode: snapshot.propertyAccessMode,
+    propertyIds: snapshot.propertyIds,
+    modulePermissions: snapshot.modulePermissions,
+    sensitivePermissions: snapshot.sensitivePermissions,
+    lastVerifiedAt: snapshot.lastVerifiedAt,
+    permissionVersion: snapshot.permissionVersion
+  };
+}
+
+function persistAccessSnapshot(state: AccountAccessState) {
+  if (typeof window === "undefined" || !state.authenticated || !state.isServerVerified || state.accountStatus !== "active") return;
+  const previous = readAccessSnapshot();
+  const snapshot: AccountAccessSnapshot = {
+    cacheVersion: 1,
+    accountId: state.userId,
+    workspaceOwnerId: state.workspaceOwnerId,
+    profileUsername: state.profileUsername,
+    profileDisplayName: state.profileDisplayName,
+    accountType: state.accountType,
+    accountStatus: "active",
+    propertyAccessMode: state.propertyAccessMode,
+    propertyIds: state.propertyIds,
+    modulePermissions: state.modulePermissions,
+    sensitivePermissions: state.sensitivePermissions,
+    lastVerifiedAt: state.lastVerifiedAt,
+    permissionVersion: state.permissionVersion,
+    lastPath: previous?.accountId === state.userId ? previous.lastPath : "/"
+  };
+  try {
+    window.localStorage.setItem(ACCESS_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Safari private storage failures must not break authentication.
+  }
+}
+
+export function clearAccountAccessSnapshot() {
+  latestAccessState = null;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(ACCESS_SNAPSHOT_KEY);
+    } catch {
+      // The Supabase session remains the source of truth if storage is unavailable.
+    }
+  }
+}
+
+export function rememberAccountAccessPath(pathname: string) {
+  if (typeof window === "undefined" || pathname === "/login") return;
+  const snapshot = readAccessSnapshot();
+  if (!snapshot) return;
+  try {
+    window.localStorage.setItem(ACCESS_SNAPSHOT_KEY, JSON.stringify({ ...snapshot, lastPath: pathname }));
+  } catch {
+    // Path memory is optional and must never interrupt navigation.
+  }
+}
 
 const defaultValue: AccountAccessValue = {
   ...emptyState(),
@@ -130,13 +245,17 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     return failedAccessState(response.status, payload);
   }
 
+  const verifiedAt = new Date().toISOString();
   return {
     ready: true,
     authenticated: true,
     isRefreshing: false,
+    isServerVerified: true,
     authState: "authenticated",
     invalidReason: "",
     isOwner: Boolean(payload.isOwner),
+    accountType: payload.profile?.accountType === "owner" ? "owner" : "custom",
+    accountStatus: payload.profile?.status === "disabled" ? "disabled" : "active",
     userId: payload.profile?.id || "",
     profileUsername: payload.profile?.username || "",
     profileDisplayName: payload.profile?.displayName || "",
@@ -144,7 +263,9 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     propertyAccessMode: payload.profile?.propertyAccessMode === "all" ? "all" : "selected",
     propertyIds: Array.isArray(payload.propertyIds) ? payload.propertyIds : [],
     modulePermissions: Array.isArray(payload.modulePermissions) ? payload.modulePermissions : emptyModulePermissions(),
-    sensitivePermissions: { ...emptySensitivePermissions(), ...(payload.sensitivePermissions || {}) }
+    sensitivePermissions: { ...emptySensitivePermissions(), ...(payload.sensitivePermissions || {}) },
+    lastVerifiedAt: verifiedAt,
+    permissionVersion: verifiedAt
   };
 }
 
@@ -173,10 +294,24 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     if (mountedRef.current) setState(next);
   }, []);
 
+  useLayoutEffect(() => {
+    if (latestAccessState?.ready || stateRef.current.ready) return;
+    const snapshot = readAccessSnapshot();
+    if (!snapshot) return;
+    const restored = snapshotState(snapshot);
+    latestAccessState = restored;
+    bootstrappedRef.current = true;
+    commitState(restored);
+  }, [commitState]);
+
   const refresh = useCallback(async (silent = false) => {
     const shouldKeepScreen = silent && bootstrappedRef.current;
     if (shouldKeepScreen) {
-      commitState({ ...stateRef.current, isRefreshing: true });
+      commitState({
+        ...stateRef.current,
+        isRefreshing: true,
+        authState: stateRef.current.isServerVerified ? "refreshing" : "restoring_snapshot"
+      });
     } else {
       commitState({ ...stateRef.current, ready: false, isRefreshing: false, invalidReason: "" });
     }
@@ -185,19 +320,26 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
       const next = await loadAccessState();
       bootstrappedRef.current = true;
       const current = stateRef.current;
-      if (shouldKeepScreen && current.authenticated && (next.authState === "network_error" || next.authState === "unauthenticated")) {
-        const preserved = { ...current, isRefreshing: false };
+      if (shouldKeepScreen && current.authenticated && next.authState === "network_error") {
+        const preserved = {
+          ...current,
+          isRefreshing: false,
+          authState: "network_error" as const,
+          invalidReason: next.invalidReason || "网络连接异常，请稍后重试。"
+        };
         latestAccessState = preserved;
         commitState(preserved);
         return;
       }
       latestAccessState = next;
+      if (next.authenticated && next.isServerVerified) persistAccessSnapshot(next);
+      else if (["unauthenticated", "session_revoked", "account_disabled"].includes(next.authState)) clearAccountAccessSnapshot();
       commitState(next);
     } catch {
       // A transient background failure must not blank an already authorized page.
       const current = stateRef.current;
       const next = shouldKeepScreen && current.authenticated
-        ? { ...current, isRefreshing: false }
+        ? { ...current, isRefreshing: false, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" }
         : { ...emptyState(), ready: true, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" };
       latestAccessState = next;
       commitState(next);
@@ -220,7 +362,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
 
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
-        latestAccessState = null;
+        clearAccountAccessSnapshot();
         bootstrappedRef.current = true;
         commitState({ ...emptyState(), ready: true, authState: "unauthenticated" });
         return;
@@ -263,6 +405,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
   const value = useMemo<AccountAccessValue>(() => ({
     ...state,
     can: (moduleKey, action = "view") => {
+      if (action !== "view" && !state.isServerVerified) return false;
       if (state.isOwner) return true;
       const permission = state.modulePermissions.find((item) => item.moduleKey === moduleKey);
       if (!permission) return false;

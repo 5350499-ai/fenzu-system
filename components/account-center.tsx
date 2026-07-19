@@ -4,7 +4,7 @@ import { Eye, EyeOff, KeyRound, LogOut, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useAccountAccess } from "@/components/account-access";
+import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 
 export function AccountCenter() {
   const router = useRouter();
@@ -25,6 +25,7 @@ export function AccountCenter() {
         headers: { Authorization: `Bearer ${data.session.access_token}` }
       }).catch(() => undefined);
     }
+    clearAccountAccessSnapshot();
     await supabase?.auth.signOut({ scope: "local" });
     router.replace("/login");
   }
@@ -73,6 +74,7 @@ export function AccountCenter() {
       }
 
       setNotice("密码修改成功，请重新登录。");
+      clearAccountAccessSnapshot();
       await supabase?.auth.signOut({ scope: "local" });
       window.setTimeout(() => router.replace("/login"), 500);
     } catch {

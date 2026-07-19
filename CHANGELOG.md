@@ -278,3 +278,11 @@
 - 事务回归已回滚：Aymane 504→502 时当前有效合同、押金和最新覆盖期收款同步迁移，504变空置，502因林仍在租保持已租；同房两人月租合计 €430，结束一人后另一人仍保持房间已租；只读 custom 被拒绝。
 - 涉及文件：`app/rooms/page.tsx`、`app/tenants/page.tsx`、`app/page.tsx`、`app/globals.css`、`lib/rent-coverage.ts`、`lib/profit.ts`、`supabase/migrations/20260718190000_move_active_rental_relationship.sql`、三份长期文档。
 - 数据库：替换现有 RPC 函数定义，不新增表或字段；一次严格前置检查的数据修复和一条明确审计日志。回滚不删除业务行。
+
+## 2026-07-19 - Restore the PWA shell from a safe account snapshot
+
+- 修复 PWA 冷启动必须阻塞等待 `getSession`、应用会话与 `/api/accounts/me` 全部完成的问题。根账号 Provider 现在先从固定版本的本地非敏感快照恢复页面外壳，再在后台静默验证真实 Session、`app_sessions`、账号状态、权限与房源范围。
+- 新增 `isServerVerified` 和 `restoring_snapshot`/`refreshing` 状态。快照校验完成前不挂载业务页面且所有模块写权限返回 false，只显示导航、页面标题、局部骨架和“正在同步账户状态”；真实业务请求仍受服务端校验、RLS 和房源隔离保护。
+- 快照仅保存账号/工作区标识、公开显示资料、账号类型与 active 状态、权限布尔值、授权房源 ID、验证时间、版本标记和上次路径；不保存密码、Token、Cookie、内部认证邮箱或租客敏感数据。主动退出、改密退出、停用、撤销和确认无 Session 时清除，网络瞬断时保留并静默重试。
+- `persistSession`、`autoRefreshToken`、`detectSessionInUrl` 继续保持启用，Access Token 有效期未修改；未新增 Migration，数据库结构、RLS、权限矩阵和全部业务数据均未改变。
+- 涉及文件：`components/account-access.tsx`、`components/app-layout.tsx`、`components/account-center.tsx`、`app/login/page.tsx`、`app/globals.css`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。

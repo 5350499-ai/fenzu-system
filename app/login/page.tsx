@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { clearAccountAccessSnapshot } from "@/components/account-access";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function LoginPage() {
         setError(payload.error || "账号或密码错误。");
         return;
       }
+      clearAccountAccessSnapshot();
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: payload.accessToken,
         refresh_token: payload.refreshToken

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAccountAccess } from "@/components/account-access";
+import { clearAccountAccessSnapshot, rememberAccountAccessPath, useAccountAccess } from "@/components/account-access";
 import { AccountCenter } from "@/components/account-center";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 
@@ -90,6 +90,10 @@ export function AppLayout({ children, title, description }: { children: React.Re
     if (access.ready && !access.authenticated && !access.invalidReason) router.replace("/login");
   }, [access.authenticated, access.invalidReason, access.ready, router]);
 
+  useEffect(() => {
+    if (access.authenticated) rememberAccountAccessPath(pathname);
+  }, [access.authenticated, pathname]);
+
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
@@ -105,6 +109,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
         headers: { Authorization: `Bearer ${data.session.access_token}` }
       }).catch(() => undefined);
     }
+    clearAccountAccessSnapshot();
     await supabase?.auth.signOut({ scope: "local" });
     router.replace("/login");
   }
@@ -130,7 +135,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
     return <AccessRecovery title={title} description={access.invalidReason || "登录状态已失效，请重新登录。"} onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
-  if (routeModule && !canOpenModule(routeModule)) {
+  if (routeModule && access.isServerVerified && !canOpenModule(routeModule)) {
     return <AccessRecovery title="没有权限访问此页面" description="当前账号没有查看此页面的权限。请联系主管理员调整权限。" onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
@@ -174,7 +179,16 @@ export function AppLayout({ children, title, description }: { children: React.Re
             <AccountCenter />
           </div>
         </header>
-        {children}
+        {!access.isServerVerified ? (
+          <section className="account-restore-shell" aria-live="polite">
+            <div className="account-sync-notice">
+              {access.authState === "network_error" ? "网络暂时不可用，正在重试" : "正在同步账户状态"}
+            </div>
+            <div className="account-restore-skeleton" aria-hidden="true">
+              <span /><span /><span /><span />
+            </div>
+          </section>
+        ) : children}
       </main>
 
       <nav className="mobile-nav">
