@@ -79,6 +79,9 @@ export function AppLayout({ children, title, description }: { children: React.Re
     if (moduleKey === "accounts") return access.isOwner;
     return true;
   };
+  const availablePaths = navGroups.flatMap((group) => group.items)
+    .filter((item) => canOpenModule(item.module as AccountModuleKey))
+    .map((item) => item.href);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme") || "light";
@@ -91,8 +94,13 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }, [access.authenticated, access.invalidReason, access.ready, router]);
 
   useEffect(() => {
-    if (access.authenticated) rememberAccountAccessPath(pathname);
-  }, [access.authenticated, pathname]);
+    if (access.authenticated && access.isServerVerified && (!routeModule || canOpenModule(routeModule))) rememberAccountAccessPath(pathname);
+  }, [access.authenticated, access.isServerVerified, pathname, routeModule]);
+
+  useEffect(() => {
+    if (!access.isServerVerified || !routeModule || canOpenModule(routeModule)) return;
+    router.replace(availablePaths[0] || "/more");
+  }, [access.isServerVerified, pathname, routeModule, router]);
 
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -135,8 +143,12 @@ export function AppLayout({ children, title, description }: { children: React.Re
     return <AccessRecovery title={title} description={access.invalidReason || "登录状态已失效，请重新登录。"} onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
   }
 
+  if (access.isServerVerified && availablePaths.length === 0) {
+    return <AccessRecovery title="没有可访问的功能" description="当前账号尚未获得任何模块查看权限。请联系主管理员授权。" onHome={() => router.push("/more")} onBack={() => router.back()} onLogout={logout} />;
+  }
+
   if (routeModule && access.isServerVerified && !canOpenModule(routeModule)) {
-    return <AccessRecovery title="没有权限访问此页面" description="当前账号没有查看此页面的权限。请联系主管理员调整权限。" onHome={() => router.push("/")} onBack={() => router.back()} onLogout={logout} />;
+    return <AccessRecovery title="没有权限访问此页面" description="当前账号没有查看此页面的权限，正在返回可访问页面。" onHome={() => router.push(availablePaths[0] || "/more")} onBack={() => router.back()} onLogout={logout} />;
   }
 
   return (

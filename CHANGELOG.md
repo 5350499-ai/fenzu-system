@@ -286,3 +286,11 @@
 - 快照仅保存账号/工作区标识、公开显示资料、账号类型与 active 状态、权限布尔值、授权房源 ID、验证时间、版本标记和上次路径；不保存密码、Token、Cookie、内部认证邮箱或租客敏感数据。主动退出、改密退出、停用、撤销和确认无 Session 时清除，网络瞬断时保留并静默重试。
 - `persistSession`、`autoRefreshToken`、`detectSessionInUrl` 继续保持启用，Access Token 有效期未修改；未新增 Migration，数据库结构、RLS、权限矩阵和全部业务数据均未改变。
 - 涉及文件：`components/account-access.tsx`、`components/app-layout.tsx`、`components/account-center.tsx`、`app/login/page.tsx`、`app/globals.css`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
+
+## 2026-07-21 - Prevent custom-account snapshot crashes
+
+- Fixed the custom-account login crash after the PWA snapshot rollout. Account/permission snapshots are now v2, stored per account ID, and selected only through a current-account marker. The legacy global v1 snapshot is ignored, preventing owner/custom snapshot reuse during account switching.
+- Normalized all cached and `/api/accounts/me` permission data before rendering: missing or malformed module permissions, sensitive permissions, property IDs, profile text, and paths now receive safe defaults instead of reaching `.find`, `.includes`, or permission rendering as untrusted shapes.
+- Added a safe unauthorized-route fallback to the first authorized module and a root client error boundary with reload and logout actions. The boundary logs only a redacted error summary server-side through `/api/client-errors`.
+- Files: `components/account-access.tsx`, `components/app-layout.tsx`, `app/api/accounts/me/route.ts`, `app/global-error.tsx`, `app/api/client-errors/route.ts`, `ARCHITECTURE.md`, `CHANGELOG.md`.
+- Database, RLS, permission matrix, property grants, user accounts, passwords, and all business data were not changed. `npm run build` passed.

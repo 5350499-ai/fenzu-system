@@ -47,11 +47,11 @@ type AccountApiPayload = {
   };
   propertyIds?: unknown;
   modulePermissions?: unknown;
-  sensitivePermissions?: Partial<SensitivePermissions>;
+  sensitivePermissions?: unknown;
 };
 
 type AccountAccessSnapshot = {
-  cacheVersion: 1;
+  cacheVersion: 2;
   accountId: string;
   workspaceOwnerId: string;
   profileUsername: string;
@@ -67,7 +67,9 @@ type AccountAccessSnapshot = {
   lastPath: string;
 };
 
-const ACCESS_SNAPSHOT_KEY = "fenzu.account-access.v1";
+const ACCESS_SNAPSHOT_KEY_PREFIX = "fenzu.account-access.v2.";
+const ACTIVE_SNAPSHOT_ACCOUNT_KEY = "fenzu.account-access.active-account.v2";
+const LEGACY_ACCESS_SNAPSHOT_KEY = "fenzu.account-access.v1";
 
 const emptyState = (): AccountAccessState => ({
   ready: false,
@@ -91,13 +93,77 @@ const emptyState = (): AccountAccessState => ({
   permissionVersion: ""
 });
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function safeText(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizePropertyIds(value: unknown) {
+  return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))] : [];
+}
+
+function normalizeModulePermissions(value: unknown): ModulePermission[] {
+  const supplied = Array.isArray(value) ? value.filter(isRecord) : [];
+  const byKey = new Map(supplied
+    .filter((item) => typeof item.moduleKey === "string")
+    .map((item) => [item.moduleKey, item]));
+  return emptyModulePermissions().map((base) => {
+    const item = byKey.get(base.moduleKey);
+    return {
+      moduleKey: base.moduleKey,
+      canView: Boolean(item?.canView),
+      canCreate: Boolean(item?.canCreate),
+      canEdit: Boolean(item?.canEdit),
+      canArchive: Boolean(item?.canArchive),
+      canDelete: Boolean(item?.canDelete)
+    };
+  });
+}
+
+function normalizeSensitivePermissions(value: unknown): SensitivePermissions {
+  const supplied = isRecord(value) ? value : {};
+  const normalized = emptySensitivePermissions();
+  for (const key of Object.keys(normalized) as SensitivePermissionKey[]) {
+    normalized[key] = Boolean(supplied[key]);
+  }
+  return normalized;
+}
+
+function normalizeLastPath(value: unknown) {
+  const path = safeText(value);
+  return path.startsWith("/") && !path.startsWith("//") && path !== "/login" ? path : "/";
+}
+
+function snapshotKey(accountId: string) {
+  return `${ACCESS_SNAPSHOT_KEY_PREFIX}${accountId}`;
+}
+
 function readAccessSnapshot(): AccountAccessSnapshot | null {
   if (typeof window === "undefined") return null;
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(ACCESS_SNAPSHOT_KEY) || "null") as Partial<AccountAccessSnapshot> | null;
-    if (!parsed || parsed.cacheVersion !== 1 || parsed.accountStatus !== "active" || !parsed.accountId || !parsed.workspaceOwnerId) return null;
-    if (!Array.isArray(parsed.modulePermissions) || !Array.isArray(parsed.propertyIds) || !parsed.sensitivePermissions) return null;
-    return parsed as AccountAccessSnapshot;
+    const accountId = safeText(window.localStorage.getItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY));
+    if (!accountId) return null;
+    const parsed = JSON.parse(window.localStorage.getItem(snapshotKey(accountId)) || "null") as Partial<AccountAccessSnapshot> | null;
+    if (!parsed || parsed.cacheVersion !== 2 || parsed.accountId !== accountId || parsed.accountStatus !== "active" || !parsed.workspaceOwnerId) return null;
+    return {
+      cacheVersion: 2,
+      accountId,
+      workspaceOwnerId: safeText(parsed.workspaceOwnerId),
+      profileUsername: safeText(parsed.profileUsername),
+      profileDisplayName: safeText(parsed.profileDisplayName),
+      accountType: parsed.accountType === "owner" ? "owner" : "custom",
+      accountStatus: "active",
+      propertyAccessMode: parsed.propertyAccessMode === "all" ? "all" : "selected",
+      propertyIds: normalizePropertyIds(parsed.propertyIds),
+      modulePermissions: normalizeModulePermissions(parsed.modulePermissions),
+      sensitivePermissions: normalizeSensitivePermissions(parsed.sensitivePermissions),
+      lastVerifiedAt: safeText(parsed.lastVerifiedAt),
+      permissionVersion: safeText(parsed.permissionVersion),
+      lastPath: normalizeLastPath(parsed.lastPath)
+    };
   } catch {
     return null;
   }
@@ -119,9 +185,9 @@ function snapshotState(snapshot: AccountAccessSnapshot): AccountAccessState {
     profileDisplayName: snapshot.profileDisplayName,
     workspaceOwnerId: snapshot.workspaceOwnerId,
     propertyAccessMode: snapshot.propertyAccessMode,
-    propertyIds: snapshot.propertyIds,
-    modulePermissions: snapshot.modulePermissions,
-    sensitivePermissions: snapshot.sensitivePermissions,
+    propertyIds: normalizePropertyIds(snapshot.propertyIds),
+    modulePermissions: normalizeModulePermissions(snapshot.modulePermissions),
+    sensitivePermissions: normalizeSensitivePermissions(snapshot.sensitivePermissions),
     lastVerifiedAt: snapshot.lastVerifiedAt,
     permissionVersion: snapshot.permissionVersion
   };
@@ -131,7 +197,7 @@ function persistAccessSnapshot(state: AccountAccessState) {
   if (typeof window === "undefined" || !state.authenticated || !state.isServerVerified || state.accountStatus !== "active") return;
   const previous = readAccessSnapshot();
   const snapshot: AccountAccessSnapshot = {
-    cacheVersion: 1,
+    cacheVersion: 2,
     accountId: state.userId,
     workspaceOwnerId: state.workspaceOwnerId,
     profileUsername: state.profileUsername,
@@ -139,15 +205,17 @@ function persistAccessSnapshot(state: AccountAccessState) {
     accountType: state.accountType,
     accountStatus: "active",
     propertyAccessMode: state.propertyAccessMode,
-    propertyIds: state.propertyIds,
-    modulePermissions: state.modulePermissions,
-    sensitivePermissions: state.sensitivePermissions,
+    propertyIds: normalizePropertyIds(state.propertyIds),
+    modulePermissions: normalizeModulePermissions(state.modulePermissions),
+    sensitivePermissions: normalizeSensitivePermissions(state.sensitivePermissions),
     lastVerifiedAt: state.lastVerifiedAt,
     permissionVersion: state.permissionVersion,
     lastPath: previous?.accountId === state.userId ? previous.lastPath : "/"
   };
   try {
-    window.localStorage.setItem(ACCESS_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    window.localStorage.setItem(snapshotKey(state.userId), JSON.stringify(snapshot));
+    window.localStorage.setItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY, state.userId);
+    window.localStorage.removeItem(LEGACY_ACCESS_SNAPSHOT_KEY);
   } catch {
     // Safari private storage failures must not break authentication.
   }
@@ -157,7 +225,10 @@ export function clearAccountAccessSnapshot() {
   latestAccessState = null;
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.removeItem(ACCESS_SNAPSHOT_KEY);
+      const accountId = safeText(window.localStorage.getItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY));
+      if (accountId) window.localStorage.removeItem(snapshotKey(accountId));
+      window.localStorage.removeItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY);
+      window.localStorage.removeItem(LEGACY_ACCESS_SNAPSHOT_KEY);
     } catch {
       // The Supabase session remains the source of truth if storage is unavailable.
     }
@@ -169,7 +240,7 @@ export function rememberAccountAccessPath(pathname: string) {
   const snapshot = readAccessSnapshot();
   if (!snapshot) return;
   try {
-    window.localStorage.setItem(ACCESS_SNAPSHOT_KEY, JSON.stringify({ ...snapshot, lastPath: pathname }));
+    window.localStorage.setItem(snapshotKey(snapshot.accountId), JSON.stringify({ ...snapshot, lastPath: normalizeLastPath(pathname) }));
   } catch {
     // Path memory is optional and must never interrupt navigation.
   }
@@ -245,7 +316,15 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     return failedAccessState(response.status, payload);
   }
 
+  const profile = isRecord(payload.profile) ? payload.profile : {};
+  const userId = safeText(profile.id);
+  const workspaceOwnerId = safeText(profile.workspaceOwnerId);
+  if (!userId || !workspaceOwnerId) {
+    return { ...emptyState(), ready: true, authState: "forbidden", invalidReason: "账户资料不完整，请重新登录。" };
+  }
+
   const verifiedAt = new Date().toISOString();
+  const accountType = profile.accountType === "owner" ? "owner" : "custom";
   return {
     ready: true,
     authenticated: true,
@@ -253,17 +332,17 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     isServerVerified: true,
     authState: "authenticated",
     invalidReason: "",
-    isOwner: Boolean(payload.isOwner),
-    accountType: payload.profile?.accountType === "owner" ? "owner" : "custom",
-    accountStatus: payload.profile?.status === "disabled" ? "disabled" : "active",
-    userId: payload.profile?.id || "",
-    profileUsername: payload.profile?.username || "",
-    profileDisplayName: payload.profile?.displayName || "",
-    workspaceOwnerId: payload.profile?.workspaceOwnerId || "",
-    propertyAccessMode: payload.profile?.propertyAccessMode === "all" ? "all" : "selected",
-    propertyIds: Array.isArray(payload.propertyIds) ? payload.propertyIds : [],
-    modulePermissions: Array.isArray(payload.modulePermissions) ? payload.modulePermissions : emptyModulePermissions(),
-    sensitivePermissions: { ...emptySensitivePermissions(), ...(payload.sensitivePermissions || {}) },
+    isOwner: accountType === "owner",
+    accountType,
+    accountStatus: profile.status === "disabled" ? "disabled" : "active",
+    userId,
+    profileUsername: safeText(profile.username),
+    profileDisplayName: safeText(profile.displayName),
+    workspaceOwnerId,
+    propertyAccessMode: profile.propertyAccessMode === "all" ? "all" : "selected",
+    propertyIds: normalizePropertyIds(payload.propertyIds),
+    modulePermissions: normalizeModulePermissions(payload.modulePermissions),
+    sensitivePermissions: normalizeSensitivePermissions(payload.sensitivePermissions),
     lastVerifiedAt: verifiedAt,
     permissionVersion: verifiedAt
   };
@@ -407,12 +486,12 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     can: (moduleKey, action = "view") => {
       if (action !== "view" && !state.isServerVerified) return false;
       if (state.isOwner) return true;
-      const permission = state.modulePermissions.find((item) => item.moduleKey === moduleKey);
+      const permission = normalizeModulePermissions(state.modulePermissions).find((item) => item.moduleKey === moduleKey);
       if (!permission) return false;
       return action === "view" ? permission.canView : action === "create" ? permission.canCreate : action === "edit" ? permission.canEdit : action === "archive" ? permission.canArchive : permission.canDelete;
     },
-    canSensitive: (key) => state.isOwner || Boolean(state.sensitivePermissions[key]),
-    canAccessProperty: (propertyId) => state.isOwner || state.propertyAccessMode === "all" || !propertyId || state.propertyIds.includes(propertyId),
+    canSensitive: (key) => state.isOwner || Boolean(normalizeSensitivePermissions(state.sensitivePermissions)[key]),
+    canAccessProperty: (propertyId) => state.isOwner || state.propertyAccessMode === "all" || !propertyId || normalizePropertyIds(state.propertyIds).includes(propertyId),
     refresh: () => refresh(true)
   }), [refresh, state]);
 

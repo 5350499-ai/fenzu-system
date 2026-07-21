@@ -14,7 +14,9 @@ export async function GET(request: Request) {
       admin.from("user_property_access").select("property_id").eq("user_id", context.userId)
     ]);
     if (moduleResult.error || sensitiveResult.error || propertyResult.error) throw new Error("加载当前账号权限失败");
-    const byModule = new Map((moduleResult.data || []).map((row) => [row.module_key, row]));
+    const byModule = new Map((moduleResult.data || [])
+      .filter((row) => typeof row.module_key === "string")
+      .map((row) => [row.module_key, row]));
     const modulePermissions = emptyModulePermissions().map((base) => {
       const row = byModule.get(base.moduleKey);
       return context.profile.account_type === "owner"
@@ -24,11 +26,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       profile: {
         id: context.profile.auth_user_id,
-        username: context.profile.username,
-        displayName: context.profile.display_name,
+        username: context.profile.username || "",
+        displayName: context.profile.display_name || "",
         accountType: context.profile.account_type,
         status: context.profile.status,
-        workspaceOwnerId: context.profile.workspace_owner_id,
+        workspaceOwnerId: context.profile.workspace_owner_id || "",
         propertyAccessMode: context.profile.property_access_mode,
         mustChangePassword: context.profile.must_change_password
       },
@@ -37,7 +39,9 @@ export async function GET(request: Request) {
       sensitivePermissions: context.profile.account_type === "owner"
         ? Object.fromEntries(Object.keys(clientSensitivePermissions(null)).map((key) => [key, true]))
         : clientSensitivePermissions(sensitiveResult.data),
-      propertyIds: (propertyResult.data || []).map((row) => row.property_id)
+      propertyIds: (propertyResult.data || [])
+        .map((row) => row.property_id)
+        .filter((propertyId): propertyId is string => typeof propertyId === "string" && propertyId.length > 0)
     });
   } catch (error) {
     return apiErrorResponse(error);
