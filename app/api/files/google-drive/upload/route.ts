@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, requireActiveAccount, requireModulePermission, requireSensitivePermission } from "@/lib/server/account-auth";
 import { MAX_ATTACHMENT_FILE_SIZE } from "@/lib/attachment-file-limits";
-import { getGoogleAccessToken } from "@/lib/server/google-drive";
+import { getGoogleAccessToken, stampGoogleUpload, trashGoogleDriveFile } from "@/lib/server/google-drive";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
 const configs = {
@@ -29,11 +29,12 @@ export async function POST(request: Request) {
     const context = await requireActiveAccount(request);
     const bucket = request.headers.get("x-attachment-bucket") as keyof typeof configs | null;
     const ownerId = request.headers.get("x-attachment-owner-id");
+    const uploadId = request.headers.get("x-attachment-upload-id");
     const fileType = request.headers.get("content-type") || "";
     const declaredSize = Number(request.headers.get("x-attachment-file-size"));
     const contentLength = Number(request.headers.get("content-length"));
     const config = bucket ? configs[bucket] : null;
-    if (!config || !ownerId || !Number.isFinite(declaredSize) || declaredSize <= 0 || declaredSize > MAX_ATTACHMENT_FILE_SIZE) {
+    if (!config || !ownerId || !uploadId || !Number.isFinite(declaredSize) || declaredSize <= 0 || declaredSize > MAX_ATTACHMENT_FILE_SIZE) {
       throw new AccountApiError("附件上传请求无效。", 400);
     }
     if (!Number.isFinite(contentLength) || contentLength !== declaredSize) throw new AccountApiError("附件大小校验失败，请重新选择文件。", 400);
@@ -60,6 +61,12 @@ export async function POST(request: Request) {
     }
     const payload = await response.json().catch(() => null) as { id?: string } | null;
     if (!response.ok || !payload?.id) throw new AccountApiError("Google Drive 上传失败，请稍后重试。", 502);
+    try {
+      await stampGoogleUpload({ fileId: payload.id, kind: bucket!, ownerId, uploadId });
+    } catch (error) {
+      try { await trashGoogleDriveFile(payload.id); } catch { /* Keep the upload marker only when Drive cannot trash it. */ }
+      throw error;
+    }
     return NextResponse.json({ id: payload.id }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiErrorResponse(error);

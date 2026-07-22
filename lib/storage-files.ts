@@ -191,6 +191,7 @@ async function uploadGoogleResumable(uploadUrl: string, uploadId: string, bucket
     xhr.setRequestHeader("X-Google-Upload-Url", uploadUrl);
     xhr.setRequestHeader("X-Attachment-Bucket", bucket);
     xhr.setRequestHeader("X-Attachment-Owner-Id", ownerId);
+    xhr.setRequestHeader("X-Attachment-Upload-Id", uploadId);
     xhr.setRequestHeader("X-Attachment-File-Size", String(file.size));
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {

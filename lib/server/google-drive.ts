@@ -157,11 +157,13 @@ export async function verifyGoogleUpload(input: {
 }) {
   const token = await getGoogleAccessToken();
   const file = await driveJson<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(input.fileId)}?fields=${encodeURIComponent("id,name,mimeType,size,parents,trashed,appProperties")}`);
+  const { folderId } = await ensureDriveAttachmentFolder(input.kind, input.ownerId);
   const properties = file.appProperties || {};
   if (
     file.trashed ||
     file.mimeType !== input.expectedType ||
     Number(file.size || 0) !== input.expectedSize ||
+    !file.parents?.includes(folderId) ||
     properties.fenzu_kind !== input.kind ||
     properties.fenzu_owner_id !== input.ownerId ||
     properties.fenzu_upload_id !== input.uploadId
@@ -169,6 +171,26 @@ export async function verifyGoogleUpload(input: {
     throw new AccountApiError("Google Drive 上传核验失败，附件未保存。", 400);
   }
   return file;
+}
+
+export async function stampGoogleUpload(input: {
+  fileId: string;
+  kind: DriveAttachmentKind;
+  ownerId: string;
+  uploadId: string;
+}) {
+  const token = await getGoogleAccessToken();
+  await driveJson<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(input.fileId)}?fields=id`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      appProperties: {
+        fenzu_kind: input.kind,
+        fenzu_owner_id: input.ownerId,
+        fenzu_upload_id: input.uploadId
+      }
+    })
+  });
 }
 
 export async function trashGoogleDriveFile(fileId: string) {

@@ -373,3 +373,7 @@
 - Fixed the Preview-only Google Drive upload failure after a successful resumable-session preparation: browser-to-Google direct uploads could fail at the cross-origin transport layer and then surfaced an inaccurate generic network error.
 - New attachment bytes up to the existing 4MB limit now use a same-origin, server-side permission-checked relay to the already-created Google resumable session. The relay validates the bucket, owner access, declared and actual size, and Google upload-session host before forwarding. Google credentials remain server-only, and existing completion verification and private-file rules are unchanged.
 - Files: `app/api/files/google-drive/upload/route.ts`, `lib/storage-files.ts`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration, RLS, business data, historical attachment, Production deployment, or Production environment-variable change.
+
+## Follow-up
+
+- The Preview test proved the bounded relay upload succeeded but the following completion verification could not reliably read the resumable-session upload marker. The relay now stamps that marker after Google returns the file ID and moves a file to Drive trash if marker stamping fails. Completion also verifies the expected record folder before indexing.

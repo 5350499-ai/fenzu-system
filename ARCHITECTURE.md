@@ -271,3 +271,4 @@
 ## 2026-07-22 - Google Drive attachment upload transport
 
 - Google Drive resumable sessions are still created and finalized server-side. To avoid browser cross-origin failures while retaining the Vercel response safety budget, the already enforced 4MB maximum is relayed through a same-origin, permission-checked upload route. That route accepts only a validated Google resumable session URL, re-checks the normal application permissions and owner record, and never returns Google credentials to the browser.
+- After a bounded relay upload returns a Google file ID, the server stamps the application-private upload marker before completion. Completion verifies that marker and the expected per-record folder before it can create a Supabase attachment index.
