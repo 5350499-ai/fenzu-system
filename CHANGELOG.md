@@ -354,3 +354,10 @@
 
 - Reduced new Google Drive JPEG, PNG and PDF attachments to a uniform 4MB limit. Browser, upload preparation and upload completion all enforce the same limit, so a successful Google upload remains within the application-controlled view/download response budget.
 - Hardened nullable `storage_path` compatibility and made the existing signed-URL route explicitly reject Google Drive rows. Historical Supabase attachments keep their previous signed-URL behavior.
+
+## 2026-07-22 - Add multiple independent attachments per record
+
+- Contract, rent-payment and expense attachment tables were already one-to-many; changed the affected pages from form-save replacement behavior to explicit detail-view `选择文件 → 添加附件` actions. Each successful upload appends one independent row and leaves existing attachments unchanged.
+- Each attachment remains individually viewable, downloadable and deletable. Google Drive deletion still moves only that file to Drive trash; historical Supabase files still use their signed-URL read path.
+- A new saved record must be opened in its detail view before adding attachments. Editing contract, payment or expense fields no longer uploads, replaces or deletes attachments. One-click check-in continues to allow one optional initial contract/receipt attachment for its newly created records, with the same 4MB Google Drive limit; further files are added from the corresponding detail view.
+- Files: `components/attachment-add-control.tsx`, `app/tenants/page.tsx`, `app/rent-payments/page.tsx`, `app/expenses/page.tsx`, `app/check-in/page.tsx`, `BUSINESS_RULES.md`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration was executed and no real data or historical file was changed.

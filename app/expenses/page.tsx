@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
+import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -36,7 +37,6 @@ import { useEffect, useMemo, useState } from "react";
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const partnerOptions = ["A", "B"];
-const maxAttachmentSize = 5 * 1024 * 1024;
 
 const emptyExpense: BusinessExpense = {
   id: "",
@@ -59,7 +59,6 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [files, setFiles] = useState<ExpenseFile[]>([]);
   const [form, setForm] = useState<BusinessExpense>(emptyExpense);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
   const [propertyFilter, setPropertyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -117,7 +116,6 @@ export default function ExpensesPage() {
   function close() {
     setOpen(false);
     setForm(emptyExpense);
-    setPendingFile(null);
   }
 
   async function persist(next: BusinessExpense[]) {
@@ -149,21 +147,6 @@ export default function ExpensesPage() {
       : [nextExpense, ...expenses];
     try {
       await saveBusinessData(expenseKey, next);
-      if (pendingFile) {
-        try {
-          if (form.id) {
-            const existing = filesByExpense[expenseId] || [];
-            for (const file of existing) await deleteExpenseFile(file);
-            setFiles((current) => current.filter((file) => file.expenseId !== expenseId));
-          }
-          const uploaded = await uploadExpenseFile(expenseId, pendingFile);
-          setFiles((current) => [uploaded, ...current]);
-          setStorageWarning("");
-        } catch (error: any) {
-          setStorageWarning("支出附件功能未初始化，请先执行 expense-files SQL。普通支出记录已保存。");
-          window.alert(error.message || "支出已保存，但附件上传失败。请执行 expense-files SQL 后再上传附件。");
-        }
-      }
       setExpenses(next);
       close();
     } catch (error: any) {
@@ -187,17 +170,17 @@ export default function ExpensesPage() {
     setDetailExpenseId("");
   }
 
-  function chooseFile(file?: File) {
-    if (!file) return;
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-      window.alert("只支持 PDF、JPG、PNG 文件。");
-      return;
+  async function addExpenseFile(expense: BusinessExpense, file: File) {
+    setSaving(true);
+    try {
+      const uploaded = await uploadExpenseFile(expense.id, file);
+      setFiles((current) => [uploaded, ...current]);
+      setStorageWarning("");
+    } catch (error: any) {
+      throw new Error(error.message || "添加支出附件失败，请稍后重试。");
+    } finally {
+      setSaving(false);
     }
-    if (file.size > maxAttachmentSize) {
-      window.alert("支出附件不能超过 5MB。");
-      return;
-    }
-    setPendingFile(file);
   }
 
   async function removeFile(file: ExpenseFile) {
@@ -243,12 +226,14 @@ export default function ExpensesPage() {
                     onEdit={() => { setForm(expense); setOpen(true); }}
                     onVoid={() => voidExpense(expense)}
                     onDelete={() => permanentlyDelete(expense)}
+                    onAddFile={(file) => addExpenseFile(expense, file)}
                     onFileDelete={removeFile}
                     saving={saving}
                     canEdit={access.can("expenses", "edit")}
                     canArchive={access.can("expenses", "archive")}
                     canDelete={access.can("expenses", "delete")}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewExpenseFiles")}
+                    canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                   />
@@ -275,12 +260,7 @@ export default function ExpensesPage() {
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="支付状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, isPaid: status === "已支付" }))} />
-              {(form.id ? access.can("attachments", "edit") && access.canSensitive("canReplaceFiles") : access.can("attachments", "create") && access.canSensitive("canUploadFiles")) ? <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label>附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
-                {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">{form.id ? "选择新文件并保存后，会替换当前支出附件。" : "可上传票据、截图或照片，单个附件最大 5MB。"}</p>}
-                {form.id && (filesByExpense[form.id] || []).length ? <ExpenseAttachmentActions files={filesByExpense[form.id] || []} onDelete={removeFile} /> : null}
-              </div> : null}
+              <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
@@ -299,12 +279,14 @@ function ExpenseDetail({
   onEdit,
   onVoid,
   onDelete,
+  onAddFile,
   onFileDelete,
   saving,
   canEdit,
   canArchive,
   canDelete,
   canViewFiles,
+  canUploadFiles,
   canDownloadFiles,
   canDeleteFiles
 }: {
@@ -315,12 +297,14 @@ function ExpenseDetail({
   onEdit: () => void;
   onVoid: () => void;
   onDelete: () => void;
+  onAddFile: (file: File) => Promise<void>;
   onFileDelete: (file: ExpenseFile) => void;
   saving: boolean;
   canEdit: boolean;
   canArchive: boolean;
   canDelete: boolean;
   canViewFiles: boolean;
+  canUploadFiles: boolean;
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
 }) {
@@ -336,9 +320,10 @@ function ExpenseDetail({
       {canViewFiles ? <div>
         <div className="detail-section-title">附件</div>
         <ExpenseAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        {canUploadFiles ? <AttachmentAddControl label="支出附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
       <div className="top-actions detail-actions">
-        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button> : null}
+        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑支出</button> : null}
         {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
         {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
       </div>

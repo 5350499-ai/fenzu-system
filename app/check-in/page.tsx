@@ -23,14 +23,13 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
+import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-
-const maxAttachmentSize = 5 * 1024 * 1024;
 
 function createInitialForm() {
   const today = new Date().toISOString().slice(0, 10);
@@ -246,12 +245,12 @@ export default function CheckInPage() {
 
   function chooseFile(file?: File) {
     if (!file) return;
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+    if (!isAllowedAttachmentType(file.type)) {
       window.alert("只支持 PDF、JPG、PNG 文件。");
       return;
     }
-    if (file.size > maxAttachmentSize) {
-      window.alert("合同附件不能超过 5MB。");
+    if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
+      window.alert(`合同附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
       return;
     }
     setAttachment(file);
@@ -259,12 +258,12 @@ export default function CheckInPage() {
 
   function choosePaymentFile(file?: File) {
     if (!file) return;
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+    if (!isAllowedAttachmentType(file.type)) {
       window.alert("只支持 PDF、JPG、PNG 文件。");
       return;
     }
-    if (file.size > maxAttachmentSize) {
-      window.alert("收款附件不能超过 5MB。");
+    if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
+      window.alert(`收款附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
       return;
     }
     setPaymentAttachment(file);
@@ -326,7 +325,7 @@ export default function CheckInPage() {
                 <div className="attachment-subsection">
                   <label>合同附件 PDF/JPG/PNG</label>
                   <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
-                  {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传，附件会保存到 Supabase Storage。</p>}
+                  {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传；新附件会保存到 Google Drive。</p>}
                 </div>
               </div>
             ) : <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>}
