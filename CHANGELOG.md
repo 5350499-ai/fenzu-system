@@ -368,3 +368,8 @@
 - Applied the already-reviewed additive attachment-provider migration to the connected Supabase project. It adds only the provider metadata required by the existing Google Drive feature; no RLS policies, historical attachment rows, Storage objects, or business records were changed.
 - Added a local-only OAuth helper for Preview setup. It requests the minimal `drive.file` scope, saves a returned refresh token only to a Git-ignored local file, and never prints or commits the authorization code, access token, refresh token, or client secret.
 - Files: `.gitignore`, `scripts/google-drive-preview-authorize.mjs`, `CHANGELOG.md`. Production deployment and Production environment variables remain unchanged.
+# 2026-07-22 - Relay bounded Google Drive attachment uploads through the application
+
+- Fixed the Preview-only Google Drive upload failure after a successful resumable-session preparation: browser-to-Google direct uploads could fail at the cross-origin transport layer and then surfaced an inaccurate generic network error.
+- New attachment bytes up to the existing 4MB limit now use a same-origin, server-side permission-checked relay to the already-created Google resumable session. The relay validates the bucket, owner access, declared and actual size, and Google upload-session host before forwarding. Google credentials remain server-only, and existing completion verification and private-file rules are unchanged.
+- Files: `app/api/files/google-drive/upload/route.ts`, `lib/storage-files.ts`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration, RLS, business data, historical attachment, Production deployment, or Production environment-variable change.
