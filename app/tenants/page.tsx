@@ -625,6 +625,12 @@ export default function TenantsPage() {
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
+                <div className="tenant-mobile-meta">
+                  <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
+                  {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
+                  <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
+                  <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                </div>
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
                     <span className="tenant-expiry-dot" aria-hidden="true" />
