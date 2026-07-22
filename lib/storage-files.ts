@@ -1,13 +1,14 @@
 "use client";
 
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
+import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "./attachment-file-limits";
 
 export type StoredFile = {
   id: string;
   ownerId: string;
   storageBucket: string;
-  storagePath: string;
-  fileUrl: string;
+  storagePath: string | null;
+  fileUrl: string | null;
   fileName: string;
   fileType: string;
   fileSize: number;
@@ -23,9 +24,6 @@ type FileConfig = {
   ownerField: string;
   missingMessage: string;
 };
-
-const maxFileSize = 5 * 1024 * 1024;
-const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
 
 export const contractFileConfig: FileConfig = {
   bucket: "contract-files",
@@ -68,8 +66,8 @@ export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): 
 export async function uploadStoredFile(config: FileConfig, ownerId: string, sourceFile: File): Promise<StoredFile> {
   if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置，不能上传附件。");
   if (!ownerId) throw new Error("请先保存记录，再上传附件。");
-  if (!allowedTypes.includes(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
-  if (sourceFile.size > maxFileSize) throw new Error("单个附件不能超过 5MB。");
+  if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
+  if (sourceFile.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`单个附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。图片压缩后也必须不超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
 
   const session = await getValidSupabaseSession();
   if (!session) throw new Error("请先登录后再上传附件。");
@@ -77,7 +75,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
   if (!account.canCreateAttachments || !account.canUploadFiles) throw new Error("当前账号没有上传附件权限。");
 
   const file = sourceFile.type.startsWith("image/") ? await compressImage(sourceFile) : sourceFile;
-  if (file.size > maxFileSize) throw new Error("压缩后文件仍超过 5MB，请选择更小的文件。");
+  if (file.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`压缩后文件仍超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}，请选择更小的文件。`);
 
   const fileName = redactSensitiveFileName(sourceFile.name);
   const payload = await postGoogleDrive("/api/files/google-drive/prepare", session.access_token, {
@@ -136,6 +134,7 @@ export async function deleteStoredFile(file: StoredFile) {
     await postGoogleDrive("/api/files/google-drive/delete", session.access_token, { id: file.id, bucket: file.storageBucket });
     return;
   }
+  if (!file.storagePath) throw new Error("历史 Supabase 附件路径无效，无法删除。");
   const { error: storageError } = await supabase.storage.from(file.storageBucket).remove([file.storagePath]);
   const table =
     file.storageBucket === "expense-files"
@@ -220,6 +219,7 @@ async function getSignedUrl(file: StoredFile, action: "view" | "download") {
   if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置。");
   const session = await getValidSupabaseSession();
   if (!session) throw new Error("请先登录。");
+  if (!file.storagePath) throw new Error("历史 Supabase 附件路径无效，无法访问。");
   const response = await fetch("/api/files/signed-url", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },

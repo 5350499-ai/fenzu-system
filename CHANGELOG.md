@@ -349,3 +349,8 @@
 - Added additive dual-provider metadata (`storage_provider`, `provider_file_id`) to the existing three attachment tables. No historical attachments, business records, permissions, RLS policies, buckets or files are migrated, copied or deleted.
 - Google uploads use resumable sessions so file bytes do not pass through a normal Vercel Function. Completion is re-verified server-side before indexing; invalid or revoked Drive authorization produces a clear reauthorization message. Google deletes use Drive trash, not permanent deletion.
 - Root configuration is the private “分租管理” Drive folder with lazy `合同附件`、`收款附件`、`支出附件` subfolders. Preview requires separate server-only Google configuration and must not use Production’s Drive test target.
+
+## 2026-07-22 - Keep Google Drive attachment responses below the Vercel limit
+
+- Reduced new Google Drive JPEG, PNG and PDF attachments to a uniform 4MB limit. Browser, upload preparation and upload completion all enforce the same limit, so a successful Google upload remains within the application-controlled view/download response budget.
+- Hardened nullable `storage_path` compatibility and made the existing signed-URL route explicitly reject Google Drive rows. Historical Supabase attachments keep their previous signed-URL behavior.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission, requireSensitivePermission, writeAuditLog } from "@/lib/server/account-auth";
 import { DriveAttachmentKind, trashGoogleDriveFile, verifyGoogleUpload } from "@/lib/server/google-drive";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
 
 const configs = {
   "contract-files": { table: "contract_files", parentTable: "contracts", ownerColumn: "contract_id" },
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     const body = await parseJson(request) as { bucket?: DriveAttachmentKind; ownerId?: string; fileId?: string; uploadId?: string; fileName?: string; fileType?: string; fileSize?: number };
     const config = body.bucket ? configs[body.bucket] : null;
     if (!config || !body.ownerId || !body.fileId || !body.uploadId || !body.fileName || !body.fileType || !Number.isFinite(body.fileSize)) throw new AccountApiError("附件完成请求无效。", 400);
+    if (!isAllowedAttachmentType(body.fileType) || body.fileSize! <= 0 || body.fileSize! > MAX_ATTACHMENT_FILE_SIZE) throw new AccountApiError(`只支持不超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL} 的 PDF、JPG、PNG 文件。`, 400);
     await requireModulePermission(context, "attachments", "create");
     await requireSensitivePermission(context, "can_upload_files");
     const verifier = getSupabaseAuthVerifier(context.accessToken);

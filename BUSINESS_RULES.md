@@ -63,6 +63,7 @@
 - 合同附件、收款附件、支出票据等业务文件不得存入 GitHub 仓库。新上传默认保存到私有 Google Drive；历史 Supabase Storage 附件继续兼容读取。
 - Google Drive 根目录为“分租管理”，仅保留合同附件、收款附件、支出附件三个入口；合同附件可保存与合同或租客有关的综合资料，不新增身份证、护照、工资单等独立附件类别。
 - 删除 Google Drive 附件默认移入 Google Drive 回收站；本次切换不迁移、不复制、不删除历史 Supabase Storage 文件。
+- 新 Google Drive 附件的 JPEG、PNG、PDF 统一最大为 4MB，保证应用受控查看和下载不依赖未验证的大响应流行为；历史 Supabase 附件继续遵循其原有 Storage 限制。
 
 ## 9. 权限规则
 
