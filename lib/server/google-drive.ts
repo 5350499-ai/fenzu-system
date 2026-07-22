@@ -1,6 +1,6 @@
 import "server-only";
 
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -24,6 +24,34 @@ type DriveFile = {
   trashed?: boolean;
   appProperties?: Record<string, string>;
 };
+
+const UPLOAD_JOB_TTL_MS = 15 * 60 * 1000;
+
+function jobSecret() {
+  const secret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!secret) throw new AccountApiError("Google Drive 上传任务未配置。", 503);
+  return secret;
+}
+
+function signUploadJob(payload: Record<string, unknown>) {
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = createHmac("sha256", jobSecret()).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+export function verifyUploadJob(token: string, expected: { kind: DriveAttachmentKind; ownerId: string; uploadId: string; fileName: string; fileType: string; fileSize: number }) {
+  const [encoded, signature] = token.split(".");
+  if (!encoded || !signature) throw new AccountApiError("Google Drive 上传任务无效或已过期。", 400);
+  const expectedSignature = createHmac("sha256", jobSecret()).update(encoded).digest("base64url");
+  const left = Buffer.from(signature);
+  const right = Buffer.from(expectedSignature);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) throw new AccountApiError("Google Drive 上传任务无效或已过期。", 400);
+  let payload: any;
+  try { payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")); } catch { throw new AccountApiError("Google Drive 上传任务无效或已过期。", 400); }
+  if (typeof payload.exp !== "number" || payload.exp < Date.now() || payload.kind !== expected.kind || payload.ownerId !== expected.ownerId || payload.uploadId !== expected.uploadId || payload.fileName !== expected.fileName || payload.fileType !== expected.fileType || payload.fileSize !== expected.fileSize) {
+    throw new AccountApiError("Google Drive 上传任务无效或已过期。", 400);
+  }
+}
 
 function requiredConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -144,7 +172,11 @@ export async function createGoogleResumableUpload(input: {
   });
   const uploadUrl = response.headers.get("location");
   if (!response.ok || !uploadUrl) throw new AccountApiError("无法开始 Google Drive 上传，请稍后重试。", 502);
-  return { uploadId, uploadUrl };
+  const uploadJob = signUploadJob({
+    kind: input.kind, ownerId: input.ownerId, uploadId, fileName: safeName,
+    fileType: input.fileType, fileSize: input.fileSize, exp: Date.now() + UPLOAD_JOB_TTL_MS
+  });
+  return { uploadId, uploadUrl, uploadJob };
 }
 
 export async function verifyGoogleUpload(input: {
@@ -221,10 +253,10 @@ export async function restoreGoogleDriveFile(fileId: string) {
   });
 }
 
-export async function getGoogleDriveContent(fileId: string) {
+export async function getGoogleDriveContent(fileId: string, range?: string | null) {
   const token = await getGoogleAccessToken();
   const response = await fetch(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...(range ? { Range: range } : {}) },
     cache: "no-store"
   });
   if (!response.ok || !response.body) throw new AccountApiError("无法读取 Google Drive 附件。", response.status === 404 ? 404 : 502);

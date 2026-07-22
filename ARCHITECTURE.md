@@ -275,3 +275,9 @@
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。本次移除浏览器端图片压缩，保留原始 MIME、文件名和字节内容。
+Google Drive 直传（仅 Preview 功能分支）
+
+- prepare 在服务端校验会话、业务权限和目标目录，并返回短期 resumable session URL 与签名 upload job；浏览器只向 Google 直传文件字节，不获得 OAuth token。
+- complete 重新读取 Google 元数据（MIME、大小、parents、私有 appProperties）后写入 Supabase 索引，并按 provider_file_id 幂等返回已有记录。
+- Google 文件查看/下载仍通过受控服务端流式接口，转发 Range、Content-Range、Content-Length 和 416 状态；旧 Supabase 文件继续使用 signed URL。
+- 当前改造仅部署 Preview，Production 保持 4MB 中转版本不变，未执行数据库迁移。

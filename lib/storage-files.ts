@@ -82,10 +82,10 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     const payload = await postGoogleDrive("/api/files/google-drive/prepare", session.access_token, {
       bucket: config.bucket, ownerId, fileName, fileType: file.type || sourceFile.type, fileSize: file.size
     });
-    const uploaded = await uploadGoogleResumable(payload.uploadUrl, payload.uploadId, config.bucket, ownerId, file, file.type || sourceFile.type, session.access_token);
+    const uploaded = await uploadGoogleResumableDirect(payload.uploadUrl, file, file.type || sourceFile.type);
     if (!uploaded?.id) throw new Error("Google Drive 上传未返回文件标识，请重试。");
     const completed = await postGoogleDrive("/api/files/google-drive/complete", session.access_token, {
-      bucket: config.bucket, ownerId, fileId: uploaded.id, uploadId: payload.uploadId,
+      bucket: config.bucket, ownerId, fileId: uploaded.id, uploadId: payload.uploadId, uploadJob: payload.uploadJob,
       fileName, fileType: file.type || sourceFile.type, fileSize: file.size
     });
     const stored = fromDb(completed.file, config);
@@ -190,6 +190,36 @@ type AttachmentUploadProgressState = "preparing" | "uploading" | "saving" | "suc
 
 function notifyAttachmentUploadProgress(detail: { state: AttachmentUploadProgressState; loaded?: number; total?: number }) {
   window.dispatchEvent(new CustomEvent("attachment-upload-progress", { detail }));
+}
+
+async function uploadGoogleResumableDirect(uploadUrl: string, file: File, type: string): Promise<{ id?: string }> {
+  return new Promise((resolve, reject) => {
+    const notify = (state: AttachmentUploadProgressState, loaded = 0) => notifyAttachmentUploadProgress({ state, loaded, total: file.size });
+    let attempts = 0;
+    const send = () => {
+      attempts += 1;
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", type);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const payload = JSON.parse(xhr.responseText || "{}");
+            if (!payload?.id) throw new Error("missing id");
+            notify("saving", file.size);
+            resolve(payload);
+          } catch { notify("failed"); reject(new Error("Google Drive 上传响应无效，请重试。")); }
+        } else { notify("failed"); reject(new Error("Google Drive 上传失败，请重试。")); }
+      };
+      const retry = () => { if (attempts < 2) send(); else { notify("failed"); reject(new Error("Google Drive 上传中断，请检查网络后重试。")); } };
+      xhr.onerror = retry;
+      xhr.ontimeout = retry;
+      xhr.upload.onprogress = (event) => notify("uploading", event.loaded);
+      notify("uploading");
+      xhr.send(file);
+    };
+    send();
+  });
 }
 
 async function uploadGoogleResumable(uploadUrl: string, uploadId: string, bucket: string, ownerId: string, file: File, type: string, accessToken: string): Promise<{ id?: string }> {

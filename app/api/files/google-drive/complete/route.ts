@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission, requireSensitivePermission, writeAuditLog } from "@/lib/server/account-auth";
-import { DriveAttachmentKind, trashGoogleDriveFile, verifyGoogleUpload } from "@/lib/server/google-drive";
+import { DriveAttachmentKind, trashGoogleDriveFile, verifyGoogleUpload, verifyUploadJob } from "@/lib/server/google-drive";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
 
@@ -13,12 +13,13 @@ const configs = {
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    const body = await parseJson(request) as { bucket?: DriveAttachmentKind; ownerId?: string; fileId?: string; uploadId?: string; fileName?: string; fileType?: string; fileSize?: number };
+    const body = await parseJson(request) as { bucket?: DriveAttachmentKind; ownerId?: string; fileId?: string; uploadId?: string; uploadJob?: string; fileName?: string; fileType?: string; fileSize?: number };
     const config = body.bucket ? configs[body.bucket] : null;
-    if (!config || !body.ownerId || !body.fileId || !body.uploadId || !body.fileName || !body.fileType || !Number.isFinite(body.fileSize)) throw new AccountApiError("附件完成请求无效。", 400);
+    if (!config || !body.ownerId || !body.fileId || !body.uploadId || !body.uploadJob || !body.fileName || !body.fileType || !Number.isFinite(body.fileSize)) throw new AccountApiError("附件完成请求无效。", 400);
     if (!isAllowedAttachmentType(body.fileType) || body.fileSize! <= 0 || body.fileSize! > MAX_ATTACHMENT_FILE_SIZE) throw new AccountApiError(`只支持不超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL} 的 PDF、JPG、PNG 文件。`, 400);
     await requireModulePermission(context, "attachments", "create");
     await requireSensitivePermission(context, "can_upload_files");
+    verifyUploadJob(body.uploadJob, { kind: body.bucket!, ownerId: body.ownerId, uploadId: body.uploadId, fileName: body.fileName, fileType: body.fileType, fileSize: body.fileSize! });
     const verifier = getSupabaseAuthVerifier(context.accessToken);
     const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", body.ownerId).maybeSingle();
     if (ownerError || !owner) throw new AccountApiError("没有权限向该业务记录保存附件。", 403);
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
       fileId: body.fileId, kind: body.bucket!, ownerId: body.ownerId, uploadId: body.uploadId, expectedType: body.fileType, expectedSize: body.fileSize!
     });
     const admin = getSupabaseAdmin();
+    const { data: existing } = await admin.from(config.table).select("*").eq("provider_file_id", verified.id).maybeSingle();
+    if (existing) return NextResponse.json({ file: existing }, { headers: { "Cache-Control": "no-store" } });
     const { data, error } = await admin.from(config.table).insert({
       user_id: context.profile.workspace_owner_id,
       [config.ownerColumn]: body.ownerId,

@@ -9,6 +9,8 @@ const configs = {
   "expense-files": { table: "expense_files", view: "can_view_expense_files" }
 } as const;
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
     const verifier = getSupabaseAuthVerifier(context.accessToken);
     const { data: file, error } = await verifier.from(config.table).select("id,provider_file_id,file_name,file_type,storage_provider").eq("id", body.id).maybeSingle();
     if (error || !file || file.storage_provider !== "google_drive" || !file.provider_file_id) throw new AccountApiError("没有权限访问该 Google Drive 附件。", 403);
-    const upstream = await getGoogleDriveContent(file.provider_file_id);
+    const upstream = await getGoogleDriveContent(file.provider_file_id, request.headers.get("range"));
     await writeAuditLog(context, {
       actionType: body.action === "download" ? "download_attachment" : "view_attachment",
       moduleKey: "attachments", entityType: config.table, entityId: file.id,
@@ -29,13 +31,20 @@ export async function POST(request: Request) {
       logCategory: "business"
     });
     const disposition = body.action === "download" ? "attachment" : "inline";
+    const headers = new Headers({
+      "Content-Type": file.file_type || upstream.headers.get("content-type") || "application/octet-stream",
+      "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(file.file_name)}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Accept-Ranges": upstream.headers.get("accept-ranges") || "bytes"
+    });
+    for (const key of ["content-length", "content-range"]) {
+      const value = upstream.headers.get(key);
+      if (value) headers.set(key, value);
+    }
     return new NextResponse(upstream.body, {
-      headers: {
-        "Content-Type": file.file_type || upstream.headers.get("content-type") || "application/octet-stream",
-        "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(file.file_name)}`,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff"
-      }
+      status: upstream.status,
+      headers
     });
   } catch (error) {
     return apiErrorResponse(error);

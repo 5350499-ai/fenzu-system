@@ -392,3 +392,7 @@
 - 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
 - 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
 - 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。
+2026-07-22
+
+- 新增 Google Drive resumable 直传 Preview 实验：20MB PDF/JPG/PNG 原文件、短期签名 upload job、完成幂等和 Range 流式查看/下载。
+- 保留旧 Production 中转链路和 4MB 限制不变；本次未执行 migration、未修改真实数据。
