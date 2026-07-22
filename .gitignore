@@ -29,3 +29,6 @@ expense-uploads/
 *.jpeg
 .vercel
 .env*
+
+# Local-only OAuth output for Google Drive Preview authorization. Never commit it.
+.google-drive-preview-token.local
