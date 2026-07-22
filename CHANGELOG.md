@@ -377,3 +377,8 @@
 ## Follow-up
 
 - The Preview test proved the bounded relay upload succeeded but the following completion verification could not reliably read the resumable-session upload marker. The relay now stamps that marker after Google returns the file ID and moves a file to Drive trash if marker stamping fails. Completion also verifies the expected record folder before indexing.
+
+## 2026-07-22 - Classify private Google Drive upload verification failures
+
+- Kept every post-upload integrity check mandatory, while recording only boolean pass/fail results for file state, MIME type, size, expected folder and private upload-marker checks. Preview errors now identify the failed safe category without logging file names, file or folder IDs, business IDs, OAuth credentials or file content.
+- No migration, RLS, attachment metadata, business data, historical files, Production deployment or Production environment-variable change.

@@ -159,16 +159,26 @@ export async function verifyGoogleUpload(input: {
   const file = await driveJson<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(input.fileId)}?fields=${encodeURIComponent("id,name,mimeType,size,parents,trashed,appProperties")}`);
   const { folderId } = await ensureDriveAttachmentFolder(input.kind, input.ownerId);
   const properties = file.appProperties || {};
-  if (
-    file.trashed ||
-    file.mimeType !== input.expectedType ||
-    Number(file.size || 0) !== input.expectedSize ||
-    !file.parents?.includes(folderId) ||
-    properties.fenzu_kind !== input.kind ||
-    properties.fenzu_owner_id !== input.ownerId ||
-    properties.fenzu_upload_id !== input.uploadId
-  ) {
-    throw new AccountApiError("Google Drive 上传核验失败，附件未保存。", 400);
+  const checks = {
+    notTrashed: !file.trashed,
+    mimeType: file.mimeType === input.expectedType,
+    fileSize: Number(file.size || 0) === input.expectedSize,
+    parent: Boolean(file.parents?.includes(folderId)),
+    markerKind: properties.fenzu_kind === input.kind,
+    markerOwner: properties.fenzu_owner_id === input.ownerId,
+    markerUpload: properties.fenzu_upload_id === input.uploadId
+  };
+  if (!Object.values(checks).every(Boolean)) {
+    // Log only pass/fail flags. File IDs, names, folder IDs and OAuth material must never enter logs.
+    console.error("google_drive_upload_verification_failed", { checks });
+    const failed = [
+      !checks.notTrashed ? "文件状态" : null,
+      !checks.mimeType ? "文件类型" : null,
+      !checks.fileSize ? "文件大小" : null,
+      !checks.parent ? "目标目录" : null,
+      (!checks.markerKind || !checks.markerOwner || !checks.markerUpload) ? "上传标记" : null
+    ].filter(Boolean);
+    throw new AccountApiError(`Google Drive 上传核验失败（${failed.join("、")}不匹配），附件未保存。`, 400);
   }
   return file;
 }
