@@ -611,6 +611,7 @@ export default function TenantsPage() {
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expiryInfo = fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments));
+            const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const expanded = detailTenantId === tenant.id;
             return (
               <article className="finance-list-item" key={tenant.id}>
@@ -618,7 +619,9 @@ export default function TenantsPage() {
                   <span className="tenant-name">{tenant.name || "-"}</span>
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
                   <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
-                  <strong className="tenant-rent">{euro(tenant.monthlyRent || 0)}</strong>
+                  <strong className="tenant-rent tenant-received" title={latestReceivedPayment ? `最近一次实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}>
+                    {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
+                  </strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
@@ -924,6 +927,16 @@ function linkedDepositAmount(paymentId: string, deposits: BusinessDeposit[]) {
 
 function isTenantRentPayment(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
+}
+
+function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRentPayment[]) {
+  return payments
+    .filter((payment) => payment.tenantId === tenantId && isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆"))
+    .sort((left, right) => {
+      const leftDate = left.paymentDate || left.coverageEndDate || left.rentMonth || "";
+      const rightDate = right.paymentDate || right.coverageEndDate || right.rentMonth || "";
+      return rightDate.localeCompare(leftDate);
+    })[0] || null;
 }
 
 function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {

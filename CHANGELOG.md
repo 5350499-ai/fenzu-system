@@ -310,3 +310,9 @@
 - Made the option list touch-scrollable within the mobile viewport and retained outside-click and explicit-clear behavior.
 - Added a synchronous submit lock to one-click check-in submission while preserving the existing `client_request_id` and server-side atomic transaction. The button now shows `正在保存...`; successful core saves clear the form, show a completion message, and return to tenant management. Attachment failure reports that the check-in succeeded without retrying the core transaction.
 - Files: `app/check-in/page.tsx`, `components/searchable-select.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, RLS, permission, transaction, or business-data changes.
+
+## 2026-07-22 - Show latest received amount in tenant list
+
+- 修复租客列表主行金额错误：原来读取租客的 `monthlyRent`，现在读取该租客最新一笔有效房租收款的 `amountPaid`，因此同时包含该笔房租和押金实收金额。
+- 作废收款不参与最近一次实收；没有有效收款记录时显示“暂无实收”。租客详情中的月租、押金和最近一次实收字段保持不变。
+- Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, statistics, profit, permission, or business-data changes.

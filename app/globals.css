@@ -1853,6 +1853,10 @@ td:last-child {
   text-align: right;
 }
 
+.tenant-finance-line .tenant-received {
+  white-space: nowrap;
+}
+
 .attachment-panel {
   display: grid;
   gap: 8px;
