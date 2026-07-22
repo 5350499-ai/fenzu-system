@@ -16,6 +16,7 @@ export function SearchableSelect({
   options,
   placeholder,
   disabled,
+  openOnTouchWithoutKeyboard,
   onChange
 }: {
   label: string;
@@ -23,11 +24,14 @@ export function SearchableSelect({
   options: SelectOption[];
   placeholder?: string;
   disabled?: boolean;
+  /** Lets touch users open a long option list before the virtual keyboard takes screen space. */
+  openOnTouchWithoutKeyboard?: boolean;
   onChange: (value: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const selectingRef = useRef(false);
   const selected = options.find((option) => option.value === value);
   const visibleOptions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -56,6 +60,21 @@ export function SearchableSelect({
     setOpen(false);
   }
 
+  function chooseOption(option: SelectOption, event: React.SyntheticEvent) {
+    // Select before the input can blur. This keeps iOS touch selection independent
+    // from virtual-keyboard focus and from the outside-click listener.
+    event.preventDefault();
+    event.stopPropagation();
+    if (selectingRef.current) return;
+    selectingRef.current = true;
+    onChange(option.value);
+    setQuery("");
+    closeMenu();
+    requestAnimationFrame(() => {
+      selectingRef.current = false;
+    });
+  }
+
   return (
     <div className="field combobox-field" ref={rootRef}>
       <label>{label}</label>
@@ -71,12 +90,21 @@ export function SearchableSelect({
         <Search size={17} />
         <input
           disabled={disabled}
-          onBlur={() => window.setTimeout(closeMenu, 120)}
+          onBlur={(event) => {
+            if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return;
+            closeMenu();
+          }}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onPointerDown={(event) => {
+            if (openOnTouchWithoutKeyboard && event.pointerType === "touch" && !open) {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
           placeholder={selected ? selected.label : placeholder || "搜索并选择"}
           value={open ? query : selected?.label || ""}
         />
@@ -105,13 +133,8 @@ export function SearchableSelect({
                   className="combobox-option"
                   key={option.value}
                   type="button"
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onChange(option.value);
-                    setQuery("");
-                    closeMenu();
-                  }}
+                  onPointerDown={(event) => chooseOption(option, event)}
+                  onTouchStart={(event) => chooseOption(option, event)}
                 >
                   <strong>{option.label}</strong>
                   {option.description ? <span>{option.description}</span> : null}
