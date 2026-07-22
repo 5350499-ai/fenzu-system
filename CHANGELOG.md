@@ -303,3 +303,10 @@
 - Restricted the Service Worker to manifest and icon assets, stopped caching Next.js chunks/RSC/API responses, and disabled the browser HTTP cache when checking `sw.js` updates.
 - Files: `components/account-access.tsx`, `components/app-layout.tsx`, `components/client-error-reporter.tsx`, `app/login/page.tsx`, `app/layout.tsx`, `app/global-error.tsx`, `app/api/client-errors/route.ts`, `app/pwa-register.tsx`, `public/sw.js`, `ARCHITECTURE.md`, `CHANGELOG.md`.
 - Database, RLS, permissions, accounts, passwords, and business data were not changed. This fix is deployed to Preview only; the Production alias remains on the previously rolled-back stable deployment pending explicit device approval.
+
+## 2026-07-22 - Stabilize mobile check-in room selection and completion flow
+
+- Replaced the timing-based combobox blur close with deterministic touch/pointer option selection. On the check-in room selector, the first touch opens the list without forcing the iPhone keyboard; selecting any option completes before focus can blur, then closes the list.
+- Made the option list touch-scrollable within the mobile viewport and retained outside-click and explicit-clear behavior.
+- Added a synchronous submit lock to one-click check-in submission while preserving the existing `client_request_id` and server-side atomic transaction. The button now shows `正在保存...`; successful core saves clear the form, show a completion message, and return to tenant management. Attachment failure reports that the check-in succeeded without retrying the core transaction.
+- Files: `app/check-in/page.tsx`, `components/searchable-select.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, RLS, permission, transaction, or business-data changes.

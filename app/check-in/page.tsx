@@ -27,26 +27,14 @@ import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const maxAttachmentSize = 5 * 1024 * 1024;
 
-export default function CheckInPage() {
-  const access = useAccountAccess();
-  const [properties, setProperties] = useState<BusinessProperty[]>([]);
-  const [rooms, setRooms] = useState<BusinessRoom[]>([]);
-  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
-  const [contracts, setContracts] = useState<BusinessContract[]>([]);
-  const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
-  const [customReceivedBy, setCustomReceivedBy] = useState("");
-  const requestIdRef = useRef<string | null>(null);
-  const [form, setForm] = useState({
+function createInitialForm() {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
     propertyId: "",
     roomId: "",
     tenantName: "",
@@ -55,8 +43,8 @@ export default function CheckInPage() {
     contractEndDate: "",
     monthlyRent: 0,
     amountPaid: 0,
-    paymentDate: new Date().toISOString().slice(0, 10),
-    coverageStartDate: new Date().toISOString().slice(0, 10),
+    paymentDate: today,
+    coverageStartDate: today,
     coverageEndDate: "",
     depositAmount: 0,
     paymentDay: 20 as number | undefined,
@@ -64,7 +52,28 @@ export default function CheckInPage() {
     paymentStatus: "已收",
     paymentMethod: "转账",
     notes: ""
-  });
+  };
+}
+
+export default function CheckInPage() {
+  const router = useRouter();
+  const access = useAccountAccess();
+  const [properties, setProperties] = useState<BusinessProperty[]>([]);
+  const [rooms, setRooms] = useState<BusinessRoom[]>([]);
+  const [tenants, setTenants] = useState<BusinessTenant[]>([]);
+  const [contracts, setContracts] = useState<BusinessContract[]>([]);
+  const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
+  const [customReceivedBy, setCustomReceivedBy] = useState("");
+  const requestIdRef = useRef<string | null>(null);
+  const submitLockRef = useRef(false);
+  const [form, setForm] = useState(createInitialForm);
 
   useEffect(() => {
     async function load() {
@@ -82,10 +91,17 @@ export default function CheckInPage() {
     load().catch((error) => window.alert(`加载入住数据失败：${error.message || error}`));
   }, []);
 
+  useEffect(() => {
+    if (!completionMessage) return;
+    const returnTimer = window.setTimeout(() => router.replace("/tenants"), 900);
+    return () => window.clearTimeout(returnTimer);
+  }, [completionMessage, router]);
+
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId && room.status !== "已归档");
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving || submitLockRef.current || completionMessage) return;
     if (!form.propertyId || !form.roomId || !form.tenantName.trim()) {
       window.alert("请先选择房源、房间，并填写租客姓名。");
       return;
@@ -98,6 +114,7 @@ export default function CheckInPage() {
       window.alert("每月缴费日请输入1到31，或留空表示不设置。");
       return;
     }
+    submitLockRef.current = true;
     setSaving(true);
     try {
       const clientRequestId = requestIdRef.current || crypto.randomUUID();
@@ -221,10 +238,11 @@ export default function CheckInPage() {
       setPaymentAttachment(null);
       setAdvancedOpen(false);
       setAttachmentsOpen(false);
-      requestIdRef.current = null;
-      window.alert(attachmentFailed ? "入住已保存，但附件上传失败，请在详情中重新上传。" : "一键入住已保存，首页统计会同步更新。");
+      setForm(createInitialForm());
+      setCompletionMessage(attachmentFailed ? "入住已保存，但附件上传失败，正在返回租客管理。" : "入住保存成功，正在返回租客管理。");
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
+      submitLockRef.current = false;
     } finally {
       setSaving(false);
     }
@@ -261,7 +279,7 @@ export default function CheckInPage() {
       <section className="card panel">
         <form className="form-grid" onSubmit={submit}>
           <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
-          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => {
+          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => {
             const room = rooms.find((item) => item.id === roomId);
             setForm((current) => ({ ...current, roomId, monthlyRent: room?.monthlyRent || current.monthlyRent, depositAmount: room?.depositAmount || current.depositAmount }));
           }} />
@@ -321,7 +339,10 @@ export default function CheckInPage() {
               </div>
             ) : <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>}
           </div> : null}
-          {access.can("check_in", "create") ? <div className="modal-actions"><button className="btn primary" disabled={saving} type="submit"><Save size={17} /> 保存入住</button></div> : null}
+          {access.can("check_in", "create") ? <div className="modal-actions">
+            {completionMessage ? <p className="form-status success" role="status">{completionMessage}</p> : null}
+            <button className="btn primary" disabled={saving || Boolean(completionMessage)} type="submit"><Save size={17} /> {saving ? "正在保存..." : "保存入住"}</button>
+          </div> : null}
         </form>
       </section>
     </AppLayout>

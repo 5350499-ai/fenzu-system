@@ -1414,8 +1414,10 @@ td:last-child {
   top: calc(100% + 8px);
   left: 0;
   z-index: 70;
-  max-height: 286px;
+  max-height: min(286px, 42dvh);
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
@@ -1433,6 +1435,7 @@ td:last-child {
   color: var(--text);
   padding: 10px;
   text-align: left;
+  touch-action: manipulation;
 }
 
 .combobox-option:hover {
@@ -2724,6 +2727,16 @@ td:last-child {
   padding: 9px 10px;
   color: var(--text);
   text-align: left;
+}
+
+.form-status {
+  flex: 1 1 100%;
+  margin: 0;
+  font-weight: 800;
+}
+
+.form-status.success {
+  color: var(--success);
 }
 
 .tenant-property-option:hover,
