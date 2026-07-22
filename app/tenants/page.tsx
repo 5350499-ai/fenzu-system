@@ -936,13 +936,7 @@ function isTenantRentPayment(payment: BusinessRentPayment) {
 }
 
 function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRentPayment[]) {
-  return payments
-    .filter((payment) => payment.tenantId === tenantId && isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆"))
-    .sort((left, right) => {
-      const leftDate = left.paymentDate || left.coverageEndDate || left.rentMonth || "";
-      const rightDate = right.paymentDate || right.coverageEndDate || right.rentMonth || "";
-      return rightDate.localeCompare(leftDate);
-    })[0] || null;
+  return latestCoverageForTenant(tenantId, payments);
 }
 
 function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {

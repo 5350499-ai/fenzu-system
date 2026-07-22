@@ -388,6 +388,7 @@ export default function RentPaymentsPage() {
     const nextPayment = {
       ...form,
       id: paymentId,
+      createdAt: form.createdAt || (form.id ? undefined : new Date().toISOString()),
       tenantId,
       paymentDate,
       rentMonth,

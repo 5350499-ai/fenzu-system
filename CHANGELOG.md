@@ -20,6 +20,13 @@
 
 所有修改记录只允许追加，不得覆盖历史。
 
+## 2026-07-22 - Latest valid payment coverage
+
+- Fixed current tenant coverage selection to use the latest entered valid rent payment by `rent_payments.created_at`, rather than the largest coverage end date.
+- Exposed the read-only payment creation timestamp in the client mapping and stamped newly created client-side payment drafts so the current coverage, room detail, tenant list, reminders, and renewal defaults update immediately after save.
+- Preserved every historical payment and its original coverage dates. Voiding or deleting the latest valid payment now naturally falls back to the previous valid payment through the same selector.
+- Updated tenant list latest-received display to use the same latest-valid-payment rule. No database schema, RLS, financial data, contracts, deposits, or historical records were changed.
+
 ## 2026-07-11
 
 - 创建 `CLAUDE.md`、`BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md` 四个长期维护文档。

@@ -59,6 +59,7 @@ export type BusinessContract = {
 
 export type BusinessRentPayment = {
   id: string;
+  createdAt?: string;
   propertyId: string;
   roomId: string;
   tenantId: string;
@@ -226,6 +227,7 @@ const tableConfigs: Record<string, TableConfig> = {
     order: "created_at",
     fromDb: (row) => ({
       id: row.id,
+      createdAt: row.created_at || "",
       propertyId: row.property_id || "",
       roomId: row.room_id || "",
       tenantId: row.tenant_id || "",

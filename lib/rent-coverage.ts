@@ -10,8 +10,8 @@ export function paymentCoverageEnd(payment: BusinessRentPayment) {
 
 export function latestCoveragePayment(payments: BusinessRentPayment[]) {
   return [...payments]
-    .filter((payment) => isRentIncome(payment) && !isVoided(payment.notes))
-    .sort((a, b) => paymentCoverageEnd(b).localeCompare(paymentCoverageEnd(a)))[0] || null;
+    .filter(isValidCoveragePayment)
+    .sort((a, b) => paymentEntryTimestamp(b).localeCompare(paymentEntryTimestamp(a)))[0] || null;
 }
 
 export function latestCoverageForTenant(tenantId: string, payments: BusinessRentPayment[]) {
@@ -65,7 +65,7 @@ export function roomOccupancyStatus(room: BusinessRoom, tenants: BusinessTenant[
 }
 
 export function isPaymentActiveOnDate(payment: BusinessRentPayment, today = todayString()) {
-  if (!isRentIncome(payment) || isVoided(payment.notes)) return false;
+  if (!isValidCoveragePayment(payment)) return false;
   const startDate = paymentCoverageStart(payment);
   const endDate = paymentCoverageEnd(payment);
   return Boolean(startDate && endDate && startDate <= today && today <= endDate);
@@ -208,6 +208,20 @@ export function overdueReferenceAmount(payment: BusinessRentPayment | null, tena
 
 export function isRentIncome(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
+}
+
+function isValidCoveragePayment(payment: BusinessRentPayment) {
+  const status = payment.paymentStatus || "";
+  return isRentIncome(payment)
+    && !isVoided(payment.notes)
+    && !status.includes("\u5df2\u4f5c\u5e9f")
+    && !status.toLowerCase().includes("void");
+}
+
+function paymentEntryTimestamp(payment: BusinessRentPayment) {
+  // Normal edits do not change created_at, so correcting an older receipt
+  // cannot make it the tenant's current coverage record.
+  return payment.createdAt || payment.paymentDate || payment.rentMonth || "";
 }
 
 export function monthStart(month?: string) {
