@@ -1853,6 +1853,14 @@ td:last-child {
   text-align: right;
 }
 
+.tenant-finance-line .tenant-received {
+  white-space: nowrap;
+}
+
+.tenant-mobile-meta {
+  display: none;
+}
+
 .attachment-panel {
   display: grid;
   gap: 8px;
@@ -2011,11 +2019,21 @@ td:last-child {
   }
 
 .tenant-compact-list .tenant-finance-line {
-  grid-template-columns: minmax(32px, 0.72fr) minmax(48px, 0.95fr) minmax(58px, 1.05fr) 60px 32px 48px;
+  grid-template-columns: minmax(44px, 0.7fr) minmax(100px, 2.1fr) minmax(92px, 1.4fr) auto;
   gap: 2px;
   min-height: 32px;
   padding-block: 5px;
   font-size: 11px;
+}
+
+.tenant-compact-list .tenant-finance-line > :nth-child(4),
+.tenant-compact-list .tenant-finance-line > :nth-child(6) {
+  display: none;
+}
+
+.tenant-compact-list .tenant-finance-line > :nth-child(5) {
+  grid-column: 4;
+  justify-self: end;
 }
 
 .tenant-compact-list .tenant-finance-line > span,
@@ -2037,6 +2055,56 @@ td:last-child {
   padding-inline: 4px;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-expiry-row {
+  display: none;
+}
+
+.tenant-compact-list .tenant-mobile-meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  margin: 0 2px 5px;
+  padding: 3px 7px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 7px 7px 0;
+  background: var(--surface-soft);
+  font-size: 10px;
+}
+
+.tenant-compact-list .tenant-mobile-received,
+.tenant-compact-list .tenant-mobile-reminder,
+.tenant-compact-list .tenant-mobile-meta .badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-mobile-received {
+  font-size: 11px;
+}
+
+.tenant-compact-list .tenant-mobile-reminder.yellow {
+  color: #d39a00;
+}
+
+.tenant-compact-list .tenant-mobile-reminder.orange {
+  color: #ea580c;
+}
+
+.tenant-compact-list .tenant-mobile-reminder.red {
+  color: var(--red);
+}
+
+.tenant-compact-list .tenant-mobile-coverage {
+  min-width: 0;
+  flex: 1 1 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  text-align: right;
 }
 
 

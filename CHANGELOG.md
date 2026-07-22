@@ -310,3 +310,22 @@
 - Made the option list touch-scrollable within the mobile viewport and retained outside-click and explicit-clear behavior.
 - Added a synchronous submit lock to one-click check-in submission while preserving the existing `client_request_id` and server-side atomic transaction. The button now shows `正在保存...`; successful core saves clear the form, show a completion message, and return to tenant management. Attachment failure reports that the check-in succeeded without retrying the core transaction.
 - Files: `app/check-in/page.tsx`, `components/searchable-select.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, RLS, permission, transaction, or business-data changes.
+
+## 2026-07-22 - Show latest received amount in tenant list
+
+- 修复租客列表主行金额错误：原来读取租客的 `monthlyRent`，现在读取该租客最新一笔有效房租收款的 `amountPaid`，因此同时包含该笔房租和押金实收金额。
+- 作废收款不参与最近一次实收；没有有效收款记录时显示“暂无实收”。租客详情中的月租、押金和最近一次实收字段保持不变。
+- Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, statistics, profit, permission, or business-data changes.
+
+## 2026-07-22 - Preserve tenant received amount on mobile
+
+- 调整手机端租客列表为两行结构：第一行保留姓名、房源、房间和在租状态；第二行显示完整实收金额、到期提醒、覆盖日期和押金状态。
+- 实收金额使用不换行、不省略的固定内容区域，房源和房间仍允许适度截断，避免金额被状态标签挤压成省略号。桌面端主行和展开详情保持原样。
+- 在 `CLAUDE.md` 增加固定发布规则：先构建、再 Preview、用户验收后才允许合并 main 和 Promote Production，并保留稳定回退点。
+- Files: `app/tenants/page.tsx`, `app/globals.css`, `CLAUDE.md`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.
+
+## 2026-07-22 - Widen tenant property label on mobile
+
+- 放宽租客列表房源短名称的显示上限，优先保留 `01B无电梯5楼18号` 等高识别度前缀，较长地址仍由末尾省略号兜底。
+- 调整手机端第一行列比例，缩窄姓名列并扩大房源列，同时保留房间名称和在租状态的完整显示空间；第二行实收金额、提醒、覆盖日期和押金状态不变。
+- Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.

@@ -611,6 +611,7 @@ export default function TenantsPage() {
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expiryInfo = fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments));
+            const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const expanded = detailTenantId === tenant.id;
             return (
               <article className="finance-list-item" key={tenant.id}>
@@ -618,10 +619,18 @@ export default function TenantsPage() {
                   <span className="tenant-name">{tenant.name || "-"}</span>
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
                   <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
-                  <strong className="tenant-rent">{euro(tenant.monthlyRent || 0)}</strong>
+                  <strong className="tenant-rent tenant-received" title={latestReceivedPayment ? `最近一次实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}>
+                    {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
+                  </strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
+                <div className="tenant-mobile-meta">
+                  <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
+                  {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
+                  <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
+                  <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                </div>
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
                     <span className="tenant-expiry-dot" aria-hidden="true" />
@@ -926,6 +935,16 @@ function isTenantRentPayment(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
+function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRentPayment[]) {
+  return payments
+    .filter((payment) => payment.tenantId === tenantId && isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆"))
+    .sort((left, right) => {
+      const leftDate = left.paymentDate || left.coverageEndDate || left.rentMonth || "";
+      const rightDate = right.paymentDate || right.coverageEndDate || right.rentMonth || "";
+      return rightDate.localeCompare(leftDate);
+    })[0] || null;
+}
+
 function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {
   return payments
     .filter((payment) => isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]"))
@@ -1090,7 +1109,7 @@ function daysBetween(startDate: string, endDate: string) {
 
 function compactPropertyName(name?: string) {
   const value = (name || "").replace(/\s+/g, "").trim();
-  return value ? value.slice(0, 7) + (value.length > 7 ? "..." : "") : "-";
+  return value ? value.slice(0, 12) + (value.length > 12 ? "..." : "") : "-";
 }
 
 function compactRoomName(room?: BusinessRoom) {
