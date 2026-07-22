@@ -392,3 +392,9 @@
 - 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
 - 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
 - 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。
+
+## 2026-07-22 - Direct browser Google Drive resumable upload (Preview)
+
+- Changed the active attachment upload transport from the Vercel byte relay to a browser `PUT` against the short-lived Google resumable upload session URL.
+- Kept server-side prepare permissions, complete verification, appProperties ownership marker, 4MB validation, private Drive access, failure cleanup and Supabase indexing unchanged.
+- The browser does not receive Google OAuth tokens; Production remains on the stable deployment and no migration, RLS, environment variable, business data or historical file was changed.

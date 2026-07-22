@@ -82,7 +82,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     const payload = await postGoogleDrive("/api/files/google-drive/prepare", session.access_token, {
       bucket: config.bucket, ownerId, fileName, fileType: file.type || sourceFile.type, fileSize: file.size
     });
-    const uploaded = await uploadGoogleResumable(payload.uploadUrl, payload.uploadId, config.bucket, ownerId, file, file.type || sourceFile.type, session.access_token);
+    const uploaded = await uploadGoogleResumableDirect(payload.uploadUrl, file, file.type || sourceFile.type);
     if (!uploaded?.id) throw new Error("Google Drive 上传未返回文件标识，请重试。");
     const completed = await postGoogleDrive("/api/files/google-drive/complete", session.access_token, {
       bucket: config.bucket, ownerId, fileId: uploaded.id, uploadId: payload.uploadId,
@@ -215,6 +215,45 @@ async function uploadGoogleResumable(uploadUrl: string, uploadId: string, bucket
     };
     xhr.onerror = () => { notify("failed"); reject(new Error("Google Drive 上传中断，请检查网络后重试。")); };
     xhr.upload.onprogress = (event) => notify("uploading", event.loaded);
+    notify("uploading");
+    xhr.send(file);
+  });
+}
+
+async function uploadGoogleResumableDirect(uploadUrl: string, file: File, type: string): Promise<{ id?: string }> {
+  return new Promise((resolve, reject) => {
+    const abortSession = () => {
+      void fetch(uploadUrl, { method: "DELETE", keepalive: true }).catch(() => undefined);
+    };
+    const notify = (state: AttachmentUploadProgressState, loaded = 0) => notifyAttachmentUploadProgress({ state, loaded, total: file.size });
+    const xhr = new XMLHttpRequest();
+    // The short-lived resumable session URL is the upload capability. Do not
+    // send a Google OAuth token or the file bytes through a Vercel Function.
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", type);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const payload = JSON.parse(xhr.responseText || "{}");
+          if (!payload?.id) throw new Error("Google Drive upload returned no file id.");
+          notify("saving", file.size);
+          resolve(payload);
+        } catch (error) {
+          abortSession();
+          notify("failed");
+          reject(error instanceof Error ? error : new Error("Google Drive upload response was invalid."));
+        }
+      } else {
+        const payload = (() => { try { return JSON.parse(xhr.responseText || "{}"); } catch { return null; } })();
+        abortSession();
+        notify("failed");
+        reject(new Error(payload?.error || "Google Drive upload failed. Please retry."));
+      }
+    };
+    xhr.onerror = () => { abortSession(); notify("failed"); reject(new Error("Google Drive upload was interrupted. Please retry.")); };
+    xhr.ontimeout = () => { abortSession(); notify("failed"); reject(new Error("Google Drive upload timed out. Please retry.")); };
+    xhr.upload.onprogress = (event) => notify("uploading", event.loaded);
+    xhr.timeout = 10 * 60 * 1000;
     notify("uploading");
     xhr.send(file);
   });

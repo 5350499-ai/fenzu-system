@@ -268,6 +268,11 @@
 - Google Drive configuration is server-only: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`. The configured root must be the private “分租管理” folder; its category folders are created lazily. This implementation is Preview-only until explicit user acceptance and does not migrate or delete historical files.
 - Google Drive attachment bytes are returned through an authenticated application route. To avoid relying on unverified large-response streaming behavior on Vercel, the new-provider limit is 4MB for JPEG, PNG and PDF and is validated in the browser, upload preparation and completion routes.
 - Contract, rent-payment and expense pages use the same small add-control after their parent record has been saved. It selects one file and explicitly appends one independent attachment index row; parent-record edits do not replace or remove attachments.
+## 2026-07-22 - Direct browser upload to Google resumable sessions
+
+- The active browser upload path now calls the server-only `prepare` route, sends the file with `PUT` directly to the short-lived Google resumable session URL, and then calls `complete` for server-side metadata, marker, parent-folder, MIME, size, permission and Supabase-index verification.
+- The browser sends only the session URL and file bytes to Google; it never receives a Google access token, refresh token or client secret. A failed direct session is best-effort cancelled with `DELETE`; completed-file cleanup and index failure cleanup remain server-controlled.
+- The existing relay route is retained only for compatibility with older deployed clients and is no longer called by the current client code. No database, migration, RLS, folder, viewing or download architecture changed.
 ## 2026-07-22 - Google Drive attachment upload transport
 
 - Google Drive resumable sessions are still created and finalized server-side. To avoid browser cross-origin failures while retaining the Vercel response safety budget, the already enforced 4MB maximum is relayed through a same-origin, permission-checked upload route. That route accepts only a validated Google resumable session URL, re-checks the normal application permissions and owner record, and never returns Google credentials to the browser.
