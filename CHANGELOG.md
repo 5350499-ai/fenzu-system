@@ -382,3 +382,8 @@
 
 - Kept every post-upload integrity check mandatory, while recording only boolean pass/fail results for file state, MIME type, size, expected folder and private upload-marker checks. Preview errors now identify the failed safe category without logging file names, file or folder IDs, business IDs, OAuth credentials or file content.
 - No migration, RLS, attachment metadata, business data, historical files, Production deployment or Production environment-variable change.
+
+## 2026-07-22 - End global attachment progress after Google Drive indexing
+
+- The shared attachment uploader now reports preparing, upload, index-saving, success and failure as separate terminal-safe states. Successful completion shows a short confirmation and closes automatically; every upload error clears the saving state after a short error notice.
+- Contract, rent-payment and expense attachment controls all use this shared flow. No migration, data, permissions, RLS, Google Drive folder behavior, historical attachment or Production change.
