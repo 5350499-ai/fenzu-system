@@ -1,3 +1,9 @@
+## 2026-07-22 - Fix attachment reload states in Preview
+
+- Attachment details now reload their indexed files from Supabase when opened and after a successful upload. The latest database result replaces the local optimistic result for the affected contract, payment, or expense.
+- Attachment loading distinguishes loading, confirmed empty, and read failure. A transient session, permission, or query failure no longer renders as an empty attachment list; the detail panel offers a read-only retry action instead.
+- Added request sequencing so a late response for a previously opened record cannot overwrite the currently opened record's attachment state. No database, RLS, environment-variable, Google Drive, real-data, or historical-attachment change.
+
 ## 2026-07-15 - Room amount display mapping
 
 - Fixed the room list to use the active tenant current monthly rent standard, falling back to the room standard only when no active tenant exists.

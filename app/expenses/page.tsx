@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
+import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
 import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -32,7 +33,7 @@ import {
 import { euro } from "@/lib/format";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
@@ -58,6 +59,8 @@ export default function ExpensesPage() {
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [files, setFiles] = useState<ExpenseFile[]>([]);
+  const [filesLoadState, setFilesLoadState] = useState<AttachmentLoadState>("loading");
+  const [filesLoadError, setFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessExpense>(emptyExpense);
   const [open, setOpen] = useState(false);
   const [propertyFilter, setPropertyFilter] = useState("");
@@ -69,6 +72,28 @@ export default function ExpensesPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
+  const filesRequestRef = useRef(0);
+
+  const refreshExpenseFiles = useCallback(async (expenseIds: string[]) => {
+    const ids = [...new Set(expenseIds.filter(Boolean))];
+    const requestId = ++filesRequestRef.current;
+    setFilesLoadState("loading");
+    setFilesLoadError("");
+    if (!ids.length) {
+      setFilesLoadState("success");
+      return;
+    }
+    try {
+      const refreshedFiles = await loadExpenseFiles(ids);
+      if (requestId !== filesRequestRef.current) return;
+      setFiles((current) => [...refreshedFiles, ...current.filter((file) => !ids.includes(file.expenseId))]);
+      setFilesLoadState("success");
+    } catch (error: any) {
+      if (requestId !== filesRequestRef.current) return;
+      setFilesLoadState("error");
+      setFilesLoadError(error?.message || "附件加载失败。");
+    }
+  }, []);
 
   useEffect(() => {
     const month = new URLSearchParams(window.location.search).get("month");
@@ -83,17 +108,16 @@ export default function ExpensesPage() {
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setExpenses(loadedExpenses);
-      try {
-        setFiles(await loadExpenseFiles(loadedExpenses.map((expense) => expense.id)));
-        setStorageWarning("");
-      } catch {
-        setFiles([]);
-        setStorageWarning("支出附件功能未初始化，请先执行 expense-files SQL。普通支出记录仍可保存。");
-      }
+      await refreshExpenseFiles(loadedExpenses.map((expense) => expense.id));
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !detailExpenseId) return;
+    void refreshExpenseFiles([detailExpenseId]);
+  }, [detailExpenseId, loaded, refreshExpenseFiles]);
 
   const filesByExpense = useMemo(() => files.reduce<Record<string, ExpenseFile[]>>((map, file) => {
     map[file.expenseId] = [...(map[file.expenseId] || []), file];
@@ -175,7 +199,7 @@ export default function ExpensesPage() {
     try {
       const uploaded = await uploadExpenseFile(expense.id, file);
       setFiles((current) => [uploaded, ...current]);
-      setStorageWarning("");
+      await refreshExpenseFiles([expense.id]);
     } catch (error: any) {
       throw new Error(error.message || "添加支出附件失败，请稍后重试。");
     } finally {
@@ -223,6 +247,9 @@ export default function ExpensesPage() {
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     files={filesByExpense[expense.id] || []}
+                    attachmentLoadState={filesLoadState}
+                    attachmentLoadError={filesLoadError}
+                    onRetryFiles={() => void refreshExpenseFiles([expense.id])}
                     onEdit={() => { setForm(expense); setOpen(true); }}
                     onVoid={() => voidExpense(expense)}
                     onDelete={() => permanentlyDelete(expense)}
@@ -276,6 +303,9 @@ function ExpenseDetail({
   propertyName,
   roomName,
   files,
+  attachmentLoadState,
+  attachmentLoadError,
+  onRetryFiles,
   onEdit,
   onVoid,
   onDelete,
@@ -294,6 +324,9 @@ function ExpenseDetail({
   propertyName: string;
   roomName: string;
   files: ExpenseFile[];
+  attachmentLoadState: AttachmentLoadState;
+  attachmentLoadError: string;
+  onRetryFiles: () => void;
   onEdit: () => void;
   onVoid: () => void;
   onDelete: () => void;
@@ -319,7 +352,7 @@ function ExpenseDetail({
       </div>
       {canViewFiles ? <div>
         <div className="detail-section-title">附件</div>
-        <ExpenseAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        <ExpenseAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
         {canUploadFiles ? <AttachmentAddControl label="支出附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
       <div className="top-actions detail-actions">
@@ -335,8 +368,10 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function ExpenseAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: ExpenseFile[]; onDelete: (file: ExpenseFile) => void; canDownload?: boolean; canDelete?: boolean }) {
-  if (!files.length) return <span className="muted">暂无附件</span>;
+function ExpenseAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ExpenseFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ExpenseFile) => void; canDownload?: boolean; canDelete?: boolean }) {
+  if (loadState !== "success" || !files.length) {
+    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无附件" hasFiles={files.length > 0} />;
+  }
   return (
     <div className="attachment-list">
       {files.map((file) => (
