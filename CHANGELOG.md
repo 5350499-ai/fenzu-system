@@ -323,3 +323,9 @@
 - 实收金额使用不换行、不省略的固定内容区域，房源和房间仍允许适度截断，避免金额被状态标签挤压成省略号。桌面端主行和展开详情保持原样。
 - 在 `CLAUDE.md` 增加固定发布规则：先构建、再 Preview、用户验收后才允许合并 main 和 Promote Production，并保留稳定回退点。
 - Files: `app/tenants/page.tsx`, `app/globals.css`, `CLAUDE.md`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.
+
+## 2026-07-22 - Widen tenant property label on mobile
+
+- 放宽租客列表房源短名称的显示上限，优先保留 `01B无电梯5楼18号` 等高识别度前缀，较长地址仍由末尾省略号兜底。
+- 调整手机端第一行列比例，缩窄姓名列并扩大房源列，同时保留房间名称和在租状态的完整显示空间；第二行实收金额、提醒、覆盖日期和押金状态不变。
+- Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.

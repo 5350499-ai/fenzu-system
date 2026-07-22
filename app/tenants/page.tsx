@@ -1109,7 +1109,7 @@ function daysBetween(startDate: string, endDate: string) {
 
 function compactPropertyName(name?: string) {
   const value = (name || "").replace(/\s+/g, "").trim();
-  return value ? value.slice(0, 7) + (value.length > 7 ? "..." : "") : "-";
+  return value ? value.slice(0, 12) + (value.length > 12 ? "..." : "") : "-";
 }
 
 function compactRoomName(room?: BusinessRoom) {
