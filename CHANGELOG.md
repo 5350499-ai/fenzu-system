@@ -398,3 +398,4 @@
 - Changed the active attachment upload transport from the Vercel byte relay to a browser `PUT` against the short-lived Google resumable upload session URL.
 - Kept server-side prepare permissions, complete verification, appProperties ownership marker, 4MB validation, private Drive access, failure cleanup and Supabase indexing unchanged.
 - The browser does not receive Google OAuth tokens; Production remains on the stable deployment and no migration, RLS, environment variable, business data or historical file was changed.
+- The former `/api/files/google-drive/upload` relay now returns 410 without reading bytes; the active client path is direct-only.
