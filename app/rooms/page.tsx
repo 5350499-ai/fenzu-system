@@ -27,7 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -190,7 +190,7 @@ export default function RoomsPage() {
             const expiry = displayStatus.includes("已租") || displayStatus.includes("即将退租") ? getRoomExpiryInfo(nearestContract?.endDate) : { label: "-", tone: "info" as const };
             const latestPayment = latestCoverageForRoom(room.id, payments);
             const currentMonthlyRent = currentTenants.length
-              ? currentTenants.reduce((total, tenant) => total + Number(tenant.monthlyRent || 0), 0)
+              ? currentTenants.reduce((total, tenant) => total + currentRentForTenant(tenant, payments), 0)
               : room.monthlyRent;
             const currentDepositAmount = currentTenants.reduce((total, tenant) => total + currentDepositForTenant(tenant, deposits), 0);
             const unpaid = displayStatus === "已租" ? roomUnpaidAmount(currentTenants, payments) : 0;
@@ -340,11 +340,12 @@ function RoomDetail({
         <div className="detail-section-title">当前在租租客（{currentTenants.length}人）</div>
         {currentTenants.map((tenant) => {
           const payment = latestCoverageForTenant(tenant.id, allPayments);
+          const currentRent = currentRentForTenant(tenant, allPayments);
           const contract = latestActiveContractForTenant(tenant.id, contracts);
           return (
             <Link className="room-current-tenant" href={`/tenants?tenantId=${tenant.id}`} key={tenant.id}>
               <strong>{tenant.name}</strong>
-              <span>月租 {euro(tenant.monthlyRent)}</span>
+              <span>当前有效房租 {euro(currentRent)}</span>
               <span>押金 {euro(currentDepositForTenant(tenant, allDeposits))}</span>
               <span>入住 {contract?.startDate || "-"}</span>
               <span>覆盖至 {coverageLabel(payment)}</span>
@@ -419,6 +420,10 @@ function roomUnpaidAmount(tenants: BusinessTenant[], payments: BusinessRentPayme
 function currentDepositForTenant(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
   const active = deposits.filter((deposit) => deposit.tenantId === tenant.id && isActiveDeposit(deposit));
   return active.length ? active.reduce((total, deposit) => total + Number(deposit.amount || 0), 0) : Number(tenant.depositAmount || 0);
+}
+
+function currentRentForTenant(tenant: BusinessTenant, payments: BusinessRentPayment[]) {
+  return Number(latestValidRentPaymentForTenant(tenant.id, payments)?.amountDue || 0);
 }
 
 function isActiveDeposit(deposit: BusinessDeposit) {

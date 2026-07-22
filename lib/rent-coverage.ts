@@ -39,6 +39,20 @@ export function repairMissingTenantMonthlyRents(tenants: BusinessTenant[], payme
   return changed ? repaired : tenants;
 }
 
+export function latestValidRentPaymentForTenant(tenantId: string, payments: BusinessRentPayment[]) {
+  return [...payments]
+    .filter((payment) => payment.tenantId === tenantId
+      && isRentIncome(payment)
+      && !isVoided(payment.notes)
+      && !payment.paymentStatus?.includes("已作废")
+      && !payment.paymentStatus?.includes("已归档"))
+    .sort((left, right) => {
+      const leftDate = left.paymentDate || left.coverageStartDate || left.rentMonth || "";
+      const rightDate = right.paymentDate || right.coverageStartDate || right.rentMonth || "";
+      return rightDate.localeCompare(leftDate);
+    })[0] || null;
+}
+
 export function latestCoverageForRoom(roomId: string, payments: BusinessRentPayment[]) {
   return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId));
 }

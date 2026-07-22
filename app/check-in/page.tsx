@@ -41,7 +41,6 @@ function createInitialForm() {
     phone: "",
     documentNumber: "",
     contractEndDate: "",
-    monthlyRent: 0,
     amountPaid: 0,
     paymentDate: today,
     coverageStartDate: today,
@@ -132,7 +131,6 @@ export default function CheckInPage() {
           tenantName: form.tenantName,
           phone: form.phone,
           documentNumber: form.documentNumber,
-          monthlyRent: form.monthlyRent,
           rentAmount: form.amountPaid,
           depositAmount: form.depositAmount,
           paymentDay: form.paymentDay ?? 20,
@@ -159,7 +157,7 @@ export default function CheckInPage() {
       const tenantId = result.tenantId;
       const contractId = result.contractId;
       const paymentId = result.rentPaymentId;
-      const effectiveMonthlyRent = Number(result.monthlyRent || form.amountPaid || 0);
+      const effectiveMonthlyRent = Number(result.monthlyRent ?? form.amountPaid ?? 0);
       const nextTenant: BusinessTenant = {
         id: tenantId,
         propertyId: form.propertyId,
@@ -179,9 +177,7 @@ export default function CheckInPage() {
         if (room.id !== form.roomId) return room;
         return {
           ...room,
-          status: "已租",
-          monthlyRent: effectiveMonthlyRent,
-          depositAmount: form.depositAmount || room.depositAmount
+          status: "已租"
         };
       });
       const nextContract: BusinessContract = {
@@ -279,14 +275,10 @@ export default function CheckInPage() {
       <section className="card panel">
         <form className="form-grid" onSubmit={submit}>
           <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
-          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => {
-            const room = rooms.find((item) => item.id === roomId);
-            setForm((current) => ({ ...current, roomId, monthlyRent: room?.monthlyRent || current.monthlyRent, depositAmount: room?.depositAmount || current.depositAmount }));
-          }} />
+          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
-          <div className="field"><label>房间月租（只读）</label><input readOnly value={`€${Number(form.monthlyRent || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
           <MoneyInput label="本次房租金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
           <MoneyInput label="押金金额" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>

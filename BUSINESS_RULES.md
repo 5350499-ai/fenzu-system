@@ -1,5 +1,12 @@
 # BUSINESS_RULES.md
 
+## 2026-07-22 - One-click Check-in and Room Current Rent
+
+- Selecting a room in one-click check-in only sets the property and room identifiers. It must not prefill the tenant rent, payment rent, or deposit values from room defaults.
+- One-click check-in rent, deposit, and total received are based only on values explicitly entered by the user; total received is rent plus collected deposit.
+- For occupied rooms, the current rent aggregate and each tenant's displayed current rent use that tenant's latest valid, non-void rent payment `amount_due`. Room defaults and `tenants.monthly_rent` do not create rent income. If no valid rent payment exists, the contribution is zero.
+- Current deposits remain a separate per-tenant aggregate and do not alter historical payment records.
+
 本文件记录本项目的永久业务规则。以后每确定一条新的业务规则，都应追加到这里。
 
 ## 1. 房源与房间

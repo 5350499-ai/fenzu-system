@@ -16,7 +16,6 @@ type CheckInBody = {
   tenantName?: string;
   phone?: string;
   documentNumber?: string;
-  monthlyRent?: number;
   rentAmount?: number;
   depositAmount?: number;
   paymentDay?: number;
@@ -44,7 +43,6 @@ export async function POST(request: Request) {
     const body = await parseJson(request) as CheckInBody;
     const rentAmount = Number(body.rentAmount ?? 0);
     const depositAmount = Number(body.depositAmount ?? 0);
-    const monthlyRent = Number(body.monthlyRent ?? 0);
     const paymentDay = Number(body.paymentDay ?? 20);
 
     if (!body.clientRequestId || !uuidPattern.test(body.clientRequestId)
@@ -58,7 +56,6 @@ export async function POST(request: Request) {
       || body.coverageEndDate! < body.coverageStartDate!
       || !Number.isFinite(rentAmount) || rentAmount < 0
       || !Number.isFinite(depositAmount) || depositAmount < 0
-      || !Number.isFinite(monthlyRent) || monthlyRent < 0
       || !Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31) {
       throw new AccountApiError("请检查入住资料。", 400);
     }
@@ -78,7 +75,9 @@ export async function POST(request: Request) {
       p_tenant_name: body.tenantName.trim(),
       p_phone: body.phone?.trim() || null,
       p_document_number: body.documentNumber?.trim() || null,
-      p_monthly_rent: monthlyRent,
+      // A room selection never supplies a rent value. The only rent input is
+      // the amount the user entered for this check-in.
+      p_monthly_rent: rentAmount,
       p_rent_amount: rentAmount,
       p_deposit_amount: depositAmount,
       p_payment_day: paymentDay,
