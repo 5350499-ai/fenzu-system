@@ -4,21 +4,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { clearAccountAccessSnapshot } from "@/components/account-access";
+import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 
 export default function LoginPage() {
   const router = useRouter();
+  const access = useAccountAccess();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/");
-    });
-  }, [router]);
+    if (access.authenticated && access.isServerVerified) router.replace("/");
+  }, [access.authenticated, access.isServerVerified, router]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,8 +48,12 @@ export default function LoginPage() {
         setError("登录会话创建失败，请重试。");
         return;
       }
+      const verified = await access.refresh();
+      if (!verified.authenticated || !verified.isServerVerified) {
+        setError(verified.invalidReason || "登录状态验证失败，请重新登录。");
+        return;
+      }
       router.replace("/");
-      router.refresh();
     } catch {
       setError("登录服务暂时不可用，请稍后重试。");
     } finally {

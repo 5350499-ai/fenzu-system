@@ -20,7 +20,7 @@ import {
   Users,
   WalletCards
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, rememberAccountAccessPath, useAccountAccess } from "@/components/account-access";
 import { AccountCenter } from "@/components/account-center";
@@ -69,19 +69,20 @@ export function AppLayout({ children, title, description }: { children: React.Re
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState("light");
+  const permissionRedirectRef = useRef("");
   const access = useAccountAccess();
   const routeModule = moduleForPath(pathname);
-  const canOpenModule = (moduleKey: AccountModuleKey) => {
+  const canOpenModule = useCallback((moduleKey: AccountModuleKey) => {
     if (!access.can(moduleKey)) return false;
     if (moduleKey === "profits") return access.canSensitive("canViewProfits");
     if (moduleKey === "partnership_settlement") return access.canSensitive("canViewPartnershipSettlement");
     if (moduleKey === "audit_logs") return access.canSensitive("canViewAuditLogs");
     if (moduleKey === "accounts") return access.isOwner;
     return true;
-  };
-  const availablePaths = navGroups.flatMap((group) => group.items)
+  }, [access]);
+  const availablePaths = useMemo(() => navGroups.flatMap((group) => group.items)
     .filter((item) => canOpenModule(item.module as AccountModuleKey))
-    .map((item) => item.href);
+    .map((item) => item.href), [canOpenModule]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme") || "light";
@@ -90,17 +91,25 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }, []);
 
   useEffect(() => {
-    if (access.ready && !access.authenticated && !access.invalidReason) router.replace("/login");
-  }, [access.authenticated, access.invalidReason, access.ready, router]);
+    const terminalState = ["unauthenticated", "session_revoked", "account_disabled"].includes(access.authState);
+    if (access.ready && !access.authenticated && terminalState) router.replace("/login");
+  }, [access.authState, access.authenticated, access.ready, router]);
 
   useEffect(() => {
     if (access.authenticated && access.isServerVerified && (!routeModule || canOpenModule(routeModule))) rememberAccountAccessPath(pathname);
-  }, [access.authenticated, access.isServerVerified, pathname, routeModule]);
+  }, [access.authenticated, access.isServerVerified, canOpenModule, pathname, routeModule]);
 
   useEffect(() => {
-    if (!access.isServerVerified || !routeModule || canOpenModule(routeModule)) return;
-    router.replace(availablePaths[0] || "/more");
-  }, [access.isServerVerified, pathname, routeModule, router]);
+    if (!access.isServerVerified || !routeModule || canOpenModule(routeModule)) {
+      permissionRedirectRef.current = "";
+      return;
+    }
+    const fallbackPath = availablePaths[0] || "/more";
+    const redirectKey = `${pathname}->${fallbackPath}`;
+    if (pathname === fallbackPath || permissionRedirectRef.current === redirectKey) return;
+    permissionRedirectRef.current = redirectKey;
+    router.replace(fallbackPath);
+  }, [access.isServerVerified, availablePaths, canOpenModule, pathname, routeModule, router]);
 
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
@@ -122,7 +131,8 @@ export function AppLayout({ children, title, description }: { children: React.Re
     router.replace("/login");
   }
 
-  if (!access.ready) {
+  const isAuthTransition = !access.authenticated && ["initializing", "restoring_snapshot", "refreshing"].includes(access.authState);
+  if (!access.ready || isAuthTransition) {
     return (
       <main className="login-page">
         <section className="card login-card">

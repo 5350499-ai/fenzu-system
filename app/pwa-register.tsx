@@ -5,9 +5,12 @@ import { useEffect } from "react";
 export function PwaRegister() {
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        // PWA should never block the app if registration fails.
-      });
+      navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => {
+          // PWA should never block the app if registration or refresh fails.
+        });
     }
   }, []);
 

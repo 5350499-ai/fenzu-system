@@ -294,3 +294,12 @@
 - Added a safe unauthorized-route fallback to the first authorized module and a root client error boundary with reload and logout actions. The boundary logs only a redacted error summary server-side through `/api/client-errors`.
 - Files: `components/account-access.tsx`, `components/app-layout.tsx`, `app/api/accounts/me/route.ts`, `app/global-error.tsx`, `app/api/client-errors/route.ts`, `ARCHITECTURE.md`, `CHANGELOG.md`.
 - Database, RLS, permission matrix, property grants, user accounts, passwords, and all business data were not changed. `npm run build` passed.
+
+## 2026-07-22 - Stabilize Safari login handoff in Preview
+
+- Fixed a verified authentication handoff race in the latest code: the login page previously installed the Supabase Session and immediately navigated while the root provider was still refreshing. `AppLayout` could observe the previous `ready=true/authenticated=false` state and redirect back to `/login`, producing repeated route flashes and an unstable Safari render cycle.
+- The login page now waits for the root provider's server-verified account result and performs one navigation. Initial Session recovery, `SIGNED_IN`, and `TOKEN_REFRESHED` now share one in-flight refresh and one state commit; transitional restore/refresh states never redirect to login.
+- Hardened per-account snapshot parsing, permission-path fallback, and the global error boundary against malformed or non-standard values. Added a root client error reporter that records only redacted error summaries for future iPhone evidence.
+- Restricted the Service Worker to manifest and icon assets, stopped caching Next.js chunks/RSC/API responses, and disabled the browser HTTP cache when checking `sw.js` updates.
+- Files: `components/account-access.tsx`, `components/app-layout.tsx`, `components/client-error-reporter.tsx`, `app/login/page.tsx`, `app/layout.tsx`, `app/global-error.tsx`, `app/api/client-errors/route.ts`, `app/pwa-register.tsx`, `public/sw.js`, `ARCHITECTURE.md`, `CHANGELOG.md`.
+- Database, RLS, permissions, accounts, passwords, and business data were not changed. This fix is deployed to Preview only; the Production alias remains on the previously rolled-back stable deployment pending explicit device approval.

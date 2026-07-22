@@ -30,7 +30,7 @@ type AccountAccessValue = AccountAccessState & {
   can: (moduleKey: AccountModuleKey, action?: PermissionAction) => boolean;
   canSensitive: (key: SensitivePermissionKey) => boolean;
   canAccessProperty: (propertyId?: string | null) => boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<AccountAccessState>;
 };
 
 type AccountApiPayload = {
@@ -146,8 +146,8 @@ function readAccessSnapshot(): AccountAccessSnapshot | null {
   try {
     const accountId = safeText(window.localStorage.getItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY));
     if (!accountId) return null;
-    const parsed = JSON.parse(window.localStorage.getItem(snapshotKey(accountId)) || "null") as Partial<AccountAccessSnapshot> | null;
-    if (!parsed || parsed.cacheVersion !== 2 || parsed.accountId !== accountId || parsed.accountStatus !== "active" || !parsed.workspaceOwnerId) return null;
+    const parsed = JSON.parse(window.localStorage.getItem(snapshotKey(accountId)) || "null") as unknown;
+    if (!isRecord(parsed) || parsed.cacheVersion !== 2 || parsed.accountId !== accountId || parsed.accountStatus !== "active" || !parsed.workspaceOwnerId) return null;
     return {
       cacheVersion: 2,
       accountId,
@@ -251,7 +251,7 @@ const defaultValue: AccountAccessValue = {
   can: () => false,
   canSensitive: () => false,
   canAccessProperty: () => false,
-  refresh: async () => undefined
+  refresh: async () => ({ ...emptyState(), ready: true, authState: "unauthenticated" })
 };
 
 let latestAccessState: AccountAccessState | null = null;
@@ -367,6 +367,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const authEventTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastResumeCheckRef = useRef(0);
+  const refreshRunRef = useRef<Promise<AccountAccessState> | null>(null);
 
   const commitState = useCallback((next: AccountAccessState) => {
     stateRef.current = next;
@@ -383,46 +384,58 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     commitState(restored);
   }, [commitState]);
 
-  const refresh = useCallback(async (silent = false) => {
-    const shouldKeepScreen = silent && bootstrappedRef.current;
-    if (shouldKeepScreen) {
-      commitState({
-        ...stateRef.current,
-        isRefreshing: true,
-        authState: stateRef.current.isServerVerified ? "refreshing" : "restoring_snapshot"
-      });
-    } else {
-      commitState({ ...stateRef.current, ready: false, isRefreshing: false, invalidReason: "" });
-    }
+  const refresh = useCallback((silent = false): Promise<AccountAccessState> => {
+    if (refreshRunRef.current) return refreshRunRef.current;
 
-    try {
-      const next = await loadAccessState();
-      bootstrappedRef.current = true;
-      const current = stateRef.current;
-      if (shouldKeepScreen && current.authenticated && next.authState === "network_error") {
-        const preserved = {
-          ...current,
-          isRefreshing: false,
-          authState: "network_error" as const,
-          invalidReason: next.invalidReason || "网络连接异常，请稍后重试。"
-        };
-        latestAccessState = preserved;
-        commitState(preserved);
-        return;
+    const run = (async () => {
+      const shouldKeepScreen = silent && bootstrappedRef.current;
+      if (shouldKeepScreen) {
+        commitState({
+          ...stateRef.current,
+          isRefreshing: true,
+          authState: stateRef.current.isServerVerified ? "refreshing" : "restoring_snapshot"
+        });
+      } else {
+        commitState({ ...stateRef.current, ready: false, isRefreshing: false, invalidReason: "" });
       }
-      latestAccessState = next;
-      if (next.authenticated && next.isServerVerified) persistAccessSnapshot(next);
-      else if (["unauthenticated", "session_revoked", "account_disabled"].includes(next.authState)) clearAccountAccessSnapshot();
-      commitState(next);
-    } catch {
-      // A transient background failure must not blank an already authorized page.
-      const current = stateRef.current;
-      const next = shouldKeepScreen && current.authenticated
-        ? { ...current, isRefreshing: false, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" }
-        : { ...emptyState(), ready: true, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" };
-      latestAccessState = next;
-      commitState(next);
-    }
+
+      try {
+        const next = await loadAccessState();
+        bootstrappedRef.current = true;
+        const current = stateRef.current;
+        if (shouldKeepScreen && current.authenticated && next.authState === "network_error") {
+          const preserved = {
+            ...current,
+            isRefreshing: false,
+            authState: "network_error" as const,
+            invalidReason: next.invalidReason || "网络连接异常，请稍后重试。"
+          };
+          latestAccessState = preserved;
+          commitState(preserved);
+          return preserved;
+        }
+        latestAccessState = next;
+        if (next.authenticated && next.isServerVerified) persistAccessSnapshot(next);
+        else if (["unauthenticated", "session_revoked", "account_disabled"].includes(next.authState)) clearAccountAccessSnapshot();
+        commitState(next);
+        return next;
+      } catch {
+        // A transient background failure must not blank an already authorized page.
+        const current = stateRef.current;
+        const next = shouldKeepScreen && current.authenticated
+          ? { ...current, isRefreshing: false, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" }
+          : { ...emptyState(), ready: true, authState: "network_error" as const, invalidReason: "网络连接异常，请稍后重试。" };
+        latestAccessState = next;
+        commitState(next);
+        return next;
+      }
+    })();
+
+    const tracked = run.finally(() => {
+      if (refreshRunRef.current === tracked) refreshRunRef.current = null;
+    });
+    refreshRunRef.current = tracked;
+    return tracked;
   }, [commitState]);
 
   useEffect(() => {

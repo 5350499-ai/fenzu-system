@@ -2,24 +2,36 @@
 
 import { useEffect } from "react";
 
-function safeErrorSummary(error: Error) {
-  return error.message
+function safeErrorText(value: unknown, fallback = "未知客户端异常") {
+  const text = typeof value === "string" ? value : fallback;
+  return text
     .replace(/(bearer|token|password|cookie)\s*[:=]\s*[^\s,]+/gi, "$1=[redacted]")
     .slice(0, 300);
 }
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    void fetch("/api/client-errors", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope: "global_error_boundary", message: safeErrorSummary(error), digest: error.digest || "" }),
-      keepalive: true
-    }).catch(() => undefined);
+    try {
+      void fetch("/api/client-errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: "global_error_boundary",
+          name: safeErrorText(error?.name, "Error"),
+          message: safeErrorText(error?.message),
+          stack: safeErrorText(error?.stack, "").slice(0, 1200),
+          digest: safeErrorText(error?.digest, "")
+        })
+      }).catch(() => undefined);
+    } catch {
+      // Reporting must never throw while rendering the recovery UI.
+    }
   }, [error]);
 
   function logout() {
     try {
+      const accountId = localStorage.getItem("fenzu.account-access.active-account.v2") || "";
+      if (accountId) localStorage.removeItem(`fenzu.account-access.v2.${accountId}`);
       localStorage.removeItem("fenzu.account-access.active-account.v2");
       localStorage.removeItem("fenzu.account-access.v1");
     } catch {

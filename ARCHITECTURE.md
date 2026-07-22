@@ -226,6 +226,10 @@
 - `AppLayout` 在快照恢复期立即显示标题、导航和局部同步骨架，但不挂载业务页面；因此缓存不能触发读取敏感字段或任何写操作。真实 Session、应用会话、账号状态和权限在后台通过原有 `/api/accounts/me` 与必要时的 `/api/auth/restore-session` 校验。
 - 主动退出、修改密码后的退出、明确 `SIGNED_OUT`、停用、撤销或确认无 Session 会清除快照。临时网络失败保留外壳和最近已验证快照，`online`、`pageshow`、`visibilitychange` 继续使用同一个去重请求静默重试。
 - `app/global-error.tsx` 捕获未处理的客户端渲染异常，提供重新加载和退出重登入口，并只向 `POST /api/client-errors` 发送过滤后的错误摘要写入服务端运行日志；不返回堆栈、Token 或数据库错误给浏览器。
+- 登录成功后的认证交接只由根级 `AccountAccessProvider` 完成。登录页写入 Supabase Session 后等待同一个去重的账号校验 Promise，校验成功后只执行一次路由跳转；`AppLayout` 不会在 `restoring_snapshot` 或 `refreshing` 期间反向跳回登录页。
+- Provider 会合并首次恢复、`INITIAL_SESSION`、`SIGNED_IN` 与 `TOKEN_REFRESHED` 触发的并发校验，避免同一 Session 被多次提交状态。无权限路径回退使用稳定的授权路径列表和一次性重定向标记，防止 owner/custom 登录切换时形成路由循环。
+- `components/client-error-reporter.tsx` 在根布局监听未捕获异常与 Promise rejection，只上报经过长度限制和脱敏的名称、消息、堆栈摘要、路径与浏览器标识；`global-error.tsx` 对非标准错误对象也使用安全默认值，错误恢复页本身不会再次抛错。
+- PWA Service Worker 只缓存 manifest 与图标等明确的静态外壳资源，不再拦截 Next.js JavaScript chunk、RSC、API 或普通页面请求；注册时使用 `updateViaCache: none` 主动检查新版本，降低部署后 HTML 与旧 chunk 混用风险。
 
 ### 业务写入与租客列权限兼容（2026-07-18）
 

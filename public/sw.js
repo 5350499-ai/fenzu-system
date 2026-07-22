@@ -1,5 +1,6 @@
-const CACHE_NAME = "sublet-manager-v3";
+const CACHE_NAME = "sublet-manager-v4";
 const STATIC_ASSETS = ["/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-1024.png", "/icons/apple-touch-icon.png"];
+const STATIC_PATHS = new Set(STATIC_ASSETS);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -18,15 +19,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  if (event.request.mode === "navigate") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || !STATIC_PATHS.has(url.pathname)) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });

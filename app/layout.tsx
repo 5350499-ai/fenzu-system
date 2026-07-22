@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PwaRegister } from "./pwa-register";
 import { AccountAccessProvider } from "@/components/account-access";
+import { ClientErrorReporter } from "@/components/client-error-reporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <PwaRegister />
+        <ClientErrorReporter />
         <AccountAccessProvider>{children}</AccountAccessProvider>
       </body>
     </html>
