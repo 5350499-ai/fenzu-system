@@ -362,3 +362,9 @@
 - A new saved record must be opened in its detail view before adding attachments. Editing contract, payment or expense fields no longer uploads, replaces or deletes attachments. One-click check-in continues to allow one optional initial contract/receipt attachment for its newly created records, with the same 4MB Google Drive limit; further files are added from the corresponding detail view.
 - Files: `components/attachment-add-control.tsx`, `app/tenants/page.tsx`, `app/rent-payments/page.tsx`, `app/expenses/page.tsx`, `app/check-in/page.tsx`, `BUSINESS_RULES.md`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration was executed and no real data or historical file was changed.
 - The existing signed-URL route now falls back to the legacy metadata query when the additive provider columns have not yet been migrated, so historical Supabase attachments remain readable before and after the migration. New Google attachment indexing still correctly requires the migration.
+
+## 2026-07-22 - Prepare Google Drive Preview authorization
+
+- Applied the already-reviewed additive attachment-provider migration to the connected Supabase project. It adds only the provider metadata required by the existing Google Drive feature; no RLS policies, historical attachment rows, Storage objects, or business records were changed.
+- Added a local-only OAuth helper for Preview setup. It requests the minimal `drive.file` scope, saves a returned refresh token only to a Git-ignored local file, and never prints or commits the authorization code, access token, refresh token, or client secret.
+- Files: `.gitignore`, `scripts/google-drive-preview-authorize.mjs`, `CHANGELOG.md`. Production deployment and Production environment variables remain unchanged.
