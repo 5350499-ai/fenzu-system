@@ -387,3 +387,8 @@
 
 - The shared attachment uploader now reports preparing, upload, index-saving, success and failure as separate terminal-safe states. Successful completion shows a short confirmation and closes automatically; every upload error clears the saving state after a short error notice.
 - Contract, rent-payment and expense attachment controls all use this shared flow. No migration, data, permissions, RLS, Google Drive folder behavior, historical attachment or Production change.
+## 2026-07-22
+
+- 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
+- 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
+- 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。

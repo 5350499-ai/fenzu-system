@@ -272,3 +272,6 @@
 
 - Google Drive resumable sessions are still created and finalized server-side. To avoid browser cross-origin failures while retaining the Vercel response safety budget, the already enforced 4MB maximum is relayed through a same-origin, permission-checked upload route. That route accepts only a validated Google resumable session URL, re-checks the normal application permissions and owner record, and never returns Google credentials to the browser.
 - After a bounded relay upload returns a Google file ID, the server stamps the application-private upload marker before completion. Completion verifies that marker and the expected per-record folder before it can create a Supabase attachment index.
+## 附件原文件与多选上传（2026-07-22）
+
+共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。本次移除浏览器端图片压缩，保留原始 MIME、文件名和字节内容。

@@ -69,15 +69,14 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置，不能上传附件。");
     if (!ownerId) throw new Error("请先保存记录，再上传附件。");
     if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
-    if (sourceFile.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`单个附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。图片压缩后也必须不超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
+    if (sourceFile.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`单个附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}，请选择更小的文件后重试。`);
 
     const session = await getValidSupabaseSession();
     if (!session) throw new Error("请先登录后再上传附件。");
     const account = await loadFileAccount(session.access_token);
     if (!account.canCreateAttachments || !account.canUploadFiles) throw new Error("当前账号没有上传附件权限。");
 
-    const file = sourceFile.type.startsWith("image/") ? await compressImage(sourceFile) : sourceFile;
-    if (file.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`压缩后文件仍超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}，请选择更小的文件。`);
+    const file = sourceFile;
 
     const fileName = redactSensitiveFileName(sourceFile.name);
     const payload = await postGoogleDrive("/api/files/google-drive/prepare", session.access_token, {
@@ -288,33 +287,12 @@ function viewPermissionFor(config: FileConfig) {
   return config.bucket === "contract-files" ? "canViewContractFiles" : config.bucket === "expense-files" ? "canViewExpenseFiles" : "canViewRentFiles";
 }
 
-async function compressImage(file: File): Promise<File> {
-  if (typeof window === "undefined") return file;
-  if (file.size <= 1024 * 1024) return file;
-  const bitmap = await createImageBitmap(file);
-  const maxSide = 1600;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.78));
-  if (!blob || blob.size >= file.size) return file;
-  return new File([blob], replaceImageExtension(file.name), { type: "image/jpeg", lastModified: Date.now() });
-}
-
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-\u4e00-\u9fa5]+/g, "_").slice(0, 120) || "attachment";
 }
 
 function redactSensitiveFileName(name: string) {
   return sanitizeFileName(name).replace(/\d{6,}/g, "已隐藏号码");
-}
-
-function replaceImageExtension(name: string) {
-  return name.replace(/\.(png|jpg|jpeg)$/i, ".jpg") || "attachment.jpg";
 }
 
 function toFileError(message: string, config: FileConfig) {
