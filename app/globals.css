@@ -16,6 +16,20 @@
   --shadow-hover: 0 22px 54px rgba(15, 23, 42, 0.12);
 }
 
+.attachment-upload-progress {
+  position: fixed;
+  z-index: 80;
+  right: 16px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel, #ffffff);
+  color: var(--text, #111827);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  font-size: 14px;
+}
+
 [data-theme="dark"] {
   --bg: #0f172a;
   --surface: #111827;

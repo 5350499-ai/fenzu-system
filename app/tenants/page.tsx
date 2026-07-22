@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
+import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -38,7 +39,7 @@ import {
   uploadContractFile
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
-import { deleteRentPaymentFile, loadRentPaymentFiles, uploadRentPaymentFile } from "@/lib/rent-payment-files";
+import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
@@ -46,7 +47,6 @@ import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-r
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
-const maxAttachmentSize = 5 * 1024 * 1024;
 type TenantSortKey = "priority" | "expiry" | "rent" | "property" | "status";
 
 const emptyTenant: BusinessTenant = {
@@ -98,9 +98,6 @@ export default function TenantsPage() {
   const [form, setForm] = useState<BusinessTenant>(emptyTenant);
   const [contractForm, setContractForm] = useState({ startDate: today(), endDate: "" });
   const [paymentForm, setPaymentForm] = useState<BusinessRentPayment>(emptyTenantPayment);
-  const [pendingContractFile, setPendingContractFile] = useState<File | null>(null);
-  const [pendingPaymentFile, setPendingPaymentFile] = useState<File | null>(null);
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [propertyFilterId, setPropertyFilterId] = useState("");
@@ -244,9 +241,6 @@ export default function TenantsPage() {
     setPaymentForm(emptyTenantPayment);
     setOwnershipMode("A");
     setCustomReceivedBy("");
-    setPendingContractFile(null);
-    setPendingPaymentFile(null);
-    setAttachmentsOpen(false);
   }
 
   function openTenantForm(tenant?: BusinessTenant) {
@@ -256,9 +250,6 @@ export default function TenantsPage() {
       setPaymentForm(emptyTenantPayment);
       setOwnershipMode("A");
       setCustomReceivedBy("");
-      setPendingContractFile(null);
-      setPendingPaymentFile(null);
-      setAttachmentsOpen(false);
       setOpen(true);
       return;
     }
@@ -278,9 +269,6 @@ export default function TenantsPage() {
     });
     setOwnershipMode(mode);
     setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latestPayment?.receivedBy) : "");
-    setPendingContractFile(null);
-    setPendingPaymentFile(null);
-    setAttachmentsOpen(false);
     setOpen(true);
   }
 
@@ -344,12 +332,6 @@ export default function TenantsPage() {
         setTenants(loadedTenants);
         setRooms(loadedRooms);
 
-        const currentContract = latestContractForTenant(form.id, contracts);
-        if (pendingContractFile && currentContract) {
-          const uploaded = await uploadContractFile(currentContract.id, pendingContractFile);
-          setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== currentContract.id)]);
-        }
-        if (pendingPaymentFile && paymentForm.id) await uploadRentPaymentFile(paymentForm.id, pendingPaymentFile);
         close();
         return;
       }
@@ -393,11 +375,6 @@ export default function TenantsPage() {
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
       await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, payments: nextPayments });
-      if (pendingContractFile) {
-        const uploaded = await uploadContractFile(nextContract.id, pendingContractFile);
-        setContractFiles((current) => [uploaded, ...current.filter((file) => file.contractId !== nextContract.id)]);
-      }
-      if (pendingPaymentFile) await uploadRentPaymentFile(nextPayment.id, pendingPaymentFile);
     } catch (error: any) {
       window.alert(error.message || "保存租客、收款或附件失败，请稍后重试。");
       return;
@@ -486,35 +463,20 @@ export default function TenantsPage() {
     }
   }
 
-  async function replaceTenantContractFile(tenant: BusinessTenant, file?: File) {
-    if (!file) return;
+  async function addTenantContractFile(tenant: BusinessTenant, file: File) {
     const contract = latestContractForTenant(tenant.id, contracts);
     if (!contract) {
-      window.alert("该租客还没有合同记录，请先通过一键入住创建合同后再上传合同附件。");
-      return;
+      throw new Error("该租客还没有合同记录，请先保存租客和合同后再上传合同附件。");
     }
-    if (!validateContractFile(file)) return;
     setSaving(true);
     try {
-      const existing = filesByContract[contract.id] || [];
-      for (const item of existing) await deleteContractFile(item);
       const uploaded = await uploadContractFile(contract.id, file);
-      setContractFiles((current) => [uploaded, ...current.filter((item) => item.contractId !== contract.id)]);
+      setContractFiles((current) => [uploaded, ...current]);
     } catch (error: any) {
-      window.alert(error.message || "替换合同附件失败，请稍后重试。");
+      throw new Error(error.message || "添加合同附件失败，请稍后重试。");
     } finally {
       setSaving(false);
     }
-  }
-
-  function chooseContractFile(file?: File) {
-    if (!file || !validateContractFile(file)) return;
-    setPendingContractFile(file);
-  }
-
-  function choosePaymentFile(file?: File) {
-    if (!file || !validateContractFile(file)) return;
-    setPendingPaymentFile(file);
   }
 
   function updatePaymentMoney(patch: Partial<BusinessRentPayment>) {
@@ -652,7 +614,7 @@ export default function TenantsPage() {
                     canCollectRent={access.can("rent_payments", "create")}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewContractFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
-                    canReplaceFiles={access.can("attachments", "edit") && access.canSensitive("canReplaceFiles")}
+                    canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                     onDeleteFile={removeContractFile}
                     onArchive={() => archiveTenant(tenant)}
@@ -661,7 +623,7 @@ export default function TenantsPage() {
                       openTenantForm(tenant);
                     }}
                     onMoveOut={() => moveOut(tenant)}
-                    onReplaceFile={(file) => replaceTenantContractFile(tenant, file)}
+                    onAddFile={(file) => addTenantContractFile(tenant, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
@@ -733,40 +695,7 @@ export default function TenantsPage() {
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
               </div>
-              {access.can("attachments", form.id ? "edit" : "create") && access.canSensitive(form.id ? "canReplaceFiles" : "canUploadFiles") ? <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
-                <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
-                  <span><FileUp size={16} /> 附件管理</span>
-                  <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
-                </button>
-                {attachmentsOpen ? (
-                  <div className="attachment-sections">
-                    <div className="attachment-subsection">
-                      <label>合同附件 PDF/JPG/PNG</label>
-                      <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseContractFile(event.target.files?.[0])} />
-                      {pendingContractFile ? (
-                        <div className="attachment-preview">
-                          <FileUp size={16} />
-                          <span>{pendingContractFile.name} ｜ {formatFileSize(pendingContractFile.size)}</span>
-                          <button className="btn danger" type="button" onClick={() => setPendingContractFile(null)}>移除</button>
-                        </div>
-                      ) : <p className="muted">保存后可在租客展开详情里查看、下载、替换或删除合同。</p>}
-                    </div>
-                    <div className="attachment-subsection">
-                      <label>收款附件 PDF/JPG/PNG</label>
-                      <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
-                      {pendingPaymentFile ? (
-                        <div className="attachment-preview">
-                          <FileUp size={16} />
-                          <span>{pendingPaymentFile.name} ｜ {formatFileSize(pendingPaymentFile.size)}</span>
-                          <button className="btn danger" type="button" onClick={() => setPendingPaymentFile(null)}>移除</button>
-                        </div>
-                      ) : <p className="muted">这笔收款凭证会绑定到租客的收款记录。</p>}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>
-                )}
-              </div> : null}
+              <p className="muted" style={{ gridColumn: "1 / -1" }}>请先保存租客和合同字段；保存后在租客详情中可逐个添加合同附件。收款附件请在对应收款记录详情中添加。</p>
               <div className="modal-actions">
                 <button className="btn" onClick={close} type="button">取消</button>
                 <button className="btn primary" disabled={saving} type="submit">保存</button>
@@ -795,7 +724,7 @@ function TenantDetail({
   canCollectRent,
   canViewFiles,
   canDownloadFiles,
-  canReplaceFiles,
+  canUploadFiles,
   canDeleteFiles,
   onArchive,
   saving,
@@ -803,7 +732,7 @@ function TenantDetail({
   onEdit,
   onMoveOut,
   onPermanentDelete,
-  onReplaceFile,
+  onAddFile,
   onRestore
 }: {
   tenant: BusinessTenant;
@@ -821,7 +750,7 @@ function TenantDetail({
   canCollectRent: boolean;
   canViewFiles: boolean;
   canDownloadFiles: boolean;
-  canReplaceFiles: boolean;
+  canUploadFiles: boolean;
   canDeleteFiles: boolean;
   saving: boolean;
   onArchive: () => void;
@@ -829,7 +758,7 @@ function TenantDetail({
   onEdit: () => void;
   onMoveOut: () => void;
   onPermanentDelete: () => void;
-  onReplaceFile: (file?: File) => void;
+  onAddFile: (file: File) => Promise<void>;
   onRestore: () => void;
 }) {
   const archived = isArchivedTenant(tenant);
@@ -880,11 +809,7 @@ function TenantDetail({
       {canViewFiles ? <div className="attachment-panel">
         <div className="detail-section-title">合同附件</div>
         <TenantAttachmentActions files={files} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canReplaceFiles ? <label className="btn file-action-button">
-          <FileUp size={15} /> 替换合同
-          <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => onReplaceFile(event.target.files?.[0])} />
-        </label> : null}
-        <p className="muted">支持 PDF、JPG、PNG，单个文件不超过 5MB。</p>
+        {canUploadFiles ? <AttachmentAddControl label="合同附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
 
       <div className="top-actions detail-actions">
@@ -1142,18 +1067,6 @@ function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, 
     notes: draft.notes || tenant.notes || ""
   };
   return { ...next, isOverdue: isCoverageExpired(next) };
-}
-
-function validateContractFile(file: File) {
-  if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-    window.alert("只支持 PDF、JPG、PNG 文件。");
-    return false;
-  }
-  if (file.size > maxAttachmentSize) {
-    window.alert("合同附件不能超过 5MB。");
-    return false;
-  }
-  return true;
 }
 
 function today() {

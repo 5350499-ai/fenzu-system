@@ -18,8 +18,11 @@ export async function POST(request: Request) {
     await requireSensitivePermission(context, config.view);
     if (body.action === "download") await requireSensitivePermission(context, "can_download_files");
     const client = getSupabaseAuthVerifier(context.accessToken);
-    const { data: file, error: fileError } = await client.from(config.table).select("id,storage_path,file_name").eq("id", body.id).maybeSingle();
-    if (fileError || !file) throw new AccountApiError("没有权限访问该附件。", 403);
+    let { data: file, error: fileError } = await client.from(config.table).select("id,storage_path,file_name,storage_provider").eq("id", body.id).maybeSingle();
+    if (fileError?.code === "42703" || fileError?.message.includes("storage_provider")) {
+      ({ data: file, error: fileError } = await client.from(config.table).select("id,storage_path,file_name").eq("id", body.id).maybeSingle());
+    }
+    if (fileError || !file || file.storage_provider === "google_drive" || !file.storage_path) throw new AccountApiError("没有权限访问该附件。", 403);
     const { data, error } = await client.storage.from(body.bucket!).createSignedUrl(file.storage_path, 60 * 10);
     if (error || !data?.signedUrl) throw new AccountApiError("无法生成附件访问链接。", 403);
     await writeAuditLog(context, {

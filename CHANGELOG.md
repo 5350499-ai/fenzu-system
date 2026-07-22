@@ -343,3 +343,47 @@
 - 放宽租客列表房源短名称的显示上限，优先保留 `01B无电梯5楼18号` 等高识别度前缀，较长地址仍由末尾省略号兜底。
 - 调整手机端第一行列比例，缩窄姓名列并扩大房源列，同时保留房间名称和在租状态的完整显示空间；第二行实收金额、提醒、覆盖日期和押金状态不变。
 - Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.
+# 2026-07-22 - Add Google Drive provider for new attachments (Preview only)
+
+- New contract, rent-payment and expense attachments use private Google Drive after server-side application permission checks. Historical Supabase Storage attachments remain readable through their existing signed-URL flow.
+- Added additive dual-provider metadata (`storage_provider`, `provider_file_id`) to the existing three attachment tables. No historical attachments, business records, permissions, RLS policies, buckets or files are migrated, copied or deleted.
+- Google uploads use resumable sessions so file bytes do not pass through a normal Vercel Function. Completion is re-verified server-side before indexing; invalid or revoked Drive authorization produces a clear reauthorization message. Google deletes use Drive trash, not permanent deletion.
+- Root configuration is the private “分租管理” Drive folder with lazy `合同附件`、`收款附件`、`支出附件` subfolders. Preview requires separate server-only Google configuration and must not use Production’s Drive test target.
+
+## 2026-07-22 - Keep Google Drive attachment responses below the Vercel limit
+
+- Reduced new Google Drive JPEG, PNG and PDF attachments to a uniform 4MB limit. Browser, upload preparation and upload completion all enforce the same limit, so a successful Google upload remains within the application-controlled view/download response budget.
+- Hardened nullable `storage_path` compatibility and made the existing signed-URL route explicitly reject Google Drive rows. Historical Supabase attachments keep their previous signed-URL behavior.
+
+## 2026-07-22 - Add multiple independent attachments per record
+
+- Contract, rent-payment and expense attachment tables were already one-to-many; changed the affected pages from form-save replacement behavior to explicit detail-view `选择文件 → 添加附件` actions. Each successful upload appends one independent row and leaves existing attachments unchanged.
+- Each attachment remains individually viewable, downloadable and deletable. Google Drive deletion still moves only that file to Drive trash; historical Supabase files still use their signed-URL read path.
+- A new saved record must be opened in its detail view before adding attachments. Editing contract, payment or expense fields no longer uploads, replaces or deletes attachments. One-click check-in continues to allow one optional initial contract/receipt attachment for its newly created records, with the same 4MB Google Drive limit; further files are added from the corresponding detail view.
+- Files: `components/attachment-add-control.tsx`, `app/tenants/page.tsx`, `app/rent-payments/page.tsx`, `app/expenses/page.tsx`, `app/check-in/page.tsx`, `BUSINESS_RULES.md`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration was executed and no real data or historical file was changed.
+- The existing signed-URL route now falls back to the legacy metadata query when the additive provider columns have not yet been migrated, so historical Supabase attachments remain readable before and after the migration. New Google attachment indexing still correctly requires the migration.
+
+## 2026-07-22 - Prepare Google Drive Preview authorization
+
+- Applied the already-reviewed additive attachment-provider migration to the connected Supabase project. It adds only the provider metadata required by the existing Google Drive feature; no RLS policies, historical attachment rows, Storage objects, or business records were changed.
+- Added a local-only OAuth helper for Preview setup. It requests the minimal `drive.file` scope, saves a returned refresh token only to a Git-ignored local file, and never prints or commits the authorization code, access token, refresh token, or client secret.
+- Files: `.gitignore`, `scripts/google-drive-preview-authorize.mjs`, `CHANGELOG.md`. Production deployment and Production environment variables remain unchanged.
+# 2026-07-22 - Relay bounded Google Drive attachment uploads through the application
+
+- Fixed the Preview-only Google Drive upload failure after a successful resumable-session preparation: browser-to-Google direct uploads could fail at the cross-origin transport layer and then surfaced an inaccurate generic network error.
+- New attachment bytes up to the existing 4MB limit now use a same-origin, server-side permission-checked relay to the already-created Google resumable session. The relay validates the bucket, owner access, declared and actual size, and Google upload-session host before forwarding. Google credentials remain server-only, and existing completion verification and private-file rules are unchanged.
+- Files: `app/api/files/google-drive/upload/route.ts`, `lib/storage-files.ts`, `ARCHITECTURE.md`, `CHANGELOG.md`. No migration, RLS, business data, historical attachment, Production deployment, or Production environment-variable change.
+
+## Follow-up
+
+- The Preview test proved the bounded relay upload succeeded but the following completion verification could not reliably read the resumable-session upload marker. The relay now stamps that marker after Google returns the file ID and moves a file to Drive trash if marker stamping fails. Completion also verifies the expected record folder before indexing.
+
+## 2026-07-22 - Classify private Google Drive upload verification failures
+
+- Kept every post-upload integrity check mandatory, while recording only boolean pass/fail results for file state, MIME type, size, expected folder and private upload-marker checks. Preview errors now identify the failed safe category without logging file names, file or folder IDs, business IDs, OAuth credentials or file content.
+- No migration, RLS, attachment metadata, business data, historical files, Production deployment or Production environment-variable change.
+
+## 2026-07-22 - End global attachment progress after Google Drive indexing
+
+- The shared attachment uploader now reports preparing, upload, index-saving, success and failure as separate terminal-safe states. Successful completion shows a short confirmation and closes automatically; every upload error clears the saving state after a short error notice.
+- Contract, rent-payment and expense attachment controls all use this shared flow. No migration, data, permissions, RLS, Google Drive folder behavior, historical attachment or Production change.

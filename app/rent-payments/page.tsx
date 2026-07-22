@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
+import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -70,7 +71,6 @@ const emptyPayment: BusinessRentPayment = {
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const paymentStatusOptions = ["已收", "未收"];
 const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "续交房租", "赔偿收入", "其他收入"];
-const maxAttachmentSize = 5 * 1024 * 1024;
 
 function defaultCoverageEnd(startDate: string) {
   return startDate ? monthEnd(startDate.slice(0, 7)) : "";
@@ -87,7 +87,6 @@ export default function RentPaymentsPage() {
   const [monthlyRentStandard, setMonthlyRentStandard] = useState<number | null>(null);
   const [files, setFiles] = useState<RentPaymentFile[]>([]);
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
@@ -188,7 +187,6 @@ export default function RentPaymentsPage() {
     setMonthlyRentStandard(null);
     setCustomReceivedBy("");
     setOwnershipMode("A");
-    setPendingFile(null);
     setAddingTenant(false);
     setNewTenantName("");
     setNewTenantPhone("");
@@ -418,21 +416,6 @@ export default function RentPaymentsPage() {
         await saveBusinessData(tenantKey, nextTenants);
         setTenants(nextTenants);
       }
-      if (pendingFile) {
-        try {
-          if (form.id) {
-            const existing = filesByPayment[paymentId] || [];
-            for (const file of existing) await deleteRentPaymentFile(file);
-            setFiles((current) => current.filter((file) => file.rentPaymentId !== paymentId));
-          }
-          const uploaded = await uploadRentPaymentFile(paymentId, pendingFile);
-          setFiles((current) => [uploaded, ...current]);
-          setStorageWarning("");
-        } catch (error: any) {
-          setStorageWarning("收款附件功能未初始化，请先执行 rent-payment-files SQL。普通收款记录已保存。");
-          window.alert(error.message || "收款已保存，但附件上传失败。请执行 rent-payment-files SQL 后再上传附件。");
-        }
-      }
       setPayments(next);
       close();
     } catch (error: any) {
@@ -456,17 +439,17 @@ export default function RentPaymentsPage() {
     setDetailPaymentId("");
   }
 
-  function chooseFile(file?: File) {
-    if (!file) return;
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-      window.alert("只支持 PDF、JPG、PNG 文件。");
-      return;
+  async function addPaymentFile(payment: BusinessRentPayment, file: File) {
+    setSaving(true);
+    try {
+      const uploaded = await uploadRentPaymentFile(payment.id, file);
+      setFiles((current) => [uploaded, ...current]);
+      setStorageWarning("");
+    } catch (error: any) {
+      throw new Error(error.message || "添加收款附件失败，请稍后重试。");
+    } finally {
+      setSaving(false);
     }
-    if (file.size > maxAttachmentSize) {
-      window.alert("收款附件不能超过 5MB。");
-      return;
-    }
-    setPendingFile(file);
   }
 
   async function removeFile(file: RentPaymentFile) {
@@ -535,12 +518,14 @@ export default function RentPaymentsPage() {
                     }}
                     onVoid={() => voidPayment(payment)}
                     onDelete={() => permanentlyDelete(payment)}
+                    onAddFile={(file) => addPaymentFile(payment, file)}
                     onFileDelete={removeFile}
                     saving={saving}
                     canEdit={access.can("rent_payments", "edit")}
                     canArchive={access.can("rent_payments", "archive")}
                     canDelete={access.can("rent_payments", "delete")}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewRentFiles")}
+                    canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                   />
@@ -583,12 +568,7 @@ export default function RentPaymentsPage() {
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
               {isRentPayment(form) ? <TapSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus })} /> : null}
-              {(form.id ? access.canSensitive("canReplaceFiles") : access.canSensitive("canUploadFiles")) && access.can(form.id ? "attachments" : "attachments", form.id ? "edit" : "create") ? <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label>收款附件 PDF/JPG/PNG</label>
-                <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
-                {pendingFile ? <div className="attachment-preview"><FileUp size={16} /><span>{pendingFile.name} · {formatFileSize(pendingFile.size)}</span><button className="btn danger" type="button" onClick={() => setPendingFile(null)}>移除</button></div> : <p className="muted">{form.id ? "选择新文件并保存后，会替换当前收款附件。" : "可上传付款截图、票据或 PDF，单个附件最大 5MB。"}</p>}
-                {form.id && (filesByPayment[form.id] || []).length ? <RentPaymentAttachmentActions files={filesByPayment[form.id] || []} onDelete={removeFile} /> : null}
-              </div> : null}
+              <p className="muted" style={{ gridColumn: "1 / -1" }}>收款保存后，可在收款详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
             </form>
@@ -676,12 +656,14 @@ function PaymentDetail({
   onEdit,
   onVoid,
   onDelete,
+  onAddFile,
   onFileDelete,
   saving,
   canEdit,
   canArchive,
   canDelete,
   canViewFiles,
+  canUploadFiles,
   canDownloadFiles,
   canDeleteFiles
 }: {
@@ -694,12 +676,14 @@ function PaymentDetail({
   onEdit: () => void;
   onVoid: () => void;
   onDelete: () => void;
+  onAddFile: (file: File) => Promise<void>;
   onFileDelete: (file: RentPaymentFile) => void;
   saving: boolean;
   canEdit: boolean;
   canArchive: boolean;
   canDelete: boolean;
   canViewFiles: boolean;
+  canUploadFiles: boolean;
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
 }) {
@@ -725,9 +709,10 @@ function PaymentDetail({
       {canViewFiles ? <div>
         <div className="detail-section-title">收款附件</div>
         <RentPaymentAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        {canUploadFiles ? <AttachmentAddControl label="收款附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
       <div className="top-actions detail-actions">
-        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑/替换附件</button> : null}
+        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑收款</button> : null}
         {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
         {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
       </div>
