@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
+import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -44,7 +45,7 @@ import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCovera
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
 type TenantSortKey = "priority" | "expiry" | "rent" | "property" | "status";
@@ -95,6 +96,8 @@ export default function TenantsPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [contractFiles, setContractFiles] = useState<ContractFile[]>([]);
+  const [contractFilesLoadState, setContractFilesLoadState] = useState<AttachmentLoadState>("loading");
+  const [contractFilesLoadError, setContractFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessTenant>(emptyTenant);
   const [contractForm, setContractForm] = useState({ startDate: today(), endDate: "" });
   const [paymentForm, setPaymentForm] = useState<BusinessRentPayment>(emptyTenantPayment);
@@ -113,6 +116,33 @@ export default function TenantsPage() {
   const [saving, setSaving] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
+  const contractFilesRequestRef = useRef(0);
+
+  const refreshContractFiles = useCallback(async (contractIds: string[]) => {
+    const ids = [...new Set(contractIds.filter(Boolean))];
+    const requestId = ++contractFilesRequestRef.current;
+    setContractFilesLoadState("loading");
+    setContractFilesLoadError("");
+
+    if (!ids.length) {
+      setContractFilesLoadState("success");
+      return;
+    }
+
+    try {
+      const refreshedFiles = await loadContractFiles(ids);
+      if (requestId !== contractFilesRequestRef.current) return;
+      setContractFiles((current) => [
+        ...refreshedFiles,
+        ...current.filter((file) => !ids.includes(file.contractId))
+      ]);
+      setContractFilesLoadState("success");
+    } catch (error: any) {
+      if (requestId !== contractFilesRequestRef.current) return;
+      setContractFilesLoadState("error");
+      setContractFilesLoadError(error?.message || "附件加载失败。");
+    }
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -136,7 +166,7 @@ export default function TenantsPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
-      setContractFiles(await loadContractFiles(loadedContracts.map((contract) => contract.id)));
+      await refreshContractFiles(loadedContracts.map((contract) => contract.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDetailTenantId(requestedTenantId);
@@ -145,6 +175,11 @@ export default function TenantsPage() {
     }
     load().catch((error) => window.alert(`加载租客失败：${error.message || error}`));
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !detailTenantId) return;
+    void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id));
+  }, [contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -472,6 +507,7 @@ export default function TenantsPage() {
     try {
       const uploaded = await uploadContractFile(contract.id, file);
       setContractFiles((current) => [uploaded, ...current]);
+      await refreshContractFiles([contract.id]);
     } catch (error: any) {
       throw new Error(error.message || "添加合同附件失败，请稍后重试。");
     } finally {
@@ -608,6 +644,9 @@ export default function TenantsPage() {
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
                     files={files}
+                    attachmentLoadState={contractFilesLoadState}
+                    attachmentLoadError={contractFilesLoadError}
+                    onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id))}
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
@@ -718,6 +757,9 @@ function TenantDetail({
   propertyName,
   roomName,
   files,
+  attachmentLoadState,
+  attachmentLoadError,
+  onRetryFiles,
   isAdmin,
   canEdit,
   canArchive,
@@ -744,6 +786,9 @@ function TenantDetail({
   propertyName: string;
   roomName: string;
   files: ContractFile[];
+  attachmentLoadState: AttachmentLoadState;
+  attachmentLoadError: string;
+  onRetryFiles: () => void;
   isAdmin: boolean;
   canEdit: boolean;
   canArchive: boolean;
@@ -808,7 +853,7 @@ function TenantDetail({
 
       {canViewFiles ? <div className="attachment-panel">
         <div className="detail-section-title">合同附件</div>
-        <TenantAttachmentActions files={files} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
         {canUploadFiles ? <AttachmentAddControl label="合同附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
 
@@ -831,8 +876,10 @@ function TenantDetail({
   );
 }
 
-function TenantAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {
-  if (!files.length) return <span className="muted">暂无合同附件</span>;
+function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {
+  if (loadState !== "success" || !files.length) {
+    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无合同附件" hasFiles={files.length > 0} />;
+  }
   return (
     <div className="attachment-list compact-attachment-list">
       {files.map((file) => (

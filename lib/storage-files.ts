@@ -50,11 +50,13 @@ export const rentPaymentFileConfig: FileConfig = {
 };
 
 export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): Promise<StoredFile[]> {
-  if (!isSupabaseConfigured || !supabase) return [];
+  if (!isSupabaseConfigured || !supabase) throw new Error("附件服务尚未配置。");
   const session = await getValidSupabaseSession();
-  if (!session) return [];
+  if (!session) throw new Error("附件读取需要有效登录会话，请刷新页面后重试。");
   const account = await loadFileAccount(session.access_token);
-  if (!account.canViewAttachments || !account[viewPermissionFor(config)]) return [];
+  if (!account.canViewAttachments || !account[viewPermissionFor(config)]) {
+    throw new Error("当前账号没有查看此类附件的权限。");
+  }
 
   let query = supabase.from(config.table).select("*").order("uploaded_at", { ascending: false });
   if (ownerIds?.length) query = query.in(config.ownerColumn, ownerIds);

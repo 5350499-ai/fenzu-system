@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
+import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -39,7 +40,7 @@ import {
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
 import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type TapOption = {
   value: string;
@@ -86,6 +87,8 @@ export default function RentPaymentsPage() {
   const [depositAmount, setDepositAmount] = useState(0);
   const [monthlyRentStandard, setMonthlyRentStandard] = useState<number | null>(null);
   const [files, setFiles] = useState<RentPaymentFile[]>([]);
+  const [filesLoadState, setFilesLoadState] = useState<AttachmentLoadState>("loading");
+  const [filesLoadError, setFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -102,6 +105,28 @@ export default function RentPaymentsPage() {
   const [addingTenant, setAddingTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");
+  const filesRequestRef = useRef(0);
+
+  const refreshPaymentFiles = useCallback(async (paymentIds: string[]) => {
+    const ids = [...new Set(paymentIds.filter(Boolean))];
+    const requestId = ++filesRequestRef.current;
+    setFilesLoadState("loading");
+    setFilesLoadError("");
+    if (!ids.length) {
+      setFilesLoadState("success");
+      return;
+    }
+    try {
+      const refreshedFiles = await loadRentPaymentFiles(ids);
+      if (requestId !== filesRequestRef.current) return;
+      setFiles((current) => [...refreshedFiles, ...current.filter((file) => !ids.includes(file.rentPaymentId))]);
+      setFilesLoadState("success");
+    } catch (error: any) {
+      if (requestId !== filesRequestRef.current) return;
+      setFilesLoadState("error");
+      setFilesLoadError(error?.message || "附件加载失败。");
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -148,17 +173,16 @@ export default function RentPaymentsPage() {
         setMonthlyRentStandard(Number(renewTenant.monthlyRent || latest?.amountDue || 0));
         setOpen(true);
       }
-      try {
-        setFiles(await loadRentPaymentFiles(loadedPayments.map((payment) => payment.id)));
-        setStorageWarning("");
-      } catch {
-        setFiles([]);
-        setStorageWarning("收款附件功能未初始化，请先执行 rent-payment-files SQL。普通收款记录仍可保存。");
-      }
+      await refreshPaymentFiles(loadedPayments.map((payment) => payment.id));
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载收租记录失败：${error.message || error}`));
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !detailPaymentId) return;
+    void refreshPaymentFiles([detailPaymentId]);
+  }, [detailPaymentId, loaded, refreshPaymentFiles]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
@@ -444,7 +468,7 @@ export default function RentPaymentsPage() {
     try {
       const uploaded = await uploadRentPaymentFile(payment.id, file);
       setFiles((current) => [uploaded, ...current]);
-      setStorageWarning("");
+      await refreshPaymentFiles([payment.id]);
     } catch (error: any) {
       throw new Error(error.message || "添加收款附件失败，请稍后重试。");
     } finally {
@@ -504,6 +528,9 @@ export default function RentPaymentsPage() {
                     tenantName={tenant?.name || payment.incomeItem || "未填写租客"}
                     depositAmount={paymentDepositAmount(payment, linkedDeposit?.amount)}
                     files={filesByPayment[payment.id] || []}
+                    attachmentLoadState={filesLoadState}
+                    attachmentLoadError={filesLoadError}
+                    onRetryFiles={() => void refreshPaymentFiles([payment.id])}
                     onEdit={() => {
                       const mode = ownershipChoice(payment.receivedBy);
                       const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount;
@@ -653,6 +680,9 @@ function PaymentDetail({
   tenantName,
   depositAmount,
   files,
+  attachmentLoadState,
+  attachmentLoadError,
+  onRetryFiles,
   onEdit,
   onVoid,
   onDelete,
@@ -673,6 +703,9 @@ function PaymentDetail({
   tenantName: string;
   depositAmount: number;
   files: RentPaymentFile[];
+  attachmentLoadState: AttachmentLoadState;
+  attachmentLoadError: string;
+  onRetryFiles: () => void;
   onEdit: () => void;
   onVoid: () => void;
   onDelete: () => void;
@@ -708,7 +741,7 @@ function PaymentDetail({
       </div>
       {canViewFiles ? <div>
         <div className="detail-section-title">收款附件</div>
-        <RentPaymentAttachmentActions files={files} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+        <RentPaymentAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
         {canUploadFiles ? <AttachmentAddControl label="收款附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
       <div className="top-actions detail-actions">
@@ -729,8 +762,10 @@ function paymentDepositAmount(payment: BusinessRentPayment, legacyLinkedDeposit?
   return Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
 }
 
-function RentPaymentAttachmentActions({ files, onDelete, canDownload = true, canDelete = true }: { files: RentPaymentFile[]; onDelete: (file: RentPaymentFile) => void; canDownload?: boolean; canDelete?: boolean }) {
-  if (!files.length) return <span className="muted">暂无附件</span>;
+function RentPaymentAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: RentPaymentFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: RentPaymentFile) => void; canDownload?: boolean; canDelete?: boolean }) {
+  if (loadState !== "success" || !files.length) {
+    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无附件" hasFiles={files.length > 0} />;
+  }
   return (
     <div className="attachment-list">
       {files.map((file) => (
