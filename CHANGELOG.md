@@ -18,6 +18,13 @@
 - 兼容性影响：仅调整租客列表主行显示，不影响租金、收款、押金和历史数据。
 # CHANGELOG.md
 
+## 2026-07-22
+
+- Removed the read-only room-rent field from one-click check-in. Room selection now only chooses the property and room; rent and deposit remain manual inputs.
+- The check-in API now forwards the manual rent amount as the tenant rent standard instead of accepting a separate client-provided monthly-rent value.
+- Fixed room list and room-detail current-rent totals to use each current tenant's latest valid, non-void rent payment `amount_due`; deposits remain a separate aggregate.
+- No database schema, RLS, permissions, business records, historical payments, contracts, or financial calculations were changed.
+
 所有修改记录只允许追加，不得覆盖历史。
 
 ## 2026-07-11
