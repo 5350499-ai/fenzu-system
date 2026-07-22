@@ -260,3 +260,9 @@
 - `lib/rent-coverage.ts` 的房态函数及 `lib/profit.ts`、首页均使用当前在租租客集合，保证房间列表、首页入住率和空置数口径一致。
 - 迁移：`supabase/migrations/20260718190000_move_active_rental_relationship.sql`；非破坏性回滚为重新应用前一版 `20260718163321_atomic_tenant_room_move.sql` 函数定义。
 - 移动端全局导航固定在底部并包含 `env(safe-area-inset-bottom)`；主内容底部预留导航高度和安全区，房间操作按钮保持普通文档流。
+# 2026-07-22 - Google Drive attachment provider (Preview only)
+
+- The three existing attachment metadata tables remain the attachment index. `storage_provider` distinguishes historical `supabase` rows from new `google_drive` rows, and `provider_file_id` stores only a Drive file ID; Google IDs are not written into legacy `storage_path` or `file_url` fields.
+- New uploads use a server-authorized Google Drive resumable session. The browser sends file bytes directly to Google, then the server verifies the resulting file ID, MIME type, size, parent relationship and server-created upload marker before inserting the attachment index.
+- Existing Supabase attachments still use `/api/files/signed-url`. Google Drive view/download uses an application-controlled authenticated content route; Drive OAuth credentials and access tokens never reach the browser. Google deletion uses `trashed=true` before the metadata row is removed.
+- Google Drive configuration is server-only: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`. The configured root must be the private “分租管理” folder; its category folders are created lazily. This implementation is Preview-only until explicit user acceptance and does not migrate or delete historical files.

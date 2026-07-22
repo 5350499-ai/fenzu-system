@@ -343,3 +343,9 @@
 - 放宽租客列表房源短名称的显示上限，优先保留 `01B无电梯5楼18号` 等高识别度前缀，较长地址仍由末尾省略号兜底。
 - 调整手机端第一行列比例，缩窄姓名列并扩大房源列，同时保留房间名称和在租状态的完整显示空间；第二行实收金额、提醒、覆盖日期和押金状态不变。
 - Files: `app/tenants/page.tsx`, `app/globals.css`, `CHANGELOG.md`. No database, payment, deposit, contract, permission, or business-data changes.
+# 2026-07-22 - Add Google Drive provider for new attachments (Preview only)
+
+- New contract, rent-payment and expense attachments use private Google Drive after server-side application permission checks. Historical Supabase Storage attachments remain readable through their existing signed-URL flow.
+- Added additive dual-provider metadata (`storage_provider`, `provider_file_id`) to the existing three attachment tables. No historical attachments, business records, permissions, RLS policies, buckets or files are migrated, copied or deleted.
+- Google uploads use resumable sessions so file bytes do not pass through a normal Vercel Function. Completion is re-verified server-side before indexing; invalid or revoked Drive authorization produces a clear reauthorization message. Google deletes use Drive trash, not permanent deletion.
+- Root configuration is the private “分租管理” Drive folder with lazy `合同附件`、`收款附件`、`支出附件` subfolders. Preview requires separate server-only Google configuration and must not use Production’s Drive test target.
