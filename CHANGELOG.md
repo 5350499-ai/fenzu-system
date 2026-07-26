@@ -424,3 +424,7 @@
 
 - Added a per-tenant “建立押金管理记录” action when no valid deposit record exists.
 - The user confirms the amount and pending/processed status before one linked deposit record is created; duplicate checks run again before saving. No rent payment, expense, schema, RLS, or migration changes.
+## 2026-07-26 - Fix dashboard deposit reminders (Preview)
+
+- Dashboard deposit alerts now include only non-voided `待退` deposits belonging to tenants whose status is `已退租`; in-rent tenants and missing deposit records are excluded.
+- Dashboard wording now uses “押金待处理”. No financial, database, RLS, environment, or real-data changes.
