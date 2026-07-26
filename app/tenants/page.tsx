@@ -121,6 +121,9 @@ export default function TenantsPage() {
   const [moveOutDepositStatus, setMoveOutDepositStatus] = useState<"待退" | "已退">("待退");
   const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
   const [depositStatusValue, setDepositStatusValue] = useState<"待退" | "已退">("待退");
+  const [createDepositTenant, setCreateDepositTenant] = useState<BusinessTenant | null>(null);
+  const [createDepositAmount, setCreateDepositAmount] = useState(0);
+  const [createDepositStatus, setCreateDepositStatus] = useState<"待退" | "已退">("待退");
 
   const refreshContractFiles = useCallback(async (contractIds: string[]) => {
     const ids = [...new Set(contractIds.filter(Boolean))];
@@ -455,6 +458,53 @@ export default function TenantsPage() {
     setDepositStatusValue(tenantDepositStorageStatus(tenant, deposits));
   }
 
+  function openCreateDepositDialog(tenant: BusinessTenant) {
+    if (deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return;
+    const reference = depositReferenceForTenant(tenant.id, payments);
+    setCreateDepositTenant(tenant);
+    setCreateDepositAmount(reference.amount || 0);
+    setCreateDepositStatus("待退");
+  }
+
+  async function createDepositRecord(tenant: BusinessTenant, amount: number, status: "待退" | "已退") {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      window.alert("请输入大于 0 的押金金额。");
+      return;
+    }
+    setSaving(true);
+    try {
+      const latestDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
+      if (latestDeposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) {
+        window.alert("该租客已存在押金管理记录，请刷新页面后查看。");
+        setDeposits(latestDeposits);
+        setCreateDepositTenant(null);
+        return;
+      }
+      const nextDeposit: BusinessDeposit = {
+        id: crypto.randomUUID(),
+        propertyId: tenant.propertyId,
+        roomId: tenant.roomId,
+        tenantId: tenant.id,
+        type: "收取",
+        amount,
+        status,
+        transactionDate: today(),
+        receivedBy: "A",
+        paidBy: "A",
+        notes: `[收租押金:历史人工建立:${tenant.id}]`
+      };
+      await saveBusinessData(depositKey, [nextDeposit, ...latestDeposits]);
+      const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, latestDeposits);
+      if (!refreshedDeposits.some((deposit) => deposit.id === nextDeposit.id)) throw new Error("押金管理记录保存后未能确认，请刷新页面后重试。");
+      setDeposits(refreshedDeposits);
+      setCreateDepositTenant(null);
+    } catch (error: any) {
+      window.alert(error.message || "建立押金管理记录失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateDepositStatus(tenant: BusinessTenant, status: "待退" | "已退") {
     const targetDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
     if (!targetDeposits.length) {
@@ -726,6 +776,7 @@ export default function TenantsPage() {
                     }}
                     onMoveOut={() => openMoveOutDialog(tenant)}
                     onEditDepositStatus={() => openDepositStatusDialog(tenant)}
+                    onCreateDeposit={() => openCreateDepositDialog(tenant)}
                     onAddFile={(file) => addTenantContractFile(tenant, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
@@ -854,6 +905,35 @@ export default function TenantsPage() {
           </section>
         </div>
       ) : null}
+
+      {createDepositTenant ? (
+        <div className="modal-backdrop" onMouseDown={() => setCreateDepositTenant(null)}>
+          <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <h2 className="panel-title">建立押金管理记录</h2>
+              <button className="btn" onClick={() => setCreateDepositTenant(null)} type="button"><X size={17} /> 关闭</button>
+            </div>
+            <div className="detail-grid">
+              <DetailField label="租客" value={createDepositTenant.name || "-"} />
+              <DetailField label="房源 / 房间" value={`${properties.find((item) => item.id === createDepositTenant.propertyId)?.name || "-"} / ${rooms.find((item) => item.id === createDepositTenant.roomId)?.name || "-"}`} />
+            </div>
+            {depositReferenceForTenant(createDepositTenant.id, payments).label ? <p className="muted">{depositReferenceForTenant(createDepositTenant.id, payments).label}</p> : null}
+            <MoneyInput label="押金金额" value={createDepositAmount} onChange={setCreateDepositAmount} />
+            <div className="field">
+              <label htmlFor="create-deposit-status">押金处理状态</label>
+              <select id="create-deposit-status" value={createDepositStatus} onChange={(event) => setCreateDepositStatus(event.target.value as "待退" | "已退")}>
+                <option value="待退">押金待处理</option>
+                <option value="已退">押金已处理</option>
+              </select>
+            </div>
+            <p className="muted">这里只建立押金管理记录，不会新增收款或支出，也不会修改原收款金额。</p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setCreateDepositTenant(null)} type="button">取消</button>
+              <button className="btn primary" disabled={saving} onClick={() => void createDepositRecord(createDepositTenant, createDepositAmount, createDepositStatus)} type="button">确认建立</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AppLayout>
   );
 }
@@ -885,6 +965,7 @@ function TenantDetail({
   onEdit,
   onMoveOut,
   onEditDepositStatus,
+  onCreateDeposit,
   onPermanentDelete,
   onAddFile,
   onRestore,
@@ -916,6 +997,7 @@ function TenantDetail({
   onEdit: () => void;
   onMoveOut: () => void;
   onEditDepositStatus: () => void;
+  onCreateDeposit: () => void;
   onPermanentDelete: () => void;
   onAddFile: (file: File) => Promise<void>;
   onRestore: () => void;
@@ -943,13 +1025,14 @@ function TenantDetail({
         <DetailField label="备注" value={tenant.notes || "-"} />
       </div>
 
-      {movedOut && depositStatus === "未建立押金管理记录" ? (
+      {depositStatus === "未建立押金管理记录" ? (
         <div className="deposit-status-detail">
           <div>
             <span className="muted">押金状态</span>
             <StatusBadge>未建立押金管理记录</StatusBadge>
             <span className="muted">该租客只有收款记录中的押金金额，尚未建立独立押金管理记录。</span>
           </div>
+          <button className="btn" disabled={saving} type="button" onClick={onCreateDeposit}>建立押金管理记录</button>
         </div>
       ) : null}
 
@@ -1157,6 +1240,18 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
   if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return "未建立押金管理记录";
   return tenantDepositStorageStatus(tenant, deposits) === "已退" ? "押金已处理" : "押金待处理";
+}
+
+function depositReferenceForTenant(tenantId: string, payments: BusinessRentPayment[]) {
+  const amounts = payments
+    .filter((payment) => payment.tenantId === tenantId && !payment.notes?.includes("[已作废]"))
+    .sort((left, right) => (right.paymentDate || right.createdAt || "").localeCompare(left.paymentDate || left.createdAt || ""))
+    .map((payment) => Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0))
+    .filter((amount) => amount > 0);
+  if (!amounts.length) return { amount: 0, label: "" };
+  const latest = amounts[0];
+  if (amounts.length === 1) return { amount: latest, label: `收款记录中的押金参考金额：${euro(latest)}` };
+  return { amount: latest, label: `收款记录中发现 ${amounts.length} 笔押金差额，最近一笔参考金额：${euro(latest)}；请自行确认最终押金金额。` };
 }
 
 function tenantDepositStorageStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]): "待退" | "已退" {

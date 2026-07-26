@@ -420,3 +420,7 @@
 
 - Tenants without a valid `deposits` row now show “未建立押金管理记录” instead of an implied pending status, with the status-edit action hidden.
 - Existing deposit status labels and updates remain unchanged when valid records exist. No data, schema, RLS, or migration changes.
+## 2026-07-26 - Manual deposit record creation (Preview)
+
+- Added a per-tenant “建立押金管理记录” action when no valid deposit record exists.
+- The user confirms the amount and pending/processed status before one linked deposit record is created; duplicate checks run again before saving. No rent payment, expense, schema, RLS, or migration changes.
