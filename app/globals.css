@@ -2379,6 +2379,30 @@ td:last-child {
   padding: 20px;
 }
 
+.deposit-status-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.deposit-status-detail > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.deposit-status-modal .muted {
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+
 .modal-actions {
   grid-column: 1 / -1;
   display: flex;

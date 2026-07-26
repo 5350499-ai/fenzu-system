@@ -407,3 +407,8 @@
 
 - Added a compact current-filter total above rent-payment and expense lists. Each total is calculated in the browser from the complete filtered result before pagination, using the existing `amountPaid` or `amount` values and preserving their stored signs.
 - No financial record, calculation rule, statistics page, database, RLS, attachment, or permission behavior changed.
+## 2026-07-26 - Deposit handling status flow (Preview)
+
+- Replaced move-out free-text deposit input with a controlled pending/processed choice. The status-only action does not create expenses or change financial amounts.
+- Added a post-move-out “修改押金状态” action for changing valid deposit statuses and reloading the saved result.
+- UI labels now show “押金待处理” and “押金已处理”; database values remain `待退` and `已退`. No migration, RLS, environment, real-data, or Production changes.

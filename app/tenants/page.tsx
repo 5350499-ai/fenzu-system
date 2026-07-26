@@ -117,6 +117,10 @@ export default function TenantsPage() {
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
   const contractFilesRequestRef = useRef(0);
+  const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
+  const [moveOutDepositStatus, setMoveOutDepositStatus] = useState<"待退" | "已退">("待退");
+  const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
+  const [depositStatusValue, setDepositStatusValue] = useState<"待退" | "已退">("待退");
 
   const refreshContractFiles = useCallback(async (contractIds: string[]) => {
     const ids = [...new Set(contractIds.filter(Boolean))];
@@ -323,7 +327,7 @@ export default function TenantsPage() {
     contracts?: BusinessContract[];
     deposits?: BusinessDeposit[];
     payments?: BusinessRentPayment[];
-  }) {
+  }, failureMessage = "保存失败，请稍后重试。") {
     setSaving(true);
     try {
       if (next.tenants) await saveBusinessData(tenantKey, next.tenants);
@@ -337,10 +341,12 @@ export default function TenantsPage() {
       if (next.deposits) setDeposits(next.deposits);
       if (next.payments) setPayments(next.payments);
     } catch (error: any) {
-      window.alert(error.message || "保存失败，请稍后重试。");
+      window.alert(error.message || failureMessage);
+      return false;
     } finally {
       setSaving(false);
     }
+    return true;
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -419,16 +425,46 @@ export default function TenantsPage() {
     close();
   }
 
-  async function moveOut(tenant: BusinessTenant) {
+  async function moveOut(tenant: BusinessTenant, depositStatus: "待退" | "已退") {
     if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
-    const depositStatus = window.prompt("押金状态请输入：已退 或 待退", "待退") === "已退" ? "已退" : "待退";
     const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租" } : item));
-    await persistAll({
+    const saved = await persistAll({
       tenants: nextTenants,
       rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
       contracts: contracts.map((contract) => (contract.tenantId === tenant.id ? { ...contract, status: "已结束" } : contract)),
-      deposits: deposits.map((deposit) => (deposit.tenantId === tenant.id ? { ...deposit, status: depositStatus } : deposit))
-    });
+      deposits: deposits.map((deposit) => (deposit.tenantId === tenant.id && !isVoidedDeposit(deposit) ? { ...deposit, status: depositStatus } : deposit))
+    }, "退租保存失败，请重新进入租客详情确认押金状态。");
+    if (!saved) return;
+    try {
+      const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
+      setDeposits(refreshedDeposits);
+      setMoveOutTenant(null);
+    } catch {
+      window.alert("退租已提交，但押金状态无法确认，请重新进入租客详情确认。");
+    }
+  }
+
+  function openMoveOutDialog(tenant: BusinessTenant) {
+    setMoveOutTenant(tenant);
+    setMoveOutDepositStatus("待退");
+  }
+
+  function openDepositStatusDialog(tenant: BusinessTenant) {
+    setDepositStatusTenant(tenant);
+    setDepositStatusValue(tenantDepositStorageStatus(tenant, deposits));
+  }
+
+  async function updateDepositStatus(tenant: BusinessTenant, status: "待退" | "已退") {
+    const nextDeposits = deposits.map((deposit) => (deposit.tenantId === tenant.id && !isVoidedDeposit(deposit) ? { ...deposit, status } : deposit));
+    const saved = await persistAll({ deposits: nextDeposits }, "押金状态保存失败，请重新进入租客详情确认状态。");
+    if (!saved) return;
+    try {
+      const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
+      setDeposits(refreshedDeposits);
+      setDepositStatusTenant(null);
+    } catch {
+      window.alert("押金状态已提交，但无法确认最终状态，请重新进入租客详情确认。");
+    }
   }
 
   async function archiveTenant(tenant: BusinessTenant) {
@@ -621,13 +657,13 @@ export default function TenantsPage() {
                     {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
                   </strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </button>
                 <div className="tenant-mobile-meta">
                   <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
                   {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
                   <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
-                  <StatusBadge tone={depositStatus.includes("已退") ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
                 </div>
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
@@ -661,13 +697,15 @@ export default function TenantsPage() {
                     onEdit={() => {
                       openTenantForm(tenant);
                     }}
-                    onMoveOut={() => moveOut(tenant)}
+                    onMoveOut={() => openMoveOutDialog(tenant)}
+                    onEditDepositStatus={() => openDepositStatusDialog(tenant)}
                     onAddFile={(file) => addTenantContractFile(tenant, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     saving={saving}
                     tenant={tenant}
+                    depositStatus={depositStatus}
                   />
                 ) : null}
               </article>
@@ -743,6 +781,52 @@ export default function TenantsPage() {
           </section>
         </div>
       ) : null}
+
+      {moveOutTenant ? (
+        <div className="modal-backdrop" onMouseDown={() => setMoveOutTenant(null)}>
+          <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <h2 className="panel-title">办理退租</h2>
+              <button className="btn" onClick={() => setMoveOutTenant(null)} type="button"><X size={17} /> 关闭</button>
+            </div>
+            <p className="muted">这里结束租赁关系并记录押金处理状态，不会自动新增退押金支出，也不会修改任何金额。</p>
+            <div className="field">
+              <label htmlFor="move-out-deposit-status">押金处理状态</label>
+              <select id="move-out-deposit-status" value={moveOutDepositStatus} onChange={(event) => setMoveOutDepositStatus(event.target.value as "待退" | "已退")}>
+                <option value="待退">押金待处理</option>
+                <option value="已退">押金已处理</option>
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>
+              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus)} type="button">确认退租</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {depositStatusTenant ? (
+        <div className="modal-backdrop" onMouseDown={() => setDepositStatusTenant(null)}>
+          <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <h2 className="panel-title">修改押金状态</h2>
+              <button className="btn" onClick={() => setDepositStatusTenant(null)} type="button"><X size={17} /> 关闭</button>
+            </div>
+            <p className="muted">这里只记录押金处理进度，不会新增支出或修改任何金额。</p>
+            <div className="field">
+              <label htmlFor="deposit-status-value">押金处理状态</label>
+              <select id="deposit-status-value" value={depositStatusValue} onChange={(event) => setDepositStatusValue(event.target.value as "待退" | "已退")}>
+                <option value="待退">押金待处理</option>
+                <option value="已退">押金已处理</option>
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setDepositStatusTenant(null)} type="button">取消</button>
+              <button className="btn primary" disabled={saving} onClick={() => void updateDepositStatus(depositStatusTenant, depositStatusValue)} type="button">保存状态</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AppLayout>
   );
 }
@@ -773,9 +857,11 @@ function TenantDetail({
   onDeleteFile,
   onEdit,
   onMoveOut,
+  onEditDepositStatus,
   onPermanentDelete,
   onAddFile,
-  onRestore
+  onRestore,
+  depositStatus
 }: {
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
@@ -802,11 +888,14 @@ function TenantDetail({
   onDeleteFile: (file: ContractFile) => void;
   onEdit: () => void;
   onMoveOut: () => void;
+  onEditDepositStatus: () => void;
   onPermanentDelete: () => void;
   onAddFile: (file: File) => Promise<void>;
   onRestore: () => void;
+  depositStatus: string;
 }) {
   const archived = isArchivedTenant(tenant);
+  const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   return (
     <div className="record-detail-panel tenant-detail-panel">
@@ -826,6 +915,16 @@ function TenantDetail({
         <DetailField label="来源" value={tenant.source || "-"} />
         <DetailField label="备注" value={tenant.notes || "-"} />
       </div>
+
+      {movedOut ? (
+        <div className="deposit-status-detail">
+          <div>
+            <span className="muted">押金状态</span>
+            <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
+          </div>
+          <button className="btn" disabled={saving} type="button" onClick={onEditDepositStatus}>修改押金状态</button>
+        </div>
+      ) : null}
 
       <div className="attachment-panel">
         <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>
@@ -1019,9 +1118,16 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 }
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
-  const tenantDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !deposit.notes?.includes("[已作废]"));
-  if (tenantDeposits.some((deposit) => deposit.status === "已退")) return "押金已退";
-  return "押金待退";
+  return tenantDepositStorageStatus(tenant, deposits) === "已退" ? "押金已处理" : "押金待处理";
+}
+
+function tenantDepositStorageStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]): "待退" | "已退" {
+  const tenantDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
+  return tenantDeposits.some((deposit) => deposit.status === "已退") ? "已退" : "待退";
+}
+
+function isVoidedDeposit(deposit: BusinessDeposit) {
+  return deposit.notes?.includes("[已作废]") || deposit.status === "已作废";
 }
 
 function syncRoomsAfterTenantChange(
