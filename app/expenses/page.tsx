@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
+import { DateFilterPreset, DateRangeFilter, dateRangeForMonth, dateRangeForPreset, isDateInRange } from "@/components/date-range-filter";
 import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -65,7 +66,9 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [propertyFilter, setPropertyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
+  const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailExpenseId, setDetailExpenseId] = useState("");
@@ -97,7 +100,12 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     const month = new URLSearchParams(window.location.search).get("month");
-    if (month) setMonthFilter(month);
+    const range = month ? dateRangeForMonth(month) : null;
+    if (range) {
+      setDatePreset("custom");
+      setDateStart(range.startDate);
+      setDateEnd(range.endDate);
+    }
   }, []);
 
   useEffect(() => {
@@ -130,9 +138,13 @@ export default function ExpensesPage() {
         (expense) =>
           (!propertyFilter || expense.propertyId === propertyFilter) &&
           (!categoryFilter || expense.category === categoryFilter) &&
-          (!monthFilter || expense.expenseMonth.includes(monthFilter) || expense.paymentDate.includes(monthFilter))
+          isDateInRange(expense.paymentDate, { startDate: dateStart, endDate: dateEnd })
       ),
-    [categoryFilter, expenses, monthFilter, propertyFilter]
+    [categoryFilter, dateEnd, dateStart, expenses, propertyFilter]
+  );
+  const filteredExpenseTotal = useMemo(
+    () => filteredExpenses.reduce((total, expense) => total + Number(expense.amount || 0), 0),
+    [filteredExpenses]
   );
   const visibleExpenses = pageRows(filteredExpenses, page, pageSize);
   const roomOptions = rooms.filter((room) => room.propertyId === form.propertyId);
@@ -140,6 +152,30 @@ export default function ExpensesPage() {
   function close() {
     setOpen(false);
     setForm(emptyExpense);
+  }
+
+  function updateDatePreset(preset: DateFilterPreset) {
+    setDatePreset(preset);
+    if (preset === "custom") {
+      setDateStart("");
+      setDateEnd("");
+    } else {
+      const range = dateRangeForPreset(preset);
+      setDateStart(range.startDate);
+      setDateEnd(range.endDate);
+    }
+    setPage(1);
+  }
+
+  function updateDateStart(value: string) {
+    setDateStart(value);
+    if (dateEnd && value && dateEnd < value) setDateEnd(value);
+    setPage(1);
+  }
+
+  function updateDateEnd(value: string) {
+    setDateEnd(value && dateStart && value < dateStart ? dateStart : value);
+    setPage(1);
   }
 
   async function persist(next: BusinessExpense[]) {
@@ -222,10 +258,11 @@ export default function ExpensesPage() {
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
-          <select value={propertyFilter} onChange={(event) => setPropertyFilter(event.target.value)}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
-          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
-          <label className="search-box"><input placeholder="筛选月份，例如 2026-06" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></label>
+          <select value={propertyFilter} onChange={(event) => { setPropertyFilter(event.target.value); setPage(1); }}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
+          <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
+          <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
         </div>
+        <div className="filtered-total" aria-live="polite"><span>当前筛选支出合计</span><strong>{euro(filteredExpenseTotal)}</strong></div>
 
         <div className="finance-list">
           {visibleExpenses.map((expense) => {

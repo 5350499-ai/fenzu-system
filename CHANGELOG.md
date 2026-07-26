@@ -398,3 +398,45 @@
 - 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
 - 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
 - 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。
+# 2026-07-26 - Mobile-friendly payment and expense date filters (Preview only)
+
+- Replaced the free-text month filters in rent-payment and expense lists with preset date choices (all time, today, this month, last month) and a native mobile date-range picker. Date comparisons use `YYYY-MM-DD` local-date strings, including both selected boundary days.
+- Added a rent-payment property selector while retaining existing text search, overdue-only filtering, the expense property/type selectors, and current list ordering. No payment, expense, statistic, attachment, database, RLS, or permission behavior changed.
+
+# 2026-07-26 - Show totals for current finance-list filters (Preview only)
+
+- Added a compact current-filter total above rent-payment and expense lists. Each total is calculated in the browser from the complete filtered result before pagination, using the existing `amountPaid` or `amount` values and preserving their stored signs.
+- No financial record, calculation rule, statistics page, database, RLS, attachment, or permission behavior changed.
+## 2026-07-26 - Deposit handling status flow (Preview)
+
+- Replaced move-out free-text deposit input with a controlled pending/processed choice. The status-only action does not create expenses or change financial amounts.
+- Added a post-move-out “修改押金状态” action for changing valid deposit statuses and reloading the saved result.
+- UI labels now show “押金待处理” and “押金已处理”; database values remain `待退` and `已退`. No migration, RLS, environment, real-data, or Production changes.
+## 2026-07-26 - Verify deposit status updates (Preview)
+
+- Deposit status changes now require matching valid deposit records, verify returned updated IDs, and reload from Supabase to confirm the selected status before closing the dialog.
+- Missing records and update/reload mismatches now show explicit errors and diagnostic logs without creating records or changing financial fields.
+## 2026-07-26 - Clarify tenants without deposit records (Preview)
+
+- Tenants without a valid `deposits` row now show “未建立押金管理记录” instead of an implied pending status, with the status-edit action hidden.
+- Existing deposit status labels and updates remain unchanged when valid records exist. No data, schema, RLS, or migration changes.
+## 2026-07-26 - Manual deposit record creation (Preview)
+
+- Added a per-tenant “建立押金管理记录” action when no valid deposit record exists.
+- The user confirms the amount and pending/processed status before one linked deposit record is created; duplicate checks run again before saving. No rent payment, expense, schema, RLS, or migration changes.
+## 2026-07-26 - Fix dashboard deposit reminders (Preview)
+
+- Dashboard deposit alerts now include only non-voided `待退` deposits belonging to tenants whose status is `已退租`; in-rent tenants and missing deposit records are excluded.
+- Dashboard wording now uses “押金待处理”. No financial, database, RLS, environment, or real-data changes.
+## 2026-07-26 - Fix tenant card toggle layout (Preview)
+
+- Combined the tenant card's two-line header into one accessible toggle so either line can expand or collapse the same detail panel.
+- Removed the mobile meta row's decorative left border/indent and kept status badges from toggling the card. No business, database, or real-data changes.
+## 2026-07-26 - Fix expanded tenant card corners (Preview)
+
+- Expanded tenant cards now use one outer rounded boundary with a single internal divider, while collapsed cards retain their existing layout and toggle behavior.
+- No business, database, or real-data changes.
+## 2026-07-26 - Preserve tenant card radius during interaction (Preview)
+
+- Tenant card toggle buttons now keep the same 16px radius in default, hover, active, focus, and focus-visible states.
+- No business, database, or real-data changes.

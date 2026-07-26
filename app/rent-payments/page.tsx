@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
+import { DateFilterPreset, DateRangeFilter, dateRangeForMonth, dateRangeForPreset, isDateInRange } from "@/components/date-range-filter";
 import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
@@ -92,7 +93,10 @@ export default function RentPaymentsPage() {
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
+  const [propertyFilter, setPropertyFilter] = useState("");
+  const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
@@ -130,7 +134,12 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setMonthFilter(params.get("month") || "");
+    const range = dateRangeForMonth(params.get("month") || "");
+    if (range) {
+      setDatePreset("custom");
+      setDateStart(range.startDate);
+      setDateEnd(range.endDate);
+    }
     setOverdueOnly(params.get("overdue") === "1");
   }, []);
 
@@ -198,10 +207,15 @@ export default function RentPaymentsPage() {
       const tenant = tenants.find((item) => item.id === payment.tenantId);
       const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.incomeType || "房租收入"} ${payment.incomeItem || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
       return (!keyword || text.includes(keyword)) &&
-        (!monthFilter || paymentAccountingDate(payment).startsWith(monthFilter)) &&
+        (!propertyFilter || payment.propertyId === propertyFilter) &&
+        isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, payments));
     });
-  }, [monthFilter, overdueOnly, payments, properties, query, rooms, tenants]);
+  }, [dateEnd, dateStart, overdueOnly, payments, properties, propertyFilter, query, rooms, tenants]);
+  const filteredPaymentTotal = useMemo(
+    () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment), 0),
+    [filteredPayments]
+  );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
 
   function close() {
@@ -484,8 +498,35 @@ export default function RentPaymentsPage() {
 
   function resetFilters() {
     setQuery("");
-    setMonthFilter("");
+    setPropertyFilter("");
+    setDatePreset("all");
+    setDateStart("");
+    setDateEnd("");
     setOverdueOnly(false);
+    setPage(1);
+  }
+
+  function updateDatePreset(preset: DateFilterPreset) {
+    setDatePreset(preset);
+    if (preset === "custom") {
+      setDateStart("");
+      setDateEnd("");
+    } else {
+      const range = dateRangeForPreset(preset);
+      setDateStart(range.startDate);
+      setDateEnd(range.endDate);
+    }
+    setPage(1);
+  }
+
+  function updateDateStart(value: string) {
+    setDateStart(value);
+    if (dateEnd && value && dateEnd < value) setDateEnd(value);
+    setPage(1);
+  }
+
+  function updateDateEnd(value: string) {
+    setDateEnd(value && dateStart && value < dateStart ? dateStart : value);
     setPage(1);
   }
 
@@ -498,11 +539,13 @@ export default function RentPaymentsPage() {
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
-          <label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信、月份" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-          <label className="search-box"><input placeholder="筛选月份，例如 2026-06" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} /></label>
-          <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => setOverdueOnly((current) => !current)} type="button">只看欠费</button>
-          {(query || monthFilter || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
+          <select value={propertyFilter} onChange={(event) => { setPropertyFilter(event.target.value); setPage(1); }}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.address ? `${property.name} · ${property.address}` : property.name}</option>)}</select>
+          <label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
+          <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
+          <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => { setOverdueOnly((current) => !current); setPage(1); }} type="button">只看欠费</button>
+          {(query || propertyFilter || datePreset !== "all" || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
         </div>
+        <div className="filtered-total" aria-live="polite"><span>当前筛选收款合计</span><strong>{euro(filteredPaymentTotal)}</strong></div>
 
         <div className="finance-list">
           {visiblePayments.map((payment) => {

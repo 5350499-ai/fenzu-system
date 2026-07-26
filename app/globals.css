@@ -1629,6 +1629,67 @@ td:last-child {
   padding: 0 12px;
 }
 
+.date-range-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-range-preset,
+.date-range-inputs label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.date-range-preset select,
+.date-range-inputs input {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  outline: 0;
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 12px;
+  font: inherit;
+}
+
+.date-range-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.date-range-summary {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.filtered-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.filtered-total strong {
+  min-width: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .sort-pills {
   display: flex;
   flex-wrap: wrap;
@@ -1718,6 +1779,54 @@ td:last-child {
   color: inherit;
   padding: 6px 2px;
   text-align: left;
+}
+
+.tenant-card-toggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tenant-card-toggle:hover,
+.tenant-card-toggle:active,
+.tenant-card-toggle:focus,
+.tenant-card-toggle:focus-visible {
+  border-radius: 16px;
+}
+
+.tenant-card-toggle:hover {
+  background: var(--surface-soft);
+}
+
+.tenant-card-expanded {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.tenant-card-expanded .tenant-card-toggle {
+  background: var(--surface-soft);
+}
+
+.tenant-card-expanded .tenant-detail-panel {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 15px 15px;
+}
+
+.tenant-toggle-control {
+  display: inline-flex;
+  min-width: 0;
 }
 
 .finance-line span,
@@ -2080,11 +2189,11 @@ td:last-child {
   align-items: center;
   min-width: 0;
   gap: 6px;
-  margin: 0 2px 5px;
-  padding: 3px 7px;
-  border-left: 3px solid var(--border);
-  border-radius: 0 7px 7px 0;
-  background: var(--surface-soft);
+  margin: 0;
+  padding: 3px 2px 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font-size: 10px;
 }
 
@@ -2316,6 +2425,35 @@ td:last-child {
   max-height: calc(100vh - 36px);
   overflow: auto;
   padding: 20px;
+}
+
+.tenant-compact-list .tenant-card-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.deposit-status-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.deposit-status-detail > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.deposit-status-modal .muted {
+  margin: 0 0 14px;
+  line-height: 1.6;
 }
 
 .modal-actions {
@@ -2580,6 +2718,15 @@ td:last-child {
   }
 
   .list-controls select {
+    width: 100%;
+  }
+
+  .date-range-filter,
+  .date-range-preset,
+  .date-range-preset select,
+  .date-range-inputs,
+  .date-range-inputs label,
+  .date-range-inputs input {
     width: 100%;
   }
 

@@ -276,12 +276,12 @@ function buildDashboardReminders({
     });
 
   deposits
-    .filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes))
+    .filter((deposit) => isDashboardPendingDeposit(deposit, tenantById))
     .forEach((deposit) => {
       const tenant = tenantById.get(deposit.tenantId);
       reminders.push({
         id: `deposit-${deposit.id}`,
-        title: `${tenant?.name || "租客"}押金${deposit.status}`,
+        title: `${tenant?.name || "租客"}押金待处理`,
         description: euro(deposit.amount),
         href: "/deposits",
         tone: "info",
@@ -338,7 +338,8 @@ function buildReminderSummary({
     const days = daysUntil(contract.endDate, today);
     return days <= 30;
   }).length;
-  const abnormalDeposits = deposits.filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes)).length;
+  const tenantById = new Map(tenants.map((item) => [item.id, item]));
+  const abnormalDeposits = deposits.filter((deposit) => isDashboardPendingDeposit(deposit, tenantById)).length;
   const vacantRooms = rooms.filter((room) => roomOccupancyStatus(room, tenants).includes("空置")).length;
   const parts = [];
   if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
@@ -402,6 +403,18 @@ function daysUntil(date: string, from: Date) {
   const target = new Date(`${date}T00:00:00`);
   const start = new Date(from.toISOString().slice(0, 10) + "T00:00:00");
   return Math.ceil((target.getTime() - start.getTime()) / 86400000);
+}
+
+function isDashboardPendingDeposit(
+  deposit: BusinessDeposit,
+  tenantById: Map<string, BusinessTenant>
+) {
+  const tenant = tenantById.get(deposit.tenantId);
+  return Boolean(
+    tenant?.status.includes("已退租") &&
+      deposit.status === "待退" &&
+      !isVoided(deposit.notes)
+  );
 }
 
 function isVoided(notes?: string) {
