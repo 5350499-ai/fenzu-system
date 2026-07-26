@@ -432,3 +432,7 @@
 
 - Combined the tenant card's two-line header into one accessible toggle so either line can expand or collapse the same detail panel.
 - Removed the mobile meta row's decorative left border/indent and kept status badges from toggling the card. No business, database, or real-data changes.
+## 2026-07-26 - Fix expanded tenant card corners (Preview)
+
+- Expanded tenant cards now use one outer rounded boundary with a single internal divider, while collapsed cards retain their existing layout and toggle behavior.
+- No business, database, or real-data changes.

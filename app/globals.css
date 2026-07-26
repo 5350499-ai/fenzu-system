@@ -1798,6 +1798,24 @@ td:last-child {
   background: var(--surface-soft);
 }
 
+.tenant-card-expanded {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.tenant-card-expanded .tenant-card-toggle {
+  background: var(--surface-soft);
+}
+
+.tenant-card-expanded .tenant-detail-panel {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 15px 15px;
+}
+
 .tenant-toggle-control {
   display: inline-flex;
   min-width: 0;

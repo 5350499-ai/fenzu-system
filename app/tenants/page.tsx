@@ -725,7 +725,7 @@ export default function TenantsPage() {
             const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const expanded = detailTenantId === tenant.id;
             return (
-              <article className="finance-list-item" key={tenant.id}>
+              <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`} key={tenant.id}>
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
