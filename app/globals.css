@@ -1668,6 +1668,28 @@ td:last-child {
   white-space: nowrap;
 }
 
+.filtered-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.filtered-total strong {
+  min-width: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .sort-pills {
   display: flex;
   flex-wrap: wrap;

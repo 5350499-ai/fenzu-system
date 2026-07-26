@@ -402,3 +402,8 @@
 
 - Replaced the free-text month filters in rent-payment and expense lists with preset date choices (all time, today, this month, last month) and a native mobile date-range picker. Date comparisons use `YYYY-MM-DD` local-date strings, including both selected boundary days.
 - Added a rent-payment property selector while retaining existing text search, overdue-only filtering, the expense property/type selectors, and current list ordering. No payment, expense, statistic, attachment, database, RLS, or permission behavior changed.
+
+# 2026-07-26 - Show totals for current finance-list filters (Preview only)
+
+- Added a compact current-filter total above rent-payment and expense lists. Each total is calculated in the browser from the complete filtered result before pagination, using the existing `amountPaid` or `amount` values and preserving their stored signs.
+- No financial record, calculation rule, statistics page, database, RLS, attachment, or permission behavior changed.

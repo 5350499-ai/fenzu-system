@@ -212,6 +212,10 @@ export default function RentPaymentsPage() {
         (!overdueOnly || isLatestExpiredPayment(payment, payments));
     });
   }, [dateEnd, dateStart, overdueOnly, payments, properties, propertyFilter, query, rooms, tenants]);
+  const filteredPaymentTotal = useMemo(
+    () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment), 0),
+    [filteredPayments]
+  );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
 
   function close() {
@@ -541,6 +545,7 @@ export default function RentPaymentsPage() {
           <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => { setOverdueOnly((current) => !current); setPage(1); }} type="button">只看欠费</button>
           {(query || propertyFilter || datePreset !== "all" || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
         </div>
+        <div className="filtered-total" aria-live="polite"><span>当前筛选收款合计</span><strong>{euro(filteredPaymentTotal)}</strong></div>
 
         <div className="finance-list">
           {visiblePayments.map((payment) => {

@@ -142,6 +142,10 @@ export default function ExpensesPage() {
       ),
     [categoryFilter, dateEnd, dateStart, expenses, propertyFilter]
   );
+  const filteredExpenseTotal = useMemo(
+    () => filteredExpenses.reduce((total, expense) => total + Number(expense.amount || 0), 0),
+    [filteredExpenses]
+  );
   const visibleExpenses = pageRows(filteredExpenses, page, pageSize);
   const roomOptions = rooms.filter((room) => room.propertyId === form.propertyId);
 
@@ -258,6 +262,7 @@ export default function ExpensesPage() {
           <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
         </div>
+        <div className="filtered-total" aria-live="polite"><span>当前筛选支出合计</span><strong>{euro(filteredExpenseTotal)}</strong></div>
 
         <div className="finance-list">
           {visibleExpenses.map((expense) => {
