@@ -1781,6 +1781,28 @@ td:last-child {
   text-align: left;
 }
 
+.tenant-card-toggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tenant-card-toggle:hover {
+  background: var(--surface-soft);
+}
+
+.tenant-toggle-control {
+  display: inline-flex;
+  min-width: 0;
+}
+
 .finance-line span,
 .finance-line strong {
   min-width: 0;
@@ -2141,11 +2163,11 @@ td:last-child {
   align-items: center;
   min-width: 0;
   gap: 6px;
-  margin: 0 2px 5px;
-  padding: 3px 7px;
-  border-left: 3px solid var(--border);
-  border-radius: 0 7px 7px 0;
-  background: var(--surface-soft);
+  margin: 0;
+  padding: 3px 2px 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font-size: 10px;
 }
 
@@ -2377,6 +2399,12 @@ td:last-child {
   max-height: calc(100vh - 36px);
   overflow: auto;
   padding: 20px;
+}
+
+.tenant-compact-list .tenant-card-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .deposit-status-detail {

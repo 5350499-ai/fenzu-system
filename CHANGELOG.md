@@ -428,3 +428,7 @@
 
 - Dashboard deposit alerts now include only non-voided `待退` deposits belonging to tenants whose status is `已退租`; in-rent tenants and missing deposit records are excluded.
 - Dashboard wording now uses “押金待处理”. No financial, database, RLS, environment, or real-data changes.
+## 2026-07-26 - Fix tenant card toggle layout (Preview)
+
+- Combined the tenant card's two-line header into one accessible toggle so either line can expand or collapse the same detail panel.
+- Removed the mobile meta row's decorative left border/indent and kept status badges from toggling the card. No business, database, or real-data changes.
