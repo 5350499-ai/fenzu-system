@@ -415,7 +415,7 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
 export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[]) {
   if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
     if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
-    return;
+    return value.map((row) => row.id).filter(Boolean);
   }
 
   const config = tableConfigs[key];
@@ -426,7 +426,7 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   const previousIds = readRemoteIds(key);
   const previousRows = readRemoteSnapshot<T>(key);
   const previousById = new Map(previousRows.map((row) => [row.id, JSON.stringify(row)]));
-  if (!previousIds.length && !value.length) return;
+  if (!previousIds.length && !value.length) return [];
 
   const nextIds = value.map((row) => row.id).filter(Boolean);
   const removedIds = previousIds.filter((id) => !nextIds.includes(id));
@@ -438,7 +438,7 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
     })),
     ...removedIds.map((id) => ({ action: "delete", id }))
   ];
-  if (!operations.length) return;
+  if (!operations.length) return [];
   const requestBody = JSON.stringify({ key, operations });
   const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
@@ -460,6 +460,8 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
 
   writeRemoteIds(key, nextIds);
   writeRemoteSnapshot(key, value);
+  const payload = await response.clone().json().catch(() => null) as { rows?: Array<{ id?: string }> } | null;
+  return (payload?.rows || []).map((row) => row.id || "").filter(Boolean);
 }
 
 let accountSnapshot: { token: string; workspaceOwnerId: string } | null = null;

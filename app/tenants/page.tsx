@@ -455,14 +455,40 @@ export default function TenantsPage() {
   }
 
   async function updateDepositStatus(tenant: BusinessTenant, status: "待退" | "已退") {
-    const nextDeposits = deposits.map((deposit) => (deposit.tenantId === tenant.id && !isVoidedDeposit(deposit) ? { ...deposit, status } : deposit));
-    const saved = await persistAll({ deposits: nextDeposits }, "押金状态保存失败，请重新进入租客详情确认状态。");
-    if (!saved) return;
+    const targetDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
+    if (!targetDeposits.length) {
+      window.alert("未找到该租客的有效押金记录，状态未修改。");
+      return;
+    }
+    const targetIds = targetDeposits.map((deposit) => deposit.id);
+    const nextDeposits = deposits.map((deposit) => (targetIds.includes(deposit.id) ? { ...deposit, status } : deposit));
+    console.info("[deposit-status] submit", { tenantId: tenant.id, status, targetIds });
+    let updatedIds: string[] = [];
+    try {
+      updatedIds = await saveBusinessData(depositKey, nextDeposits);
+    } catch (error) {
+      console.error("[deposit-status] update failed", { tenantId: tenant.id, status, targetIds, error });
+      window.alert(error instanceof Error ? error.message : "押金状态保存失败，请重新进入租客详情确认状态。");
+      return;
+    }
+    console.info("[deposit-status] update result", { tenantId: tenant.id, status, targetIds, updatedIds });
+    if (!targetIds.every((id) => updatedIds.includes(id))) {
+      window.alert("押金状态未确认写入，请重新进入租客详情确认状态。");
+      return;
+    }
     try {
       const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
+      const refreshedTargetDeposits = refreshedDeposits.filter((deposit) => targetIds.includes(deposit.id));
+      const confirmed = refreshedTargetDeposits.length === targetIds.length && refreshedTargetDeposits.every((deposit) => deposit.status === status);
+      console.info("[deposit-status] reload result", { tenantId: tenant.id, status, targetIds, confirmed });
+      if (!confirmed) {
+        window.alert("押金状态保存后未能确认最终状态，请重新进入租客详情确认。");
+        return;
+      }
       setDeposits(refreshedDeposits);
       setDepositStatusTenant(null);
-    } catch {
+    } catch (error) {
+      console.error("[deposit-status] reload failed", { tenantId: tenant.id, status, targetIds, error });
       window.alert("押金状态已提交，但无法确认最终状态，请重新进入租客详情确认。");
     }
   }
