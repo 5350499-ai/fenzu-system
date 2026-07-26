@@ -893,6 +893,73 @@ a {
   color: var(--red);
 }
 
+.profit-bar-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.profit-bar-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.profit-bar-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) minmax(88px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.profit-bar-row > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profit-bar-row > strong {
+  min-width: 0;
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.profit-bar-track {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.profit-bar-fill {
+  width: var(--profit-bar-width);
+  min-width: 0;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.profit-bar-fill.income {
+  background: var(--green);
+}
+
+.profit-bar-fill.expense {
+  background: var(--amber);
+}
+
+.profit-bar-fill.net {
+  background: var(--blue);
+}
+
+.profit-bar-fill.loss {
+  background: var(--red);
+}
+
+.profit-unassigned-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .profit-ledger-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2599,6 +2666,16 @@ td:last-child {
 @media (max-width: 640px) {
   .compact-profit-summary {
     padding: 5px 6px;
+  }
+
+  .profit-bar-row {
+    grid-template-columns: 50px minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .profit-bar-row > span,
+  .profit-bar-row > strong {
+    font-size: 12px;
   }
 
   .compact-profit-metric {

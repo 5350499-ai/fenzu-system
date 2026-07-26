@@ -440,3 +440,8 @@
 
 - Tenant card toggle buttons now keep the same 16px radius in default, hover, active, focus, and focus-visible states.
 - No business, database, or real-data changes.
+## 2026-07-26 - Profit all-property summary and comparison chart (Preview)
+
+- The property-profit page now supports the existing date ranges with a selectable all-property or single-property scope, while keeping the original per-property cards and detail links.
+- Added a lightweight CSS horizontal comparison of income, expense, and net profit to both the all-property summary and individual property detail. Totals reuse the existing read-only profit calculations; the all-property summary retains the existing dashboard handling for unassigned income.
+- No database schema, RLS, environment variables, financial records, property links, or business calculation rules were changed.

@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
+import { ProfitBarChart } from "@/components/profit-bar-chart";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -27,20 +28,13 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { downloadExpenseFile, ExpenseFile, loadExpenseFiles, openExpenseFile } from "@/lib/expense-files";
-import { calculatePropertyProfit, getDateRange, RangePreset } from "@/lib/profit";
+import { calculatePropertyProfit, getDateRange, RangePreset, rangeOptions } from "@/lib/profit";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { downloadRentPaymentFile, loadRentPaymentFiles, openRentPaymentFile, RentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, isRentIncome, paymentCoverageEnd } from "@/lib/rent-coverage";
 import { Download, Eye } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-
-const detailRanges: { value: RangePreset; label: string }[] = [
-  { value: "thisMonth", label: "本月" },
-  { value: "last3Months", label: "最近3个月" },
-  { value: "last12Months", label: "最近12个月" },
-  { value: "custom", label: "自定义日期" }
-];
 
 export default function PropertyProfitDetailPage() {
   const access = useAccountAccess();
@@ -110,7 +104,7 @@ export default function PropertyProfitDetailPage() {
           </div>
         </div>
         <div className="filter-grid">
-          <SearchableSelect label="时间范围" value={preset} options={detailRanges.map((item) => ({ value: item.value, label: item.label }))} onChange={(value) => setPreset(value as RangePreset)} />
+          <SearchableSelect label="时间范围" value={preset} options={rangeOptions.map((item) => ({ value: item.value, label: item.label }))} onChange={(value) => setPreset(value as RangePreset)} />
           {preset === "custom" ? (
             <>
               <div className="field"><label>开始日期</label><input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></div>
@@ -127,6 +121,11 @@ export default function PropertyProfitDetailPage() {
         <ProfitMetric label="欠租" value={euro(stat.unpaid)} tone={stat.unpaid > 0 ? "danger" : ""} />
         <ProfitMetric label="空置" value={`${stat.vacantRooms} 间`} />
         <ProfitMetric label="入住率" value={`${stat.occupancy}%`} />
+      </section>
+
+      <section className="card panel profit-bar-panel">
+        <h2 className="panel-title">收支对比</h2>
+        <ProfitBarChart income={stat.income} expense={stat.expense} netProfit={stat.netProfit} label={`${property.name}收入、支出与净利润对比`} />
       </section>
 
       <div className="profit-ledger-grid">
