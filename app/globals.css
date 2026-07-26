@@ -1159,7 +1159,8 @@ a {
 
 .operations-alerts,
 .operations-room-panel,
-.operations-property-panel {
+.operations-property-panel,
+.operations-chart-panel {
   display: grid;
   gap: 10px;
   padding: 14px;
@@ -1167,7 +1168,8 @@ a {
 
 .operations-alerts .panel-header,
 .operations-room-panel .panel-header,
-.operations-property-panel .panel-header {
+.operations-property-panel .panel-header,
+.operations-chart-panel .panel-header {
   margin-bottom: 0;
 }
 
@@ -1272,6 +1274,165 @@ a {
   white-space: nowrap;
 }
 
+.operations-chart-panel .muted {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.operations-contract-flow-chart,
+.operations-room-status-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.operations-chart-legend,
+.operations-room-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 13px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.operations-chart-legend span,
+.operations-room-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.operations-chart-legend i,
+.operations-room-status-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.operations-legend-start,
+.operations-flow-bar.start,
+.operations-room-status-segment.rented,
+.operations-room-status-dot.rented {
+  background: var(--green);
+}
+
+.operations-legend-end,
+.operations-flow-bar.end,
+.operations-room-status-segment.vacant,
+.operations-room-status-dot.vacant {
+  background: var(--amber);
+}
+
+.operations-room-status-segment.maintenance,
+.operations-room-status-dot.maintenance {
+  background: var(--red);
+}
+
+.operations-room-status-segment.paused,
+.operations-room-status-dot.paused {
+  background: var(--blue);
+}
+
+.operations-room-status-segment.other,
+.operations-room-status-dot.other {
+  background: var(--muted);
+}
+
+.operations-flow-columns {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 190px;
+  position: relative;
+}
+
+.operations-flow-columns::after {
+  position: absolute;
+  top: 72px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--text) 52%, var(--border));
+  content: "";
+  pointer-events: none;
+}
+
+.operations-flow-column {
+  display: grid;
+  grid-template-rows: 72px 1px 72px auto;
+  min-width: 0;
+  text-align: center;
+}
+
+.operations-flow-up,
+.operations-flow-down {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.operations-flow-up {
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.operations-flow-down {
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.operations-flow-bar {
+  display: block;
+  width: clamp(11px, 58%, 22px);
+  border-radius: 5px 5px 2px 2px;
+}
+
+.operations-flow-bar.end {
+  border-radius: 2px 2px 5px 5px;
+}
+
+.operations-flow-zero {
+  background: transparent;
+}
+
+.operations-flow-count {
+  min-height: 18px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 18px;
+}
+
+.operations-flow-month {
+  overflow: hidden;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-room-status-track {
+  display: flex;
+  min-height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.operations-room-status-segment {
+  min-width: 0;
+}
+
+.operations-chart-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
 @media (max-width: 640px) {
   .operations-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1293,6 +1454,18 @@ a {
     flex: 1 1 calc(50% - 6px);
     min-width: 0;
     text-align: center;
+  }
+
+  .operations-flow-columns {
+    min-height: 174px;
+  }
+
+  .operations-flow-columns::after {
+    top: 64px;
+  }
+
+  .operations-flow-column {
+    grid-template-rows: 64px 1px 64px auto;
   }
 }
 

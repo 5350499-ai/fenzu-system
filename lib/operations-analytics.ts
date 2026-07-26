@@ -57,6 +57,27 @@ export type OperationsRoom = {
   vacancyStart: string;
 };
 
+export type OperationsContractFlowMonth = {
+  month: string;
+  label: string;
+  started: number;
+  ended: number;
+};
+
+export type OperationsRoomStatusKey = "rented" | "vacant" | "maintenance" | "paused" | "other";
+
+export type OperationsRoomStatusItem = {
+  key: OperationsRoomStatusKey;
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type OperationsRoomStatusDistribution = {
+  total: number;
+  items: OperationsRoomStatusItem[];
+};
+
 export function calculateOperationsStats(scope: OperationsScope, today = todayString()): OperationsStats {
   const activeTenants = scope.tenants.filter(strictCurrentRentalTenant);
   const movedOutTenants = scope.tenants.filter((tenant) => tenant.status.includes("已退租"));
@@ -144,6 +165,63 @@ export function buildOperationsRooms(scope: OperationsScope, today = todayString
     .sort((left, right) => Number(right.statusLabel === "空置") - Number(left.statusLabel === "空置") || left.room.roomNumber.localeCompare(right.room.roomNumber));
 }
 
+export function calculateOperationsContractFlow(
+  scope: OperationsScope,
+  today = todayString()
+): OperationsContractFlowMonth[] {
+  const months = recentNaturalMonths(today, 6);
+  const counts = new Map(months.map((month) => [month.month, { started: 0, ended: 0 }]));
+
+  for (const contract of scope.contracts.filter(isChartEligibleContract)) {
+    const startMonth = contract.startDate?.slice(0, 7);
+    const endMonth = contract.endDate?.slice(0, 7);
+    if (startMonth && counts.has(startMonth)) counts.get(startMonth)!.started += 1;
+    if (endMonth && counts.has(endMonth)) counts.get(endMonth)!.ended += 1;
+  }
+
+  return months.map((month) => ({ ...month, ...counts.get(month.month)! }));
+}
+
+export function calculateOperationsRoomStatusDistribution(scope: OperationsScope): OperationsRoomStatusDistribution {
+  const visibleRooms = scope.rooms.filter((room) => !isArchivedRoom(room));
+  const counts: Record<OperationsRoomStatusKey, number> = {
+    rented: 0,
+    vacant: 0,
+    maintenance: 0,
+    paused: 0,
+    other: 0
+  };
+
+  for (const room of visibleRooms) {
+    const dynamicStatus = roomOccupancyStatus(room, scope.tenants);
+    if (dynamicStatus === "已租") counts.rented += 1;
+    else if (dynamicStatus === "空置" || dynamicStatus === "空房") counts.vacant += 1;
+    else if (dynamicStatus === "维修中") counts.maintenance += 1;
+    else if (dynamicStatus === "暂停出租") counts.paused += 1;
+    else counts.other += 1;
+  }
+
+  const labels: Record<OperationsRoomStatusKey, string> = {
+    rented: "已出租",
+    vacant: "空置",
+    maintenance: "维修中",
+    paused: "暂停出租",
+    other: "其他状态"
+  };
+
+  return {
+    total: visibleRooms.length,
+    items: (Object.keys(counts) as OperationsRoomStatusKey[])
+      .filter((key) => counts[key] > 0)
+      .map((key) => ({
+        key,
+        label: labels[key],
+        count: counts[key],
+        percentage: Math.round((counts[key] / visibleRooms.length) * 100)
+      }))
+  };
+}
+
 function vacancyInfo(roomId: string, contracts: BusinessContract[], today: string) {
   const endedContract = contracts
     .filter((contract) => contract.roomId === roomId && isEndedContract(contract) && Boolean(contract.endDate) && !isVoided(contract.notes))
@@ -156,6 +234,23 @@ function vacancyInfo(roomId: string, contracts: BusinessContract[], today: strin
 
 function isCurrentContract(contract: BusinessContract, today: string) {
   return Boolean(contract.endDate && contract.endDate >= today && !isEndedContract(contract));
+}
+
+function recentNaturalMonths(today: string, length: number): Array<{ month: string; label: string }> {
+  const [year, month] = today.slice(0, 7).split("-").map(Number);
+  return Array.from({ length }, (_, index) => {
+    const date = new Date(year, month - length + index, 1);
+    const monthNumber = date.getMonth() + 1;
+    return {
+      month: `${date.getFullYear()}-${String(monthNumber).padStart(2, "0")}`,
+      label: `${monthNumber}月`
+    };
+  });
+}
+
+function isChartEligibleContract(contract: BusinessContract) {
+  const status = (contract.status || "").toLowerCase();
+  return !isVoided(contract.notes) && !["已作废", "作废", "void"].some((value) => status.includes(value));
 }
 
 function isEndedContract(contract: BusinessContract) {

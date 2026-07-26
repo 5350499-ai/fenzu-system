@@ -2,6 +2,8 @@
 
 import { useAccountAccess } from "@/components/account-access";
 import { AppLayout } from "@/components/app-layout";
+import { OperationsContractFlowChart } from "@/components/operations-contract-flow-chart";
+import { OperationsRoomStatusChart } from "@/components/operations-room-status-chart";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -26,7 +28,13 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { buildOperationsRooms, calculateOperationsStats, OperationsScope } from "@/lib/operations-analytics";
+import {
+  buildOperationsRooms,
+  calculateOperationsContractFlow,
+  calculateOperationsRoomStatusDistribution,
+  calculateOperationsStats,
+  OperationsScope
+} from "@/lib/operations-analytics";
 import { todayString } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -68,6 +76,8 @@ export default function AnalyticsPage() {
   );
   const stats = useMemo(() => calculateOperationsStats(scope, today), [scope, today]);
   const operationRooms = useMemo(() => buildOperationsRooms(scope, today), [scope, today]);
+  const contractFlow = useMemo(() => calculateOperationsContractFlow(scope, today), [scope, today]);
+  const roomStatusDistribution = useMemo(() => calculateOperationsRoomStatusDistribution(scope), [scope]);
   const selectedProperty = properties.find((property) => property.id === propertyId);
   const scopeLabel = propertyId === "all" ? "全部房源" : selectedProperty?.name || "当前房源";
   const byProperty = useMemo(
@@ -120,6 +130,26 @@ export default function AnalyticsPage() {
           <OperationsMetric label="空置" value={`${stats.vacantRooms} 间`} tone={stats.vacantRooms ? "warning" : ""} />
           <OperationsMetric label="入住率" value={`${stats.occupancy}%`} tone="info" />
         </div>
+      </section>
+
+      <section className="card panel operations-chart-panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">近6个月租赁变化</h2>
+            <p className="muted">按合同开始日期与结束日期统计，不代表实际搬入或搬出日期。</p>
+          </div>
+        </div>
+        <OperationsContractFlowChart months={contractFlow} />
+      </section>
+
+      <section className="card panel operations-chart-panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">当前房间状态</h2>
+            <p className="muted">按当前有效房间的动态入住与房间状态统计。</p>
+          </div>
+        </div>
+        <OperationsRoomStatusChart distribution={roomStatusDistribution} />
       </section>
 
       <section className="card panel operations-alerts" aria-label="经营提醒">

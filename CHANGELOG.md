@@ -469,3 +469,8 @@
 - Replaced the duplicated financial overview on `/analytics` with a current-state operations view for tenants, contracts, rent collection, deposits and rooms. The existing `/property-profits` financial analysis page remains unchanged.
 - Added property-scoped operating counts, a compact reminder summary, room status rows and per-property operating summaries. Vacant-day display uses only the most recent ended contract `end_date`; rooms without that reliable date explicitly show that no reliable start date is available.
 - No financial calculation, record, schema, RLS, environment variable, authentication, attachment or business-status data was changed.
+
+## 2026-07-26 - Add visual operations analytics (Preview)
+
+- Added a property-scoped six-month contract start/end chart and a current room-status proportion bar to the operations analytics page. Contract counts use valid contract start/end dates and explicitly do not imply actual move-in or move-out dates.
+- The new charts are read-only presentation of the existing operations scope. They do not change the established room rent label or its data source, financial calculations, records, schema, RLS, environment variables, or business rules.
