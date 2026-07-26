@@ -450,6 +450,7 @@ export default function TenantsPage() {
   }
 
   function openDepositStatusDialog(tenant: BusinessTenant) {
+    if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return;
     setDepositStatusTenant(tenant);
     setDepositStatusValue(tenantDepositStorageStatus(tenant, deposits));
   }
@@ -683,13 +684,13 @@ export default function TenantsPage() {
                     {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
                   </strong>
                   <StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge>
                 </button>
                 <div className="tenant-mobile-meta">
                   <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
                   {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
                   <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
-                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
+                  <StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge>
                 </div>
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
@@ -942,7 +943,17 @@ function TenantDetail({
         <DetailField label="备注" value={tenant.notes || "-"} />
       </div>
 
-      {movedOut ? (
+      {movedOut && depositStatus === "未建立押金管理记录" ? (
+        <div className="deposit-status-detail">
+          <div>
+            <span className="muted">押金状态</span>
+            <StatusBadge>未建立押金管理记录</StatusBadge>
+            <span className="muted">该租客只有收款记录中的押金金额，尚未建立独立押金管理记录。</span>
+          </div>
+        </div>
+      ) : null}
+
+      {movedOut && depositStatus !== "未建立押金管理记录" ? (
         <div className="deposit-status-detail">
           <div>
             <span className="muted">押金状态</span>
@@ -1144,6 +1155,7 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 }
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
+  if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return "未建立押金管理记录";
   return tenantDepositStorageStatus(tenant, deposits) === "已退" ? "押金已处理" : "押金待处理";
 }
 

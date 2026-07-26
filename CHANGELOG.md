@@ -416,3 +416,7 @@
 
 - Deposit status changes now require matching valid deposit records, verify returned updated IDs, and reload from Supabase to confirm the selected status before closing the dialog.
 - Missing records and update/reload mismatches now show explicit errors and diagnostic logs without creating records or changing financial fields.
+## 2026-07-26 - Clarify tenants without deposit records (Preview)
+
+- Tenants without a valid `deposits` row now show “未建立押金管理记录” instead of an implied pending status, with the status-edit action hidden.
+- Existing deposit status labels and updates remain unchanged when valid records exist. No data, schema, RLS, or migration changes.
