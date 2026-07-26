@@ -474,3 +474,7 @@
 
 - Added a property-scoped six-month contract start/end chart and a current room-status proportion bar to the operations analytics page. Contract counts use valid contract start/end dates and explicitly do not imply actual move-in or move-out dates.
 - The new charts are read-only presentation of the existing operations scope. They do not change the established room rent label or its data source, financial calculations, records, schema, RLS, environment variables, or business rules.
+
+## 2026-07-26 - Compact zero-value contract-flow chart labels (Preview)
+
+- The six-month operations contract-flow chart now hides zero-value labels and bars while retaining the continuous baseline, month labels, legend and the explicit all-zero empty state.

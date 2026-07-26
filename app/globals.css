@@ -1344,13 +1344,13 @@ a {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
-  min-height: 190px;
+  min-height: 164px;
   position: relative;
 }
 
 .operations-flow-columns::after {
   position: absolute;
-  top: 72px;
+  top: 62px;
   right: 0;
   left: 0;
   height: 1px;
@@ -1361,7 +1361,7 @@ a {
 
 .operations-flow-column {
   display: grid;
-  grid-template-rows: 72px 1px 72px auto;
+  grid-template-rows: 62px 1px 62px auto;
   min-width: 0;
   text-align: center;
 }
@@ -1457,15 +1457,15 @@ a {
   }
 
   .operations-flow-columns {
-    min-height: 174px;
+    min-height: 150px;
   }
 
   .operations-flow-columns::after {
-    top: 64px;
+    top: 58px;
   }
 
   .operations-flow-column {
-    grid-template-rows: 64px 1px 64px auto;
+    grid-template-rows: 58px 1px 58px auto;
   }
 }
 
