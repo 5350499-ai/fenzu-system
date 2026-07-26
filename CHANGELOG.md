@@ -453,3 +453,8 @@
 
 - Removed the expanded per-payment and per-expense displays from the profit overview and single-property statistics page. The pages now focus on filters, compact current totals, the shared-scale comparison chart, concise property summaries, and links to the existing income and expense pages for detailed records.
 - Kept the existing profit, date, property, unpaid, occupancy, and searchable-select behavior unchanged. No financial records, schema, RLS, environment variables, or business calculations changed.
+
+## 2026-07-26 - Compact mobile profit overview (Preview)
+
+- Combined income, expense, and net profit into one compact profit overview with a shared-scale horizontal bar comparison, then condensed unpaid rent, occupancy, and vacancy into a single three-column row.
+- Reduced filter and per-property summary density without changing the existing date/property selection, dropdown behavior, calculations, data sources, or any business data.

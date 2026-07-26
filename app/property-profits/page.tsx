@@ -76,7 +76,7 @@ export default function PropertyProfitsPage() {
 
   return (
     <AppLayout title="房源利润分析" description="按现有收款与支出流水只读汇总；可查看全部房源或单套房源在当前时间范围的结果。">
-      <section className="card panel">
+      <section className="card panel profit-filter-panel">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">统计范围</h2>
@@ -95,57 +95,38 @@ export default function PropertyProfitsPage() {
         </div>
       </section>
 
-      <section className="card compact-profit-summary" aria-label={scopeLabel}>
-        <ProfitMetric label="总收入" value={euro(totals.income)} tone="profit" />
-        <ProfitMetric label="总支出" value={euro(totals.expense)} />
-        <ProfitMetric label="总净利润" value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
-        <ProfitMetric label="总欠租" value={euro(totals.unpaid)} tone={totals.unpaid > 0 ? "danger" : ""} />
-        <ProfitMetric label="总空置" value={`${totals.vacantRooms} 间`} />
-        <ProfitMetric label="总入住率" value={`${totals.occupancy}%`} />
-      </section>
-
-      <section className="card panel profit-bar-panel">
-        <div className="panel-header">
-          <h2 className="panel-title">{scopeLabel}收支对比</h2>
+      <section className="card profit-overview-card" aria-label={scopeLabel}>
+        <div className="profit-overview-header">
+          <div>
+            <h2 className="panel-title">利润概览</h2>
+            <p className="muted">{scopeLabel} · 收入、支出与净利润</p>
+          </div>
           {selectedPropertyId !== "all" ? <Link className="text-link" href={`/property-profits/${selectedPropertyId}`}>查看收入支出明细</Link> : null}
         </div>
         <ProfitBarChart income={totals.income} expense={totals.expense} netProfit={totals.netProfit} label={`${scopeLabel}收入、支出与净利润对比`} />
+        <div className="profit-secondary-metrics" aria-label="次要利润指标">
+          <ProfitSecondaryMetric label="欠租" value={euro(totals.unpaid)} tone={totals.unpaid > 0 ? "danger" : ""} />
+          <ProfitSecondaryMetric label="入住率" value={`${totals.occupancy}%`} />
+          <ProfitSecondaryMetric label="空置" value={`${totals.vacantRooms}间`} />
+        </div>
         {unassignedIncome > 0 ? <p className="profit-unassigned-note">已按现有首页规则计入未分配房源收入：{euro(unassignedIncome)}。</p> : null}
       </section>
 
-      <section className="card panel">
+      <section className="card panel property-profit-panel">
         <div className="panel-header">
           <h2 className="panel-title">按房源统计</h2>
           <span className="muted">当前范围内所有房源</span>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>房源名称</th><th>收入</th><th>支出</th><th>净利润</th><th>状态</th><th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.map((stat) => (
-                <tr key={stat.property.id}>
-                  <td><Link className="text-link" href={`/property-profits/${stat.property.id}`}>{stat.property.name}</Link></td>
-                  <td>{euro(stat.income)}</td><td>{euro(stat.expense)}</td><td className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</td>
-                  <td><StatusBadge tone={stat.netProfit < 0 ? "red" : "green"}>{stat.netProfit < 0 ? "亏损" : "盈利"}</StatusBadge></td>
-                  <td><Link className="text-link" href={`/property-profits/${stat.property.id}`}>查看明细</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
+        <div className="profit-property-list">
           {stats.map((stat) => (
-            <article className="mobile-record-card" key={stat.property.id}>
-              <div className="mobile-record-title"><strong>{stat.property.name}</strong><span><StatusBadge tone={stat.netProfit < 0 ? "red" : "green"}>{stat.netProfit < 0 ? "亏损" : "盈利"}</StatusBadge></span></div>
-              <div className="mobile-record-fields">
-                <div className="mobile-record-field"><span>收入</span><strong>{euro(stat.income)}</strong></div><div className="mobile-record-field"><span>支出</span><strong>{euro(stat.expense)}</strong></div>
-                <div className="mobile-record-field"><span>净利润</span><strong className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</strong></div>
+            <article className="profit-property-card" key={stat.property.id}>
+              <div className="profit-property-card-header"><strong>{stat.property.name}</strong><StatusBadge tone={stat.netProfit < 0 ? "red" : "green"}>{stat.netProfit < 0 ? "亏损" : "盈利"}</StatusBadge></div>
+              <div className="profit-property-values">
+                <div><span>收入</span><strong className="profit">{euro(stat.income)}</strong></div>
+                <div><span>支出</span><strong>{euro(stat.expense)}</strong></div>
+                <div><span>净利润</span><strong className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</strong></div>
               </div>
-              <Link className="btn" href={`/property-profits/${stat.property.id}`}>查看明细</Link>
+              <Link className="text-link profit-property-detail-link" href={`/property-profits/${stat.property.id}`}>查看明细</Link>
             </article>
           ))}
         </div>
@@ -154,6 +135,6 @@ export default function PropertyProfitsPage() {
   );
 }
 
-function ProfitMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
-  return <div className={`compact-profit-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+function ProfitSecondaryMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
+  return <div className={`profit-secondary-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }

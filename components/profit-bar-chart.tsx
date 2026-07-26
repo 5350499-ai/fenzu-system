@@ -20,11 +20,13 @@ export function ProfitBarChart({ income, expense, netProfit, label = "收支与�
     <div aria-label={label} className="profit-bar-chart">
       {rows.map((row) => (
         <div className="profit-bar-row" key={row.label}>
-          <span>{row.label}</span>
+          <div className="profit-bar-meta">
+            <span>{row.label}</span>
+            <strong className={row.value < 0 ? "danger-text" : row.tone === "income" || row.tone === "net" ? "profit" : ""}>{euro(row.value)}</strong>
+          </div>
           <div aria-hidden="true" className="profit-bar-track">
             <div className={`profit-bar-fill ${row.tone}`} style={{ "--profit-bar-width": `${(Math.abs(row.value) / scale) * 100}%` } as CSSProperties} />
           </div>
-          <strong className={row.value < 0 ? "danger-text" : row.tone === "income" || row.tone === "net" ? "profit" : ""}>{euro(row.value)}</strong>
         </div>
       ))}
     </div>
