@@ -1787,11 +1787,19 @@ td:last-child {
   margin: 0;
   padding: 0;
   border: 0;
+  border-radius: 16px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.tenant-card-toggle:hover,
+.tenant-card-toggle:active,
+.tenant-card-toggle:focus,
+.tenant-card-toggle:focus-visible {
+  border-radius: 16px;
 }
 
 .tenant-card-toggle:hover {
@@ -2422,7 +2430,6 @@ td:last-child {
 .tenant-compact-list .tenant-card-toggle:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
-  border-radius: 8px;
 }
 
 .deposit-status-detail {

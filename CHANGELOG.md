@@ -436,3 +436,7 @@
 
 - Expanded tenant cards now use one outer rounded boundary with a single internal divider, while collapsed cards retain their existing layout and toggle behavior.
 - No business, database, or real-data changes.
+## 2026-07-26 - Preserve tenant card radius during interaction (Preview)
+
+- Tenant card toggle buttons now keep the same 16px radius in default, hover, active, focus, and focus-visible states.
+- No business, database, or real-data changes.
