@@ -1629,6 +1629,45 @@ td:last-child {
   padding: 0 12px;
 }
 
+.date-range-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-range-preset,
+.date-range-inputs label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.date-range-preset select,
+.date-range-inputs input {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  outline: 0;
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 0 12px;
+  font: inherit;
+}
+
+.date-range-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.date-range-summary {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .sort-pills {
   display: flex;
   flex-wrap: wrap;
@@ -2580,6 +2619,15 @@ td:last-child {
   }
 
   .list-controls select {
+    width: 100%;
+  }
+
+  .date-range-filter,
+  .date-range-preset,
+  .date-range-preset select,
+  .date-range-inputs,
+  .date-range-inputs label,
+  .date-range-inputs input {
     width: 100%;
   }
 

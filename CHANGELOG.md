@@ -398,3 +398,7 @@
 - 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
 - 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
 - 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。
+# 2026-07-26 - Mobile-friendly payment and expense date filters (Preview only)
+
+- Replaced the free-text month filters in rent-payment and expense lists with preset date choices (all time, today, this month, last month) and a native mobile date-range picker. Date comparisons use `YYYY-MM-DD` local-date strings, including both selected boundary days.
+- Added a rent-payment property selector while retaining existing text search, overdue-only filtering, the expense property/type selectors, and current list ordering. No payment, expense, statistic, attachment, database, RLS, or permission behavior changed.
