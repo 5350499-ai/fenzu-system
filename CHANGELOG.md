@@ -445,3 +445,7 @@
 - The property-profit page now supports the existing date ranges with a selectable all-property or single-property scope, while keeping the original per-property cards and detail links.
 - Added a lightweight CSS horizontal comparison of income, expense, and net profit to both the all-property summary and individual property detail. Totals reuse the existing read-only profit calculations; the all-property summary retains the existing dashboard handling for unassigned income.
 - No database schema, RLS, environment variables, financial records, property links, or business calculation rules were changed.
+## 2026-07-26 - Stabilize mobile searchable selects (Preview)
+
+- Fixed the shared searchable-select interaction so an iPhone touch does not immediately close the menu before its option click. The first touch opens a list without forcing the keyboard; option selection now completes on click, while blur closes only after focus has actually left the component.
+- Added controlled outside-click, Escape and keyboard navigation behavior while preserving scrollable option menus. All pages using the shared selector benefit; no business data, calculations, schema, RLS, environment variables, or permissions changed.
