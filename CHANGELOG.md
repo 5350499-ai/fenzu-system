@@ -463,3 +463,9 @@
 
 - Corrected the mobile navigation route mismatch: the bottom-nav Statistics entry opens `/analytics`, so that page now uses the same compact read-only profit overview, shared-scale bars, three compact secondary indicators, and concise property summaries.
 - Kept the existing Statistics filters, dropdown behavior, calculations, data sources, and property-detail links unchanged. No business data, schema, RLS, or environment settings changed.
+
+## 2026-07-26 - Split Statistics into an operations center (Preview)
+
+- Replaced the duplicated financial overview on `/analytics` with a current-state operations view for tenants, contracts, rent collection, deposits and rooms. The existing `/property-profits` financial analysis page remains unchanged.
+- Added property-scoped operating counts, a compact reminder summary, room status rows and per-property operating summaries. Vacant-day display uses only the most recent ended contract `end_date`; rooms without that reliable date explicitly show that no reliable start date is available.
+- No financial calculation, record, schema, RLS, environment variable, authentication, attachment or business-status data was changed.

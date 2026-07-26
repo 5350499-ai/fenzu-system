@@ -1071,6 +1071,231 @@ a {
   font-weight: 750;
 }
 
+.operations-filter-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.operations-filter-panel .panel-header {
+  margin-bottom: 0;
+}
+
+.operations-filter-panel .muted {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.operations-metric-group {
+  display: grid;
+  gap: 8px;
+}
+
+.operations-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline: 2px;
+}
+
+.operations-section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.operations-section-heading span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.operations-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.operations-metric {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-soft);
+  padding: 10px;
+}
+
+.operations-metric span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.operations-metric strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-metric.warning strong,
+.operations-warning {
+  color: var(--amber);
+}
+
+.operations-metric.danger strong {
+  color: var(--red);
+}
+
+.operations-metric.success strong {
+  color: var(--green);
+}
+
+.operations-metric.info strong {
+  color: var(--blue);
+}
+
+.operations-alerts,
+.operations-room-panel,
+.operations-property-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.operations-alerts .panel-header,
+.operations-room-panel .panel-header,
+.operations-property-panel .panel-header {
+  margin-bottom: 0;
+}
+
+.operations-alert-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.operations-alert-links a {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+  text-decoration: none;
+}
+
+.operations-alert-links a:hover {
+  background: var(--surface-hover);
+}
+
+.operations-room-list,
+.operations-property-list {
+  display: grid;
+  gap: 8px;
+}
+
+.operations-room-row,
+.operations-property-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 11px;
+}
+
+.operations-room-head,
+.operations-property-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.operations-room-head > div,
+.operations-property-head > strong {
+  min-width: 0;
+}
+
+.operations-room-head strong,
+.operations-property-head strong {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-room-head small {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-room-meta,
+.operations-property-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.operations-room-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.operations-property-card {
+  color: inherit;
+  text-decoration: none;
+}
+
+.operations-property-card:hover {
+  border-color: color-mix(in srgb, var(--blue) 42%, var(--border));
+  background: var(--surface-hover);
+}
+
+.operations-property-head span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .operations-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operations-metric {
+    padding: 9px;
+  }
+
+  .operations-metric strong {
+    font-size: 16px;
+  }
+
+  .operations-alert-links {
+    gap: 6px;
+  }
+
+  .operations-alert-links a {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    text-align: center;
+  }
+}
+
 .profit-detail-actions {
   display: flex;
   align-items: center;
