@@ -856,20 +856,18 @@ a {
 .compact-profit-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 0;
 }
 
 .compact-profit-metric {
   display: grid;
   gap: 3px;
   min-width: 0;
-  border-right: 1px solid var(--border);
-  padding: 7px 12px;
-}
-
-.compact-profit-metric:last-child {
-  border-right: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 9px 10px;
 }
 
 .compact-profit-metric span {
@@ -925,7 +923,7 @@ a {
 
 .profit-bar-track {
   overflow: hidden;
-  height: 10px;
+  height: 14px;
   border-radius: 999px;
   background: var(--surface-soft);
 }
@@ -958,6 +956,17 @@ a {
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
+}
+
+.profit-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.profit-detail-actions .panel-title {
+  margin-bottom: 4px;
 }
 
 .profit-ledger-grid {
@@ -2584,14 +2593,6 @@ td:last-child {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .compact-profit-metric:nth-child(3) {
-    border-right: 0;
-  }
-
-  .compact-profit-metric:nth-child(-n + 3) {
-    border-bottom: 1px solid var(--border);
-  }
-
   .profit-ledger-grid {
     grid-template-columns: 1fr;
   }
@@ -2665,7 +2666,21 @@ td:last-child {
 
 @media (max-width: 640px) {
   .compact-profit-summary {
-    padding: 5px 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .compact-profit-metric:nth-child(1),
+  .compact-profit-metric:nth-child(2) {
+    grid-column: span 3;
+  }
+
+  .compact-profit-metric:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .compact-profit-metric:nth-child(n + 4) {
+    grid-column: span 2;
   }
 
   .profit-bar-row {
@@ -2679,30 +2694,16 @@ td:last-child {
   }
 
   .compact-profit-metric {
-    padding: 7px 8px;
+    padding: 8px;
   }
 
   .compact-profit-metric strong {
     font-size: 13px;
   }
 
-  .profit-ledger-line {
-    grid-template-columns: minmax(72px, 0.9fr) minmax(32px, auto) minmax(54px, 0.8fr) minmax(68px, auto) auto;
-    gap: 5px;
-    min-height: 34px;
-    padding: 5px 0;
-    font-size: 11px;
-  }
-
-  .profit-ledger-line .badge {
-    padding-inline: 6px;
-    font-size: 10px;
-  }
-
-  .profit-ledger-line .partner-tag {
-    max-width: 64px;
-    padding-inline: 5px;
-    font-size: 10px;
+  .profit-detail-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
   .metrics {
     gap: 10px;

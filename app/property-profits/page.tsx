@@ -122,7 +122,7 @@ export default function PropertyProfitsPage() {
           <table>
             <thead>
               <tr>
-                <th>房源名称</th><th>收入</th><th>支出</th><th>净利润</th><th>欠租金额</th><th>空置房间数</th><th>入住率</th><th>状态</th>
+                <th>房源名称</th><th>收入</th><th>支出</th><th>净利润</th><th>状态</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -130,8 +130,8 @@ export default function PropertyProfitsPage() {
                 <tr key={stat.property.id}>
                   <td><Link className="text-link" href={`/property-profits/${stat.property.id}`}>{stat.property.name}</Link></td>
                   <td>{euro(stat.income)}</td><td>{euro(stat.expense)}</td><td className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</td>
-                  <td className={stat.unpaid > 0 ? "danger-text" : ""}>{euro(stat.unpaid)}</td><td>{stat.vacantRooms} 间</td><td>{stat.occupancy}%</td>
                   <td><StatusBadge tone={stat.netProfit < 0 ? "red" : "green"}>{stat.netProfit < 0 ? "亏损" : "盈利"}</StatusBadge></td>
+                  <td><Link className="text-link" href={`/property-profits/${stat.property.id}`}>查看明细</Link></td>
                 </tr>
               ))}
             </tbody>
@@ -143,8 +143,7 @@ export default function PropertyProfitsPage() {
               <div className="mobile-record-title"><strong>{stat.property.name}</strong><span><StatusBadge tone={stat.netProfit < 0 ? "red" : "green"}>{stat.netProfit < 0 ? "亏损" : "盈利"}</StatusBadge></span></div>
               <div className="mobile-record-fields">
                 <div className="mobile-record-field"><span>收入</span><strong>{euro(stat.income)}</strong></div><div className="mobile-record-field"><span>支出</span><strong>{euro(stat.expense)}</strong></div>
-                <div className="mobile-record-field"><span>净利润</span><strong className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</strong></div><div className="mobile-record-field"><span>欠租</span><strong className={stat.unpaid > 0 ? "danger-text" : ""}>{euro(stat.unpaid)}</strong></div>
-                <div className="mobile-record-field"><span>空置</span><strong>{stat.vacantRooms} 间</strong></div><div className="mobile-record-field"><span>入住率</span><strong>{stat.occupancy}%</strong></div>
+                <div className="mobile-record-field"><span>净利润</span><strong className={stat.netProfit < 0 ? "danger-text" : "profit"}>{euro(stat.netProfit)}</strong></div>
               </div>
               <Link className="btn" href={`/property-profits/${stat.property.id}`}>查看明细</Link>
             </article>
