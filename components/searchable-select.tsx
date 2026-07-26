@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 export type SelectOption = {
   value: string;
@@ -16,7 +16,7 @@ export function SearchableSelect({
   options,
   placeholder,
   disabled,
-  openOnTouchWithoutKeyboard,
+  openOnTouchWithoutKeyboard = true,
   onChange
 }: {
   label: string;
@@ -30,8 +30,9 @@ export function SearchableSelect({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
-  const selectingRef = useRef(false);
+  const listboxId = useId();
   const selected = options.find((option) => option.value === value);
   const visibleOptions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -56,23 +57,53 @@ export function SearchableSelect({
     return () => document.removeEventListener("pointerdown", closeOnOutside);
   }, [open]);
 
-  function closeMenu() {
-    setOpen(false);
+  function openMenu() {
+    setOpen(true);
+    setActiveIndex((current) => current >= 0 && current < visibleOptions.length ? current : 0);
   }
 
-  function chooseOption(option: SelectOption, event: React.SyntheticEvent) {
-    // Select before the input can blur. This keeps iOS touch selection independent
-    // from virtual-keyboard focus and from the outside-click listener.
-    event.preventDefault();
-    event.stopPropagation();
-    if (selectingRef.current) return;
-    selectingRef.current = true;
+  function closeMenu() {
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  function chooseOption(option: SelectOption) {
     onChange(option.value);
     setQuery("");
     closeMenu();
+  }
+
+  function closeAfterFocusSettles() {
     requestAnimationFrame(() => {
-      selectingRef.current = false;
+      const activeElement = document.activeElement;
+      if (activeElement instanceof Node && rootRef.current?.contains(activeElement)) return;
+      closeMenu();
     });
+  }
+
+  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu();
+      event.currentTarget.blur();
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => {
+        const fallback = event.key === "ArrowDown" ? -1 : visibleOptions.length;
+        const next = (current < 0 ? fallback : current) + (event.key === "ArrowDown" ? 1 : -1);
+        return Math.max(0, Math.min(visibleOptions.length - 1, next));
+      });
+      return;
+    }
+
+    if ((event.key === "Enter" || event.key === " ") && open && visibleOptions[activeIndex]) {
+      event.preventDefault();
+      chooseOption(visibleOptions[activeIndex]);
+    }
   }
 
   return (
@@ -81,31 +112,34 @@ export function SearchableSelect({
       <div
         className={`combobox ${disabled ? "disabled" : ""}`}
         onMouseDown={(event) => {
-          if (!disabled && event.target === event.currentTarget) setOpen(true);
+          if (!disabled && event.target === event.currentTarget) openMenu();
         }}
         onTouchStart={(event) => {
-          if (!disabled && event.target === event.currentTarget) setOpen(true);
+          if (!disabled && event.target === event.currentTarget) openMenu();
         }}
       >
         <Search size={17} />
         <input
           disabled={disabled}
-          onBlur={(event) => {
-            if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return;
-            closeMenu();
-          }}
+          aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
+          aria-controls={open ? listboxId : undefined}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onBlur={closeAfterFocusSettles}
           onChange={(event) => {
             setQuery(event.target.value);
-            setOpen(true);
+            openMenu();
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={openMenu}
+          onKeyDown={handleInputKeyDown}
           onPointerDown={(event) => {
             if (openOnTouchWithoutKeyboard && event.pointerType === "touch" && !open) {
               event.preventDefault();
-              setOpen(true);
+              openMenu();
             }
           }}
           placeholder={selected ? selected.label : placeholder || "搜索并选择"}
+          role="combobox"
           value={open ? query : selected?.label || ""}
         />
           {value ? (
@@ -126,15 +160,18 @@ export function SearchableSelect({
           </button>
         ) : null}
         {open && !disabled ? (
-          <div className="combobox-menu">
+          <div className="combobox-menu" id={listboxId} role="listbox">
             {visibleOptions.length ? (
-              visibleOptions.map((option) => (
+              visibleOptions.map((option, index) => (
                 <button
+                  aria-selected={option.value === value}
                   className="combobox-option"
+                  id={`${listboxId}-${index}`}
                   key={option.value}
+                  onClick={() => chooseOption(option)}
+                  onFocus={() => setActiveIndex(index)}
+                  role="option"
                   type="button"
-                  onPointerDown={(event) => chooseOption(option, event)}
-                  onTouchStart={(event) => chooseOption(option, event)}
                 >
                   <strong>{option.label}</strong>
                   {option.description ? <span>{option.description}</span> : null}

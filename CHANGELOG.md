@@ -440,3 +440,26 @@
 
 - Tenant card toggle buttons now keep the same 16px radius in default, hover, active, focus, and focus-visible states.
 - No business, database, or real-data changes.
+## 2026-07-26 - Profit all-property summary and comparison chart (Preview)
+
+- The property-profit page now supports the existing date ranges with a selectable all-property or single-property scope, while keeping the original per-property cards and detail links.
+- Added a lightweight CSS horizontal comparison of income, expense, and net profit to both the all-property summary and individual property detail. Totals reuse the existing read-only profit calculations; the all-property summary retains the existing dashboard handling for unassigned income.
+- No database schema, RLS, environment variables, financial records, property links, or business calculation rules were changed.
+## 2026-07-26 - Stabilize mobile searchable selects (Preview)
+
+- Fixed the shared searchable-select interaction so an iPhone touch does not immediately close the menu before its option click. The first touch opens a list without forcing the keyboard; option selection now completes on click, while blur closes only after focus has actually left the component.
+- Added controlled outside-click, Escape and keyboard navigation behavior while preserving scrollable option menus. All pages using the shared selector benefit; no business data, calculations, schema, RLS, environment variables, or permissions changed.
+## 2026-07-26 - Simplify profit pages into statistical overviews (Preview)
+
+- Removed the expanded per-payment and per-expense displays from the profit overview and single-property statistics page. The pages now focus on filters, compact current totals, the shared-scale comparison chart, concise property summaries, and links to the existing income and expense pages for detailed records.
+- Kept the existing profit, date, property, unpaid, occupancy, and searchable-select behavior unchanged. No financial records, schema, RLS, environment variables, or business calculations changed.
+
+## 2026-07-26 - Compact mobile profit overview (Preview)
+
+- Combined income, expense, and net profit into one compact profit overview with a shared-scale horizontal bar comparison, then condensed unpaid rent, occupancy, and vacancy into a single three-column row.
+- Reduced filter and per-property summary density without changing the existing date/property selection, dropdown behavior, calculations, data sources, or any business data.
+
+## 2026-07-26 - Apply compact profit overview to the Statistics route (Preview)
+
+- Corrected the mobile navigation route mismatch: the bottom-nav Statistics entry opens `/analytics`, so that page now uses the same compact read-only profit overview, shared-scale bars, three compact secondary indicators, and concise property summaries.
+- Kept the existing Statistics filters, dropdown behavior, calculations, data sources, and property-detail links unchanged. No business data, schema, RLS, or environment settings changed.
