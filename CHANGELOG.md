@@ -458,3 +458,8 @@
 
 - Combined income, expense, and net profit into one compact profit overview with a shared-scale horizontal bar comparison, then condensed unpaid rent, occupancy, and vacancy into a single three-column row.
 - Reduced filter and per-property summary density without changing the existing date/property selection, dropdown behavior, calculations, data sources, or any business data.
+
+## 2026-07-26 - Apply compact profit overview to the Statistics route (Preview)
+
+- Corrected the mobile navigation route mismatch: the bottom-nav Statistics entry opens `/analytics`, so that page now uses the same compact read-only profit overview, shared-scale bars, three compact secondary indicators, and concise property summaries.
+- Kept the existing Statistics filters, dropdown behavior, calculations, data sources, and property-detail links unchanged. No business data, schema, RLS, or environment settings changed.
