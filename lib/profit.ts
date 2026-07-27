@@ -16,6 +16,14 @@ export type DateRange = {
   label: string;
 };
 
+type CalendarDate = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+const BUSINESS_TIME_ZONE = "Europe/Madrid";
+
 export type PropertyProfit = {
   property: BusinessProperty;
   income: number;
@@ -45,24 +53,31 @@ export const rangeOptions: { value: RangePreset; label: string }[] = [
 ];
 
 export function getDateRange(preset: RangePreset, customStart?: string, customEnd?: string, now = new Date()): DateRange {
-  const today = startOfDay(now);
+  const today = businessCalendarDate(now);
   if (preset === "custom") {
     return {
-      start: customStart || toDateInput(startOfMonth(today)),
-      end: customEnd || toDateInput(today),
+      start: customStart || formatCalendarDate({ ...today, day: 1 }),
+      end: customEnd || formatCalendarDate(today),
       label: "自定义"
     };
   }
   if (preset === "lastMonth") {
-    const start = addMonths(startOfMonth(today), -1);
-    const end = addDays(startOfMonth(today), -1);
-    return { start: toDateInput(start), end: toDateInput(end), label: "上月" };
+    const previousMonth = shiftCalendarMonth({ ...today, day: 1 }, -1);
+    return {
+      start: formatCalendarDate({ ...previousMonth, day: 1 }),
+      end: formatCalendarDate(endOfCalendarMonth(previousMonth.year, previousMonth.month)),
+      label: "上月"
+    };
   }
-  if (preset === "last30Days") return { start: toDateInput(addDays(today, -29)), end: toDateInput(today), label: "最近30天" };
+  if (preset === "last30Days") return { start: formatCalendarDate(addCalendarDays(today, -29)), end: formatCalendarDate(today), label: "最近30天" };
   if (preset === "last3Months") return rollingMonths(today, 3, "最近3个月");
   if (preset === "last6Months") return rollingMonths(today, 6, "最近6个月");
   if (preset === "last12Months") return rollingMonths(today, 12, "最近12个月");
-  return { start: toDateInput(startOfMonth(today)), end: toDateInput(endOfMonth(today)), label: "本月" };
+  return {
+    start: formatCalendarDate({ ...today, day: 1 }),
+    end: formatCalendarDate(endOfCalendarMonth(today.year, today.month)),
+    label: "本月"
+  };
 }
 
 export function calculatePropertyProfits(
@@ -210,14 +225,18 @@ export function isDateInRange(date: string, range: DateRange) {
   return date >= range.start && date <= range.end;
 }
 
-function rollingMonths(today: Date, count: number, label: string): DateRange {
-  const start = addMonths(startOfMonth(today), -(count - 1));
-  return { start: toDateInput(start), end: toDateInput(endOfMonth(today)), label };
+function rollingMonths(today: CalendarDate, count: number, label: string): DateRange {
+  const start = shiftCalendarMonth({ ...today, day: 1 }, -(count - 1));
+  return {
+    start: formatCalendarDate({ ...start, day: 1 }),
+    end: formatCalendarDate(endOfCalendarMonth(today.year, today.month)),
+    label
+  };
 }
 
 function recentMonths(count: number) {
-  const start = startOfMonth(new Date());
-  return Array.from({ length: count }, (_, index) => toMonthInput(addMonths(start, -index)));
+  const today = businessCalendarDate(new Date());
+  return Array.from({ length: count }, (_, index) => formatCalendarMonth(shiftCalendarMonth(today, -index)));
 }
 
 function sumBy<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
@@ -244,30 +263,40 @@ function isVoided(notes?: string) {
   return Boolean(notes?.includes("[已作废]"));
 }
 
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+/** Formats a calendar day in the rental business timezone without UTC conversion. */
+export function formatLocalDate(date: Date) {
+  return formatCalendarDate(businessCalendarDate(date));
 }
 
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+function businessCalendarDate(date: Date): CalendarDate {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value || 0);
+  return { year: value("year"), month: value("month"), day: value("day") };
 }
 
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+function formatCalendarDate(date: CalendarDate) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
 }
 
-function addMonths(date: Date, months: number) {
-  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
+function formatCalendarMonth(date: CalendarDate) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}`;
 }
 
-function addDays(date: Date, days: number) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+function endOfCalendarMonth(year: number, month: number): CalendarDate {
+  return { year, month, day: new Date(Date.UTC(year, month, 0)).getUTCDate() };
 }
 
-function toDateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
+function shiftCalendarMonth(date: CalendarDate, months: number): CalendarDate {
+  const totalMonths = date.year * 12 + (date.month - 1) + months;
+  return { year: Math.floor(totalMonths / 12), month: (totalMonths % 12) + 1, day: date.day };
 }
 
-function toMonthInput(date: Date) {
-  return date.toISOString().slice(0, 7);
+function addCalendarDays(date: CalendarDate, days: number): CalendarDate {
+  const value = new Date(Date.UTC(date.year, date.month - 1, date.day + days));
+  return { year: value.getUTCFullYear(), month: value.getUTCMonth() + 1, day: value.getUTCDate() };
 }

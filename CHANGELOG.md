@@ -478,3 +478,7 @@
 ## 2026-07-26 - Compact zero-value contract-flow chart labels (Preview)
 
 - The six-month operations contract-flow chart now hides zero-value labels and bars while retaining the continuous baseline, month labels, legend and the explicit all-zero empty state.
+
+## 2026-07-27 - Fix profit date ranges in the local business timezone (Preview)
+
+- Profit presets now generate pure `YYYY-MM-DD` calendar boundaries in the Europe/Madrid business timezone rather than converting local midnight through UTC. This keeps displayed and filtered monthly, rolling and fallback custom ranges on their intended inclusive dates without changing financial calculations.
