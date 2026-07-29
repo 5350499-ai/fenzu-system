@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,12 @@ export async function GET() {
     return NextResponse.json({ error: "Preview Google Drive authorization could not be refreshed." }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
 
+  const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token.access_token)}`, { cache: "no-store" });
+  const tokenInfo = await tokenInfoResponse.json().catch(() => null) as { scope?: string } | null;
+  const grantedScopes = new Set((tokenInfo?.scope || "").split(" "));
+  const hasDriveFileScope = grantedScopes.has("https://www.googleapis.com/auth/drive.file");
+  const hasDriveMetadataScope = grantedScopes.has("https://www.googleapis.com/auth/drive.metadata.readonly");
+
   const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(rootFolderId)}?fields=id,mimeType,trashed`, {
     headers: { Authorization: `Bearer ${token.access_token}` },
     cache: "no-store"
@@ -40,8 +47,8 @@ export async function GET() {
       : folder?.trashed
         ? "Drive folder is in trash."
         : "Drive root is not a folder.";
-    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason, hasDriveFileScope, hasDriveMetadataScope }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
 
-  return NextResponse.json({ accessTokenExchange: "ok", previewDriveFolderAccess: "ok" }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ accessTokenExchange: "ok", previewDriveFolderAccess: "ok", hasDriveFileScope, hasDriveMetadataScope }, { headers: { "Cache-Control": "no-store" } });
 }
