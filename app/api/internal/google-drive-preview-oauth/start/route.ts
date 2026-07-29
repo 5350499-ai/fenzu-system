@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 
 const CALLBACK_PATH = "/api/internal/google-drive-preview-oauth/callback";
+const PREVIEW_OAUTH_ORIGIN = "https://fenzu-system-preview-oauth-20260729-5350499-ais-projects.vercel.app";
 const STATE_COOKIE = "fenzu_preview_drive_oauth_state";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   if (!clientId) return new NextResponse("Google Drive Preview 授权尚未配置。", { status: 503 });
 
   const state = randomBytes(32).toString("base64url");
-  const callbackUrl = new URL(CALLBACK_PATH, request.url).toString();
+  const callbackUrl = new URL(CALLBACK_PATH, PREVIEW_OAUTH_ORIGIN).toString();
   const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   authorizationUrl.search = new URLSearchParams({
     client_id: clientId,

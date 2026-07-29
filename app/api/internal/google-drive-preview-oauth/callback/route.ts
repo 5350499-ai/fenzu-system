@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const CALLBACK_PATH = "/api/internal/google-drive-preview-oauth/callback";
+const PREVIEW_OAUTH_ORIGIN = "https://fenzu-system-preview-oauth-20260729-5350499-ais-projects.vercel.app";
 const STATE_COOKIE = "fenzu_preview_drive_oauth_state";
 const PREVIEW_BRANCH = "fix/attachment-reload-display";
 const PREVIEW_TOKEN_KEY = "GOOGLE_REFRESH_TOKEN";
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: new URL(CALLBACK_PATH, request.url).toString(),
+        redirect_uri: new URL(CALLBACK_PATH, PREVIEW_OAUTH_ORIGIN).toString(),
         grant_type: "authorization_code"
       })
     });
