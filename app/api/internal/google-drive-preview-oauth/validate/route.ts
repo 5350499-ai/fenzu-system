@@ -3,6 +3,17 @@ import { NextResponse } from "next/server";
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
+type DriveFolder = { id?: string };
+
+async function listFolders(token: string, query: string) {
+  const response = await fetch(`${DRIVE_API}/files?q=${encodeURIComponent(query)}&fields=files(id)&pageSize=100`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
+  const payload = await response.json().catch(() => null) as { files?: DriveFolder[] } | null;
+  return response.ok ? payload?.files || [] : [];
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -29,15 +40,22 @@ export async function GET() {
   if (!tokenResponse.ok || !token?.access_token) {
     return NextResponse.json({ error: "Preview Google Drive authorization could not be refreshed." }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
+  const accessToken = token.access_token;
 
-  const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token.access_token)}`, { cache: "no-store" });
+  const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`, { cache: "no-store" });
   const tokenInfo = await tokenInfoResponse.json().catch(() => null) as { scope?: string } | null;
   const grantedScopes = new Set((tokenInfo?.scope || "").split(" "));
   const hasDriveFileScope = grantedScopes.has("https://www.googleapis.com/auth/drive.file");
   const hasDriveMetadataScope = grantedScopes.has("https://www.googleapis.com/auth/drive.metadata.readonly");
+  const managementFolders = await listFolders(accessToken, `name = '分租管理' and mimeType = '${DRIVE_FOLDER_MIME_TYPE}' and trashed = false`);
+  const previewFolders = (await Promise.all(managementFolders.map((folder) => folder.id
+    ? listFolders(accessToken, `'${folder.id}' in parents and name = 'Preview测试' and mimeType = '${DRIVE_FOLDER_MIME_TYPE}' and trashed = false`)
+    : Promise.resolve([])))).flat();
+  const uniquePreviewTestFolder = previewFolders.length === 1 ? previewFolders[0] : null;
+  const configuredRootMatchesPreviewTest = uniquePreviewTestFolder?.id === rootFolderId;
 
   const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(rootFolderId)}?fields=id,mimeType,trashed`, {
-    headers: { Authorization: `Bearer ${token.access_token}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store"
   });
   const folder = await folderResponse.json().catch(() => null) as { mimeType?: string; trashed?: boolean } | null;
@@ -47,8 +65,8 @@ export async function GET() {
       : folder?.trashed
         ? "Drive folder is in trash."
         : "Drive root is not a folder.";
-    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason, hasDriveFileScope, hasDriveMetadataScope }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason, hasDriveFileScope, hasDriveMetadataScope, uniquePreviewTestFolderFound: Boolean(uniquePreviewTestFolder), configuredRootMatchesPreviewTest }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
 
-  return NextResponse.json({ accessTokenExchange: "ok", previewDriveFolderAccess: "ok", hasDriveFileScope, hasDriveMetadataScope }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ accessTokenExchange: "ok", previewDriveFolderAccess: "ok", hasDriveFileScope, hasDriveMetadataScope, uniquePreviewTestFolderFound: Boolean(uniquePreviewTestFolder), configuredRootMatchesPreviewTest }, { headers: { "Cache-Control": "no-store" } });
 }
