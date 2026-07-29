@@ -1,9 +1,12 @@
 export const MAX_ATTACHMENT_FILE_SIZE = 4 * 1024 * 1024;
 export const MAX_ATTACHMENT_FILE_SIZE_LABEL = "4MB";
-export const ALLOWED_ATTACHMENT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/heic", "image/heif"] as const;
+// These are the only formats that may reach a storage provider. HEIC/HEIF are
+// accepted as browser input below, but are always converted to JPEG first.
+export const ALLOWED_ATTACHMENT_TYPES = ["application/pdf", "image/jpeg", "image/png"] as const;
+const ACCEPTED_ATTACHMENT_INPUT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/heic", "image/heif"] as const;
 export const ATTACHMENT_FILE_ACCEPT = "application/pdf,image/jpeg,image/png,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.heic,.heif";
 
-type AttachmentMimeType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
+type AttachmentMimeType = (typeof ACCEPTED_ATTACHMENT_INPUT_TYPES)[number];
 type PreparedAttachmentFile = {
   file: File;
   wasConverted: boolean;
@@ -31,6 +34,17 @@ export async function prepareAttachmentFile(source: File): Promise<PreparedAttac
   if (!mimeType) throw new Error("只支持 PDF、JPG、PNG、HEIC、HEIF 文件。");
 
   const normalized = normalizeFileNameAndType(source, mimeType);
+  if (mimeType === "image/heic" || mimeType === "image/heif") {
+    const converted = await createClearJpegCopy(normalized);
+    if (converted.size > MAX_ATTACHMENT_FILE_SIZE) {
+      throw new Error(`${sizeLimitMessage(normalized)} 已尝试转换为清晰 JPEG 副本，但副本仍超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。请改用更小的图片。`);
+    }
+    return {
+      file: converted,
+      wasConverted: true,
+      notice: `${source.name} 已转换为清晰 JPEG 副本（${formatAttachmentFileSize(converted.size)}）用于上传。`
+    };
+  }
   if (normalized.size <= MAX_ATTACHMENT_FILE_SIZE) return { file: normalized, wasConverted: false };
   if (!mimeType.startsWith("image/")) {
     throw new Error(sizeLimitMessage(normalized));

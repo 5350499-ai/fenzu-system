@@ -79,7 +79,7 @@ export function AttachmentAddControl({ label, onAdd, disabled = false }: {
         </button>
       </div>
       {files.length ? <div className="attachment-preview"><FileUp size={16} /><span>已选择 {files.length} 个文件：{files.map((file) => `${file.name} · ${formatFileSize(file.size)}`).join("；")}</span><button className="btn danger" type="button" disabled={adding} onClick={() => { setFiles([]); if (inputRef.current) inputRef.current.value = ""; }}><X size={15} /> 移除</button></div> : null}
-      <p className="muted">支持 PDF、JPG、PNG、HEIC、HEIF，单个文件不超过 {MAX_ATTACHMENT_FILE_SIZE_LABEL}。未超限文件保留原始内容；超限图片会先提示并生成清晰 JPEG 副本。选择文件后点击“添加”才会按顺序上传。</p>
+      <p className="muted">支持 PDF、JPG、PNG；HEIC、HEIF 图片会先转换为 JPEG。单个文件不超过 {MAX_ATTACHMENT_FILE_SIZE_LABEL}。超限图片会先提示并生成清晰 JPEG 副本；PDF 超限会直接拒绝。选择文件后点击“添加”才会按顺序上传。</p>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
   try {
     if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置，不能上传附件。");
     if (!ownerId) throw new Error("请先保存记录，再上传附件。");
-    if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG、HEIC、HEIF 文件。");
+    if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
     if (sourceFile.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`单个附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}，请选择更小的文件后重试。`);
 
     const session = await getValidSupabaseSession();
@@ -81,15 +81,16 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     const file = sourceFile;
 
     const fileName = redactSensitiveFileName(sourceFile.name);
-    const payload = await postGoogleDrive("/api/files/google-drive/prepare", session.access_token, {
+    const payload = await postAttachmentApi("/api/files/supabase-storage/prepare", session.access_token, {
       bucket: config.bucket, ownerId, fileName, fileType: file.type || sourceFile.type, fileSize: file.size
     });
-    const uploaded = await uploadGoogleResumable(payload.uploadUrl, payload.uploadId, config.bucket, ownerId, file, file.type || sourceFile.type, session.access_token);
-    if (!uploaded?.id) throw new Error("Google Drive 上传未返回文件标识，请重试。");
-    const completed = await postGoogleDrive("/api/files/google-drive/complete", session.access_token, {
-      bucket: config.bucket, ownerId, fileId: uploaded.id, uploadId: payload.uploadId,
-      fileName, fileType: file.type || sourceFile.type, fileSize: file.size
+    notifyAttachmentUploadProgress({ state: "uploading", loaded: 0, total: file.size });
+    const { error: uploadError } = await supabase.storage.from(payload.bucket).uploadToSignedUrl(payload.path, payload.token, file, {
+      contentType: file.type || sourceFile.type
     });
+    if (uploadError) throw new Error("私有附件上传失败，请检查网络后重试。");
+    notifyAttachmentUploadProgress({ state: "saving", loaded: file.size, total: file.size });
+    const completed = await postAttachmentApi("/api/files/supabase-storage/complete", session.access_token, { ticket: payload.ticket });
     const stored = fromDb(completed.file, config);
     notifyAttachmentUploadProgress({ state: "success", loaded: file.size, total: file.size });
     return stored;
@@ -140,7 +141,7 @@ export async function deleteStoredFile(file: StoredFile) {
   const account = await loadFileAccount(session.access_token);
   if (!account.canDeleteAttachments || !account.canDeleteFiles) throw new Error("当前账号没有删除附件权限。");
   if (file.storageProvider === "google_drive") {
-    await postGoogleDrive("/api/files/google-drive/delete", session.access_token, { id: file.id, bucket: file.storageBucket });
+    await postAttachmentApi("/api/files/google-drive/delete", session.access_token, { id: file.id, bucket: file.storageBucket });
     return;
   }
   if (!file.storagePath) throw new Error("历史 Supabase 附件路径无效，无法删除。");
@@ -177,14 +178,14 @@ function fromDb(row: any, config: FileConfig): StoredFile {
   };
 }
 
-async function postGoogleDrive(path: string, token: string, body: Record<string, unknown>) {
+async function postAttachmentApi(path: string, token: string, body: Record<string, unknown>) {
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body)
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.error || "Google Drive 附件操作失败。");
+  if (!response.ok) throw new Error(payload?.error || "附件操作失败。");
   return payload;
 }
 
@@ -192,34 +193,6 @@ type AttachmentUploadProgressState = "preparing" | "uploading" | "saving" | "suc
 
 function notifyAttachmentUploadProgress(detail: { state: AttachmentUploadProgressState; loaded?: number; total?: number }) {
   window.dispatchEvent(new CustomEvent("attachment-upload-progress", { detail }));
-}
-
-async function uploadGoogleResumable(uploadUrl: string, uploadId: string, bucket: string, ownerId: string, file: File, type: string, accessToken: string): Promise<{ id?: string }> {
-  return new Promise((resolve, reject) => {
-    const notify = (state: AttachmentUploadProgressState, loaded = 0) => notifyAttachmentUploadProgress({ state, loaded, total: file.size });
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/files/google-drive/upload");
-    xhr.setRequestHeader("Content-Type", type);
-    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-    xhr.setRequestHeader("X-Google-Upload-Url", uploadUrl);
-    xhr.setRequestHeader("X-Attachment-Bucket", bucket);
-    xhr.setRequestHeader("X-Attachment-Owner-Id", ownerId);
-    xhr.setRequestHeader("X-Attachment-Upload-Id", uploadId);
-    xhr.setRequestHeader("X-Attachment-File-Size", String(file.size));
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try { notify("saving", file.size); resolve(JSON.parse(xhr.responseText || "{}")); } catch { notify("failed"); reject(new Error("Google Drive 上传响应无效。")); }
-      } else {
-        const payload = (() => { try { return JSON.parse(xhr.responseText || "{}"); } catch { return null; } })();
-        notify("failed");
-        reject(new Error(payload?.error || "Google Drive 上传失败，请重试。"));
-      }
-    };
-    xhr.onerror = () => { notify("failed"); reject(new Error("Google Drive 上传中断，请检查网络后重试。")); };
-    xhr.upload.onprogress = (event) => notify("uploading", event.loaded);
-    notify("uploading");
-    xhr.send(file);
-  });
 }
 
 async function getGoogleDriveBlob(file: StoredFile, action: "view" | "download") {
