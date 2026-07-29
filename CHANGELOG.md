@@ -398,3 +398,8 @@
 - 附件上传取消自动图片压缩，4MB 以内的 JPEG、JPG、PNG、PDF 保留原文件。
 - 合同、收款和支出附件支持一次选择多个文件并按顺序独立上传；失败文件不回滚已成功附件。
 - 未执行数据库迁移，未修改 RLS、真实业务数据、历史附件、环境变量或 Google Drive 配置。
+
+## 2026-07-29 - Handle iPhone-transcoded attachment images safely (Preview)
+
+- New attachments accept JPEG, PNG, HEIC, HEIF and PDF only after checking the browser-selected file header. The upload relay verifies the same file signature before forwarding it to private Google Drive.
+- Files at or below 4MB keep their original content. A selected image above 4MB now shows a clear notice and uses a JPEG copy at up to a 2500px long edge and quality 0.90/0.85; PDFs are never compressed. The existing 4MB boundary remains because private Google Drive view/download responses still pass through the application.

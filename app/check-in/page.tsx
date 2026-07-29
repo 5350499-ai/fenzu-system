@@ -23,7 +23,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
-import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
+import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { getValidSupabaseSession } from "@/lib/supabase";
@@ -65,6 +65,7 @@ export default function CheckInPage() {
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
+  const [preparingAttachment, setPreparingAttachment] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
@@ -243,30 +244,32 @@ export default function CheckInPage() {
     }
   }
 
-  function chooseFile(file?: File) {
+  async function chooseFile(file?: File) {
     if (!file) return;
-    if (!isAllowedAttachmentType(file.type)) {
-      window.alert("只支持 PDF、JPG、PNG 文件。");
-      return;
+    setPreparingAttachment(true);
+    try {
+      const prepared = await prepareAttachmentFile(file);
+      setAttachment(prepared.file);
+      if (prepared.notice) window.alert(prepared.notice);
+    } catch (error: any) {
+      window.alert(error?.message || "无法处理合同附件。");
+    } finally {
+      setPreparingAttachment(false);
     }
-    if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
-      window.alert(`合同附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
-      return;
-    }
-    setAttachment(file);
   }
 
-  function choosePaymentFile(file?: File) {
+  async function choosePaymentFile(file?: File) {
     if (!file) return;
-    if (!isAllowedAttachmentType(file.type)) {
-      window.alert("只支持 PDF、JPG、PNG 文件。");
-      return;
+    setPreparingAttachment(true);
+    try {
+      const prepared = await prepareAttachmentFile(file);
+      setPaymentAttachment(prepared.file);
+      if (prepared.notice) window.alert(prepared.notice);
+    } catch (error: any) {
+      window.alert(error?.message || "无法处理收款附件。");
+    } finally {
+      setPreparingAttachment(false);
     }
-    if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
-      window.alert(`收款附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}。`);
-      return;
-    }
-    setPaymentAttachment(file);
   }
 
   return (
@@ -318,13 +321,13 @@ export default function CheckInPage() {
             {attachmentsOpen ? (
               <div className="attachment-sections">
                 <div className="attachment-subsection">
-                  <label>收款附件 PDF/JPG/PNG</label>
-                  <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => choosePaymentFile(event.target.files?.[0])} />
+                  <label>收款附件 PDF/JPG/PNG/HEIC/HEIF</label>
+                  <input accept={ATTACHMENT_FILE_ACCEPT} type="file" onChange={(event) => { void choosePaymentFile(event.target.files?.[0]); }} />
                   {paymentAttachment ? <div className="attachment-preview"><FileUp size={16} /><span>{paymentAttachment.name} · {formatFileSize(paymentAttachment.size)}</span><button className="btn danger" type="button" onClick={() => setPaymentAttachment(null)}>移除</button></div> : <p className="muted">可上传付款截图或收款凭证，附件会绑定到本次收款记录。</p>}
                 </div>
                 <div className="attachment-subsection">
-                  <label>合同附件 PDF/JPG/PNG</label>
-                  <input accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" type="file" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                  <label>合同附件 PDF/JPG/PNG/HEIC/HEIF</label>
+                  <input accept={ATTACHMENT_FILE_ACCEPT} type="file" onChange={(event) => { void chooseFile(event.target.files?.[0]); }} />
                   {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传；新附件会保存到 Google Drive。</p>}
                 </div>
               </div>
@@ -332,7 +335,7 @@ export default function CheckInPage() {
           </div> : null}
           {access.can("check_in", "create") ? <div className="modal-actions">
             {completionMessage ? <p className="form-status success" role="status">{completionMessage}</p> : null}
-            <button className="btn primary" disabled={saving || Boolean(completionMessage)} type="submit"><Save size={17} /> {saving ? "正在保存..." : "保存入住"}</button>
+            <button className="btn primary" disabled={saving || preparingAttachment || Boolean(completionMessage)} type="submit"><Save size={17} /> {saving ? "正在保存..." : preparingAttachment ? "正在处理附件..." : "保存入住"}</button>
           </div> : null}
         </form>
       </section>

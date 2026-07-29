@@ -263,10 +263,10 @@
 # 2026-07-22 - Google Drive attachment provider (Preview only)
 
 - The three existing attachment metadata tables remain the attachment index. `storage_provider` distinguishes historical `supabase` rows from new `google_drive` rows, and `provider_file_id` stores only a Drive file ID; Google IDs are not written into legacy `storage_path` or `file_url` fields.
-- New uploads use a server-authorized Google Drive resumable session. The browser sends file bytes directly to Google, then the server verifies the resulting file ID, MIME type, size, parent relationship and server-created upload marker before inserting the attachment index.
+- New uploads use a server-authorized Google Drive resumable session. The browser sends bounded file bytes through the same-origin, permission-checked relay, then the server verifies the resulting file ID, MIME type, size, parent relationship and server-created upload marker before inserting the attachment index.
 - Existing Supabase attachments still use `/api/files/signed-url`. Google Drive view/download uses an application-controlled authenticated content route; Drive OAuth credentials and access tokens never reach the browser. Google deletion uses `trashed=true` before the metadata row is removed.
 - Google Drive configuration is server-only: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`. The configured root must be the private “分租管理” folder; its category folders are created lazily. This implementation is Preview-only until explicit user acceptance and does not migrate or delete historical files.
-- Google Drive attachment bytes are returned through an authenticated application route. To avoid relying on unverified large-response streaming behavior on Vercel, the new-provider limit is 4MB for JPEG, PNG and PDF and is validated in the browser, upload preparation and completion routes.
+- Google Drive attachment bytes are returned through an authenticated application route. To avoid relying on unverified large-response streaming behavior on Vercel, the new-provider limit is 4MB for JPEG, PNG, HEIC, HEIF and PDF and is validated in the browser, upload preparation, relay and completion routes.
 - Contract, rent-payment and expense pages use the same small add-control after their parent record has been saved. It selects one file and explicitly appends one independent attachment index row; parent-record edits do not replace or remove attachments.
 ## 2026-07-22 - Google Drive attachment upload transport
 
@@ -274,4 +274,4 @@
 - After a bounded relay upload returns a Google file ID, the server stamps the application-private upload marker before completion. Completion verifies that marker and the expected per-record folder before it can create a Supabase attachment index.
 ## 附件原文件与多选上传（2026-07-22）
 
-共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。本次移除浏览器端图片压缩，保留原始 MIME、文件名和字节内容。
+共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。
