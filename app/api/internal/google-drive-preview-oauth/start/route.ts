@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const CALLBACK_PATH = "/api/internal/google-drive-preview-oauth/callback";
 const PREVIEW_OAUTH_ORIGIN = "https://fenzu-system-preview-oauth-20260729-5350499-ais-projects.vercel.app";
 const STATE_COOKIE = "fenzu_preview_drive_oauth_state";
-const SCOPE = "https://www.googleapis.com/auth/drive.file";
+const SCOPE = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly";
 
 export const dynamic = "force-dynamic";
 
