@@ -37,7 +37,7 @@ export async function GET() {
   if (!folderResponse.ok || folder?.mimeType !== DRIVE_FOLDER_MIME_TYPE || folder.trashed) {
     const reason = !folderResponse.ok
       ? `Drive folder request returned ${folderResponse.status}.`
-      : folder.trashed
+      : folder?.trashed
         ? "Drive folder is in trash."
         : "Drive root is not a folder.";
     return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason }, { status: 502, headers: { "Cache-Control": "no-store" } });
