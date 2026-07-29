@@ -24,6 +24,12 @@
 - 兼容性影响：仅调整租客列表主行显示，不影响租金、收款、押金和历史数据。
 # CHANGELOG.md
 
+## 2026-07-29 - New attachments return to private Supabase Storage (Preview only)
+
+- New contract, receipt and expense attachments now use a short-lived, server-authorized Supabase signed upload capability. File bytes upload directly from the browser to the existing private buckets; completion verifies the object before saving its Supabase attachment index.
+- Existing Google Drive and historical Supabase attachments remain unchanged and compatible. No Google files, attachment records, RLS policies, Storage buckets, migrations, financial data, or business data were changed.
+- HEIC/HEIF input is always converted to a clear JPEG before upload. The 4MB limit and PDF/JPEG/PNG final allowlist are unchanged.
+
 ## 2026-07-29 - Deposit return reminder guard
 
 - Deposit-return reminders now require an existing, non-void `待退` deposit with a positive recorded amount and a tenant whose recorded status is `已退租`.
