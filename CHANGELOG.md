@@ -24,6 +24,11 @@
 - 兼容性影响：仅调整租客列表主行显示，不影响租金、收款、押金和历史数据。
 # CHANGELOG.md
 
+## 2026-07-29 - Deposit return reminder guard
+
+- Deposit-return reminders now require an existing, non-void `待退` deposit with a positive recorded amount and a tenant whose recorded status is `已退租`.
+- Reminder amounts continue to read only from `deposits.amount`; rent payments, monthly rent, coverage dates, and financial data are not changed.
+
 ## 2026-07-22
 
 - Removed the read-only room-rent field from one-click check-in. Room selection now only chooses the property and room; rent and deposit remain manual inputs.

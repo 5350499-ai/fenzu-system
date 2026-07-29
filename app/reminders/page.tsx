@@ -25,6 +25,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { fixedRentCollectionReminderStage, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -208,8 +209,7 @@ function buildReminders({
       });
     });
 
-  deposits
-    .filter((deposit) => ["待退", "部分扣除"].includes(deposit.status) && !isVoided(deposit.notes))
+  pendingDepositReturnRecords(deposits, tenants)
     .forEach((deposit) => {
       const tenant = tenantById.get(deposit.tenantId);
       reminders.push({
@@ -302,8 +302,4 @@ function daysUntil(date: string, from: Date) {
   const target = new Date(`${date}T00:00:00`);
   const start = new Date(from.toISOString().slice(0, 10) + "T00:00:00");
   return Math.ceil((target.getTime() - start.getTime()) / 86400000);
-}
-
-function isVoided(notes?: string) {
-  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
