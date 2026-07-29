@@ -24,13 +24,25 @@ function parseGoogleUploadUrl(value: string | null) {
   return url;
 }
 
+function matchesAttachmentSignature(bytes: Uint8Array, mimeType: string) {
+  if (mimeType === "application/pdf") return bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d;
+  if (mimeType === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (mimeType === "image/png") return bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  if (mimeType !== "image/heic" && mimeType !== "image/heif") return false;
+  if (bytes.length < 16 || String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp") return false;
+  const brands = [8, 16, 20, 24, 28].map((offset) => String.fromCharCode(...bytes.slice(offset, offset + 4)));
+  return mimeType === "image/heic"
+    ? brands.some((brand) => ["heic", "heix", "hevc", "hevx"].includes(brand))
+    : brands.some((brand) => ["mif1", "msf1"].includes(brand));
+}
+
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
     const bucket = request.headers.get("x-attachment-bucket") as keyof typeof configs | null;
     const ownerId = request.headers.get("x-attachment-owner-id");
     const uploadId = request.headers.get("x-attachment-upload-id");
-    const fileType = request.headers.get("content-type") || "";
+    const fileType = (request.headers.get("content-type") || "").toLowerCase();
     const declaredSize = Number(request.headers.get("x-attachment-file-size"));
     const contentLength = Number(request.headers.get("content-length"));
     const config = bucket ? configs[bucket] : null;
@@ -47,6 +59,7 @@ export async function POST(request: Request) {
     const uploadUrl = parseGoogleUploadUrl(request.headers.get("x-google-upload-url"));
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength !== declaredSize || bytes.byteLength > MAX_ATTACHMENT_FILE_SIZE) throw new AccountApiError("附件大小校验失败，请重新选择文件。", 400);
+    if (!matchesAttachmentSignature(new Uint8Array(bytes.slice(0, 32)), fileType)) throw new AccountApiError("附件内容与文件类型不匹配，请重新选择 PDF、JPG、PNG、HEIC 或 HEIF 文件。", 400);
     const token = await getGoogleAccessToken();
     let response: Response;
     try {

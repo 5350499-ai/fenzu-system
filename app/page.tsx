@@ -29,6 +29,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
@@ -275,8 +276,7 @@ function buildDashboardReminders({
       });
     });
 
-  deposits
-    .filter((deposit) => isDashboardPendingDeposit(deposit, tenantById))
+  pendingDepositReturnRecords(deposits, tenants)
     .forEach((deposit) => {
       const tenant = tenantById.get(deposit.tenantId);
       reminders.push({
@@ -338,8 +338,7 @@ function buildReminderSummary({
     const days = daysUntil(contract.endDate, today);
     return days <= 30;
   }).length;
-  const tenantById = new Map(tenants.map((item) => [item.id, item]));
-  const abnormalDeposits = deposits.filter((deposit) => isDashboardPendingDeposit(deposit, tenantById)).length;
+  const abnormalDeposits = pendingDepositReturnRecords(deposits, tenants).length;
   const vacantRooms = rooms.filter((room) => roomOccupancyStatus(room, tenants).includes("空置")).length;
   const parts = [];
   if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
@@ -403,20 +402,4 @@ function daysUntil(date: string, from: Date) {
   const target = new Date(`${date}T00:00:00`);
   const start = new Date(from.toISOString().slice(0, 10) + "T00:00:00");
   return Math.ceil((target.getTime() - start.getTime()) / 86400000);
-}
-
-function isDashboardPendingDeposit(
-  deposit: BusinessDeposit,
-  tenantById: Map<string, BusinessTenant>
-) {
-  const tenant = tenantById.get(deposit.tenantId);
-  return Boolean(
-    tenant?.status.includes("已退租") &&
-      deposit.status === "待退" &&
-      !isVoided(deposit.notes)
-  );
-}
-
-function isVoided(notes?: string) {
-  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
