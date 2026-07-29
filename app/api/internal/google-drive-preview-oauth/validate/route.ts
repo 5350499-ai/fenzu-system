@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
+const PREVIEW_BRANCH = "fix/attachment-reload-display";
+const PREVIEW_ROOT_KEY = "GOOGLE_DRIVE_ROOT_FOLDER_ID";
+const PROJECT_ID = "prj_jGbIJC06B9stKAnFRcs5v4x7UDnT";
+const TEAM_ID = "team_DERfJNyjaHLVEpmSkH0MNnPT";
 
 type DriveFolder = { id?: string };
+type VercelEnvironment = { id?: string; key?: string; target?: string | string[]; gitBranch?: string };
 
 async function listFolders(token: string, query: string) {
   const response = await fetch(`${DRIVE_API}/files?q=${encodeURIComponent(query)}&fields=files(id)&pageSize=100`, {
@@ -14,9 +19,36 @@ async function listFolders(token: string, query: string) {
   return response.ok ? payload?.files || [] : [];
 }
 
+function previewTarget(target: VercelEnvironment["target"]) {
+  return Array.isArray(target) ? target.includes("preview") : target === "preview";
+}
+
+async function replacePreviewRootFolderId(value: string) {
+  const automationToken = process.env.VERCEL_AUTOMATION_BEARER;
+  if (!automationToken) throw new Error("missing Preview automation credential");
+  const api = `https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`;
+  const headers = { Authorization: `Bearer ${automationToken}`, "Content-Type": "application/json" };
+  const existingResponse = await fetch(api, { headers, cache: "no-store" });
+  if (!existingResponse.ok) throw new Error("could not read Preview environment metadata");
+  const existing = await existingResponse.json() as { envs?: VercelEnvironment[] };
+  const overrides = (existing.envs || []).filter((item) => item.key === PREVIEW_ROOT_KEY && item.gitBranch === PREVIEW_BRANCH && previewTarget(item.target));
+  for (const item of overrides) {
+    if (!item.id) continue;
+    const deleted = await fetch(`https://api.vercel.com/v9/projects/${PROJECT_ID}/env/${item.id}?teamId=${TEAM_ID}`, { method: "DELETE", headers, cache: "no-store" });
+    if (!deleted.ok) throw new Error("could not replace Preview test-folder configuration");
+  }
+  const created = await fetch(api, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify({ key: PREVIEW_ROOT_KEY, value, type: "encrypted", target: ["preview"], gitBranch: PREVIEW_BRANCH })
+  });
+  if (!created.ok) throw new Error("could not save Preview test-folder configuration");
+}
+
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
@@ -53,6 +85,15 @@ export async function GET() {
     : Promise.resolve([])))).flat();
   const uniquePreviewTestFolder = previewFolders.length === 1 ? previewFolders[0] : null;
   const configuredRootMatchesPreviewTest = uniquePreviewTestFolder?.id === rootFolderId;
+  const repairRequested = new URL(request.url).searchParams.get("repair") === "1";
+  if (repairRequested && uniquePreviewTestFolder?.id && !configuredRootMatchesPreviewTest) {
+    try {
+      await replacePreviewRootFolderId(uniquePreviewTestFolder.id);
+      return NextResponse.json({ previewRootFolderUpdated: true, redeployRequired: true }, { headers: { "Cache-Control": "no-store" } });
+    } catch {
+      return NextResponse.json({ error: "Preview test-folder configuration could not be updated." }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    }
+  }
 
   const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(rootFolderId)}?fields=id,mimeType,trashed`, {
     headers: { Authorization: `Bearer ${accessToken}` },
