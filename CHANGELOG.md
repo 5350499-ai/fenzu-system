@@ -482,3 +482,8 @@
 ## 2026-07-27 - Fix profit date ranges in the local business timezone (Preview)
 
 - Profit presets now generate pure `YYYY-MM-DD` calendar boundaries in the Europe/Madrid business timezone rather than converting local midnight through UTC. This keeps displayed and filtered monthly, rolling and fallback custom ranges on their intended inclusive dates without changing financial calculations.
+
+## 2026-07-29 - Handle iPhone-transcoded attachment images safely (Preview)
+
+- New attachments accept JPEG, PNG, HEIC, HEIF and PDF only after checking the browser-selected file header. The upload relay verifies the same file signature before forwarding it to private Google Drive.
+- Files at or below 4MB keep their original content. A selected image above 4MB now shows a clear notice and uses a JPEG copy at up to a 2500px long edge and quality 0.90/0.85; PDFs are never compressed. The existing 4MB boundary remains because private Google Drive view/download responses still pass through the application.

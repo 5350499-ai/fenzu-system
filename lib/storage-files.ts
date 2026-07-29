@@ -70,7 +70,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
   try {
     if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置，不能上传附件。");
     if (!ownerId) throw new Error("请先保存记录，再上传附件。");
-    if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG 文件。");
+    if (!isAllowedAttachmentType(sourceFile.type)) throw new Error("只支持 PDF、JPG、PNG、HEIC、HEIF 文件。");
     if (sourceFile.size > MAX_ATTACHMENT_FILE_SIZE) throw new Error(`单个附件不能超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL}，请选择更小的文件后重试。`);
 
     const session = await getValidSupabaseSession();
