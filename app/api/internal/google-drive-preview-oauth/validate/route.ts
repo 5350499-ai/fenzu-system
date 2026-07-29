@@ -35,7 +35,12 @@ export async function GET() {
   });
   const folder = await folderResponse.json().catch(() => null) as { mimeType?: string; trashed?: boolean } | null;
   if (!folderResponse.ok || folder?.mimeType !== DRIVE_FOLDER_MIME_TYPE || folder.trashed) {
-    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable." }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    const reason = !folderResponse.ok
+      ? `Drive folder request returned ${folderResponse.status}.`
+      : folder.trashed
+        ? "Drive folder is in trash."
+        : "Drive root is not a folder.";
+    return NextResponse.json({ error: "Preview Google Drive test folder is unavailable.", reason }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
 
   return NextResponse.json({ accessTokenExchange: "ok", previewDriveFolderAccess: "ok" }, { headers: { "Cache-Control": "no-store" } });
