@@ -3089,6 +3089,36 @@ td:last-child {
   font-weight: 700;
 }
 
+.attachment-file-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+.attachment-file-card > span {
+  grid-row: 1;
+  grid-column: 2 / 4;
+  min-width: 0;
+}
+
+.attachment-file-card > svg {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.attachment-file-card > button {
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+
+.attachment-file-card > button:nth-of-type(1) { grid-column: 1; }
+.attachment-file-card > button:nth-of-type(2) { grid-column: 2; }
+.attachment-file-card > button:nth-of-type(3) { grid-column: 3; }
+
 .search {
   width: min(340px, 100%);
 }
