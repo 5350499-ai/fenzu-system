@@ -27,7 +27,7 @@ type TenantRow = {
   actual_move_out_date: string | null;
 };
 
-type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active: boolean | null; end_date: string | null };
+type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active?: boolean | null; end_date: string | null };
 type PaymentRow = { id: string; tenant_id: string | null; room_id: string | null };
 type ExpenseRow = { id: string };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id: string | null };
@@ -120,7 +120,7 @@ function candidateFor(tenant: TenantRow, roomById: Map<string, RoomRow>, propert
   const roomRow = tenant.room_id ? roomById.get(tenant.room_id) : undefined;
   const property = tenant.property_id ? propertyById.get(tenant.property_id) : undefined;
   const room = roomRow ? `${property?.name || ""}${roomRow.name || roomRow.room_number || ""}`.trim() || roomRow.room_number || "" : "";
-  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && isContractCurrentlyActive({ status: row.status, isActive: row.is_active, endDate: row.end_date }, today));
+  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && isContractCurrentlyActive({ status: row.status, isActive: row.is_active ?? null, endDate: row.end_date }, today));
   const decision = evaluateCandidate({ status: tenant.status, actualMoveOutDate: tenant.actual_move_out_date, hasActiveContract: activeContract }, cutoffDate);
   const skipReason = decision.eligible ? null : ({ invalid_move_out_date: "实际退租日期无法解析", missing_move_out_date: "没有实际退租日期", not_moved_out: "租客当前不是已退租", active_contract: "仍存在有效合同", not_old_enough: `未超过${months}个月` }[decision.reason]);
   return {
@@ -144,7 +144,7 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
     runSummaryQuery("properties", admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("rooms", admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId)),
     loadTenants(admin, workspaceOwnerId),
-    runSummaryQuery("contracts", admin.from("contracts").select("id,tenant_id,room_id,status,is_active,end_date").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("contracts", admin.from("contracts").select("id,tenant_id,room_id,status,end_date").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("rent_payments", admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("expenses", admin.from("expenses").select("id").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("contract_files", admin.from("contract_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,contract_id").eq("user_id", workspaceOwnerId)),
