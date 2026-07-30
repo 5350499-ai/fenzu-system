@@ -40,6 +40,7 @@ import {
   uploadContractFile
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
+import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
@@ -118,6 +119,9 @@ export default function TenantsPage() {
   const [customReceivedBy, setCustomReceivedBy] = useState("");
   const contractFilesRequestRef = useRef(0);
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
+  const [moveOutDate, setMoveOutDate] = useState(localToday());
+  const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
+  const [moveOutDateValue, setMoveOutDateValue] = useState("");
   const [moveOutDepositStatus, setMoveOutDepositStatus] = useState<"待退" | "已退">("待退");
   const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
   const [depositStatusValue, setDepositStatusValue] = useState<"待退" | "已退">("待退");
@@ -428,9 +432,13 @@ export default function TenantsPage() {
     close();
   }
 
-  async function moveOut(tenant: BusinessTenant, depositStatus: "待退" | "已退") {
+  async function moveOut(tenant: BusinessTenant, depositStatus: "待退" | "已退", actualMoveOutDate: string) {
+    if (!isValidCalendarDate(actualMoveOutDate)) {
+      window.alert("请输入有效的实际退租日期。");
+      return;
+    }
     if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
-    const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租" } : item));
+    const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租", actualMoveOutDate } : item));
     const saved = await persistAll({
       tenants: nextTenants,
       rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
@@ -449,7 +457,27 @@ export default function TenantsPage() {
 
   function openMoveOutDialog(tenant: BusinessTenant) {
     setMoveOutTenant(tenant);
+    setMoveOutDate(tenant.actualMoveOutDate || localToday());
     setMoveOutDepositStatus("待退");
+  }
+
+  function openMoveOutDateDialog(tenant: BusinessTenant) {
+    if (!tenant.status.includes("已退租")) return;
+    setMoveOutDateTenant(tenant);
+    setMoveOutDateValue(tenant.actualMoveOutDate || "");
+  }
+
+  async function saveMoveOutDate(tenant: BusinessTenant, value: string) {
+    if (!isValidCalendarDate(value)) {
+      window.alert("请输入有效的实际退租日期。");
+      return;
+    }
+    if (!window.confirm("确认保存实际退租日期吗？只会更新该日期，不会修改其他业务数据。")) return;
+    const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, actualMoveOutDate: value } : item));
+    if (await persistAll({ tenants: nextTenants }, "实际退租日期保存失败，请稍后重试。")) {
+      setMoveOutDateTenant(null);
+      setMoveOutDateValue("");
+    }
   }
 
   function openDepositStatusDialog(tenant: BusinessTenant) {
@@ -777,6 +805,7 @@ export default function TenantsPage() {
                       openTenantForm(tenant);
                     }}
                     onMoveOut={() => openMoveOutDialog(tenant)}
+                    onEditMoveOutDate={() => openMoveOutDateDialog(tenant)}
                     onEditDepositStatus={() => openDepositStatusDialog(tenant)}
                     onCreateDeposit={() => openCreateDepositDialog(tenant)}
                     onAddFile={(file) => addTenantContractFile(tenant, file)}
@@ -877,9 +906,33 @@ export default function TenantsPage() {
                 <option value="已退">押金已处理</option>
               </select>
             </div>
+            <div className="field">
+              <label htmlFor="move-out-date">实际退租日期</label>
+              <input id="move-out-date" type="date" value={moveOutDate} onChange={(event) => setMoveOutDate(event.target.value)} required />
+            </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>
-              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus)} type="button">确认退租</button>
+              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus, moveOutDate)} type="button">确认退租</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {moveOutDateTenant ? (
+        <div className="modal-backdrop" onMouseDown={() => setMoveOutDateTenant(null)}>
+          <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <h2 className="panel-title">实际退租日期</h2>
+              <button className="btn" onClick={() => setMoveOutDateTenant(null)} type="button"><X size={17} /> 关闭</button>
+            </div>
+            <p className="muted">只更新实际退租日期，不会修改收款、支出、押金或其他业务数据。</p>
+            <div className="field">
+              <label htmlFor="edit-move-out-date">实际退租日期</label>
+              <input id="edit-move-out-date" type="date" value={moveOutDateValue} onChange={(event) => setMoveOutDateValue(event.target.value)} required />
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setMoveOutDateTenant(null)} type="button">取消</button>
+              <button className="btn primary" disabled={saving} onClick={() => void saveMoveOutDate(moveOutDateTenant, moveOutDateValue)} type="button">保存日期</button>
             </div>
           </section>
         </div>
@@ -966,6 +1019,7 @@ function TenantDetail({
   onDeleteFile,
   onEdit,
   onMoveOut,
+  onEditMoveOutDate,
   onEditDepositStatus,
   onCreateDeposit,
   onPermanentDelete,
@@ -998,6 +1052,7 @@ function TenantDetail({
   onDeleteFile: (file: ContractFile) => void;
   onEdit: () => void;
   onMoveOut: () => void;
+  onEditMoveOutDate: () => void;
   onEditDepositStatus: () => void;
   onCreateDeposit: () => void;
   onPermanentDelete: () => void;
@@ -1045,6 +1100,16 @@ function TenantDetail({
             <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
           </div>
           <button className="btn" disabled={saving} type="button" onClick={onEditDepositStatus}>修改押金状态</button>
+        </div>
+      ) : null}
+
+      {movedOut ? (
+        <div className="deposit-status-detail">
+          <div>
+            <span className="muted">实际退租日期</span>
+            <strong>{tenant.actualMoveOutDate || "未录入"}</strong>
+          </div>
+          <button className="btn" disabled={saving} type="button" onClick={onEditMoveOutDate}>{tenant.actualMoveOutDate ? "修改实际退租日期" : "补录实际退租日期"}</button>
         </div>
       ) : null}
 
