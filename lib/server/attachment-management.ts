@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { calendarCutoffDate, evaluateCandidate, isContractCurrentlyActive, isTenantCandidateAttachmentTable, localCalendarDate } from "@/lib/attachment-management-rules";
 
 type AttachmentTable = "contract_files" | "rent_payment_files" | "expense_files";
 
@@ -26,7 +27,7 @@ type TenantRow = {
   actual_move_out_date: string | null;
 };
 
-type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active: boolean | null };
+type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active: boolean | null; end_date: string | null };
 type PaymentRow = { id: string; tenant_id: string | null; room_id: string | null };
 type ExpenseRow = { id: string };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id: string | null };
@@ -61,8 +62,6 @@ export type AttachmentSummary = {
 };
 
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
-const isVoidContract = (row: ContractRow) => row.is_active === false || ["已结束", "已退租", "已作废", "作废"].includes(row.status || "");
-
 function bytes(value: unknown) {
   return Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0;
 }
@@ -75,29 +74,16 @@ function isPdf(type: string) {
   return type.toLowerCase() === "application/pdf";
 }
 
-function cutoffDate(months: number, today = new Date()) {
-  const madridParts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(today);
-  const year = Number(madridParts.find((part) => part.type === "year")?.value);
-  const month = Number(madridParts.find((part) => part.type === "month")?.value);
-  const day = Number(madridParts.find((part) => part.type === "day")?.value);
-  const cutoff = new Date(Date.UTC(year, month - 1, day));
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
-  return cutoff.toISOString().slice(0, 10);
-}
-
-function candidateFor(tenant: TenantRow, roomById: Map<string, RoomRow>, propertyById: Map<string, PropertyRow>, contracts: ContractRow[], attachments: AttachmentRow[], tenantFiles: Map<string, AttachmentRow[]>, overMonths: number): AttachmentCandidate {
+function candidateFor(tenant: TenantRow, roomById: Map<string, RoomRow>, propertyById: Map<string, PropertyRow>, contracts: ContractRow[], tenantFiles: Map<string, AttachmentRow[]>, months: number, cutoffDate: string, today: string): AttachmentCandidate {
   const tenantAttachments = tenantFiles.get(tenant.id) || [];
   const contractFiles = tenantAttachments.filter((row) => row.contract_id);
   const rentFiles = tenantAttachments.filter((row) => row.rent_payment_id);
   const roomRow = tenant.room_id ? roomById.get(tenant.room_id) : undefined;
   const property = tenant.property_id ? propertyById.get(tenant.property_id) : undefined;
   const room = roomRow ? `${property?.name || ""}${roomRow.name || roomRow.room_number || ""}`.trim() || roomRow.room_number || "" : "";
-  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && !isVoidContract(row));
-  let skipReason: string | null = null;
-  if (!tenant.actual_move_out_date) skipReason = "没有实际退租日期";
-  else if (tenant.status !== "已退租") skipReason = "租客当前不是已退租";
-  else if (activeContract) skipReason = "仍存在有效合同";
-  else if (tenant.actual_move_out_date > cutoffDate(overMonths)) skipReason = `未超过${overMonths}个月`;
+  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && isContractCurrentlyActive({ status: row.status, isActive: row.is_active, endDate: row.end_date }, today));
+  const decision = evaluateCandidate({ status: tenant.status, actualMoveOutDate: tenant.actual_move_out_date, hasActiveContract: activeContract }, cutoffDate);
+  const skipReason = decision.eligible ? null : ({ invalid_move_out_date: "实际退租日期无法解析", missing_move_out_date: "没有实际退租日期", not_moved_out: "租客当前不是已退租", active_contract: "仍存在有效合同", not_old_enough: `未超过${months}个月` }[decision.reason]);
   return {
     tenantId: tenant.id,
     tenantName: tenant.name,
@@ -119,7 +105,7 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
     admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId),
     admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId),
     admin.from("tenants").select("id,name,room_id,property_id,status,actual_move_out_date").eq("user_id", workspaceOwnerId),
-    admin.from("contracts").select("id,tenant_id,room_id,status,is_active").eq("user_id", workspaceOwnerId),
+    admin.from("contracts").select("id,tenant_id,room_id,status,is_active,end_date").eq("user_id", workspaceOwnerId),
     admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId),
     admin.from("expenses").select("id").eq("user_id", workspaceOwnerId),
     admin.from("contract_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,contract_id").eq("user_id", workspaceOwnerId),
@@ -155,10 +141,17 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
   const tenantFiles = new Map<string, AttachmentRow[]>();
   for (const row of supabaseRows) {
+    const table = row.contract_id ? "contract_files" : row.rent_payment_id ? "rent_payment_files" : "expense_files";
+    if (!isTenantCandidateAttachmentTable(table)) continue;
     const tenantId = row.contract_id ? contractById.get(row.contract_id)?.tenant_id : row.rent_payment_id ? paymentById.get(row.rent_payment_id)?.tenant_id : null;
     if (tenantId) tenantFiles.set(tenantId, [...(tenantFiles.get(tenantId) || []), row]);
   }
-  const candidatesForMonths = (months: number) => tenants.map((tenant) => candidateFor(tenant, roomById, propertyById, contracts, supabaseRows, tenantFiles, months)).filter((item) => item.attachmentCount > 0);
+  const today = localCalendarDate(new Date());
+  if (!today) throw new Error("无法确定当前本地日期。");
+  const candidatesForMonths = (months: number) => {
+    const cutoff = calendarCutoffDate(new Date(), months);
+    return tenants.map((tenant) => candidateFor(tenant, roomById, propertyById, contracts, tenantFiles, months, cutoff, today)).filter((item) => item.attachmentCount > 0);
+  };
   const over3 = candidatesForMonths(3);
   const over6 = candidatesForMonths(6);
   const aggregate = (items: AttachmentCandidate[]) => {
