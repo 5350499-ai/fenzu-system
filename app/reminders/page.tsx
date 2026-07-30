@@ -26,7 +26,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
-import { fixedRentCollectionReminderStage, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { fixedRentCollectionReminderStage, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -36,7 +36,7 @@ type Reminder = {
   title: string;
   description: string;
   href: string;
-  tone: "danger" | "warning" | "yellow" | "info" | "blue";
+  tone: "danger" | "warning" | "yellow" | "green" | "info" | "blue";
   priority: number;
   rentContext?: {
     propertyLabel: string;
@@ -163,7 +163,7 @@ function buildReminders({
   const reminders: Reminder[] = [];
 
     tenants
-      .filter((tenant) => strictCurrentRentalTenant(tenant))
+      .filter((tenant) => isRentReminderTenant(tenant, rooms, contracts))
       .map((tenant) => {
         const payment = latestCoverageForTenant(tenant.id, payments);
         return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
@@ -251,7 +251,7 @@ function buildReminders({
 }
 
 function fixedRentReminderStatus(stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
-  if (stage.overdueDays > 0) return `\u5df2\u5230\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
+  if (stage.overdueDays > 0) return `\u5df2\u903e\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
   if (stage.daysRemaining === 0) return "\u4eca\u65e5\u5230\u671f";
   if (stage.level === "urgent") return `\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
   return `\u5269\u4f59${stage.daysRemaining}\u5929`;
@@ -272,7 +272,7 @@ function compactReminderRoomName(room?: BusinessRoom) {
 }
 
 function fixedRentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
-  if (stage.overdueDays > 0) return `${room}\u5df2\u5230\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
+  if (stage.overdueDays > 0) return `${room}\u5df2\u903e\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
   if (stage.daysRemaining === 0) return `${room}\u4eca\u65e5\u5230\u671f`;
   if (stage.level === "urgent") return `${room}\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
   return `${room}\u5269\u4f59${stage.daysRemaining}\u5929`;
@@ -293,8 +293,8 @@ function rentStagePriority(level: string) {
 
 function rentStageTone(level: string): Reminder["tone"] {
   if (level === "overdue" || level === "critical") return "danger";
-  if (level === "urgent") return "warning";
-  return "yellow";
+  if (level === "urgent") return "yellow";
+  return "green";
 }
 
 function daysUntil(date: string, from: Date) {

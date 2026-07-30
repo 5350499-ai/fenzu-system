@@ -1,3 +1,8 @@
+## 2026-07-30 - Ten-day rent reminder window
+
+- Rent collection reminders now appear only from 10 days before coverage expiry through overdue status; overdue reminders remain until the latest coverage or rental relationship changes.
+- Reminder colors distinguish 4-10 days (green), 1-3 days (yellow), and today/overdue (red). No financial records, coverage dates, or database data are changed.
+
 ## 2026-07-30 - Read-only attachment management preview
 
 - Added an owner-only `/admin/attachments` page linked from Settings.
