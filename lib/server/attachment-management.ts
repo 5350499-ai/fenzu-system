@@ -33,6 +33,8 @@ type ExpenseRow = { id: string };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id: string | null };
 type PropertyRow = { id: string; name: string | null };
 
+type TenantQueryRow = Omit<TenantRow, "actual_move_out_date"> & { actual_move_out_date?: string | null };
+
 export type AttachmentCandidate = {
   tenantId: string;
   tenantName: string;
@@ -62,6 +64,24 @@ export type AttachmentSummary = {
 };
 
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
+
+async function loadTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
+  const withMoveOutDate = await admin
+    .from("tenants")
+    .select("id,name,room_id,property_id,status,actual_move_out_date")
+    .eq("user_id", workspaceOwnerId);
+  if (!withMoveOutDate.error) return (withMoveOutDate.data || []) as TenantRow[];
+  // Older Production schemas predate the optional manual move-out date. Keep
+  // the read-only page available and mark those tenants as missing a date.
+  if (withMoveOutDate.error.code !== "42703") throw withMoveOutDate.error;
+  const fallback = await admin
+    .from("tenants")
+    .select("id,name,room_id,property_id,status")
+    .eq("user_id", workspaceOwnerId);
+  if (fallback.error) throw fallback.error;
+  return ((fallback.data || []) as TenantQueryRow[]).map((tenant) => ({ ...tenant, actual_move_out_date: null }));
+}
+
 function bytes(value: unknown) {
   return Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0;
 }
@@ -104,7 +124,7 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
   const [propertyResult, roomResult, tenantResult, contractResult, paymentResult, expenseResult, ...attachmentResults] = await Promise.all([
     admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId),
     admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId),
-    admin.from("tenants").select("id,name,room_id,property_id,status,actual_move_out_date").eq("user_id", workspaceOwnerId),
+    loadTenants(admin, workspaceOwnerId),
     admin.from("contracts").select("id,tenant_id,room_id,status,is_active,end_date").eq("user_id", workspaceOwnerId),
     admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId),
     admin.from("expenses").select("id").eq("user_id", workspaceOwnerId),
@@ -112,12 +132,12 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
     admin.from("rent_payment_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,rent_payment_id").eq("user_id", workspaceOwnerId),
     admin.from("expense_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,expense_id").eq("user_id", workspaceOwnerId)
   ]);
-  const results = [propertyResult, roomResult, tenantResult, contractResult, paymentResult, expenseResult, ...attachmentResults];
+  const results = [propertyResult, roomResult, contractResult, paymentResult, expenseResult, ...attachmentResults];
   const failed = results.find((result) => result.error);
   if (failed?.error) throw new Error("附件统计读取失败。");
   const properties = (propertyResult.data || []) as PropertyRow[];
   const rooms = (roomResult.data || []) as RoomRow[];
-  const tenants = (tenantResult.data || []) as TenantRow[];
+  const tenants = tenantResult as TenantRow[];
   const contracts = (contractResult.data || []) as ContractRow[];
   const payments = (paymentResult.data || []) as PaymentRow[];
   const expenses = (expenseResult.data || []) as ExpenseRow[];

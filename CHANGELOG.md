@@ -504,3 +504,8 @@
 
 - New attachments accept JPEG, PNG, HEIC, HEIF and PDF only after checking the browser-selected file header. The upload relay verifies the same file signature before forwarding it to private Google Drive.
 - Files at or below 4MB keep their original content. A selected image above 4MB now shows a clear notice and uses a JPEG copy at up to a 2500px long edge and quality 0.90/0.85; PDFs are never compressed. The existing 4MB boundary remains because private Google Drive view/download responses still pass through the application.
+
+## 2026-07-30 - Keep attachment management compatible with older tenant schemas
+
+- The read-only attachment summary now falls back safely when Production does not yet expose `tenants.actual_move_out_date`; those tenants remain clearly ineligible for date-based cleanup candidates until a reliable date exists.
+- No schema, RLS, storage, Google Drive, environment, or business data changes.
