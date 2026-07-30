@@ -519,3 +519,8 @@
 - Added administrator-only, read-only 3/6-month cleanup previews. They include only Supabase contract and rent-payment attachments; expense and legacy Google Drive attachments are excluded.
 - Candidate selection is fail-closed: it requires a recorded actual move-out date, moved-out status, no active contract, completed deposit handling, no unfinished tasks, and a released room. The current browser-local task system cannot be verified server-side, so affected tenants are explicitly skipped.
 - Added disabled cleanup/ZIP route skeletons, metadata-only manifest generation, and unexecuted audit-table migration design. No Storage object, attachment index, business record, RLS policy, or environment value changed.
+## 2026-07-30 - Design server-backed tasks for cleanup safety (Preview only)
+
+- Confirmed the existing `public.tasks` table and RLS/permission model; no duplicate tasks table or migration execution was performed.
+- Added a disabled server-task access layer, local-task migration preview pure functions, and read-only migration/status API skeletons. Browser-local tasks remain unchanged while the feature flag is off.
+- Cleanup preview remains fail-closed until server task sync is explicitly enabled; no real tasks, attachments, Storage objects, or business data changed.

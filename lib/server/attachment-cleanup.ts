@@ -5,7 +5,9 @@ import { calendarCutoffDate, isContractCurrentlyActive, localCalendarDate } from
 import { ATTACHMENT_CLEANUP_EXECUTION_ENABLED, cleanupSkipReasonLabel, evaluateCleanupCandidate, isCleanupPreviewWindowValid, type CleanupDepositState, type CleanupRoomState, type CleanupTaskState } from "@/lib/attachment-cleanup-rules";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { loadAttachmentManagementTenants } from "@/lib/server/attachment-management";
+import { loadServerTasks } from "@/lib/server/task-management";
 import { AccountApiError } from "@/lib/server/account-auth";
+import { TASKS_SERVER_SYNC_ENABLED, normalizeTaskStatus } from "@/lib/task-management";
 
 type CleanupAttachmentTable = "contract_files" | "rent_payment_files";
 
@@ -160,9 +162,19 @@ export async function loadAttachmentCleanupPreview(workspaceOwnerId: string, thr
   for (const file of contractFiles) addFile(file, "contract_files", file.contract_id ? contractById.get(file.contract_id)?.tenant_id : null);
   for (const file of rentPaymentFiles) addFile(file, "rent_payment_files", file.rent_payment_id ? paymentById.get(file.rent_payment_id)?.tenant_id : null);
 
-  // The current Tasks UI is browser-local (`v1-tasks`), so the server cannot
-  // prove that this requirement is satisfied. Fail closed for every preview.
-  const taskState: CleanupTaskState = "unknown";
+  const taskStateByTenant = new Map<string, CleanupTaskState>();
+  let taskSourceUnavailable = !TASKS_SERVER_SYNC_ENABLED;
+  if (TASKS_SERVER_SYNC_ENABLED) {
+    const serverTasks = await loadServerTasks(workspaceOwnerId);
+    if (serverTasks.available) {
+      for (const tenant of tenants) {
+        const pending = serverTasks.rows.some((task) => task.tenantId === tenant.id && normalizeTaskStatus(task.status) === "pending");
+        taskStateByTenant.set(tenant.id, pending ? "pending" : "clear");
+      }
+    } else {
+      taskSourceUnavailable = true;
+    }
+  }
   const rows = tenants.flatMap((tenant) => {
     const files = filesByTenant.get(tenant.id) || [];
     if (!files.length) return [];
@@ -172,7 +184,9 @@ export async function loadAttachmentCleanupPreview(workspaceOwnerId: string, thr
       movedOut: isMovedOut(tenant.status),
       hasActiveContract,
       depositState: isDepositProcessed(depositsByTenant.get(tenant.id) || []),
-      taskState,
+      // A disabled or unavailable server task source remains unknown. Local
+      // browser state is never treated as proof that cleanup is safe.
+      taskState: taskStateByTenant.get(tenant.id) || (taskSourceUnavailable ? "unavailable" : "unknown"),
       roomState: roomStateForTenant(tenant, hasActiveContract)
     }, cutoffDate);
     const contractFilesForTenant = files.filter((file) => file.table === "contract_files");

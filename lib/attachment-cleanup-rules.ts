@@ -9,7 +9,7 @@ function isCalendarDate(value: string | null | undefined): value is string {
 }
 
 export type CleanupDepositState = "complete" | "incomplete" | "unknown";
-export type CleanupTaskState = "clear" | "pending" | "unknown";
+export type CleanupTaskState = "clear" | "pending" | "unknown" | "unavailable";
 export type CleanupRoomState = "released" | "occupied" | "unknown";
 
 export type CleanupCandidateInput = {
@@ -31,6 +31,7 @@ export type CleanupSkipReason =
   | "deposit_state_unknown"
   | "pending_tasks"
   | "task_state_unknown"
+  | "task_source_unavailable"
   | "room_still_occupied"
   | "room_state_unknown";
 
@@ -42,6 +43,7 @@ export function evaluateCleanupCandidate(input: CleanupCandidateInput, cutoffDat
   if (input.depositState === "unknown") return { eligible: false, reason: "deposit_state_unknown" };
   if (input.depositState !== "complete") return { eligible: false, reason: "deposit_not_complete" };
   if (input.taskState === "unknown") return { eligible: false, reason: "task_state_unknown" };
+  if (input.taskState === "unavailable") return { eligible: false, reason: "task_source_unavailable" };
   if (input.taskState === "pending") return { eligible: false, reason: "pending_tasks" };
   if (input.roomState === "unknown") return { eligible: false, reason: "room_state_unknown" };
   if (input.roomState === "occupied") return { eligible: false, reason: "room_still_occupied" };
@@ -59,6 +61,7 @@ export function cleanupSkipReasonLabel(reason: CleanupSkipReason) {
     deposit_state_unknown: "缺少可确认的押金处理状态",
     pending_tasks: "仍有未完成待办",
     task_state_unknown: "无法可靠核验未完成待办",
+    task_source_unavailable: "服务端待办功能尚未启用或不可用",
     room_still_occupied: "房间仍由该租客占用",
     room_state_unknown: "无法确认房间是否已解除该租客占用"
   }[reason];
