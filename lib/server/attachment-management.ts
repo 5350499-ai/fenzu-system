@@ -92,13 +92,26 @@ export type AttachmentSummary = {
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
 
 async function loadTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
-  // Production currently has no actual_move_out_date column. Keep this
-  // read-only summary compatible and mark all date-based candidates as skipped.
-  const result = await runSummaryQuery("tenants", admin
+  const withDate = await admin
+    .from("tenants")
+    .select("id,name,room_id,property_id,status,actual_move_out_date")
+    .eq("user_id", workspaceOwnerId);
+  if (!withDate.error) {
+    console.info("[attachment-summary] query ok", JSON.stringify({ stage: "tenants" }));
+    return (withDate.data || []) as TenantQueryRow[];
+  }
+  const error = safeSupabaseError(withDate.error);
+  const missingColumn = error.code === "42703" || error.code === "PGRST204" || error.code === "PGRST100" || /actual_move_out_date/i.test(error.message || "");
+  if (!missingColumn) {
+    console.error("[attachment-summary] query failed", JSON.stringify({ stage: "tenants", error }));
+    throw new Error("attachment summary query failed");
+  }
+  console.warn("[attachment-summary] actual_move_out_date unavailable; using empty date fallback");
+  const fallback = await runSummaryQuery("tenants_fallback_without_actual_move_out_date", admin
     .from("tenants")
     .select("id,name,room_id,property_id,status")
     .eq("user_id", workspaceOwnerId));
-  return ((result.data || []) as TenantQueryRow[]).map((tenant) => ({ ...tenant, actual_move_out_date: null }));
+  return ((fallback.data || []) as TenantQueryRow[]).map((tenant) => ({ ...tenant, actual_move_out_date: null }));
 }
 
 function bytes(value: unknown) {
