@@ -1,4 +1,4 @@
-import type { BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
+import type { BusinessContract, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 
 export function paymentCoverageStart(payment: BusinessRentPayment) {
   return payment.coverageStartDate || monthStart(payment.rentMonth);
@@ -176,11 +176,24 @@ export function rentCoverageReminderStageFixed(
   const endDate = payment?.coverageEndDate || "";
   if (!endDate) return null;
   const daysRemaining = dateDifference(endDate, today);
-  if (daysRemaining > 30) return null;
+  if (daysRemaining > 10) return null;
   if (daysRemaining < 0) return { daysRemaining, overdueDays: Math.abs(daysRemaining), level: "overdue" };
   if (daysRemaining === 0) return { daysRemaining, overdueDays: 0, level: "critical" };
-  if (daysRemaining <= 15) return { daysRemaining, overdueDays: 0, level: "urgent" };
+  if (daysRemaining <= 3) return { daysRemaining, overdueDays: 0, level: "urgent" };
   return { daysRemaining, overdueDays: 0, level: "upcoming" };
+}
+
+export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom[], contracts: BusinessContract[] = [], today = todayString()) {
+  if (!strictCurrentRentalTenant(tenant)) return false;
+  const room = rooms.find((item) => item.id === tenant.roomId);
+  if (room?.status?.includes("\u7a7a\u7f6e")) return false;
+  const linkedContracts = contracts.filter((contract) => contract.tenantId === tenant.id);
+  if (linkedContracts.length > 0 && !linkedContracts.some((contract) => {
+    const status = contract.status || "";
+    if (["\u5df2\u7ed3\u675f", "\u5df2\u5f52\u6863", "\u5df2\u9000\u79df", "\u4f5c\u5e9f", "\u5df2\u4f5c\u5e9f"].some((value) => status.includes(value))) return false;
+    return !contract.endDate || contract.endDate >= today;
+  })) return false;
+  return true;
 }
 
 export type CoverageExpiryInfo = {
