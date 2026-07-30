@@ -1,3 +1,9 @@
+## 2026-07-30 - Read-only attachment management preview
+
+- Added an owner-only `/admin/attachments` page linked from Settings.
+- The page reads attachment indexes only, summarizes Supabase counts/capacity, separates legacy Google Drive count, and previews eligible/ skipped offboarding candidates without downloading or changing files.
+- No database schema, RLS, environment, Storage object, Google Drive file, or real business data changes.
+
 ## 2026-07-22 - Fix attachment reload states in Preview
 
 - Attachment details now reload their indexed files from Supabase when opened and after a successful upload. The latest database result replaces the local optimistic result for the affected contract, payment, or expense.

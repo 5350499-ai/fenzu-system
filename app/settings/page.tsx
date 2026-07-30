@@ -30,6 +30,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
 import { Download, HardDriveDownload } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const backupBucket = "system-backups";
@@ -194,6 +195,11 @@ export default function SettingsPage() {
           {access.canSensitive("canManageSettings") ? <button className="btn primary" onClick={saveRatios} type="button">保存比例</button> : null}
         </div>
       </section>
+
+      {access.canSensitive("canManageSettings") ? <section className="card panel">
+        <div className="panel-header"><div><h2 className="panel-title">附件管理与归档</h2><p className="muted">只读查看 Supabase 附件容量和退租归档候选，不会删除或修改任何文件。</p></div></div>
+        <Link className="btn primary" href="/admin/attachments">打开附件管理</Link>
+      </section> : null}
 
       <section className="card panel">
         <div className="panel-header">
