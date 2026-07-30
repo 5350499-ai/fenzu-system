@@ -27,11 +27,39 @@ type TenantRow = {
   actual_move_out_date: string | null;
 };
 
-type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active: boolean | null; end_date: string | null };
+type ContractRow = { id: string; tenant_id: string | null; room_id: string | null; status: string | null; is_active?: boolean | null; end_date: string | null };
 type PaymentRow = { id: string; tenant_id: string | null; room_id: string | null };
 type ExpenseRow = { id: string };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id: string | null };
 type PropertyRow = { id: string; name: string | null };
+
+type TenantQueryRow = Omit<TenantRow, "actual_move_out_date"> & { actual_move_out_date?: string | null };
+
+function safeSupabaseError(error: unknown) {
+  const value = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
+  return {
+    code: typeof value.code === "string" ? value.code : null,
+    message: typeof value.message === "string" ? value.message.slice(0, 240) : null,
+    details: typeof value.details === "string" ? value.details.slice(0, 240) : null,
+    hint: typeof value.hint === "string" ? value.hint.slice(0, 240) : null
+  };
+}
+
+async function runSummaryQuery<T>(stage: string, query: PromiseLike<{ data: T | null; error: unknown | null }>) {
+  try {
+    const result = await query;
+    if (result.error) {
+      console.error("[attachment-summary] query failed", JSON.stringify({ stage, error: safeSupabaseError(result.error) }));
+      throw new Error("attachment summary query failed");
+    }
+    console.info("[attachment-summary] query ok", JSON.stringify({ stage }));
+    return result;
+  } catch (error) {
+    if (error instanceof Error && error.message === "attachment summary query failed") throw error;
+    console.error("[attachment-summary] query exception", JSON.stringify({ stage, error: safeSupabaseError(error) }));
+    throw new Error("attachment summary query failed");
+  }
+}
 
 export type AttachmentCandidate = {
   tenantId: string;
@@ -62,6 +90,17 @@ export type AttachmentSummary = {
 };
 
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
+
+async function loadTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
+  // Production currently has no actual_move_out_date column. Keep this
+  // read-only summary compatible and mark all date-based candidates as skipped.
+  const result = await runSummaryQuery("tenants", admin
+    .from("tenants")
+    .select("id,name,room_id,property_id,status")
+    .eq("user_id", workspaceOwnerId));
+  return ((result.data || []) as TenantQueryRow[]).map((tenant) => ({ ...tenant, actual_move_out_date: null }));
+}
+
 function bytes(value: unknown) {
   return Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0;
 }
@@ -81,7 +120,7 @@ function candidateFor(tenant: TenantRow, roomById: Map<string, RoomRow>, propert
   const roomRow = tenant.room_id ? roomById.get(tenant.room_id) : undefined;
   const property = tenant.property_id ? propertyById.get(tenant.property_id) : undefined;
   const room = roomRow ? `${property?.name || ""}${roomRow.name || roomRow.room_number || ""}`.trim() || roomRow.room_number || "" : "";
-  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && isContractCurrentlyActive({ status: row.status, isActive: row.is_active, endDate: row.end_date }, today));
+  const activeContract = contracts.some((row) => row.tenant_id === tenant.id && isContractCurrentlyActive({ status: row.status, isActive: row.is_active ?? null, endDate: row.end_date }, today));
   const decision = evaluateCandidate({ status: tenant.status, actualMoveOutDate: tenant.actual_move_out_date, hasActiveContract: activeContract }, cutoffDate);
   const skipReason = decision.eligible ? null : ({ invalid_move_out_date: "实际退租日期无法解析", missing_move_out_date: "没有实际退租日期", not_moved_out: "租客当前不是已退租", active_contract: "仍存在有效合同", not_old_enough: `未超过${months}个月` }[decision.reason]);
   return {
@@ -102,22 +141,22 @@ function candidateFor(tenant: TenantRow, roomById: Map<string, RoomRow>, propert
 export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<AttachmentSummary> {
   const admin = getSupabaseAdmin();
   const [propertyResult, roomResult, tenantResult, contractResult, paymentResult, expenseResult, ...attachmentResults] = await Promise.all([
-    admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId),
-    admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId),
-    admin.from("tenants").select("id,name,room_id,property_id,status,actual_move_out_date").eq("user_id", workspaceOwnerId),
-    admin.from("contracts").select("id,tenant_id,room_id,status,is_active,end_date").eq("user_id", workspaceOwnerId),
-    admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId),
-    admin.from("expenses").select("id").eq("user_id", workspaceOwnerId),
-    admin.from("contract_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,contract_id").eq("user_id", workspaceOwnerId),
-    admin.from("rent_payment_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,rent_payment_id").eq("user_id", workspaceOwnerId),
-    admin.from("expense_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,expense_id").eq("user_id", workspaceOwnerId)
+    runSummaryQuery("properties", admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("rooms", admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId)),
+    loadTenants(admin, workspaceOwnerId),
+    runSummaryQuery("contracts", admin.from("contracts").select("id,tenant_id,room_id,status,end_date").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("rent_payments", admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("expenses", admin.from("expenses").select("id").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("contract_files", admin.from("contract_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,contract_id").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("rent_payment_files", admin.from("rent_payment_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,rent_payment_id").eq("user_id", workspaceOwnerId)),
+    runSummaryQuery("expense_files", admin.from("expense_files").select("id,storage_provider,storage_bucket,file_name,file_type,file_size,uploaded_at,expense_id").eq("user_id", workspaceOwnerId))
   ]);
-  const results = [propertyResult, roomResult, tenantResult, contractResult, paymentResult, expenseResult, ...attachmentResults];
+  const results = [propertyResult, roomResult, contractResult, paymentResult, expenseResult, ...attachmentResults];
   const failed = results.find((result) => result.error);
   if (failed?.error) throw new Error("附件统计读取失败。");
   const properties = (propertyResult.data || []) as PropertyRow[];
   const rooms = (roomResult.data || []) as RoomRow[];
-  const tenants = (tenantResult.data || []) as TenantRow[];
+  const tenants = tenantResult as TenantRow[];
   const contracts = (contractResult.data || []) as ContractRow[];
   const payments = (paymentResult.data || []) as PaymentRow[];
   const expenses = (expenseResult.data || []) as ExpenseRow[];
