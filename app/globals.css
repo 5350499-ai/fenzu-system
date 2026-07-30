@@ -3091,13 +3091,15 @@ td:last-child {
 
 .attachment-file-card {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: center;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 10px;
 }
 
 .attachment-file-card > span {
   grid-row: 1;
-  grid-column: 2 / 4;
+  grid-column: 2 / 5;
   min-width: 0;
 }
 
@@ -3115,9 +3117,9 @@ td:last-child {
   white-space: nowrap;
 }
 
-.attachment-file-card > button:nth-of-type(1) { grid-column: 1; }
-.attachment-file-card > button:nth-of-type(2) { grid-column: 2; }
-.attachment-file-card > button:nth-of-type(3) { grid-column: 3; }
+.attachment-file-card > button:nth-of-type(1) { grid-column: 2; }
+.attachment-file-card > button:nth-of-type(2) { grid-column: 3; }
+.attachment-file-card > button:nth-of-type(3) { grid-column: 4; }
 
 .search {
   width: min(340px, 100%);
