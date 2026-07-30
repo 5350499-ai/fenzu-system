@@ -91,7 +91,7 @@ export type AttachmentSummary = {
 
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
 
-async function loadTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
+export async function loadAttachmentManagementTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
   const withDate = await admin
     .from("tenants")
     .select("id,name,room_id,property_id,status,actual_move_out_date")
@@ -156,7 +156,7 @@ export async function loadAttachmentSummary(workspaceOwnerId: string): Promise<A
   const [propertyResult, roomResult, tenantResult, contractResult, paymentResult, expenseResult, ...attachmentResults] = await Promise.all([
     runSummaryQuery("properties", admin.from("properties").select("id,name").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("rooms", admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", workspaceOwnerId)),
-    loadTenants(admin, workspaceOwnerId),
+    loadAttachmentManagementTenants(admin, workspaceOwnerId),
     runSummaryQuery("contracts", admin.from("contracts").select("id,tenant_id,room_id,status,end_date").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("rent_payments", admin.from("rent_payments").select("id,tenant_id,room_id").eq("user_id", workspaceOwnerId)),
     runSummaryQuery("expenses", admin.from("expenses").select("id").eq("user_id", workspaceOwnerId)),

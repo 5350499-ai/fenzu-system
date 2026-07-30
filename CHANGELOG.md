@@ -514,3 +514,8 @@
 
 - The read-only attachment summary now falls back safely when Production does not yet expose `tenants.actual_move_out_date`; those tenants remain clearly ineligible for date-based cleanup candidates until a reliable date exists.
 - No schema, RLS, storage, Google Drive, environment, or business data changes.
+## 2026-07-30 - Attachment cleanup and archive safety skeleton (Preview only)
+
+- Added administrator-only, read-only 3/6-month cleanup previews. They include only Supabase contract and rent-payment attachments; expense and legacy Google Drive attachments are excluded.
+- Candidate selection is fail-closed: it requires a recorded actual move-out date, moved-out status, no active contract, completed deposit handling, no unfinished tasks, and a released room. The current browser-local task system cannot be verified server-side, so affected tenants are explicitly skipped.
+- Added disabled cleanup/ZIP route skeletons, metadata-only manifest generation, and unexecuted audit-table migration design. No Storage object, attachment index, business record, RLS policy, or environment value changed.
