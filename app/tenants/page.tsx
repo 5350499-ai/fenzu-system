@@ -1104,7 +1104,7 @@ function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelet
   return (
     <div className="attachment-list compact-attachment-list">
       {files.map((file) => (
-        <div className="attachment-preview" key={file.id}>
+        <div className="attachment-preview attachment-file-card" key={file.id}>
           <FileUp size={16} />
           <span>{file.fileName} ｜ {formatFileSize(file.fileSize)}</span>
           <button className="btn" type="button" onClick={() => openContractFile(file)}><Eye size={15} /> 查看</button>
