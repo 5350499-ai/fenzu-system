@@ -237,6 +237,25 @@ a {
   align-items: center;
 }
 
+.task-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.task-actions .btn {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+
+.tasks-add-button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 .btn {
   display: inline-flex;
   gap: 8px;

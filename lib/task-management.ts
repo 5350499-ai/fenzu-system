@@ -76,6 +76,15 @@ export function taskStatusLabel(status: TaskStatus) {
   return "未知状态";
 }
 
+export function taskPriorityLabel(priority: unknown) {
+  const value = String(priority || "").trim().toLowerCase();
+  if (value === "low" || value === "低") return "低";
+  if (value === "normal" || value === "普通") return "普通";
+  if (value === "high" || value === "高") return "高";
+  if (value === "urgent" || value === "紧急") return "紧急";
+  return "未知";
+}
+
 export function taskBlocksCleanup(task: Pick<LocalTaskLike, "status" | "tenantId">, tenantId: string) {
   return Boolean(task.tenantId === tenantId && normalizeTaskStatus(task.status) === "pending");
 }

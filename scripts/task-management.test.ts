@@ -7,6 +7,7 @@ import {
   isUuid,
   normalizeTaskForServer,
   normalizeTaskStatus,
+  taskPriorityLabel,
   taskBlocksCleanup,
   taskMigrationKey
 } from "../lib/task-management";
@@ -36,6 +37,14 @@ test("task status and calendar validation reject unsafe values", () => {
   assert.equal(isCalendarDate("2026-02-29"), false);
   assert.equal(isUuid(tenantId), true);
   assert.equal(isUuid("not-a-uuid"), false);
+});
+
+test("task priority labels stay user-facing and hide unknown values", () => {
+  assert.equal(taskPriorityLabel("low"), "低");
+  assert.equal(taskPriorityLabel("normal"), "普通");
+  assert.equal(taskPriorityLabel("high"), "高");
+  assert.equal(taskPriorityLabel("urgent"), "紧急");
+  assert.equal(taskPriorityLabel("internal"), "未知");
 });
 
 test("migration preview preserves normal tasks and identifies exact duplicates", () => {

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Edit3, Plus, Trash2, X } from "lucide-react";
+import { Check, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { loadBusinessData, tenantKey, type BusinessTenant } from "@/lib/business-data";
-import { taskStatusLabel, type LocalTaskLike, type ServerTaskLike } from "@/lib/task-management";
+import { taskPriorityLabel, taskStatusLabel, type LocalTaskLike, type ServerTaskLike } from "@/lib/task-management";
 import {
   buildLocalMigrationRows,
   isTaskMigrationDismissed,
@@ -123,12 +123,16 @@ export function TasksServerManager() {
     }
   }
 
-  async function setTaskStatus(id: string, nextStatus: "completed" | "cancelled") {
+  async function setTaskStatus(id: string, nextStatus: "pending" | "completed" | "cancelled") {
     if (saving) return;
     setSaving(true);
     setError("");
     try {
-      const task = nextStatus === "completed" ? await serverTaskRepository.completeTask(id) : await serverTaskRepository.cancelTask(id);
+      const task = nextStatus === "completed"
+        ? await serverTaskRepository.completeTask(id)
+        : nextStatus === "cancelled"
+          ? await serverTaskRepository.cancelTask(id)
+          : await serverTaskRepository.updateTask(id, { status: "pending" });
       setTasks((rows) => rows.map((row) => row.id === id ? task : row));
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "保存待办状态失败，请稍后重试。");
@@ -201,7 +205,7 @@ export function TasksServerManager() {
             <h2 className="panel-title">待办列表</h2>
             <p className="muted">当前账号的待办会保存到服务端，并在已授权设备间同步。</p>
           </div>
-          {access.can("tasks", "create") ? <button className="btn primary" type="button" disabled={loading || saving} onClick={() => { setForm(emptyForm()); setEditingId(null); setShowForm(true); }}><Plus size={17} />新增待办</button> : null}
+          {access.can("tasks", "create") ? <button className="btn primary tasks-add-button" type="button" disabled={loading || saving} onClick={() => { setForm(emptyForm()); setEditingId(null); setShowForm(true); }}><Plus size={17} />新增待办</button> : null}
         </div>
         {error ? <div className="badge red" style={{ marginBottom: 12 }}>{error}</div> : null}
         {loading ? <p className="muted">正在加载待办…</p> : tasks.length === 0 ? <p className="muted">暂无待办。</p> : <div className="mobile-card-list">
@@ -213,14 +217,16 @@ export function TasksServerManager() {
               </div>
               <div className="mobile-record-fields">
                 <div className="mobile-record-field"><span>截止日期</span><strong>{task.dueDate || "未设置"}</strong></div>
-                <div className="mobile-record-field"><span>优先级</span><strong>{task.priority || "普通"}</strong></div>
-                <div className="mobile-record-field"><span>关联租客</span><strong>{task.tenantId ? tenantById.get(task.tenantId)?.name || "已关联租客" : "普通待办"}</strong></div>
+                <div className="mobile-record-field"><span>优先级</span><strong>{taskPriorityLabel(task.priority)}</strong></div>
+                <div className="mobile-record-field"><span>关联租客</span><strong>{task.tenantId ? tenantById.get(task.tenantId)?.name || "已关联租客" : "无关联租客"}</strong></div>
               </div>
               {task.notes ? <p className="muted">{task.notes}</p> : null}
-              <div className="top-actions">
-                {task.status === "pending" && access.can("tasks", "edit") ? <button className="btn" type="button" disabled={saving} onClick={() => void setTaskStatus(task.id, "completed")}><Check size={15} />完成</button> : null}
-                {access.can("tasks", "edit") ? <button className="btn" type="button" disabled={saving} onClick={() => { setForm(formFromTask(task)); setEditingId(task.id); setShowForm(true); }}><Edit3 size={15} />编辑</button> : null}
-                {access.can("tasks", "delete") ? <button className="btn danger" type="button" disabled={saving} onClick={() => void removeTask(task.id)}><Trash2 size={15} />删除</button> : null}
+              <div className="task-actions">
+                {access.can("tasks", "edit") ? <button className="btn" type="button" disabled={saving} onClick={() => void setTaskStatus(task.id, task.status === "pending" ? "completed" : "pending")}>
+                  {task.status === "pending" ? <Check size={15} /> : <RotateCcw size={15} />}{task.status === "pending" ? "完成" : "恢复"}
+                </button> : <span aria-hidden="true" />}
+                {access.can("tasks", "edit") ? <button className="btn" type="button" disabled={saving} onClick={() => { setForm(formFromTask(task)); setEditingId(task.id); setShowForm(true); }}><Edit3 size={15} />编辑</button> : <span aria-hidden="true" />}
+                {access.can("tasks", "delete") ? <button className="btn danger" type="button" disabled={saving} onClick={() => void removeTask(task.id)}><Trash2 size={15} />删除</button> : <span aria-hidden="true" />}
               </div>
             </article>
           ))}
@@ -235,7 +241,7 @@ export function TasksServerManager() {
             <label className="field"><span>截止日期</span><input type="date" value={form.dueDate || ""} onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))} /></label>
             <label className="field"><span>状态</span><select value={form.status || "pending"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}><option value="pending">待处理</option><option value="completed">已完成</option><option value="cancelled">已取消</option></select></label>
             <label className="field"><span>优先级</span><select value={form.priority || "normal"} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value }))}><option value="low">低</option><option value="normal">普通</option><option value="high">高</option><option value="urgent">紧急</option></select></label>
-            <label className="field"><span>关联租客（可选）</span><select value={form.tenantId || ""} onChange={(event) => selectTenant(event.target.value)}><option value="">普通待办</option>{tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}</select></label>
+            <label className="field"><span>关联租客（可选）</span><select value={form.tenantId || ""} onChange={(event) => selectTenant(event.target.value)}><option value="">无关联租客</option>{tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}</select></label>
             <label className="field"><span>备注</span><textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></label>
             <button className="btn primary" disabled={saving} type="submit">{saving ? "正在保存…" : "保存待办"}</button>
           </form>
