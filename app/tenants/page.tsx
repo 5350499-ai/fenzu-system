@@ -45,6 +45,7 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
+import { sortTenantsByRoomAndStatus } from "@/lib/tenant-sorting";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -241,6 +242,7 @@ export default function TenantsPage() {
 
 
   const sortedTenants = useMemo(() => {
+    if (sortKey === "priority" && sortDirection === "asc") return sortTenantsByRoomAndStatus(filteredTenants, rooms);
     return [...filteredTenants].sort((left, right) => {
       const leftProperty = properties.find((item) => item.id === left.propertyId)?.name || "";
       const rightProperty = properties.find((item) => item.id === right.propertyId)?.name || "";

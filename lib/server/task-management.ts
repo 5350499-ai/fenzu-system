@@ -159,11 +159,21 @@ type Association = { table: "properties" | "rooms" | "tenants" | "contracts" | "
 
 async function resolveAssociation(context: AccountRequestContext, table: Association["table"], id: string): Promise<Association> {
   const client = getSupabaseAuthVerifier(context.accessToken);
-  const select = table === "properties" ? "id" : table === "rooms" ? "id,property_id" : "id,property_id,room_id,tenant_id";
+  const select = table === "properties"
+    ? "id"
+    : table === "rooms"
+      ? "id,property_id"
+      : table === "tenants"
+        ? "id,property_id,room_id"
+        : "id,property_id,room_id,tenant_id";
   // Relationship table names are selected from a closed server-side union.
   // supabase-js's generated parser cannot infer a dynamic select string here.
   const { data, error } = await (client as any).from(table).select(select).eq("id", id).maybeSingle();
-  if (error) throw new AccountApiError("关联记录校验失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+  if (error) {
+    console.error("[tasks] association validation failed", { stage: `validate_${table}`, code: error.code, message: error.message });
+    if (error.code === "42501") throw new AccountApiError("无权访问该关联记录。", 403);
+    throw new AccountApiError("关联记录字段校验失败，请联系管理员检查数据配置。", 500);
+  }
   if (!data) throw new AccountApiError("关联记录不存在或无权访问。", 404);
   const row = data as Record<string, unknown>;
   return {
@@ -248,6 +258,8 @@ async function buildTaskRow(context: AccountRequestContext, patch: TaskPatch, ex
     if (expected && roomId && expected !== roomId) throw new AccountApiError("关联的房间信息不一致。", 400);
   }
   if (contract?.tenantId && tenantId && contract.tenantId !== tenantId) throw new AccountApiError("关联的租客信息不一致。", 400);
+
+  if (suppliedTenant && !tenant?.propertyId) throw new AccountApiError("该租客缺少房源关联，暂时无法创建关联待办。", 400);
 
   if (propertyId) await requirePropertyAccess(context, propertyId);
   else if (context.profile.account_type !== "owner") throw new AccountApiError("普通待办需要关联一个已授权房源。", 403);
