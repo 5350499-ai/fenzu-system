@@ -2714,6 +2714,142 @@ td:last-child {
   justify-self: start;
 }
 
+.tenant-horizontal-timeline {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tenant-timeline-track {
+  position: relative;
+  height: 132px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  scrollbar-width: thin;
+}
+
+.tenant-timeline-track-inner {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  align-items: stretch;
+  padding: 14px 14px 10px;
+}
+
+.tenant-timeline-date-group {
+  position: relative;
+  display: grid;
+  grid-template-rows: 22px 1fr;
+  min-width: 118px;
+  padding: 0 14px;
+}
+
+.tenant-timeline-date-group + .tenant-timeline-date-group::before {
+  content: "";
+  position: absolute;
+  top: 66px;
+  left: -1px;
+  width: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.tenant-timeline-date-group time {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tenant-timeline-date-events {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tenant-timeline-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 88px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tenant-timeline-node:hover,
+.tenant-timeline-node.selected {
+  background: var(--surface-soft);
+}
+
+.tenant-timeline-dot {
+  display: block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.tenant-timeline-node.on-time .tenant-timeline-dot { border-color: #1f9d72; background: #1f9d72; }
+.tenant-timeline-node.late-yellow .tenant-timeline-dot { border-color: #d39a00; background: #d39a00; }
+.tenant-timeline-node.late-red .tenant-timeline-dot { border-color: var(--red); background: var(--red); }
+.tenant-timeline-node.untracked .tenant-timeline-dot { border-color: var(--muted); background: transparent; }
+.tenant-timeline-node.current-overdue .tenant-timeline-dot { border-color: var(--red); background: transparent; }
+
+.tenant-timeline-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tenant-timeline-selected strong { color: var(--text); }
+
+.tenant-detail-panel .payment-history-line {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: start;
+  min-height: 0;
+  padding: 9px 0;
+  text-align: left;
+}
+
+.tenant-detail-panel .payment-history-left,
+.tenant-detail-panel .payment-history-right {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.tenant-detail-panel .payment-history-left { color: var(--muted); }
+.tenant-detail-panel .payment-history-right > *,
+.tenant-detail-panel .payment-history-right strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
 .tenant-performance-grid .detail-field {
   min-width: 0;
   border: 1px solid var(--border);
