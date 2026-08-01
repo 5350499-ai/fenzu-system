@@ -2655,6 +2655,36 @@ td:last-child {
 .tenant-month-payment-detail, .tenant-month-event-detail { display: grid; gap: 2px; padding-top: 6px; border-top: 1px solid var(--border); }
 .payment-history-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; background: transparent; padding: 2px 0; color: inherit; font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
 
+.tenant-chart-frame { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--surface) 92%, var(--accent)); }
+.tenant-chart-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 0; color: var(--muted); font-size: .82rem; }
+.tenant-chart-latest { border: 1px solid var(--border); border-radius: 999px; background: transparent; color: inherit; padding: 4px 9px; font-size: .72rem; cursor: pointer; }
+.tenant-month-track { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: thin; padding: 12px 0 8px; }
+.tenant-month-track-inner { position: relative; display: flex; min-height: 92px; align-items: start; padding: 8px 12px; }
+.tenant-month-track-line { position: absolute; left: 30px; right: 30px; top: 27px; height: 2px; background: var(--border); }
+.tenant-month-node { flex: 0 0 64px; width: 64px; min-height: 74px; display: grid; justify-items: center; align-content: start; gap: 4px; position: relative; z-index: 1; border: 0; background: transparent; color: var(--muted); padding: 0 2px; cursor: pointer; }
+.tenant-month-node-dot { width: 18px; height: 18px; margin: 1px 0 1px; border: 3px solid var(--surface); border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 1px var(--border); }
+.tenant-month-node.on-time .tenant-month-node-dot { background: #1f9d72; }
+.tenant-month-node.late-yellow .tenant-month-node-dot { background: #d39a00; }
+.tenant-month-node.late-red .tenant-month-node-dot { background: #dc2626; }
+.tenant-month-node.current-yellow .tenant-month-node-dot { background: transparent; border-color: #d39a00; }
+.tenant-month-node.current-red .tenant-month-node-dot { background: transparent; border-color: #dc2626; }
+.tenant-month-node.untracked .tenant-month-node-dot { background: transparent; }
+.tenant-month-node.selected { color: var(--text); }
+.tenant-month-node.selected .tenant-month-node-dot { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+.tenant-month-node strong { font-size: .68rem; white-space: nowrap; }
+.tenant-month-node small { font-size: .86rem; }
+.tenant-rent-chart-frame { min-height: 190px; }
+.tenant-rent-chart { height: 180px; overflow-x: auto; overflow-y: hidden; padding: 0; border: 0; border-radius: 0; touch-action: pan-x; }
+.tenant-rent-chart-inner { position: relative; display: flex; align-items: stretch; height: 180px; padding: 20px 12px 20px; }
+.tenant-rent-grid-line, .tenant-rent-baseline { position: absolute; left: 12px; right: 12px; border-top: 1px dashed var(--border); pointer-events: none; }
+.tenant-rent-grid-line.line-25 { bottom: 55px; opacity: .4; }.tenant-rent-grid-line.line-50 { bottom: 90px; opacity: .5; }.tenant-rent-grid-line.line-75 { bottom: 125px; opacity: .6; }
+.tenant-rent-baseline { bottom: 20px; border-top-style: solid; opacity: .9; }
+.tenant-rent-bar { flex: 0 0 64px; width: 64px; height: 140px; display: grid; grid-template-rows: 20px 1fr 18px; align-items: end; justify-items: center; position: relative; z-index: 1; border: 0; background: transparent; color: var(--muted); padding: 0 6px; cursor: pointer; }
+.tenant-rent-bar-value { min-height: 18px; font-size: .68rem; white-space: nowrap; }
+.tenant-rent-bar-fill { width: 26px; min-height: 4px; align-self: end; border-radius: 5px 5px 1px 1px; background: var(--accent); opacity: .82; }
+.tenant-rent-bar.selected .tenant-rent-bar-fill { opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.tenant-rent-bar small { font-size: .82rem; }
+
 .tenant-performance-empty,
 .tenant-performance-summary,
 .tenant-current-overdue,
