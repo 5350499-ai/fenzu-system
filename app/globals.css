@@ -2551,6 +2551,45 @@ td:last-child {
   margin: 2px 0 8px;
 }
 
+.tenant-detail-panel > .detail-actions {
+  order: -1;
+  justify-content: flex-start;
+}
+
+.tenant-detail-panel > .deposit-status-detail {
+  order: -1;
+}
+
+.tenant-detail-panel > .payment-history-panel {
+  order: 1;
+}
+
+.tenant-detail-panel > .contract-attachments-panel {
+  order: 2;
+}
+
+.attachment-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 850;
+  padding: 0;
+  text-align: left;
+}
+
+.contract-attachments-panel:not(.attachments-open) > :not(.attachment-toggle) {
+  display: none;
+}
+
+.contract-attachments-panel > .detail-section-title {
+  display: none;
+}
+
 .tenant-expiry-row {
   display: grid;
   grid-template-columns: 7px minmax(0, auto) minmax(0, 1fr);
