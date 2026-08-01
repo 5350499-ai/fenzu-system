@@ -46,11 +46,12 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
+import { sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
-type TenantSortKey = "priority" | "expiry" | "rent" | "property" | "status";
+type TenantSortKey = TenantSortMode;
 
 const emptyTenant: BusinessTenant = {
   id: "",
@@ -109,7 +110,7 @@ export default function TenantsPage() {
   const [propertyFilterId, setPropertyFilterId] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
-  const [sortKey, setSortKey] = useState<TenantSortKey>("priority");
+  const [sortKey, setSortKey] = useState<TenantSortKey>("room");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
@@ -243,19 +244,12 @@ export default function TenantsPage() {
 
 
   const sortedTenants = useMemo(() => {
-    return [...filteredTenants].sort((left, right) => {
-      const leftProperty = properties.find((item) => item.id === left.propertyId)?.name || "";
-      const rightProperty = properties.find((item) => item.id === right.propertyId)?.name || "";
-      const leftCoverage = latestCoverageForTenant(left.id, payments);
-      const rightCoverage = latestCoverageForTenant(right.id, payments);
-      const leftExpiry = fixedCoverageExpiryInfo(left, leftCoverage);
-      const rightExpiry = fixedCoverageExpiryInfo(right, rightCoverage);
-      const direction = sortDirection === "asc" ? 1 : -1;
-      if (sortKey === "priority") return compareTenantPriority(left, right, leftExpiry, rightExpiry, leftProperty, rightProperty, rooms) * direction;
-      if (sortKey === "rent") return (left.monthlyRent - right.monthlyRent) * direction;
-      if (sortKey === "property") return compareTenantProperty(left, right, leftProperty, rightProperty, rooms) * direction;
-      if (sortKey === "status") return compareTenantStatus(left, right, leftExpiry, rightExpiry, payments) * direction;
-      return compareExpiryDates(leftCoverage?.coverageEndDate, rightCoverage?.coverageEndDate, direction);
+    return sortTenantsByRoomAndStatus(filteredTenants, rooms, {
+      mode: sortKey,
+      direction: sortDirection,
+      getProperty: (tenant) => properties.find((item) => item.id === tenant.propertyId)?.name || "",
+      getExpiry: (tenant) => latestCoverageForTenant(tenant.id, payments)?.coverageEndDate || "",
+      getStatusRank: (tenant) => tenantStatusRank(tenant, fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments)))
     });
   }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
@@ -741,6 +735,7 @@ export default function TenantsPage() {
             ) : null}
           </div>
           <div className="sort-pills">
+            <SortButton active={sortKey === "room"} direction={sortDirection} label="房间" onClick={() => toggleSort("room")} />
             <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
             <SortButton active={sortKey === "rent"} direction={sortDirection} label="月租" onClick={() => toggleSort("rent")} />
             <SortButton active={sortKey === "property"} direction={sortDirection} label="房源" onClick={() => toggleSort("property")} />
