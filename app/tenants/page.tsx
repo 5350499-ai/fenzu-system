@@ -47,6 +47,7 @@ import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCovera
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1082,6 +1083,10 @@ function TenantDetail({
   const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
+  const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
+  const visibleTimeline = timelineExpanded ? timeline : timeline.slice(0, 10);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -1131,6 +1136,29 @@ function TenantDetail({
           <button className="btn" disabled={saving} type="button" onClick={onEditMoveOutDate}>{tenant.actualMoveOutDate ? "修改实际退租日期" : "补录实际退租日期"}</button>
         </div>
       ) : null}
+
+      <section className="tenant-performance-section">
+        <div className="detail-section-title">付款表现概览</div>
+        <div className="tenant-performance-grid">
+          <DetailField label="累计迟交" value={`${performance.lateCount}次`} />
+          <DetailField label="平均迟交（含按时付款）" value={performance.averageLateDays == null ? "暂无数据" : `${performance.averageLateDays.toFixed(1)}天`} />
+          <DetailField label="最长迟交" value={performance.longestLateDays == null ? "暂无数据" : `${performance.longestLateDays}天`} />
+          <DetailField label="按时付款率" value={performance.onTimeRate == null ? "暂无数据" : `${performance.onTimeRate.toFixed(0)}%`} />
+          {performance.currentOverdueDays != null ? <DetailField label="当前逾期" value={`${performance.currentOverdueDays}天`} /> : null}
+        </div>
+        {performance.excludedCount ? <div className="muted tenant-performance-note">另有{performance.excludedCount}条记录未纳入迟交统计（日期、首月或付款区间无法可靠判断）。</div> : null}
+      </section>
+
+      <section className="tenant-timeline-section">
+        <div className="detail-section-title">租客时间轴</div>
+        {visibleTimeline.length ? <div className="tenant-timeline-list">
+          {visibleTimeline.map((event) => <div className="tenant-timeline-event" key={event.id}>
+            <time>{event.date}</time>
+            <div><strong>{event.title}</strong>{event.detail ? <span>{event.detail}</span> : null}</div>
+          </div>)}
+        </div> : <div className="muted">暂无时间轴记录</div>}
+        {timeline.length > 10 ? <button className="btn tenant-timeline-more" type="button" onClick={() => setTimelineExpanded((current) => !current)}>{timelineExpanded ? "收起" : "查看全部"}</button> : null}
+      </section>
 
       <div className="attachment-panel payment-history-panel">
         <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>

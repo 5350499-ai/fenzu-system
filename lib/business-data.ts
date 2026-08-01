@@ -40,6 +40,7 @@ export type BusinessTenant = {
   monthlyRent: number;
   depositAmount: number;
   paymentDay?: number;
+  moveInDate?: string;
   actualMoveOutDate?: string;
   status: string;
   notes?: string;
@@ -173,6 +174,7 @@ const tableConfigs: Record<string, TableConfig> = {
       monthlyRent: Number(row.monthly_rent || 0),
       depositAmount: Number(row.deposit_amount || 0),
       paymentDay: row.payment_day == null ? undefined : Number(row.payment_day),
+      moveInDate: row.move_in_date || undefined,
       actualMoveOutDate: row.actual_move_out_date || undefined,
       status: normalizeTenantStatus(row.status || "在租"),
       notes: row.notes || ""
