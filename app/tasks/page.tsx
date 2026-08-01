@@ -3,11 +3,13 @@
 import { AppLayout } from "@/components/app-layout";
 import { CrudPage } from "@/components/crud-page";
 import { StatusBadge } from "@/components/status-badge";
+import { TasksServerManager } from "@/components/tasks-server-manager";
+import { TASKS_SERVER_SYNC_ENABLED } from "@/lib/task-management";
 
 export default function TasksPage() {
   return (
-    <AppLayout title="待办管理" description="查看和管理收租、续约、退押金等待办事项。">
-      <CrudPage
+    <AppLayout title="待办管理" description="查看和管理收租、续租、退押金等待办事项。">
+      {TASKS_SERVER_SYNC_ENABLED ? <TasksServerManager /> : <CrudPage
         title="待办"
         storageKey="v1-tasks"
         createLabel="新增待办"
@@ -22,15 +24,11 @@ export default function TasksPage() {
         columns={[
           { name: "title", label: "待办内容" },
           { name: "dueDate", label: "截止日期" },
-          {
-            name: "status",
-            label: "状态",
-            render: (row) => <StatusBadge tone={row.status === "待处理" ? "blue" : "green"}>{row.status}</StatusBadge>
-          },
+          { name: "status", label: "状态", render: (row) => <StatusBadge tone={row.status === "待处理" ? "blue" : "green"}>{row.status}</StatusBadge> },
           { name: "priority", label: "优先级" },
           { name: "notes", label: "备注" }
         ]}
-      />
+      />}
     </AppLayout>
   );
 }

@@ -524,3 +524,9 @@
 - Confirmed the existing `public.tasks` table and RLS/permission model; no duplicate tasks table or migration execution was performed.
 - Added a disabled server-task access layer, local-task migration preview pure functions, and read-only migration/status API skeletons. Browser-local tasks remain unchanged while the feature flag is off.
 - Cleanup preview remains fail-closed until server task sync is explicitly enabled; no real tasks, attachments, Storage objects, or business data changed.
+
+## 2026-08-01 - Complete server-task sync and local-migration code path (Preview only)
+
+- Added a feature-flagged task repository plus authenticated task CRUD APIs that use the existing `public.tasks` table and its current RLS policies; no service-role bypass is used for task reads or writes.
+- Added a browser-local task migration preview, short-lived integrity token, idempotent per-item migration handling, local backup and ID mapping. The server-task flag remains disabled, so existing task behavior is unchanged until a separately authorized rollout.
+- Cleanup preview now passes its verified user token when querying tasks and remains fail-closed whenever server task sync is disabled or unavailable. No migration was executed and no task, attachment, Storage object, or business record was changed.

@@ -57,12 +57,12 @@ test("server task statuses are normalized without allowing unknown values", () =
 });
 
 test("local task migration preview uses stable keys and does not upload", () => {
-  const task = { title: "退押金", dueDate: "2026-07-30", status: "pending", priority: "high", tenantId: "tenant-1" };
+  const task = { title: "退押金", dueDate: "2026-07-30", status: "pending", priority: "high", tenantId: "11111111-1111-4111-8111-111111111111" };
   const preview = buildTaskMigrationPreview([task, { ...task }, { title: "普通待办", status: "pending" }], []);
   assert.equal(preview.total, 3);
   assert.equal(preview.migratable, 1);
   assert.equal(preview.duplicate, 1);
   assert.equal(preview.unlinked, 1);
   assert.equal(preview.invalid, 0);
-  assert.equal(buildTaskMigrationPreview([task], [{ id: "server-1", ...task }]).duplicate, 1);
+  assert.equal(buildTaskMigrationPreview([task], [{ id: "server-1", ...task, status: "pending" as const }]).duplicate, 1);
 });

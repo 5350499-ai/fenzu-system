@@ -338,21 +338,32 @@ const tableConfigs: Record<string, TableConfig> = {
     order: "created_at",
     fromDb: (row) => ({
       id: row.id,
+      taskType: row.task_type || "manual",
       title: row.title || "",
+      description: row.description || "",
       dueDate: row.due_date || "",
       status: row.status || "待处理",
       priority: row.priority || "普通",
-      notes: row.notes || ""
+      notes: row.notes || "",
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      tenantId: row.tenant_id || "",
+      contractId: row.contract_id || ""
     }),
     toDb: (row, userId) => ({
       id: row.id,
       user_id: userId,
-      task_type: "manual",
+      task_type: row.taskType || "manual",
       title: row.title || "",
+      description: row.description || null,
       due_date: row.dueDate || null,
       status: row.status || "待处理",
       priority: row.priority || "普通",
-      notes: row.notes || null
+      notes: row.notes || null,
+      property_id: row.propertyId || null,
+      room_id: row.roomId || null,
+      tenant_id: row.tenantId || null,
+      contract_id: row.contractId || null
     })
   }
 };

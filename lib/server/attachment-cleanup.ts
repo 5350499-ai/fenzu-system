@@ -165,7 +165,7 @@ export async function loadAttachmentCleanupPreview(workspaceOwnerId: string, thr
   const taskStateByTenant = new Map<string, CleanupTaskState>();
   let taskSourceUnavailable = !TASKS_SERVER_SYNC_ENABLED;
   if (TASKS_SERVER_SYNC_ENABLED) {
-    const serverTasks = await loadServerTasks(workspaceOwnerId);
+    const serverTasks = await loadServerTasks(workspaceOwnerId, accessToken);
     if (serverTasks.available) {
       for (const tenant of tenants) {
         const pending = serverTasks.rows.some((task) => task.tenantId === tenant.id && normalizeTaskStatus(task.status) === "pending");
