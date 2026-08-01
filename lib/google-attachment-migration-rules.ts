@@ -18,3 +18,8 @@ function extensionFor(fileName: string, mime: string | null) {
 export function buildGoogleMigrationTargetPath(workspaceId: string, table: MigrationRuleTable, parentId: string | null, attachmentId: string, fileName: string, mime: string | null) {
   return `${workspaceId}/migrated/${table}/${parentId || "unlinked"}/${attachmentId}.${extensionFor(fileName, mime)}`;
 }
+
+export function sha256Hex(value: Uint8Array) {
+  return createHash("sha256").update(value).digest("hex");
+}
+import { createHash } from "crypto";

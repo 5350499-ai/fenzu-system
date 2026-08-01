@@ -1,13 +1,14 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
-import { getGoogleAccessToken, getGoogleDriveAttachmentMetadata, GoogleDriveAccessError } from "@/lib/server/google-drive";
+import { getGoogleAccessToken, getGoogleDriveAttachmentMetadata, getGoogleDriveContent, GoogleDriveAccessError } from "@/lib/server/google-drive";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { buildGoogleMigrationTargetPath, migrationTableSelect } from "@/lib/google-attachment-migration-rules";
+import { buildGoogleMigrationTargetPath, migrationTableSelect, sha256Hex } from "@/lib/google-attachment-migration-rules";
 
 export type MigrationTable = "contract_files" | "rent_payment_files" | "expense_files";
 export type MigrationStatus = "readable" | "missing" | "trashed" | "permission_denied" | "authorization_error" | "metadata_mismatch" | "duplicate" | "outside_root" | "target_conflict" | "target_exists" | "scan_failed";
+export type MigrationRunItemStatus = "migrated" | "already_migrated" | "failed" | "skipped" | "conflict";
 
 type SourceRow = {
   id: string;
@@ -89,6 +90,10 @@ function signPreview(payload: Record<string, unknown>) {
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const signature = createHmac("sha256", migrationSecret()).update(encoded).digest("base64url");
   return `${encoded}.${signature}`;
+}
+
+export function scanTargetDigest(items: Pick<MigrationScanItem, "attachmentId" | "targetBucket" | "targetPath">[]) {
+  return fingerprint(items.map((item) => `${item.attachmentId}:${item.targetBucket}:${item.targetPath}`).join("|"));
 }
 
 export function verifyMigrationPreviewToken(token: string, context: { userId: string; workspaceId: string }) {
@@ -207,6 +212,91 @@ export async function scanGoogleAttachments(workspaceId: string, userId: string)
     targetConflicts: items.filter((item) => item.targetStatus === "conflict" || item.targetStatus === "exists").length,
     totalBytes: items.reduce((sum, item) => sum + (item.driveSize || item.databaseSize), 0)
   };
-  const previewToken = signPreview({ userId, workspaceId, scannedAt: now.toISOString(), expiresAt, attachmentIds: items.map((item) => item.attachmentId), targetDigest: fingerprint(items.map((item) => `${item.attachmentId}:${item.targetBucket}:${item.targetPath}`).join("|")) });
+  const previewToken = signPreview({ userId, workspaceId, scannedAt: now.toISOString(), expiresAt, attachmentIds: items.map((item) => item.attachmentId), targetDigest: scanTargetDigest(items) });
   return { scannedAt: now.toISOString(), expiresAt, items, summary, previewToken };
+}
+
+function safeError(error: unknown) {
+  return String(error instanceof Error ? error.message : error || "unknown error")
+    .replace(/(token|secret|cookie|authorization|service[_ -]?role|signed[_ -]?url)/gi, "[filtered]")
+    .slice(0, 240);
+}
+
+const activeRuns = new Set<string>();
+
+export async function executeGoogleAttachmentMigration(input: {
+  workspaceId: string;
+  userId: string;
+  previewPayload: Record<string, unknown>;
+}) {
+  const runId = randomUUID();
+  if (activeRuns.has(input.userId)) throw new AccountApiError("已有迁移任务正在执行，请稍后重试。", 409);
+  activeRuns.add(input.userId);
+  try {
+    const current = await scanGoogleAttachments(input.workspaceId, input.userId);
+    const expectedIds = Array.isArray(input.previewPayload.attachmentIds) ? input.previewPayload.attachmentIds.filter((value): value is string => typeof value === "string") : [];
+    const currentDigest = scanTargetDigest(current.items);
+    const expectedDigest = typeof input.previewPayload.targetDigest === "string" ? input.previewPayload.targetDigest : "";
+    if (currentDigest !== expectedDigest || expectedIds.length !== current.items.length || expectedIds.some((id) => !current.items.some((item) => item.attachmentId === id))) {
+      throw new AccountApiError("扫描结果已变化，请重新扫描后再执行。", 409);
+    }
+    const results: Array<{ attachmentId: string; table: MigrationTable; status: MigrationRunItemStatus; reason?: string }> = [];
+    for (const item of current.items) {
+      console.info("google_attachment_migration_item", { runId, stage: "item_started", table: item.table, attachmentId: item.attachmentId });
+      if (!item.migratable && item.sourceStatus !== "target_conflict") {
+        results.push({ attachmentId: item.attachmentId, table: item.table, status: "skipped", reason: item.reason || item.sourceStatus });
+        continue;
+      }
+      const config = tableConfig[item.table];
+      try {
+        const { data: rawRow, error: rowError } = await getSupabaseAdmin().from(item.table).select(`${migrationTableSelect[item.table]},storage_bucket,storage_path` as string).eq("id", item.attachmentId).eq("user_id", input.workspaceId).maybeSingle();
+        const row = rawRow as any;
+        if (rowError || !row) throw new Error("附件索引不存在或无法读取");
+        if (row.storage_provider === "supabase") {
+          results.push({ attachmentId: item.attachmentId, table: item.table, status: "already_migrated" });
+          continue;
+        }
+        if (row.storage_provider !== "google_drive" || !row.provider_file_id) {
+          results.push({ attachmentId: item.attachmentId, table: item.table, status: "skipped", reason: "源附件索引已变化" });
+          continue;
+        }
+        const metadata = await getGoogleDriveAttachmentMetadata(row.provider_file_id);
+        if (!metadata.downloadable || metadata.trashed || !metadata.withinConfiguredRoot || metadata.mimeType !== item.databaseMime || metadata.size !== item.databaseSize) {
+          results.push({ attachmentId: item.attachmentId, table: item.table, status: "skipped", reason: "Google 元数据已变化" });
+          continue;
+        }
+        const source = await getGoogleDriveContent(row.provider_file_id);
+        const sourceBuffer = Buffer.from(await source.arrayBuffer());
+        const sourceSha256 = sha256Hex(sourceBuffer);
+        const storage = getSupabaseAdmin().storage.from(config.bucket);
+        const existing = await storage.download(item.targetPath);
+        if (existing.data) {
+          const existingBuffer = Buffer.from(await existing.data.arrayBuffer());
+          const targetSha256 = sha256Hex(existingBuffer);
+          if (existingBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256) {
+            results.push({ attachmentId: item.attachmentId, table: item.table, status: "conflict", reason: "目标对象内容不一致" });
+            continue;
+          }
+        } else {
+          const upload = await storage.upload(item.targetPath, sourceBuffer, { contentType: metadata.mimeType, upsert: false });
+          if (upload.error && !/already exists|duplicate/i.test(upload.error.message)) throw new Error(upload.error.message);
+          const check = await storage.download(item.targetPath);
+          if (check.error || !check.data) throw new Error(check.error?.message || "目标对象无法读取");
+          const targetBuffer = Buffer.from(await check.data.arrayBuffer());
+          const targetSha256 = sha256Hex(targetBuffer);
+          if (targetBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256) throw new Error("目标对象校验失败");
+        }
+        const { error: updateError } = await getSupabaseAdmin().from(item.table).update({ storage_provider: "supabase", storage_bucket: config.bucket, storage_path: item.targetPath }).eq("id", item.attachmentId).eq("user_id", input.workspaceId).eq("storage_provider", "google_drive");
+        if (updateError) throw new Error(updateError.message);
+        results.push({ attachmentId: item.attachmentId, table: item.table, status: "migrated" });
+        console.info("google_attachment_migration_item", { runId, stage: "item_completed", table: item.table, attachmentId: item.attachmentId, status: "migrated", bytes: sourceBuffer.length });
+      } catch (error) {
+        console.error("google_attachment_migration_item_failed", { runId, stage: "item_failed", table: item.table, attachmentId: item.attachmentId, message: safeError(error) });
+        results.push({ attachmentId: item.attachmentId, table: item.table, status: "failed", reason: safeError(error) });
+      }
+    }
+    return { runId, results, summary: { migrated: results.filter((item) => item.status === "migrated").length, alreadyMigrated: results.filter((item) => item.status === "already_migrated").length, failed: results.filter((item) => item.status === "failed").length, skipped: results.filter((item) => item.status === "skipped").length, conflicts: results.filter((item) => item.status === "conflict").length } };
+  } finally {
+    activeRuns.delete(input.userId);
+  }
 }
