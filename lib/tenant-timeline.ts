@@ -63,6 +63,25 @@ export type MonthlyRentIncomePoint = {
   payments: BusinessRentPayment[];
 };
 
+export function buildTenantMonthRange(tenant: BusinessTenant, payments: BusinessRentPayment[], events: TenantTimelineEvent[], today: string): string[] {
+  const values = [tenant.moveInDate, ...payments.map((payment) => paymentCoverageStart(payment) || payment.paymentDate || payment.rentMonth), ...events.map((event) => event.date)].filter((value): value is string => Boolean(value && /^\d{4}-\d{2}-\d{2}/.test(value)));
+  if (!values.length) return [];
+  const start = (tenant.moveInDate || values.sort()[0]).slice(0, 7);
+  const end = (tenant.actualMoveOutDate || today).slice(0, 7);
+  const [startYear, startMonth] = start.split("-").map(Number);
+  const [endYear, endMonth] = end.split("-").map(Number);
+  const result: string[] = [];
+  let cursor = startYear * 12 + startMonth - 1;
+  const last = endYear * 12 + endMonth - 1;
+  while (cursor <= last && result.length < 60) {
+    const year = Math.floor(cursor / 12);
+    const month = (cursor % 12) + 1;
+    result.push(`${year}-${String(month).padStart(2, "0")}`);
+    cursor += 1;
+  }
+  return result;
+}
+
 function validDate(value: string | undefined | null): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
