@@ -273,7 +273,7 @@ export async function executeGoogleAttachmentMigration(input: {
         if (existing.data) {
           const existingBuffer = Buffer.from(await existing.data.arrayBuffer());
           const targetSha256 = sha256Hex(existingBuffer);
-          if (existingBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256) {
+          if (existingBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256 || (existing.data.type && existing.data.type !== metadata.mimeType)) {
             results.push({ attachmentId: item.attachmentId, table: item.table, status: "conflict", reason: "目标对象内容不一致" });
             continue;
           }
@@ -284,7 +284,7 @@ export async function executeGoogleAttachmentMigration(input: {
           if (check.error || !check.data) throw new Error(check.error?.message || "目标对象无法读取");
           const targetBuffer = Buffer.from(await check.data.arrayBuffer());
           const targetSha256 = sha256Hex(targetBuffer);
-          if (targetBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256) throw new Error("目标对象校验失败");
+          if (targetBuffer.length !== sourceBuffer.length || targetSha256 !== sourceSha256 || (check.data.type && check.data.type !== metadata.mimeType)) throw new Error("目标对象校验失败");
         }
         const { error: updateError } = await getSupabaseAdmin().from(item.table).update({ storage_provider: "supabase", storage_bucket: config.bucket, storage_path: item.targetPath }).eq("id", item.attachmentId).eq("user_id", input.workspaceId).eq("storage_provider", "google_drive");
         if (updateError) throw new Error(updateError.message);
