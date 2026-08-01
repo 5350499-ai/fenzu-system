@@ -514,3 +514,8 @@
 
 - The read-only attachment summary now falls back safely when Production does not yet expose `tenants.actual_move_out_date`; those tenants remain clearly ineligible for date-based cleanup candidates until a reliable date exists.
 - No schema, RLS, storage, Google Drive, environment, or business data changes.
+
+## 2026-08-01 - Prepare server-backed tasks (Preview only)
+
+- Added an opt-in, authenticated server task repository and CRUD routes backed by the existing `public.tasks` table, while keeping the existing local task mode as the default when the feature flag is unset.
+- Added local-task migration preview, duplicate protection, persisted migration state and mobile task actions; no migration was executed and no Production environment setting was changed.
