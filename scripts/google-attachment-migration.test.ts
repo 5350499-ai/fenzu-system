@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { buildGoogleMigrationTargetPath } from "../lib/google-attachment-migration-rules";
+
+assert.equal(
+  buildGoogleMigrationTargetPath("workspace", "contract_files", "parent", "attachment", "photo.jpg", "image/jpeg"),
+  "workspace/migrated/contract_files/parent/attachment.jpg"
+);
+assert.equal(
+  buildGoogleMigrationTargetPath("workspace", "rent_payment_files", null, "attachment", "receipt", "application/pdf"),
+  "workspace/migrated/rent_payment_files/unlinked/attachment.pdf"
+);
+assert.equal(
+  buildGoogleMigrationTargetPath("workspace", "expense_files", "parent", "attachment", "photo", "image/png"),
+  "workspace/migrated/expense_files/parent/attachment.png"
+);
+console.log("google attachment migration target path tests passed");

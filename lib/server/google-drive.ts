@@ -25,6 +25,16 @@ type DriveFile = {
   appProperties?: Record<string, string>;
 };
 
+export type GoogleDriveAttachmentMetadata = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  trashed: boolean;
+  downloadable: boolean;
+  withinConfiguredRoot: boolean;
+};
+
 function requiredConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -67,6 +77,54 @@ async function driveJson<T>(token: string, url: string, init?: RequestInit): Pro
   });
   if (!response.ok) throw new AccountApiError("Google Drive 文件操作失败，请稍后重试。", response.status === 404 ? 404 : 502);
   return response.json() as Promise<T>;
+}
+
+async function readDriveFile(token: string, fileId: string) {
+  return driveJson<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent("id,name,mimeType,size,parents,trashed")}`);
+}
+
+async function isWithinConfiguredRoot(token: string, parents: string[] | undefined, rootFolderId: string) {
+  let current = [...(parents || [])];
+  const visited = new Set<string>();
+  for (let depth = 0; depth < 8 && current.length; depth += 1) {
+    if (current.includes(rootFolderId)) return true;
+    const next: string[] = [];
+    for (const parentId of current) {
+      if (visited.has(parentId)) continue;
+      visited.add(parentId);
+      try {
+        const parent = await readDriveFile(token, parentId);
+        next.push(...(parent.parents || []));
+      } catch {
+        // An inaccessible ancestor is classified as outside the verified root.
+      }
+    }
+    current = next;
+  }
+  return false;
+}
+
+/** Read-only metadata lookup used by the administrator migration preview. */
+export async function getGoogleDriveAttachmentMetadata(fileId: string): Promise<GoogleDriveAttachmentMetadata> {
+  const token = await getGoogleAccessToken();
+  const { rootFolderId } = requiredConfig();
+  let file: DriveFile;
+  try {
+    file = await readDriveFile(token, fileId);
+  } catch (error) {
+    if (error instanceof AccountApiError && error.status === 404) throw error;
+    throw new AccountApiError("Google Drive 文件元数据不可读取。", 502);
+  }
+  const withinConfiguredRoot = await isWithinConfiguredRoot(token, file.parents, rootFolderId);
+  return {
+    id: file.id,
+    name: file.name,
+    mimeType: file.mimeType,
+    size: Number(file.size || 0),
+    trashed: Boolean(file.trashed),
+    downloadable: !file.trashed && !file.mimeType.startsWith("application/vnd.google-apps."),
+    withinConfiguredRoot
+  };
 }
 
 function escapeDriveQuery(value: string) {
