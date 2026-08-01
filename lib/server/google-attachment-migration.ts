@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
 import { getGoogleDriveAttachmentMetadata } from "@/lib/server/google-drive";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { buildGoogleMigrationTargetPath } from "@/lib/google-attachment-migration-rules";
+import { buildGoogleMigrationTargetPath, migrationTableSelect } from "@/lib/google-attachment-migration-rules";
 
 export type MigrationTable = "contract_files" | "rent_payment_files" | "expense_files";
 export type MigrationStatus = "readable" | "missing" | "trashed" | "permission_denied" | "metadata_mismatch" | "duplicate" | "outside_root" | "target_conflict" | "target_exists" | "scan_failed";
@@ -114,9 +114,14 @@ async function targetState(bucket: string, path: string) {
 }
 
 async function readRows(table: MigrationTable, workspaceId: string) {
-  const { data, error } = await getSupabaseAdmin().from(table).select("id,user_id,file_name,file_type,file_size,storage_provider,provider_file_id,contract_id,rent_payment_id,expense_id").eq("user_id", workspaceId).eq("storage_provider", "google_drive");
-  if (error) throw new AccountApiError(`无法读取 ${table} 附件索引。`, 502);
-  return (data || []) as SourceRow[];
+  const { data, error } = await getSupabaseAdmin().from(table).select(migrationTableSelect[table]).eq("user_id", workspaceId).eq("storage_provider", "google_drive");
+  if (error) {
+    const safeMessage = String(error.message || "query failed").replace(/(token|secret|cookie|authorization|service[_ -]?role|signed[_ -]?url)/gi, "[filtered]").slice(0, 240);
+    console.error("google_attachment_migration_query_failed", { stage: "query_attachment_table", table, code: error.code || "unknown", message: safeMessage });
+    throw new AccountApiError(`无法读取 ${table} 附件索引。`, 502);
+  }
+  console.info("google_attachment_migration_query_completed", { stage: "query_attachment_table", table, count: data?.length || 0 });
+  return (data || []) as unknown as SourceRow[];
 }
 
 export async function scanGoogleAttachments(workspaceId: string, userId: string): Promise<MigrationScanResult> {
