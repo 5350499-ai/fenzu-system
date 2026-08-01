@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { calendarCutoffDate, evaluateCandidate, isContractCurrentlyActive, isTenantCandidateAttachmentTable, localCalendarDate } from "@/lib/attachment-management-rules";
 
 type AttachmentTable = "contract_files" | "rent_payment_files" | "expense_files";
@@ -92,6 +93,13 @@ export type AttachmentSummary = {
 const tables: AttachmentTable[] = ["contract_files", "rent_payment_files", "expense_files"];
 
 async function loadTenants(admin: ReturnType<typeof getSupabaseAdmin>, workspaceOwnerId: string) {
+  if (!isActualMoveOutDateEnabled()) {
+    const result = await runSummaryQuery("tenants_without_actual_move_out_date_feature", admin
+      .from("tenants")
+      .select("id,name,room_id,property_id,status")
+      .eq("user_id", workspaceOwnerId));
+    return ((result.data || []) as TenantQueryRow[]).map((tenant) => ({ ...tenant, actual_move_out_date: null }));
+  }
   const withDate = await admin
     .from("tenants")
     .select("id,name,room_id,property_id,status,actual_move_out_date")

@@ -1,3 +1,7 @@
+## 2026-08-01 - Actual move-out date rollout preparation
+
+- Added an opt-in actual move-out date feature flag. The migration remains unapplied and the Preview default is disabled.
+
 ## 2026-07-30 - Ten-day rent reminder window
 
 - Rent collection reminders now appear only from 10 days before coverage expiry through overdue status; overdue reminders remain until the latest coverage or rental relationship changes.

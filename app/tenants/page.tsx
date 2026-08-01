@@ -41,6 +41,7 @@ import {
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
+import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
@@ -89,6 +90,7 @@ const emptyTenantPayment: BusinessRentPayment = {
 };
 
 export default function TenantsPage() {
+  const actualMoveOutDateEnabled = isActualMoveOutDateEnabled();
   const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -433,12 +435,16 @@ export default function TenantsPage() {
   }
 
   async function moveOut(tenant: BusinessTenant, depositStatus: "待退" | "已退", actualMoveOutDate: string) {
-    if (!isValidCalendarDate(actualMoveOutDate)) {
+    if (actualMoveOutDateEnabled && !isValidCalendarDate(actualMoveOutDate)) {
       window.alert("请输入有效的实际退租日期。");
       return;
     }
     if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
-    const nextTenants = tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已退租", actualMoveOutDate } : item));
+    const nextTenants = tenants.map((item) => (item.id === tenant.id ? {
+      ...item,
+      status: "已退租",
+      ...(actualMoveOutDateEnabled ? { actualMoveOutDate } : {})
+    } : item));
     const saved = await persistAll({
       tenants: nextTenants,
       rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
@@ -462,12 +468,13 @@ export default function TenantsPage() {
   }
 
   function openMoveOutDateDialog(tenant: BusinessTenant) {
-    if (!tenant.status.includes("已退租")) return;
+    if (!actualMoveOutDateEnabled || !tenant.status.includes("已退租")) return;
     setMoveOutDateTenant(tenant);
     setMoveOutDateValue(tenant.actualMoveOutDate || "");
   }
 
   async function saveMoveOutDate(tenant: BusinessTenant, value: string) {
+    if (!actualMoveOutDateEnabled) return;
     if (!isValidCalendarDate(value)) {
       window.alert("请输入有效的实际退租日期。");
       return;
@@ -906,10 +913,10 @@ export default function TenantsPage() {
                 <option value="已退">押金已处理</option>
               </select>
             </div>
-            <div className="field">
+            {actualMoveOutDateEnabled ? <div className="field">
               <label htmlFor="move-out-date">实际退租日期</label>
               <input id="move-out-date" type="date" value={moveOutDate} onChange={(event) => setMoveOutDate(event.target.value)} required />
-            </div>
+            </div> : null}
             <div className="modal-actions">
               <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>
               <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus, moveOutDate)} type="button">确认退租</button>
@@ -918,7 +925,7 @@ export default function TenantsPage() {
         </div>
       ) : null}
 
-      {moveOutDateTenant ? (
+      {actualMoveOutDateEnabled && moveOutDateTenant ? (
         <div className="modal-backdrop" onMouseDown={() => setMoveOutDateTenant(null)}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1103,7 +1110,7 @@ function TenantDetail({
         </div>
       ) : null}
 
-      {movedOut ? (
+      {movedOut && isActualMoveOutDateEnabled() ? (
         <div className="deposit-status-detail">
           <div>
             <span className="muted">实际退租日期</span>
