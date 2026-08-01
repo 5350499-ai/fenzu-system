@@ -800,7 +800,7 @@ export default function TenantsPage() {
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
-                    canCollectRent={access.can("rent_payments", "create")}
+                    canCollectRent={access.can("rent_payments", "create") && strictCurrentRentalTenant(tenant)}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewContractFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
@@ -1070,6 +1070,7 @@ function TenantDetail({
   const archived = isArchivedTenant(tenant);
   const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -1120,7 +1121,7 @@ function TenantDetail({
         </div>
       ) : null}
 
-      <div className="attachment-panel">
+      <div className="attachment-panel payment-history-panel">
         <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>
         <div className="settlement-detail-list">
           {[...payments]
@@ -1144,7 +1145,8 @@ function TenantDetail({
         </div>
       </div>
 
-      {canViewFiles ? <div className="attachment-panel">
+      {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>
+        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`合同附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
         <div className="detail-section-title">合同附件</div>
         <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
         {canUploadFiles ? <AttachmentAddControl label="合同附件" disabled={saving} onAdd={onAddFile} /> : null}
@@ -1157,7 +1159,7 @@ function TenantDetail({
           <button className="btn" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
         ) : canArchive ? (
           <>
-            <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button>
+            {!movedOut ? <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : null}
             <button className="btn" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
           </>
         ) : null}

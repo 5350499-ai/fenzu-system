@@ -170,7 +170,7 @@ export default function RentPaymentsPage() {
           roomId: renewTenant.roomId,
           tenantId: renewTenant.id,
           incomeType: "续交房租",
-          amountDue: Number(renewTenant.monthlyRent || latest?.amountDue || 0),
+          amountDue: Number(renewTenant.monthlyRent || 0),
           amountPaid: 0,
           coverageStartDate,
           coverageEndDate: defaultCoverageEnd(coverageStartDate),
@@ -179,7 +179,7 @@ export default function RentPaymentsPage() {
         });
         setOwnershipMode(mode);
         setCustomReceivedBy(mode === "自定义" ? customOwnershipName(receivedBy) : "");
-        setMonthlyRentStandard(Number(renewTenant.monthlyRent || latest?.amountDue || 0));
+        setMonthlyRentStandard(Number(renewTenant.monthlyRent || 0));
         setOpen(true);
       }
       await refreshPaymentFiles(loadedPayments.map((payment) => payment.id));

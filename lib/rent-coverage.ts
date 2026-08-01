@@ -261,10 +261,9 @@ export function monthStart(month?: string) {
 export function monthEnd(month?: string) {
   const start = monthStart(month);
   if (!start) return "";
-  const date = new Date(`${start}T00:00:00`);
-  date.setMonth(date.getMonth() + 1);
-  date.setDate(0);
-  return date.toISOString().slice(0, 10);
+  const [year, monthNumber] = start.slice(0, 7).split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0));
+  return `${lastDay.getUTCFullYear()}-${String(lastDay.getUTCMonth() + 1).padStart(2, "0")}-${String(lastDay.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function todayString() {
