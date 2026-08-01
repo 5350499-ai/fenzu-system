@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data";
-import { buildTenantTimeline, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay } from "../lib/tenant-timeline";
+import { buildPaymentDelayTrend, buildTenantTimeline, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel } from "../lib/tenant-timeline";
 
 const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, paymentDay: 20, status: "在租" };
 const payment = (overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({ id: "p1", propertyId: "p1", roomId: "r1", tenantId: "t1", incomeType: "房租收入", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 300, amountPaid: 300, amountUnpaid: 0, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", paymentStatus: "已收", paymentMethod: "转账", isOverdue: false, ...overrides });
@@ -9,6 +9,7 @@ assert.equal(calculatePaymentDueDate(payment(), tenant), "2026-08-20");
 assert.equal(calculatePaymentDueDate(payment({ rentMonth: "2028-02", coverageStartDate: "2028-02-01", coverageEndDate: "2028-02-29" }), { ...tenant, paymentDay: 31 }), "2028-02-29");
 assert.equal(classifyPaymentDelay("2026-08-20", "2026-08-20").days, 0);
 assert.equal(classifyPaymentDelay("2026-08-24", "2026-08-20").level, "yellow");
+assert.equal(classifyPaymentDelay("2026-08-21", "2026-08-20").level, "yellow");
 assert.equal(classifyPaymentDelay("2026-08-30", "2026-08-20").level, "red");
 assert.equal(classifyPaymentDelay("2026-08-14", "2026-08-20").days, 0);
 
@@ -17,6 +18,11 @@ assert.equal(performance.lateCount, 1);
 assert.equal(performance.averageLateDays, 2);
 assert.equal(performance.longestLateDays, 4);
 assert.equal(performance.onTimeRate, 50);
+assert.equal(formatPaymentCycleLabel(payment()), "2026年8月");
+assert.deepEqual(buildPaymentDelayTrend(performance.periods).map((point) => point.payment.id), ["p2", "p1"]);
+const manyPeriods = Array.from({ length: 13 }, (_, index) => ({ payment: payment({ id: `p${index}`, rentMonth: `2026-${String(index + 1).padStart(2, "0")}`, coverageStartDate: `2026-${String(index + 1).padStart(2, "0")}-01`, coverageEndDate: `2026-${String(index + 1).padStart(2, "0")}-28` }), delay: { included: true, days: index % 2, level: "on-time" as const, dueDate: `2026-${String(index + 1).padStart(2, "0")}-20`, paymentDate: `2026-${String(index + 1).padStart(2, "0")}-20` } }));
+assert.equal(buildPaymentDelayTrend(manyPeriods).length, 12);
+assert.equal(buildPaymentDelayTrend(manyPeriods, 12, true).length, 13);
 
 const excluded = calculateTenantPaymentPerformance(tenant, [payment({ coverageStartDate: "2026-08-15", amountDue: 150 })], "2026-09-01");
 assert.equal(excluded.periods.length, 0);
