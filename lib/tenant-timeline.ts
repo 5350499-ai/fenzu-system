@@ -42,6 +42,27 @@ export type PaymentDelayTrendPoint = {
   delay: PaymentDelay;
 };
 
+export type MonthlyPaymentStatus = "on-time" | "late-yellow" | "late-red" | "current-yellow" | "current-red" | "future" | "untracked";
+
+export type MonthlyPaymentStatusPoint = {
+  month: string;
+  year: number;
+  monthNumber: number;
+  status: MonthlyPaymentStatus;
+  payments: BusinessRentPayment[];
+  periods: TenantPaymentPerformance["periods"];
+  events: TenantTimelineEvent[];
+  amountPaid: number;
+};
+
+export type MonthlyRentIncomePoint = {
+  month: string;
+  year: number;
+  monthNumber: number;
+  amount: number;
+  payments: BusinessRentPayment[];
+};
+
 function validDate(value: string | undefined | null): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
@@ -167,4 +188,64 @@ export function buildTenantTimeline(tenant: BusinessTenant, contract: BusinessCo
   if (tenant.actualMoveOutDate) events.push({ id: `${tenant.id}-move-out`, date: tenant.actualMoveOutDate, type: "实际退租", title: "实际退租" });
   if (tenant.status.includes("已归档")) events.push({ id: `${tenant.id}-archived`, date: today, type: "归档", title: "归档" });
   return events.filter((event) => validDate(event.date)).sort((left, right) => right.date.localeCompare(left.date));
+}
+
+function monthOf(value: string | undefined | null) {
+  return value && /^\d{4}-\d{2}/.test(value) ? value.slice(0, 7) : null;
+}
+
+function monthParts(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return { year, monthNumber };
+}
+
+/** Builds one status node per rent month; no payment/tenant data is mutated. */
+export function buildMonthlyPaymentStatus(
+  tenant: BusinessTenant,
+  payments: BusinessRentPayment[],
+  events: TenantTimelineEvent[],
+  today: string,
+  limit = 12
+): MonthlyPaymentStatusPoint[] {
+  const performance = calculateTenantPaymentPerformance(tenant, payments, today);
+  const periodsByPayment = new Map(performance.periods.map((period) => [period.payment.id, period]));
+  const months = new Set<string>();
+  for (const payment of payments.filter(isCompletedRentPayment)) months.add(monthOf(paymentCoverageStart(payment) || payment.rentMonth) || "");
+  for (const event of events) months.add(monthOf(event.date) || "");
+  months.delete("");
+  const points = [...months].sort();
+  const selected = points.slice(-Math.max(1, limit));
+  return selected.map((month) => {
+    const monthPayments = payments.filter((payment) => monthOf(paymentCoverageStart(payment) || payment.rentMonth) === month && isCompletedRentPayment(payment));
+    const periods = monthPayments.map((payment) => periodsByPayment.get(payment.id)).filter(Boolean) as TenantPaymentPerformance["periods"];
+    const monthEvents = events.filter((event) => monthOf(event.date) === month);
+    const unpaid = monthPayments.find((payment) => {
+      const end = paymentCoverageEnd(payment);
+      return end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
+    });
+    let status: MonthlyPaymentStatus = "untracked";
+    if (periods.length) {
+      const maxDelay = Math.max(...periods.map((period) => period.delay.days));
+      status = maxDelay >= 6 ? "late-red" : maxDelay > 0 ? "late-yellow" : "on-time";
+    } else if (unpaid) {
+      const overdueDays = Math.max(0, dateDifference(today, paymentCoverageEnd(unpaid)));
+      status = overdueDays >= 6 ? "current-red" : "current-yellow";
+    } else if (month > today.slice(0, 7)) status = "future";
+    const { year, monthNumber } = monthParts(month);
+    return { month, year, monthNumber, status, payments: monthPayments, periods, events: monthEvents, amountPaid: monthPayments.reduce((sum, payment) => sum + (isRentIncome(payment) ? Number(payment.amountPaid || 0) : 0), 0) };
+  });
+}
+
+/** Aggregates received rent by payment month; deposits and unpaid amounts are excluded. */
+export function buildMonthlyRentIncome(payments: BusinessRentPayment[], limit = 12): MonthlyRentIncomePoint[] {
+  const grouped = new Map<string, BusinessRentPayment[]>();
+  for (const payment of payments.filter(isCompletedRentPayment)) {
+    const month = monthOf(payment.paymentDate || payment.rentMonth);
+    if (!month || !isRentIncome(payment)) continue;
+    grouped.set(month, [...(grouped.get(month) || []), payment]);
+  }
+  return [...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).slice(-Math.max(1, limit)).map(([month, monthPayments]) => {
+    const { year, monthNumber } = monthParts(month);
+    return { month, year, monthNumber, payments: monthPayments, amount: monthPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountPaid || 0)), 0) };
+  });
 }

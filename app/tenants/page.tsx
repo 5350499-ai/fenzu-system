@@ -47,8 +47,8 @@ import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCovera
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
-import { buildPaymentDelayTrend, buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
-import { TenantHorizontalTimeline } from "@/components/tenant-horizontal-timeline";
+import { buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
+import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1084,10 +1084,9 @@ function TenantDetail({
   const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [trendExpanded, setTrendExpanded] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
-  const trend = buildPaymentDelayTrend(performance.periods, 12, trendExpanded);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -1153,21 +1152,20 @@ function TenantDetail({
             </div>
             {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
             {performance.periods.length === 1 ? <div className="muted tenant-performance-note">当前只有1个有效付款周期，暂不绘制趋势图。</div> : <>
-              <PaymentDelayTrendChart points={trend} />
-              {performance.periods.length > 12 ? <button className="btn tenant-trend-more" type="button" onClick={() => setTrendExpanded((current) => !current)}>{trendExpanded ? "显示最近12个周期" : "查看全部周期"}</button> : null}
+              <span className="muted tenant-performance-note">月度付款图表见下方。</span>
             </>}
           </>
         )}
       </section>
 
       <section className="tenant-timeline-section">
-        <div className="detail-section-title">租客时间轴</div>
-        <TenantHorizontalTimeline events={timeline} />
+        <div className="detail-section-title">每月付款图表</div>
+        <TenantMonthlyPaymentPanel tenant={tenant} payments={payments} events={timeline} performance={performance} today={localToday()} />
       </section>
 
       <div className="attachment-panel payment-history-panel">
-        <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>
-        <div className="settlement-detail-list">
+        <button type="button" className="payment-history-toggle" onClick={() => setHistoryOpen((current) => !current)} aria-expanded={historyOpen}>查看原始收款记录（{payments.length}笔） <span>{historyOpen ? "收起" : "展开"}</span></button>
+        {historyOpen ? <div className="settlement-detail-list">
           {[...payments]
             .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
             .map((payment) => {
@@ -1190,7 +1188,7 @@ function TenantDetail({
               );
             })}
           {!payments.length ? <span className="muted">暂无收款记录</span> : null}
-        </div>
+        </div> : null}
       </div>
 
       {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>

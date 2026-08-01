@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data";
-import { buildPaymentDelayTrend, buildTenantTimeline, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel, groupTimelineEventsByDate } from "../lib/tenant-timeline";
+import { buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantTimeline, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel, groupTimelineEventsByDate } from "../lib/tenant-timeline";
 
 const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, paymentDay: 20, status: "在租" };
 const payment = (overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({ id: "p1", propertyId: "p1", roomId: "r1", tenantId: "t1", incomeType: "房租收入", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 300, amountPaid: 300, amountUnpaid: 0, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", paymentStatus: "已收", paymentMethod: "转账", isOverdue: false, ...overrides });
@@ -36,5 +36,19 @@ const timeline = buildTenantTimeline({ ...tenant, moveInDate: "2026-07-01" }, un
 assert.equal(timeline.filter((event) => event.id === "p1").length, 1);
 assert.equal(timeline[0].date, "2026-08-20");
 assert.deepEqual(groupTimelineEventsByDate([{ id: "new", date: "2026-08-20", type: "房租收款", title: "房租收款" }, { id: "old", date: "2026-07-18", type: "押金", title: "押金收取" }, { id: "same", date: "2026-07-18", type: "入住", title: "入住" }]).map((group) => [group.date, group.events.length]), [["2026-07-18", 2], ["2026-08-20", 1]]);
+
+const monthly = buildMonthlyPaymentStatus(tenant, [
+  payment({ id: "m1", rentMonth: "2026-07", paymentDate: "2026-07-20", coverageStartDate: "2026-07-01", coverageEndDate: "2026-07-31" }),
+  payment({ id: "m2", rentMonth: "2026-08", paymentDate: "2026-08-25", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" }),
+  payment({ id: "m3", rentMonth: "2026-09", paymentDate: "2026-09-30", coverageStartDate: "2026-09-01", coverageEndDate: "2026-09-30" })
+], [], "2026-10-01");
+assert.deepEqual(monthly.map((point) => point.month), ["2026-07", "2026-08", "2026-09"]);
+assert.equal(monthly[0].status, "on-time");
+assert.equal(monthly[1].status, "late-yellow");
+assert.equal(monthly[2].status, "late-red");
+const income = buildMonthlyRentIncome([payment({ id: "a", paymentDate: "2026-08-05", amountPaid: 100 }), payment({ id: "b", paymentDate: "2026-08-20", amountPaid: 200 }), payment({ id: "deposit", paymentDate: "2026-08-21", incomeType: "押金收入", amountPaid: 300 })]);
+assert.equal(income.length, 1);
+assert.equal(income[0].amount, 300);
+assert.equal(buildMonthlyPaymentStatus(tenant, [payment({ coverageStartDate: "2026-08-15", amountDue: 150 })], [], "2026-09-01")[0].status, "untracked");
 
 console.log("tenant timeline tests passed");
