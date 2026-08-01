@@ -27,6 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
 import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
@@ -96,7 +97,10 @@ export default function RoomsPage() {
       return `${property?.name || ""} ${room.name} ${room.roomNumber} ${room.status} ${displayStatus} ${room.notes || ""}`.toLowerCase().includes(keyword);
     });
   }, [properties, query, rooms, tenants]);
-  const visibleRooms = pageRows(filteredRooms, page, pageSize);
+  const sortedRooms = useMemo(() => sortRoomsByNumberAndStatus(filteredRooms, {
+    getProperty: (room) => properties.find((property) => property.id === room.propertyId)?.name || ""
+  }), [filteredRooms, properties]);
+  const visibleRooms = pageRows(sortedRooms, page, pageSize);
 
   function close() {
     setOpen(false);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { sortTenantsByRoomAndStatus } from "../lib/tenant-sorting";
+import { sortRoomsByNumberAndStatus, sortTenantsByRoomAndStatus } from "../lib/tenant-sorting";
 
 const rooms = [501, 502, 503, 504].map((number) => ({ id: String(number), roomNumber: String(number), name: `${number} 房间` }));
 const tenant = (id: string, roomId: string, status = "在租", actualMoveOutDate?: string) => ({ id, roomId, status, name: id, monthlyRent: 300, actualMoveOutDate });
@@ -10,3 +10,10 @@ assert.deepEqual(sortTenantsByRoomAndStatus([tenant("old-late", "501", "已退�
 assert.deepEqual(sortTenantsByRoomAndStatus([tenant("none", "", "在租"), tenant("active", "501")], rooms).map((item) => item.id), ["active", "none"]);
 
 console.log("tenant sorting tests passed");
+
+const roomInput = [504, 503, 502, 501].map((number) => ({ id: String(number), roomNumber: String(number), name: `${number} 0.9米床`, status: "已租" }));
+assert.deepEqual(sortRoomsByNumberAndStatus(roomInput).map((room) => room.roomNumber), ["501", "502", "503", "504"]);
+assert.equal(sortRoomsByNumberAndStatus([{ id: "x", name: "无编号房间", status: "已租" }, ...roomInput])[4].id, "x");
+assert.deepEqual(sortRoomsByNumberAndStatus([{ id: "archive", roomNumber: "501", status: "已归档" }, ...roomInput]).map((room) => room.id), ["501", "502", "503", "504", "archive"]);
+
+console.log("room sorting tests passed");

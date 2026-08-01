@@ -55,3 +55,18 @@ export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], r
     return difference || a.index - b.index;
   }).map((entry) => entry.tenant);
 }
+
+export function sortRoomsByNumberAndStatus<T extends { id: string; roomNumber?: string; name?: string; status?: string }>(rooms: T[], options: { getProperty?: (room: T) => string } = {}): T[] {
+  const archived = (status = "") => status.includes("已归档");
+  const compareText = (a: string, b: string) => a.localeCompare(b, "zh-Hans-CN", { numeric: true, sensitivity: "base" });
+  return rooms.map((room, index) => ({ room, index })).sort((a, b) => {
+    const archivedCompare = Number(archived(a.room.status)) - Number(archived(b.room.status));
+    if (archivedCompare) return archivedCompare;
+    const leftNumber = extractRoomNumber(a.room.roomNumber || a.room.name);
+    const rightNumber = extractRoomNumber(b.room.roomNumber || b.room.name);
+    const numberCompare = leftNumber === null && rightNumber === null ? 0 : leftNumber === null ? 1 : rightNumber === null ? -1 : leftNumber - rightNumber;
+    if (numberCompare) return numberCompare;
+    const propertyCompare = compareText(options.getProperty?.(a.room) || "", options.getProperty?.(b.room) || "");
+    return propertyCompare || compareText(a.room.id, b.room.id) || a.index - b.index;
+  }).map((entry) => entry.room);
+}
