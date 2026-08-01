@@ -46,9 +46,9 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
-import { sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
 type TenantSortKey = TenantSortMode;
@@ -116,6 +116,7 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
+  const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
@@ -212,6 +213,10 @@ export default function TenantsPage() {
     setPage(1);
   }, [propertyFilterId, query]);
 
+  useEffect(() => {
+    setRetiredExpanded(false);
+  }, [propertyFilterId, query, showArchived]);
+
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
     map[file.contractId] = [...(map[file.contractId] || []), file];
@@ -254,6 +259,12 @@ export default function TenantsPage() {
   }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
   const visibleTenants = pageRows(sortedTenants, page, pageSize);
+  const explicitTenantFilter = Boolean(query.trim() || propertyFilterId);
+  const retiredVisible = visibleTenants.filter((tenant) => isEndedTenantStatus(tenant.status));
+  const currentVisible = visibleTenants.filter((tenant) => !isEndedTenantStatus(tenant.status));
+  const currentCount = sortedTenants.filter((tenant) => !isEndedTenantStatus(tenant.status)).length;
+  const retiredCount = sortedTenants.filter((tenant) => isEndedTenantStatus(tenant.status)).length;
+  const showRetiredExpanded = retiredExpanded || (explicitTenantFilter && retiredVisible.length > 0 && currentVisible.length === 0);
 
   function selectPropertyFilter(property: BusinessProperty) {
     setPropertyFilterId(property.id);
@@ -744,7 +755,9 @@ export default function TenantsPage() {
         </div>
 
         <div className="finance-list tenant-compact-list">
-          {visibleTenants.map((tenant) => {
+          {visibleTenants.map((tenant, index, pageTenants) => {
+            const retired = isEndedTenantStatus(tenant.status);
+            const previousRetired = index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract);
@@ -755,7 +768,10 @@ export default function TenantsPage() {
             const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const expanded = detailTenantId === tenant.id;
             return (
-              <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`} key={tenant.id}>
+              <Fragment key={tenant.id}>
+                {index === 0 && !retired ? <div className="tenant-status-group-title">当前租客（{currentCount}人）</div> : null}
+                {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}人） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
+                {!retired || showRetiredExpanded ? <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`}>
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
@@ -819,7 +835,8 @@ export default function TenantsPage() {
                     depositStatus={depositStatus}
                   />
                 ) : null}
-              </article>
+                </article> : null}
+              </Fragment>
             );
           })}
         </div>
