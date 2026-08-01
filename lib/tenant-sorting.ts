@@ -13,7 +13,7 @@ type TenantLike = {
 
 type RoomLike = { id: string; roomNumber?: string; name?: string };
 
-function ended(status = "") {
+export function isEndedTenantStatus(status = "") {
   return ["已退租", "已归档", "已结束", "已删除"].some((value) => status.includes(value));
 }
 
@@ -35,8 +35,8 @@ export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], r
   const compareText = (a: string, b: string) => a.localeCompare(b, "zh-Hans-CN", { numeric: true, sensitivity: "base" });
   const compareDateDesc = (a: string, b: string) => (b || "").localeCompare(a || "");
   return tenants.map((tenant, index) => ({ tenant, index })).sort((a, b) => {
-    const leftEnded = ended(a.tenant.status);
-    const rightEnded = ended(b.tenant.status);
+    const leftEnded = isEndedTenantStatus(a.tenant.status);
+    const rightEnded = isEndedTenantStatus(b.tenant.status);
     if (leftEnded !== rightEnded) return leftEnded ? 1 : -1;
     const leftRoom = roomById.get(a.tenant.roomId || "");
     const rightRoom = roomById.get(b.tenant.roomId || "");

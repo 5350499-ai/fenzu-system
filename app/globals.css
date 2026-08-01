@@ -2551,6 +2551,39 @@ td:last-child {
   margin: 2px 0 8px;
 }
 
+.tenant-status-group-title {
+  grid-column: 1 / -1;
+  margin: 8px 2px 2px;
+  padding: 8px 2px 5px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.tenant-status-group-title:first-child {
+  border-top: 0;
+  margin-top: 0;
+}
+
+.tenant-status-group-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.tenant-status-group-toggle span {
+  color: var(--blue);
+  white-space: nowrap;
+}
+
 .tenant-detail-panel > .detail-actions {
   order: -1;
   justify-content: flex-start;
