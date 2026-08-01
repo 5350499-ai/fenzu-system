@@ -47,7 +47,7 @@ import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCovera
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
-import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
+import { buildPaymentDelayTrend, buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1084,9 +1084,11 @@ function TenantDetail({
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const [trendExpanded, setTrendExpanded] = useState(false);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
   const visibleTimeline = timelineExpanded ? timeline : timeline.slice(0, 10);
+  const trend = buildPaymentDelayTrend(performance.periods, 12, trendExpanded);
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -1139,14 +1141,24 @@ function TenantDetail({
 
       <section className="tenant-performance-section">
         <div className="detail-section-title">付款表现概览</div>
-        <div className="tenant-performance-grid">
-          <DetailField label="累计迟交" value={`${performance.lateCount}次`} />
-          <DetailField label="平均迟交（含按时付款）" value={performance.averageLateDays == null ? "暂无数据" : `${performance.averageLateDays.toFixed(1)}天`} />
-          <DetailField label="最长迟交" value={performance.longestLateDays == null ? "暂无数据" : `${performance.longestLateDays}天`} />
-          <DetailField label="按时付款率" value={performance.onTimeRate == null ? "暂无数据" : `${performance.onTimeRate.toFixed(0)}%`} />
-          {performance.currentOverdueDays != null ? <DetailField label="当前逾期" value={`${performance.currentOverdueDays}天`} /> : null}
-        </div>
-        {performance.excludedCount ? <div className="muted tenant-performance-note">另有{performance.excludedCount}条记录未纳入迟交统计（日期、首月或付款区间无法可靠判断）。</div> : null}
+        {performance.periods.length === 0 ? (
+          <div className="tenant-performance-empty">
+            <strong>暂无足够数据</strong>
+            <span>完成下一次完整自然月房租收款后，系统将开始生成迟交趋势和付款统计。</span>
+            {performance.excludedCount ? <span>另有{performance.excludedCount}条历史记录因首月、非完整月份或日期不足，未纳入统计。</span> : null}
+          </div>
+        ) : (
+          <>
+            <div className="tenant-performance-summary">
+              累计迟交 {performance.lateCount} 次｜平均迟交 {performance.averageLateDays?.toFixed(1)} 天｜最长迟交 {performance.longestLateDays} 天｜按时付款率 {performance.onTimeRate?.toFixed(0)}%
+            </div>
+            {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
+            {performance.periods.length === 1 ? <div className="muted tenant-performance-note">当前只有1个有效付款周期，暂不绘制趋势图。</div> : <>
+              <PaymentDelayTrendChart points={trend} />
+              {performance.periods.length > 12 ? <button className="btn tenant-trend-more" type="button" onClick={() => setTrendExpanded((current) => !current)}>{trendExpanded ? "显示最近12个周期" : "查看全部周期"}</button> : null}
+            </>}
+          </>
+        )}
       </section>
 
       <section className="tenant-timeline-section">
@@ -1208,6 +1220,46 @@ function TenantDetail({
       </div>
     </div>
   );
+}
+
+function PaymentDelayTrendChart({ points }: { points: PaymentDelayTrendPoint[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(points[points.length - 1]?.id || null);
+  const selected = points.find((point) => point.id === selectedId) || null;
+  const width = Math.max(320, points.length * 64);
+  const height = 190;
+  const padding = { top: 22, right: 18, bottom: 48, left: 34 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maxDays = Math.max(10, ...points.map((point) => point.delay.days));
+  const x = (index: number) => padding.left + (points.length === 1 ? plotWidth / 2 : (plotWidth * index) / (points.length - 1));
+  const y = (days: number) => padding.top + plotHeight - (plotHeight * days) / maxDays;
+  const tone = (days: number) => days >= 10 ? "#dc2626" : days > 0 ? "#d39a00" : "#1f9d72";
+  const line = points.map((point, index) => `${x(index)},${y(point.delay.days)}`).join(" ");
+  return <div className="tenant-trend-wrap">
+    <div className="tenant-trend-heading"><strong>迟交趋势</strong><span>纵轴：迟交天数 · 横轴：付款周期</span></div>
+    <div className="tenant-trend-scroll">
+      <svg className="tenant-trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="迟交天数趋势图">
+        <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="var(--border)" />
+        <line x1={padding.left} x2={padding.left} y1={padding.top} y2={y(0)} stroke="var(--border)" />
+        <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">0</text>
+        <text x={padding.left - 8} y={y(maxDays) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">{maxDays}</text>
+        <polyline points={line} fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {points.map((point, index) => <g key={point.id}>
+          <circle cx={x(index)} cy={y(point.delay.days)} r="8" fill="transparent" onClick={() => setSelectedId(point.id)} />
+          <circle cx={x(index)} cy={y(point.delay.days)} r="5" fill={tone(point.delay.days)} stroke="var(--surface)" strokeWidth="2" />
+          <text x={x(index)} y={height - 24} textAnchor="middle" fill="var(--muted)" fontSize="10">{point.label}</text>
+        </g>)}
+      </svg>
+    </div>
+    {selected ? <div className="tenant-trend-detail">
+      <strong>{selected.label}</strong>
+      <span>应收日期：{selected.delay.dueDate || "未确定"}</span>
+      <span>实收日期：{selected.delay.paymentDate || "未确定"}</span>
+      <span>{selected.delay.days > 0 ? `迟交：${selected.delay.days}天` : "按时付款"}</span>
+      <span>本次房租：{euro(selected.payment.amountDue)}</span>
+      <span>覆盖：{selected.payment.coverageStartDate || "-"} 至 {selected.payment.coverageEndDate || "-"}</span>
+    </div> : null}
+  </div>;
 }
 
 function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {

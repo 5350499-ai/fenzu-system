@@ -2629,6 +2629,91 @@ td:last-child {
   gap: 8px;
 }
 
+.tenant-performance-empty,
+.tenant-performance-summary,
+.tenant-current-overdue,
+.tenant-trend-wrap {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.tenant-performance-empty {
+  display: grid;
+  gap: 4px;
+}
+
+.tenant-performance-empty span,
+.tenant-performance-summary,
+.tenant-trend-heading span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tenant-performance-summary {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.tenant-current-overdue {
+  font-weight: 850;
+}
+
+.tenant-current-overdue.yellow {
+  border-color: color-mix(in srgb, #d39a00 45%, var(--border));
+  color: #a16207;
+}
+
+.tenant-current-overdue.red {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+  color: var(--red);
+}
+
+.tenant-trend-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.tenant-trend-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tenant-trend-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.tenant-trend-chart {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: 190px;
+}
+
+.tenant-trend-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tenant-trend-detail strong {
+  color: var(--text);
+}
+
+.tenant-trend-more {
+  justify-self: start;
+}
+
 .tenant-performance-grid .detail-field {
   min-width: 0;
   border: 1px solid var(--border);

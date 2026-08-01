@@ -31,6 +31,13 @@ export type TenantTimelineEvent = {
   delay?: PaymentDelay;
 };
 
+export type PaymentDelayTrendPoint = {
+  id: string;
+  label: string;
+  payment: BusinessRentPayment;
+  delay: PaymentDelay;
+};
+
 function validDate(value: string | undefined | null): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
@@ -60,7 +67,7 @@ export function classifyPaymentDelay(paymentDate: string | undefined, dueDate: s
     return { included: false, reason: "缺少可靠的应收日期或实际收款日期", days: 0, level: "on-time" };
   }
   const days = Math.max(0, dateDifference(paymentDate, dueDate));
-  return { included: true, dueDate, paymentDate, days, level: days >= 10 ? "red" : days >= 4 ? "yellow" : "on-time" };
+  return { included: true, dueDate, paymentDate, days, level: days >= 10 ? "red" : days > 0 ? "yellow" : "on-time" };
 }
 
 function isPartialOrAmbiguous(payment: BusinessRentPayment) {
@@ -112,6 +119,21 @@ export function calculateTenantPaymentPerformance(tenant: BusinessTenant, paymen
     onTimeRate: periods.length ? (periods.filter((period) => period.delay.days === 0).length / periods.length) * 100 : null,
     currentOverdueDays: currentOverdue
   };
+}
+
+export function formatPaymentCycleLabel(payment: BusinessRentPayment) {
+  const month = (payment.coverageStartDate || payment.rentMonth || "").slice(0, 7);
+  const match = month.match(/^(\d{4})-(\d{2})$/);
+  return match ? `${Number(match[1])}年${Number(match[2])}月` : month || "未知周期";
+}
+
+export function buildPaymentDelayTrend(periods: TenantPaymentPerformance["periods"], limit = 12, showAll = false): PaymentDelayTrendPoint[] {
+  const ordered = [...periods].sort((left, right) =>
+    (paymentCoverageStart(left.payment) || left.payment.rentMonth || "").localeCompare(paymentCoverageStart(right.payment) || right.payment.rentMonth || "")
+    || left.payment.id.localeCompare(right.payment.id)
+  );
+  const selected = showAll ? ordered : ordered.slice(-Math.max(1, limit));
+  return selected.map((period) => ({ id: period.payment.id, label: formatPaymentCycleLabel(period.payment), payment: period.payment, delay: period.delay }));
 }
 
 export function buildTenantTimeline(tenant: BusinessTenant, contract: BusinessContract | null | undefined, payments: BusinessRentPayment[], deposits: BusinessDeposit[], today: string): TenantTimelineEvent[] {
