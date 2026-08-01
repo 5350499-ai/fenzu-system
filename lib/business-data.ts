@@ -1,4 +1,5 @@
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
+import { isActualMoveOutDateEnabled } from "./actual-move-out-feature";
 
 export type ContractAttachment = {
   name: string;
@@ -39,6 +40,7 @@ export type BusinessTenant = {
   monthlyRent: number;
   depositAmount: number;
   paymentDay?: number;
+  actualMoveOutDate?: string;
   status: string;
   notes?: string;
 };
@@ -171,6 +173,7 @@ const tableConfigs: Record<string, TableConfig> = {
       monthlyRent: Number(row.monthly_rent || 0),
       depositAmount: Number(row.deposit_amount || 0),
       paymentDay: row.payment_day == null ? undefined : Number(row.payment_day),
+      actualMoveOutDate: row.actual_move_out_date || undefined,
       status: normalizeTenantStatus(row.status || "在租"),
       notes: row.notes || ""
     }),
@@ -186,6 +189,7 @@ const tableConfigs: Record<string, TableConfig> = {
       monthly_rent: Number(row.monthlyRent || 0),
       deposit_amount: Number(row.depositAmount || 0),
       payment_day: row.paymentDay == null || row.paymentDay === "" ? 20 : Number(row.paymentDay),
+      ...(isActualMoveOutDateEnabled() && row.actualMoveOutDate !== undefined ? { actual_move_out_date: row.actualMoveOutDate || null } : {}),
       status: normalizeTenantStatus(row.status || "在租"),
       notes: row.notes || null
     })
