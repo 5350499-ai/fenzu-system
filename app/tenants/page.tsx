@@ -46,7 +46,7 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
-import { isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -262,8 +262,7 @@ export default function TenantsPage() {
   const explicitTenantFilter = Boolean(query.trim() || propertyFilterId);
   const retiredVisible = visibleTenants.filter((tenant) => isEndedTenantStatus(tenant.status));
   const currentVisible = visibleTenants.filter((tenant) => !isEndedTenantStatus(tenant.status));
-  const currentCount = sortedTenants.filter((tenant) => !isEndedTenantStatus(tenant.status)).length;
-  const retiredCount = sortedTenants.filter((tenant) => isEndedTenantStatus(tenant.status)).length;
+  const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
   const showRetiredExpanded = retiredExpanded || (explicitTenantFilter && retiredVisible.length > 0 && currentVisible.length === 0);
 
   function selectPropertyFilter(property: BusinessProperty) {
@@ -769,8 +768,8 @@ export default function TenantsPage() {
             const expanded = detailTenantId === tenant.id;
             return (
               <Fragment key={tenant.id}>
-                {index === 0 && !retired ? <div className="tenant-status-group-title">当前租客（{currentCount}人）</div> : null}
-                {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}人） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
+                {index === 0 && !retired ? <div className="tenant-status-group-title">当前租客（{currentCount}组）</div> : null}
+                {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
                 {!retired || showRetiredExpanded ? <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`}>
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span className="finance-line tenant-finance-line">

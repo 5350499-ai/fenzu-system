@@ -17,6 +17,14 @@ export function isEndedTenantStatus(status = "") {
   return ["已退租", "已归档", "已结束", "已删除"].some((value) => status.includes(value));
 }
 
+export function countTenantGroups<T extends { status?: string }>(tenants: T[]) {
+  return tenants.reduce((counts, tenant) => {
+    if (isEndedTenantStatus(tenant.status)) counts.retired += 1;
+    else counts.current += 1;
+    return counts;
+  }, { current: 0, retired: 0 });
+}
+
 export function extractRoomNumber(value: string | undefined | null): number | null {
   const match = String(value || "").match(/\d+/);
   return match ? Number(match[0]) : null;
