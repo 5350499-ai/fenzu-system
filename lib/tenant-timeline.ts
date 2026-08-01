@@ -63,7 +63,7 @@ export function classifyPaymentDelay(paymentDate: string | undefined, dueDate: s
   return { included: true, dueDate, paymentDate, days, level: days >= 10 ? "red" : days >= 4 ? "yellow" : "on-time" };
 }
 
-function isPartialOrAmbiguous(payment: BusinessRentPayment, tenant: BusinessTenant) {
+function isPartialOrAmbiguous(payment: BusinessRentPayment) {
   if (Number(payment.amountDue || 0) <= 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0)) return true;
   const start = paymentCoverageStart(payment);
   const end = paymentCoverageEnd(payment);
@@ -71,7 +71,6 @@ function isPartialOrAmbiguous(payment: BusinessRentPayment, tenant: BusinessTena
   if (!validDate(start) || !validDate(end) || !/^\d{4}-\d{2}$/.test(month)) return true;
   // Partial first-month periods and multi-month coverage do not provide a reliable monthly due cycle.
   if (start.slice(8) !== "01" || end.slice(0, 7) !== month || end.slice(8) !== String(daysInMonth(month)).padStart(2, "0")) return true;
-  if (Number(tenant.monthlyRent || 0) > 0 && Number(payment.amountDue || 0) !== Number(tenant.monthlyRent || 0)) return true;
   return false;
 }
 
@@ -91,7 +90,7 @@ export function calculateTenantPaymentPerformance(tenant: BusinessTenant, paymen
   let excludedCount = 0;
   for (const payment of payments.filter(isCompletedRentPayment)) {
     const dueDate = calculatePaymentDueDate(payment, tenant);
-    const delay = isPartialOrAmbiguous(payment, tenant)
+    const delay = isPartialOrAmbiguous(payment)
       ? { included: false, reason: "首月、部分付款或覆盖区间无法可靠对应单月周期", days: 0, level: "on-time" as const, dueDate: dueDate || undefined }
       : classifyPaymentDelay(payment.paymentDate, dueDate);
     if (delay.included) periods.push({ payment, delay });
