@@ -9,6 +9,14 @@ const ROOT_FOLDER_NAME = "分租管理";
 
 export type DriveAttachmentKind = "contract-files" | "rent-payment-files" | "expense-files";
 
+export type GoogleDriveFailureCategory = "not_configured" | "refresh_token_missing" | "refresh_token_invalid" | "token_exchange_failed" | "drive_api_unauthorized" | "drive_api_forbidden" | "drive_api_not_found" | "drive_api_unavailable" | "network_error";
+
+export class GoogleDriveAccessError extends AccountApiError {
+  constructor(message: string, public readonly category: GoogleDriveFailureCategory, status = 503, public readonly googleCode: string | null = null) {
+    super(message, status);
+  }
+}
+
 const kindLabels: Record<DriveAttachmentKind, string> = {
   "contract-files": "合同附件",
   "rent-payment-files": "收款附件",
@@ -40,7 +48,9 @@ function requiredConfig() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
   const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
-  if (!clientId || !clientSecret || !refreshToken || !rootFolderId) {
+  console.info("google_drive_auth_config", { stage: "config_check", hasClientId: Boolean(clientId), hasClientSecret: Boolean(clientSecret), hasRefreshToken: Boolean(refreshToken), hasRootFolderId: Boolean(rootFolderId) });
+  if (!clientId || !clientSecret || !rootFolderId) throw new GoogleDriveAccessError("Google Drive 授权尚未配置。", "not_configured");
+  if (!clientId || !clientSecret || !rootFolderId) {
     throw new AccountApiError("Google Drive 尚未授权或尚未配置。请联系主管理员完成 Google Drive 授权。", 503);
   }
   return { clientId, clientSecret, refreshToken, rootFolderId };
@@ -48,6 +58,7 @@ function requiredConfig() {
 
 export async function getGoogleAccessToken() {
   const { clientId, clientSecret, refreshToken } = requiredConfig();
+  if (!refreshToken) throw new GoogleDriveAccessError("Google Drive refresh token 缺失。", "refresh_token_missing");
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -59,7 +70,12 @@ export async function getGoogleAccessToken() {
     }),
     cache: "no-store"
   });
-  const payload = await response.json().catch(() => null) as { access_token?: string; error?: string } | null;
+  const payload = await response.json().catch(() => null) as { access_token?: string; error?: string; scope?: string } | null;
+  console.info("google_drive_token_exchange_result", { stage: "token_exchange", httpStatus: response.status, success: Boolean(response.ok && payload?.access_token), errorCode: payload?.error || null, scopeSummary: payload?.scope ? payload.scope.split(/\s+/).filter(Boolean).slice(0, 8) : [] });
+  if (!response.ok || !payload?.access_token) {
+    if (payload?.error === "invalid_grant") throw new GoogleDriveAccessError("Google Drive refresh token 已失效。", "refresh_token_invalid", 503, payload.error);
+    throw new GoogleDriveAccessError("Google Drive token 交换失败。", "token_exchange_failed", 503, payload?.error || null);
+  }
   if (!response.ok || !payload?.access_token) {
     if (payload?.error === "invalid_grant") {
       throw new AccountApiError("Google Drive 需要重新授权。新的附件不会上传，历史 Supabase 附件仍可读取。", 503);
@@ -76,11 +92,42 @@ async function driveJson<T>(token: string, url: string, init?: RequestInit): Pro
     cache: "no-store"
   });
   if (!response.ok) throw new AccountApiError("Google Drive 文件操作失败，请稍后重试。", response.status === 404 ? 404 : 502);
+  if (!response.ok) {
+    const body = await response.clone().json().catch(() => null) as { error?: { code?: number; status?: string; message?: string } } | null;
+    const errorCode = body?.error?.status || String(body?.error?.code || response.status);
+    const safeMessage = String(body?.error?.message || "Google API request failed").replace(/(token|secret|cookie|authorization|service[_ -]?role)/gi, "[filtered]").slice(0, 200);
+    console.error("google_drive_api_failed", { stage: "drive_metadata", httpStatus: response.status, errorCode, message: safeMessage });
+    if (response.status === 401) throw new GoogleDriveAccessError("Google Drive access token 无效。", "drive_api_unauthorized", 502, errorCode);
+    if (response.status === 403) throw new GoogleDriveAccessError("Google Drive 权限或 scope 不足。", "drive_api_forbidden", 502, errorCode);
+    if (response.status === 404) throw new GoogleDriveAccessError("Google Drive 文件不存在。", "drive_api_not_found", 404, errorCode);
+    throw new GoogleDriveAccessError("Google Drive API 暂时不可用。", "drive_api_unavailable", 502, errorCode);
+  }
   return response.json() as Promise<T>;
 }
 
 async function readDriveFile(token: string, fileId: string) {
-  return driveJson<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent("id,name,mimeType,size,parents,trashed")}`);
+  return driveJsonWithDiagnostics<DriveFile>(token, `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent("id,name,mimeType,size,parents,trashed")}`);
+}
+
+async function driveJsonWithDiagnostics<T>(token: string, url: string): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  } catch {
+    console.error("google_drive_api_failed", { stage: "drive_metadata", httpStatus: 0, errorCode: "network_error", message: "network request failed" });
+    throw new GoogleDriveAccessError("Google Drive 网络请求失败。", "network_error", 502);
+  }
+  const body = await response.json().catch(() => null) as { error?: { code?: number; status?: string; message?: string } } | null;
+  if (!response.ok) {
+    const errorCode = body?.error?.status || String(body?.error?.code || response.status);
+    const safeMessage = String(body?.error?.message || "Google API request failed").replace(/(token|secret|cookie|authorization|service[_ -]?role)/gi, "[filtered]").slice(0, 200);
+    console.error("google_drive_api_failed", { stage: "drive_metadata", httpStatus: response.status, errorCode, message: safeMessage });
+    if (response.status === 401) throw new GoogleDriveAccessError("Google Drive access token 无效。", "drive_api_unauthorized", 502, errorCode);
+    if (response.status === 403) throw new GoogleDriveAccessError("Google Drive 权限或 scope 不足。", "drive_api_forbidden", 502, errorCode);
+    if (response.status === 404) throw new GoogleDriveAccessError("Google Drive 文件不存在。", "drive_api_not_found", 404, errorCode);
+    throw new GoogleDriveAccessError("Google Drive API 暂时不可用。", "drive_api_unavailable", 502, errorCode);
+  }
+  return body as T;
 }
 
 async function isWithinConfiguredRoot(token: string, parents: string[] | undefined, rootFolderId: string) {
@@ -105,13 +152,14 @@ async function isWithinConfiguredRoot(token: string, parents: string[] | undefin
 }
 
 /** Read-only metadata lookup used by the administrator migration preview. */
-export async function getGoogleDriveAttachmentMetadata(fileId: string): Promise<GoogleDriveAttachmentMetadata> {
-  const token = await getGoogleAccessToken();
+export async function getGoogleDriveAttachmentMetadata(fileId: string, accessToken?: string): Promise<GoogleDriveAttachmentMetadata> {
+  const token = accessToken || await getGoogleAccessToken();
   const { rootFolderId } = requiredConfig();
   let file: DriveFile;
   try {
     file = await readDriveFile(token, fileId);
   } catch (error) {
+    if (error instanceof GoogleDriveAccessError) throw error;
     if (error instanceof AccountApiError && error.status === 404) throw error;
     throw new AccountApiError("Google Drive 文件元数据不可读取。", 502);
   }

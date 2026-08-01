@@ -2,12 +2,12 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
-import { getGoogleDriveAttachmentMetadata } from "@/lib/server/google-drive";
+import { getGoogleAccessToken, getGoogleDriveAttachmentMetadata, GoogleDriveAccessError } from "@/lib/server/google-drive";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { buildGoogleMigrationTargetPath, migrationTableSelect } from "@/lib/google-attachment-migration-rules";
 
 export type MigrationTable = "contract_files" | "rent_payment_files" | "expense_files";
-export type MigrationStatus = "readable" | "missing" | "trashed" | "permission_denied" | "metadata_mismatch" | "duplicate" | "outside_root" | "target_conflict" | "target_exists" | "scan_failed";
+export type MigrationStatus = "readable" | "missing" | "trashed" | "permission_denied" | "authorization_error" | "metadata_mismatch" | "duplicate" | "outside_root" | "target_conflict" | "target_exists" | "scan_failed";
 
 type SourceRow = {
   id: string;
@@ -53,6 +53,8 @@ export type MigrationScanResult = {
     missing: number;
     trashed: number;
     permissionDenied: number;
+    authorizationFailures: number;
+    authorizationError: string | null;
     duplicates: number;
     metadataMismatch: number;
     outsideRoot: number;
@@ -128,6 +130,15 @@ export async function scanGoogleAttachments(workspaceId: string, userId: string)
   const tables = Object.keys(tableConfig) as MigrationTable[];
   const rowsByTable = await Promise.all(tables.map(async (table) => [table, await readRows(table, workspaceId)] as const));
   const rows = rowsByTable.flatMap(([table, values]) => values.map((row) => ({ table, row })));
+  let accessToken: string | null = null;
+  let authorizationError: string | null = null;
+  if (rows.length) {
+    try { accessToken = await getGoogleAccessToken(); }
+    catch (error) {
+      authorizationError = error instanceof GoogleDriveAccessError ? error.category : "token_exchange_failed";
+      console.error("google_attachment_migration_authorization_failed", { stage: "token_exchange", category: authorizationError });
+    }
+  }
   const duplicateIds = new Set<string>();
   const seen = new Map<string, number>();
   for (const { row } of rows) {
@@ -150,20 +161,26 @@ export async function scanGoogleAttachments(workspaceId: string, userId: string)
     let readable = false;
     let reason: string | null = null;
     let withinRoot = true;
-    if (!row.provider_file_id) {
+    if (authorizationError) {
+      sourceStatus = "authorization_error";
+      reason = "Google Drive 授权不可用，请先修复服务端授权。";
+    } else if (!row.provider_file_id) {
       sourceStatus = "scan_failed"; reason = "缺少 Google Drive 文件标识。";
     } else if (duplicateIds.has(row.provider_file_id)) {
       sourceStatus = "duplicate"; reason = "多个附件索引指向同一个 Google Drive 文件。";
     } else {
       try {
-        const metadata = await getGoogleDriveAttachmentMetadata(row.provider_file_id);
+        const metadata = await getGoogleDriveAttachmentMetadata(row.provider_file_id, accessToken || undefined);
         driveMime = metadata.mimeType; driveSize = metadata.size; readable = metadata.downloadable; withinRoot = metadata.withinConfiguredRoot;
         if (metadata.trashed) { sourceStatus = "trashed"; reason = "Google Drive 文件在回收站。"; }
         else if (!metadata.downloadable) { sourceStatus = "permission_denied"; reason = "Google Drive 文件不可下载。"; }
         else if (!withinRoot) { sourceStatus = "outside_root"; reason = "文件不在配置的正式根目录内。"; }
         else if ((databaseMime && databaseMime !== driveMime) || databaseSize !== driveSize) { sourceStatus = "metadata_mismatch"; reason = "数据库记录与 Google Drive 元数据不一致。"; }
       } catch (error) {
-        sourceStatus = error instanceof AccountApiError && error.status === 404 ? "missing" : "permission_denied";
+        if (error instanceof GoogleDriveAccessError) {
+          sourceStatus = error.category === "drive_api_not_found" ? "missing" : "permission_denied";
+          reason = error.message;
+        } else sourceStatus = error instanceof AccountApiError && error.status === 404 ? "missing" : "permission_denied";
         reason = sourceStatus === "missing" ? "按文件标识无法找到 Google Drive 文件。" : "无法读取 Google Drive 文件元数据。";
       }
     }
@@ -182,6 +199,8 @@ export async function scanGoogleAttachments(workspaceId: string, userId: string)
     missing: items.filter((item) => item.sourceStatus === "missing").length,
     trashed: items.filter((item) => item.sourceStatus === "trashed").length,
     permissionDenied: items.filter((item) => item.sourceStatus === "permission_denied").length,
+    authorizationFailures: items.filter((item) => item.sourceStatus === "authorization_error").length,
+    authorizationError,
     duplicates: items.filter((item) => item.sourceStatus === "duplicate").length,
     metadataMismatch: items.filter((item) => item.sourceStatus === "metadata_mismatch").length,
     outsideRoot: items.filter((item) => item.sourceStatus === "outside_root").length,
