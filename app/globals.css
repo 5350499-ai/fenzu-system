@@ -2419,6 +2419,22 @@ td:last-child {
   cursor: pointer;
 }
 
+/* Tenant rows are flat list items; only an expanded card owns a rounded shell. */
+.tenant-compact-list .tenant-card-toggle {
+  border-radius: 0;
+}
+
+.tenant-compact-list .tenant-card-toggle:hover,
+.tenant-compact-list .tenant-card-toggle:active,
+.tenant-compact-list .tenant-card-toggle:focus,
+.tenant-compact-list .tenant-card-toggle:focus-visible {
+  border-radius: 0;
+}
+
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle {
+  border-radius: 15px 15px 0 0;
+}
+
 .tenant-card-toggle:hover,
 .tenant-card-toggle:active,
 .tenant-card-toggle:focus,
@@ -2599,6 +2615,70 @@ td:last-child {
 
 .tenant-detail-panel > .contract-attachments-panel {
   order: 2;
+}
+
+.tenant-performance-section,
+.tenant-timeline-section {
+  display: grid;
+  gap: 10px;
+}
+
+.tenant-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.tenant-performance-grid .detail-field {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 9px 10px;
+}
+
+.tenant-performance-note {
+  font-size: 12px;
+}
+
+.tenant-timeline-list {
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-left: 2px;
+}
+
+.tenant-timeline-event {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border-left: 2px solid var(--border);
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.tenant-timeline-event time {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tenant-timeline-event div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tenant-timeline-event span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.tenant-timeline-more {
+  justify-self: start;
 }
 
 .attachment-toggle {
