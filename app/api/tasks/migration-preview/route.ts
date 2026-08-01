@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission } from "@/lib/server/account-auth";
-import { TASKS_SERVER_SYNC_ENABLED, type LocalTaskLike } from "@/lib/task-management";
+import { isTasksServerSyncEnabled, type LocalTaskLike } from "@/lib/task-management";
 import { buildServerTaskMigrationPreview, loadServerTasksForContext } from "@/lib/server/task-management";
 
 function requireServerTasksEnabled() {
-  if (!TASKS_SERVER_SYNC_ENABLED) throw new AccountApiError("服务端待办迁移功能尚未启用。", 403);
+  if (!isTasksServerSyncEnabled()) throw new AccountApiError("服务端待办迁移功能尚未启用。", 403);
 }
 
 export async function GET(request: Request) {

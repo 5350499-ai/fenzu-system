@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission } from "@/lib/server/account-auth";
-import { TASKS_SERVER_SYNC_ENABLED } from "@/lib/task-management";
+import { isTasksServerSyncEnabled } from "@/lib/task-management";
 import { createServerTask, deleteServerTask, loadServerTasksForContext, updateServerTask } from "@/lib/server/task-management";
 
 function requireServerTasksEnabled() {
-  if (!TASKS_SERVER_SYNC_ENABLED) throw new AccountApiError("服务端待办功能尚未启用。", 403);
+  if (!isTasksServerSyncEnabled()) throw new AccountApiError("服务端待办功能尚未启用。", 403);
 }
 
 export async function GET(request: Request) {

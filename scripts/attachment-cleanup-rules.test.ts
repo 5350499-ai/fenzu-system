@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildAttachmentArchiveManifest, ATTACHMENT_ARCHIVE_ENABLED } from "../lib/attachment-archive";
 import { ATTACHMENT_CLEANUP_EXECUTION_ENABLED, cleanupStorageOutcomePlan, evaluateCleanupCandidate, isCleanupPreviewWindowValid } from "../lib/attachment-cleanup-rules";
-import { buildTaskMigrationPreview, normalizeTaskStatus, TASKS_SERVER_SYNC_ENABLED, taskBlocksCleanup } from "../lib/task-management";
+import { buildTaskMigrationPreview, isTasksServerSyncEnabled, normalizeTaskStatus, taskBlocksCleanup } from "../lib/task-management";
 
 const cutoff = "2026-04-30";
 const base = { movedOut: true, hasActiveContract: false, depositState: "complete" as const, taskState: "clear" as const, roomState: "released" as const };
@@ -53,7 +53,7 @@ test("server task statuses are normalized without allowing unknown values", () =
   assert.equal(taskBlocksCleanup({ tenantId: "tenant-1", status: "pending" }, "tenant-1"), true);
   assert.equal(taskBlocksCleanup({ tenantId: "tenant-1", status: "completed" }, "tenant-1"), false);
   assert.equal(taskBlocksCleanup({ tenantId: "", status: "pending" }, "tenant-1"), false);
-  assert.equal(TASKS_SERVER_SYNC_ENABLED, false);
+  assert.equal(isTasksServerSyncEnabled(), false);
 });
 
 test("local task migration preview uses stable keys and does not upload", () => {

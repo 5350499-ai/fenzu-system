@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  TASKS_SERVER_SYNC_ENABLED,
+  isTasksServerSyncEnabled,
   buildTaskMigrationPreview,
   isCalendarDate,
   isUuid,
@@ -17,7 +17,14 @@ const propertyId = "33333333-3333-4333-8333-333333333333";
 const base = { id: "44444444-4444-4444-8444-444444444444", title: "退房检查", dueDate: "2026-08-01", status: "pending" as const, priority: "normal", tenantId, roomId, propertyId };
 
 test("server task flag stays disabled until a separately authorized rollout", () => {
-  assert.equal(TASKS_SERVER_SYNC_ENABLED, false);
+  assert.equal(isTasksServerSyncEnabled(), false);
+  const previous = process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED;
+  process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED = "true";
+  assert.equal(isTasksServerSyncEnabled(), true);
+  process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED = "garbage";
+  assert.equal(isTasksServerSyncEnabled(), false);
+  if (previous === undefined) delete process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED;
+  else process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED = previous;
 });
 
 test("task status and calendar validation reject unsafe values", () => {
@@ -42,6 +49,9 @@ test("migration preview preserves normal tasks and identifies exact duplicates",
   assert.equal(preview.duplicate, 1);
   assert.equal(preview.invalid, 1);
   assert.equal(buildTaskMigrationPreview([{ ...base, remoteId: "server-1" }], [{ ...base, id: "server-1" }]).duplicate, 1);
+  const restricted = buildTaskMigrationPreview([ordinary], [], { allowUnlinked: false });
+  assert.equal(restricted.readyToMigrate, 0);
+  assert.equal(restricted.rows[0].skipReason, "当前账号无权迁移未关联房源的普通待办");
 });
 
 test("task migration keys do not merge distinct task dates or status", () => {

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission } from "@/lib/server/account-auth";
-import { TASKS_SERVER_SYNC_ENABLED, type LocalTaskLike } from "@/lib/task-management";
+import { isTasksServerSyncEnabled, type LocalTaskLike } from "@/lib/task-management";
 import { migrateLocalTasks } from "@/lib/server/task-management";
 
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
     await requireModulePermission(context, "tasks", "create");
-    if (!TASKS_SERVER_SYNC_ENABLED) throw new AccountApiError("服务端待办迁移功能尚未启用。", 403);
+    if (!isTasksServerSyncEnabled()) throw new AccountApiError("服务端待办迁移功能尚未启用。", 403);
     const body = await parseJson(request) as { tasks?: unknown; previewToken?: unknown; confirmed?: unknown };
     if (body.confirmed !== true) throw new AccountApiError("请先确认本次待办迁移。", 400);
     if (!Array.isArray(body.tasks) || body.tasks.length > 500 || typeof body.previewToken !== "string") {

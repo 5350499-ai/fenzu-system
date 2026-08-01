@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { loadAttachmentManagementTenants } from "@/lib/server/attachment-management";
 import { loadServerTasks } from "@/lib/server/task-management";
 import { AccountApiError } from "@/lib/server/account-auth";
-import { TASKS_SERVER_SYNC_ENABLED, normalizeTaskStatus } from "@/lib/task-management";
+import { isTasksServerSyncEnabled, normalizeTaskStatus } from "@/lib/task-management";
 
 type CleanupAttachmentTable = "contract_files" | "rent_payment_files";
 
@@ -163,8 +163,8 @@ export async function loadAttachmentCleanupPreview(workspaceOwnerId: string, thr
   for (const file of rentPaymentFiles) addFile(file, "rent_payment_files", file.rent_payment_id ? paymentById.get(file.rent_payment_id)?.tenant_id : null);
 
   const taskStateByTenant = new Map<string, CleanupTaskState>();
-  let taskSourceUnavailable = !TASKS_SERVER_SYNC_ENABLED;
-  if (TASKS_SERVER_SYNC_ENABLED) {
+  let taskSourceUnavailable = !isTasksServerSyncEnabled();
+  if (isTasksServerSyncEnabled()) {
     const serverTasks = await loadServerTasks(workspaceOwnerId, accessToken);
     if (serverTasks.available) {
       for (const tenant of tenants) {

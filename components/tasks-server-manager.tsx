@@ -6,6 +6,9 @@ import { loadBusinessData, tenantKey, type BusinessTenant } from "@/lib/business
 import { taskStatusLabel, type LocalTaskLike, type ServerTaskLike } from "@/lib/task-management";
 import {
   buildLocalMigrationRows,
+  isTaskMigrationDismissed,
+  setTaskMigrationDismissed,
+  recordTaskMigrationDismissed,
   recordTaskMigrationResult,
   serverTaskRepository,
   type TaskMigrationPreviewResponse
@@ -72,7 +75,8 @@ export function TasksServerManager() {
         setTenants(tenantRows);
         const localRows = buildLocalMigrationRows();
         setMigrationTasks(localRows);
-        if (localRows.length) setMigrationPreview(await serverTaskRepository.previewMigration(localRows));
+        setMigrationDismissed(isTaskMigrationDismissed());
+        if (localRows.length && !isTaskMigrationDismissed()) setMigrationPreview(await serverTaskRepository.previewMigration(localRows));
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "加载待办失败，请稍后重试。");
       } finally {
@@ -166,9 +170,31 @@ export function TasksServerManager() {
     }
   }
 
+  function dismissMigration() {
+    recordTaskMigrationDismissed();
+    setMigrationDismissed(true);
+    setMigrationPreview(null);
+  }
+
+  async function reopenMigration() {
+    if (saving || migrationTasks.length === 0) return;
+    setSaving(true);
+    setError("");
+    try {
+      setMigrationDismissed(false);
+      setTaskMigrationDismissed(false);
+      setMigrationPreview(await serverTaskRepository.previewMigration(migrationTasks));
+    } catch (previewError) {
+      setError(previewError instanceof Error ? previewError.message : "无法生成待办迁移预览，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="grid" style={{ gap: 18 }}>
-      {migrationPreview && !migrationDismissed ? <TasksLocalMigrationPreview preview={migrationPreview} isMigrating={saving} onMigrate={() => void migrateLocalTasks()} onLater={() => setMigrationDismissed(true)} /> : null}
+      {migrationPreview && !migrationDismissed ? <TasksLocalMigrationPreview preview={migrationPreview} isMigrating={saving} onMigrate={() => void migrateLocalTasks()} onLater={dismissMigration} /> : null}
+      {migrationDismissed && migrationTasks.length > 0 ? <button className="btn" type="button" disabled={saving} onClick={() => void reopenMigration()}>重新查看本地待办迁移</button> : null}
       <section className="card panel">
         <div className="panel-header">
           <div>

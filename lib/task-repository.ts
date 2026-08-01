@@ -2,7 +2,7 @@
 
 import { getValidSupabaseSession } from "@/lib/supabase";
 import {
-  TASKS_SERVER_SYNC_ENABLED,
+  isTasksServerSyncEnabled,
   type LocalTaskLike,
   type ServerTaskLike,
   type TaskMigrationPreview
@@ -12,8 +12,9 @@ const localTaskKey = "v1-tasks";
 const localTaskBackupKey = "v1-tasks:server-migration-backup";
 const localTaskMigrationStateKey = "v1-tasks:server-migration-state";
 const localTaskRemoteIdsKey = "v1-tasks:server-id-map";
+const localTaskMigrationDismissedKey = "v1-tasks:server-migration-dismissed";
 
-export type TaskMigrationPreviewResponse = TaskMigrationPreview & { token: string; expiresAt: number };
+export type TaskMigrationPreviewResponse = TaskMigrationPreview & { token: string; batchId: string; expiresAt: number };
 export type TaskMigrationExecutionResponse = {
   created: number;
   duplicate: number;
@@ -45,6 +46,19 @@ export function readTaskRemoteIdMap() {
   return readJson<Record<string, string>>(localTaskRemoteIdsKey, {});
 }
 
+export function isTaskMigrationDismissed() {
+  return readJson<boolean>(localTaskMigrationDismissedKey, false) === true;
+}
+
+export function setTaskMigrationDismissed(dismissed: boolean) {
+  if (dismissed) writeJson(localTaskMigrationDismissedKey, true);
+  else if (typeof window !== "undefined") window.localStorage.removeItem(localTaskMigrationDismissedKey);
+}
+
+export function readTaskMigrationState() {
+  return readJson<{ completedAt?: string; dismissedAt?: string; created?: number; duplicate?: number; skipped?: number; failed?: number }>(localTaskMigrationStateKey, {});
+}
+
 export function buildLocalMigrationRows() {
   const remoteIds = readTaskRemoteIdMap();
   return readLegacyLocalTasks().map((task) => ({ ...task, remoteId: task.id ? remoteIds[task.id] || task.remoteId : task.remoteId }));
@@ -66,6 +80,12 @@ export function recordTaskMigrationResult(localTasks: LocalTaskLike[], response:
     skipped: response.skipped,
     failed: response.failed
   });
+  setTaskMigrationDismissed(true);
+}
+
+export function recordTaskMigrationDismissed() {
+  setTaskMigrationDismissed(true);
+  writeJson(localTaskMigrationStateKey, { ...readTaskMigrationState(), dismissedAt: new Date().toISOString() });
 }
 
 async function authorizedFetch(path: string, init: RequestInit = {}) {
@@ -89,7 +109,7 @@ async function authorizedFetch(path: string, init: RequestInit = {}) {
 }
 
 export const serverTaskRepository = {
-  enabled: TASKS_SERVER_SYNC_ENABLED,
+  get enabled() { return isTasksServerSyncEnabled(); },
   async listTasks() {
     const response = await authorizedFetch("/api/tasks/server", { cache: "no-store" });
     const payload = await response.json() as { rows?: ServerTaskLike[] };

@@ -4,12 +4,12 @@ import { AppLayout } from "@/components/app-layout";
 import { CrudPage } from "@/components/crud-page";
 import { StatusBadge } from "@/components/status-badge";
 import { TasksServerManager } from "@/components/tasks-server-manager";
-import { TASKS_SERVER_SYNC_ENABLED } from "@/lib/task-management";
+import { isTasksServerSyncEnabled } from "@/lib/task-management";
 
 export default function TasksPage() {
   return (
     <AppLayout title="待办管理" description="查看和管理收租、续租、退押金等待办事项。">
-      {TASKS_SERVER_SYNC_ENABLED ? <TasksServerManager /> : <CrudPage
+      {isTasksServerSyncEnabled() ? <TasksServerManager /> : <CrudPage
         title="待办"
         storageKey="v1-tasks"
         createLabel="新增待办"

@@ -4,7 +4,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { AccountApiError, requireModulePermission, requirePropertyAccess, type AccountRequestContext } from "@/lib/server/account-auth";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import {
-  TASKS_SERVER_SYNC_ENABLED,
+  isTasksServerSyncEnabled,
   buildTaskMigrationPreview,
   isUuid,
   normalizeTaskForServer,
@@ -47,6 +47,7 @@ export type ServerTaskLoadResult = {
 
 export type TaskMigrationPreviewResult = TaskMigrationPreview & {
   token: string;
+  batchId: string;
   expiresAt: number;
 };
 
@@ -67,13 +68,14 @@ function nullableText(value: unknown, maxLength: number) {
 
 function toServerTask(row: TaskRow): ServerTaskLike {
   const status = normalizeTaskStatus(row.status);
+  if (status === "unknown") throw new AccountApiError("服务端存在无法识别的待办状态，请先修复后再启用同步。", 500);
   return {
     id: row.id,
     taskType: row.task_type || "manual",
     title: row.title || "",
     description: row.description || "",
     dueDate: row.due_date || "",
-    status: status === "unknown" ? "pending" : status,
+    status,
     priority: row.priority || "normal",
     notes: row.notes || "",
     propertyId: row.property_id || "",
@@ -97,7 +99,7 @@ function migrationHash(tasks: LocalTaskLike[]) {
   return createHash("sha256").update(JSON.stringify(canonicalRows(tasks))).digest("base64url");
 }
 
-function signMigrationPayload(accessToken: string, payload: { workspaceOwnerId: string; hash: string; expiresAt: number }) {
+function signMigrationPayload(accessToken: string, payload: { workspaceOwnerId: string; hash: string; batchId: string; expiresAt: number }) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", accessToken).update(body).digest("base64url");
   return `${body}.${signature}`;
@@ -112,13 +114,13 @@ function verifyMigrationPayload(accessToken: string, token: string, workspaceOwn
   if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
     throw new AccountApiError("迁移预览校验失败，请重新生成预览。", 400);
   }
-  let payload: { workspaceOwnerId?: string; hash?: string; expiresAt?: number };
+  let payload: { workspaceOwnerId?: string; hash?: string; batchId?: string; expiresAt?: number };
   try {
     payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
   } catch {
     throw new AccountApiError("迁移预览校验失败，请重新生成预览。", 400);
   }
-  if (payload.workspaceOwnerId !== workspaceOwnerId || payload.hash !== migrationHash(tasks) || !Number.isFinite(payload.expiresAt) || Number(payload.expiresAt) < Date.now()) {
+  if (payload.workspaceOwnerId !== workspaceOwnerId || !payload.batchId || payload.hash !== migrationHash(tasks) || !Number.isFinite(payload.expiresAt) || Number(payload.expiresAt) < Date.now()) {
     throw new AccountApiError("迁移预览已过期或内容已变更，请重新生成预览。", 400);
   }
 }
@@ -139,7 +141,7 @@ export async function loadServerTasksForContext(context: AccountRequestContext) 
 }
 
 export async function loadServerTasks(workspaceOwnerId: string, accessToken?: string): Promise<ServerTaskLoadResult> {
-  if (!TASKS_SERVER_SYNC_ENABLED) return { enabled: false, available: false, rows: [], reason: "disabled" };
+  if (!isTasksServerSyncEnabled()) return { enabled: false, available: false, rows: [], reason: "disabled" };
   if (!accessToken) return { enabled: true, available: false, rows: [], reason: "query_failed" };
   try {
     // This compatibility helper is intentionally used only by already-authenticated
@@ -330,11 +332,13 @@ export async function deleteServerTask(context: AccountRequestContext, id: strin
 
 export async function buildServerTaskMigrationPreview(context: AccountRequestContext, tasks: LocalTaskLike[]): Promise<TaskMigrationPreviewResult> {
   const existingTasks = await queryTaskRows(context);
-  const preview = buildTaskMigrationPreview(tasks, existingTasks);
+  const preview = buildTaskMigrationPreview(tasks, existingTasks, { allowUnlinked: context.profile.account_type === "owner" });
+  const batchId = randomUUID();
   const expiresAt = Date.now() + previewLifetimeMs;
   return {
     ...preview,
-    token: signMigrationPayload(context.accessToken, { workspaceOwnerId: context.profile.workspace_owner_id, hash: migrationHash(tasks), expiresAt }),
+    batchId,
+    token: signMigrationPayload(context.accessToken, { workspaceOwnerId: context.profile.workspace_owner_id, hash: migrationHash(tasks), batchId, expiresAt }),
     expiresAt
   };
 }
@@ -351,6 +355,10 @@ export async function migrateLocalTasks(context: AccountRequestContext, tasks: L
     const localId = String(task.id || "");
     const normalized = normalizeTaskForServer(task);
     if (!normalized) {
+      results.push({ localId, status: "skipped" });
+      continue;
+    }
+    if (context.profile.account_type !== "owner" && !normalized.propertyId) {
       results.push({ localId, status: "skipped" });
       continue;
     }

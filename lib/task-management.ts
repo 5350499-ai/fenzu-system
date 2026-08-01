@@ -3,7 +3,12 @@
  * browser storage or Supabase access so the same validation is used by the
  * server APIs, the migration preview, and the cleanup safety gate.
  */
-export const TASKS_SERVER_SYNC_ENABLED = false as const;
+/** One shared parser for both client and server. Any value other than an
+ * explicit true is fail-closed. The public flag is intentionally non-secret. */
+export function isTasksServerSyncEnabled() {
+  const value = String(process.env.NEXT_PUBLIC_TASKS_SERVER_SYNC_ENABLED || "").trim().toLowerCase();
+  return value === "true" || value === "1" || value === "yes";
+}
 
 export type TaskStatus = "pending" | "completed" | "cancelled" | "unknown";
 
@@ -39,7 +44,7 @@ export type TaskMigrationPreview = {
   readyToMigrate: number;
   duplicate: number;
   invalid: number;
-  rows: Array<{ key: string; task: LocalTaskLike; disposition: TaskMigrationDisposition }>;
+  rows: Array<{ key: string; task: LocalTaskLike; disposition: TaskMigrationDisposition; skipReason?: string }>;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -106,7 +111,8 @@ export function taskHasInvalidLinks(task: LocalTaskLike) {
     .some((value) => Boolean(normalizePart(value)) && !isUuid(normalizePart(value)));
 }
 
-export function buildTaskMigrationPreview(localTasks: LocalTaskLike[], existingTasks: ServerTaskLike[] = []): TaskMigrationPreview {
+export function buildTaskMigrationPreview(localTasks: LocalTaskLike[], existingTasks: ServerTaskLike[] = [], options: { allowUnlinked?: boolean } = {}): TaskMigrationPreview {
+  const allowUnlinked = options.allowUnlinked !== false;
   const existingIds = new Set(existingTasks.map((task) => task.id));
   const existingKeys = new Set(existingTasks.map(taskMigrationKey));
   const seen = new Set<string>();
@@ -114,17 +120,21 @@ export function buildTaskMigrationPreview(localTasks: LocalTaskLike[], existingT
     const key = taskMigrationKey(task);
     const localRemoteId = normalizePart(task.remoteId);
     let disposition: TaskMigrationDisposition = "migratable";
+    let skipReason: string | undefined;
     if (!normalizePart(task.title) || normalizeTaskStatus(task.status) === "unknown" || !isCalendarDateOrEmpty(task.dueDate) || taskHasInvalidLinks(task)) {
       disposition = "invalid";
+      skipReason = "待办标题、状态、日期或关联信息无效";
     } else if ((localRemoteId && existingIds.has(localRemoteId)) || (isUuid(task.id) && existingIds.has(task.id)) || existingKeys.has(key) || seen.has(key)) {
       disposition = "duplicate";
+      skipReason = "服务端已存在相同待办";
     } else if (!normalizedLink(task.tenantId)) {
       // Ordinary tasks remain migratable, but they can never unblock or block
       // a specific tenant's attachment cleanup.
       disposition = "unlinked";
+      if (!allowUnlinked) skipReason = "当前账号无权迁移未关联房源的普通待办";
     }
     seen.add(key);
-    return { key, task, disposition };
+    return { key, task, disposition, ...(skipReason ? { skipReason } : {}) };
   });
   const migratable = rows.filter((row) => row.disposition === "migratable").length;
   const unlinked = rows.filter((row) => row.disposition === "unlinked").length;
@@ -132,7 +142,7 @@ export function buildTaskMigrationPreview(localTasks: LocalTaskLike[], existingT
     total: rows.length,
     migratable,
     unlinked,
-    readyToMigrate: migratable + unlinked,
+    readyToMigrate: migratable + (allowUnlinked ? unlinked : 0),
     duplicate: rows.filter((row) => row.disposition === "duplicate").length,
     invalid: rows.filter((row) => row.disposition === "invalid").length,
     rows

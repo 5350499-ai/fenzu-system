@@ -34,8 +34,8 @@ export function TasksLocalMigrationPreview({
         <div className="mobile-card-list" style={{ marginTop: 10 }}>
           {preview.rows.map((row, index) => <div className="mobile-record-card" key={`${row.key}:${index}`}>
             <strong>{row.task.title || "未命名待办"}</strong>
-            <span className={row.disposition === "invalid" ? "badge red" : row.disposition === "duplicate" ? "badge yellow" : "badge blue"}>
-              {row.disposition === "migratable" ? "将迁移（关联租客）" : row.disposition === "unlinked" ? "将迁移（普通待办）" : row.disposition === "duplicate" ? "跳过（服务端已存在）" : "跳过（字段无效）"}
+            <span className={row.disposition === "invalid" || row.skipReason ? "badge red" : row.disposition === "duplicate" ? "badge yellow" : "badge blue"}>
+              {row.skipReason || (row.disposition === "migratable" ? "将迁移（关联租客）" : row.disposition === "unlinked" ? "将迁移（普通待办）" : row.disposition === "duplicate" ? "跳过（服务端已存在）" : "跳过（字段无效）")}
             </span>
           </div>)}
         </div>
