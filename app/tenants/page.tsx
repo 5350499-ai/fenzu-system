@@ -48,6 +48,7 @@ import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildPaymentDelayTrend, buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
+import { TenantHorizontalTimeline } from "@/components/tenant-horizontal-timeline";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1083,11 +1084,9 @@ function TenantDetail({
   const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [timelineExpanded, setTimelineExpanded] = useState(false);
   const [trendExpanded, setTrendExpanded] = useState(false);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
-  const visibleTimeline = timelineExpanded ? timeline : timeline.slice(0, 10);
   const trend = buildPaymentDelayTrend(performance.periods, 12, trendExpanded);
   return (
     <div className="record-detail-panel tenant-detail-panel">
@@ -1163,13 +1162,7 @@ function TenantDetail({
 
       <section className="tenant-timeline-section">
         <div className="detail-section-title">租客时间轴</div>
-        {visibleTimeline.length ? <div className="tenant-timeline-list">
-          {visibleTimeline.map((event) => <div className="tenant-timeline-event" key={event.id}>
-            <time>{event.date}</time>
-            <div><strong>{event.title}</strong>{event.detail ? <span>{event.detail}</span> : null}</div>
-          </div>)}
-        </div> : <div className="muted">暂无时间轴记录</div>}
-        {timeline.length > 10 ? <button className="btn tenant-timeline-more" type="button" onClick={() => setTimelineExpanded((current) => !current)}>{timelineExpanded ? "收起" : "查看全部"}</button> : null}
+        <TenantHorizontalTimeline events={timeline} />
       </section>
 
       <div className="attachment-panel payment-history-panel">
@@ -1184,11 +1177,15 @@ function TenantDetail({
               const rent = Number(payment.amountDue || 0);
               return (
                 <div className="payment-history-line" key={payment.id}>
-                  <span>{payment.paymentDate || payment.rentMonth}</span>
-                  <b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b>
-                  <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
-                  <span>押金 {euro(deposit)}</span>
-                  <strong>实收 {euro(payment.amountPaid)}</strong>
+                  <div className="payment-history-left">
+                    <span>{payment.paymentDate || payment.rentMonth}</span>
+                    <span>押金 {euro(deposit)}</span>
+                  </div>
+                  <div className="payment-history-right">
+                    <span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b></span>
+                    <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
+                    <strong>实收 {euro(payment.amountPaid)}</strong>
+                  </div>
                 </div>
               );
             })}

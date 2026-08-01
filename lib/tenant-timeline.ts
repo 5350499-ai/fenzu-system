@@ -29,7 +29,11 @@ export type TenantTimelineEvent = {
   title: string;
   detail?: string;
   delay?: PaymentDelay;
+  payment?: BusinessRentPayment;
+  depositAmount?: number;
 };
+
+export type TimelineDateGroup = { date: string; events: TenantTimelineEvent[] };
 
 export type PaymentDelayTrendPoint = {
   id: string;
@@ -136,6 +140,12 @@ export function buildPaymentDelayTrend(periods: TenantPaymentPerformance["period
   return selected.map((period) => ({ id: period.payment.id, label: formatPaymentCycleLabel(period.payment), payment: period.payment, delay: period.delay }));
 }
 
+export function groupTimelineEventsByDate(events: TenantTimelineEvent[]): TimelineDateGroup[] {
+  const groups = new Map<string, TenantTimelineEvent[]>();
+  for (const event of events) groups.set(event.date, [...(groups.get(event.date) || []), event]);
+  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([date, groupedEvents]) => ({ date, events: groupedEvents }));
+}
+
 export function buildTenantTimeline(tenant: BusinessTenant, contract: BusinessContract | null | undefined, payments: BusinessRentPayment[], deposits: BusinessDeposit[], today: string): TenantTimelineEvent[] {
   const performance = calculateTenantPaymentPerformance(tenant, payments, today);
   const delayByPayment = new Map(performance.periods.map((period) => [period.payment.id, period.delay]));
@@ -146,8 +156,9 @@ export function buildTenantTimeline(tenant: BusinessTenant, contract: BusinessCo
     const date = payment.paymentDate || paymentCoverageEnd(payment) || payment.rentMonth;
     const delay = delayByPayment.get(payment.id);
     const coverage = paymentCoverageStart(payment) && paymentCoverageEnd(payment) ? `覆盖 ${paymentCoverageStart(payment)} 至 ${paymentCoverageEnd(payment)}` : undefined;
+    const paymentDeposit = deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${payment.id}]`))?.amount || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
     const detail = [payment.incomeType || "房租收款", `实收 €${Number(payment.amountPaid || 0).toFixed(2)}`, coverage, delay?.included && delay.days > 0 ? `迟交${delay.days}天` : delay?.included ? "按时" : "未纳入迟交统计"].filter(Boolean).join(" · ");
-    events.push({ id: payment.id, date, type: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", title: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", detail, delay });
+    events.push({ id: payment.id, date, type: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", title: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", detail, delay, payment, depositAmount: paymentDeposit });
   }
   for (const deposit of deposits) {
     events.push({ id: `${deposit.id}-deposit`, date: deposit.transactionDate, type: "押金", title: deposit.type === "收取" ? "押金收取" : `押金${deposit.type}`, detail: `€${Number(deposit.amount || 0).toFixed(2)} · ${deposit.status}` });
