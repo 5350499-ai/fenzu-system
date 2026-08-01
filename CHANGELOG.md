@@ -523,3 +523,6 @@
 
 - Added an opt-in, authenticated server task repository and CRUD routes backed by the existing `public.tasks` table, while keeping the existing local task mode as the default when the feature flag is unset.
 - Added local-task migration preview, duplicate protection, persisted migration state and mobile task actions; no migration was executed and no Production environment setting was changed.
+# 2026-08-01
+
+- 新增管理员专用 Google Drive 历史附件只读扫描与迁移预览工具；迁移执行开关默认关闭，不下载、上传或切换任何附件。
