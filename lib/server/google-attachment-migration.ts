@@ -45,6 +45,7 @@ export type MigrationScanItem = {
 export type MigrationScanResult = {
   scannedAt: string;
   expiresAt: string;
+  migrationEnabled: boolean;
   items: MigrationScanItem[];
   summary: {
     total: number;
@@ -213,7 +214,7 @@ export async function scanGoogleAttachments(workspaceId: string, userId: string)
     totalBytes: items.reduce((sum, item) => sum + (item.driveSize || item.databaseSize), 0)
   };
   const previewToken = signPreview({ userId, workspaceId, scannedAt: now.toISOString(), expiresAt, attachmentIds: items.map((item) => item.attachmentId), targetDigest: scanTargetDigest(items) });
-  return { scannedAt: now.toISOString(), expiresAt, items, summary, previewToken };
+  return { scannedAt: now.toISOString(), expiresAt, migrationEnabled: process.env.GOOGLE_ATTACHMENT_MIGRATION_ENABLED === "true", items, summary, previewToken };
 }
 
 function safeError(error: unknown) {

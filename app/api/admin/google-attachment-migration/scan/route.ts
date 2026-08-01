@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       scannedAt: result.scannedAt,
       expiresAt: result.expiresAt,
+      migrationEnabled: result.migrationEnabled,
       previewToken: result.previewToken,
       summary: result.summary,
       items: result.items.map((item) => ({
