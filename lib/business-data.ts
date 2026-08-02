@@ -1,5 +1,4 @@
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
-import { isActualMoveOutDateEnabled } from "./actual-move-out-feature";
 
 export type ContractAttachment = {
   name: string;
