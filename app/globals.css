@@ -749,7 +749,9 @@ a {
   display: inline-flex;
   width: 80px;
   min-width: 80px;
+  max-width: 80px;
   height: 28px;
+  flex: 0 0 80px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -760,6 +762,15 @@ a {
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Management rows use one fixed badge geometry for every standard and custom status. */
+.appointment-row .appointment-status {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  height: 28px;
+  flex: 0 0 80px;
 }
 
 .status-pending { color: var(--amber-strong, #9a6700); background: color-mix(in srgb, #f5b942 22%, var(--surface)); }
@@ -1836,9 +1847,20 @@ a {
     gap: 4px;
   }
 
+  .appointment-row .appointment-status {
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    height: 28px;
+    flex: 0 0 76px;
+  }
+
   .appointment-status {
     width: 76px;
     min-width: 76px;
+    max-width: 76px;
+    height: 28px;
+    flex: 0 0 76px;
   }
 }
 
