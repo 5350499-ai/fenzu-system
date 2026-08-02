@@ -104,11 +104,18 @@ export function getRentAttributionMonth(payment: BusinessRentPayment): string | 
 
 /** Amount-only attribution may safely fall back to a structured month/date; status never uses this fallback. */
 export function getRentAmountAttributionMonth(payment: BusinessRentPayment): string | null {
-  const covered = getRentAttributionMonth(payment);
-  if (covered) return covered;
-  if (payment.coverageStartDate || payment.coverageEndDate) {
-    if (validDate(payment.coverageStartDate) && !validDate(payment.coverageEndDate)) return monthOf(payment.coverageStartDate);
-    if (!validDate(payment.coverageStartDate) && validDate(payment.coverageEndDate)) return monthOf(payment.coverageEndDate);
+  if (validDate(payment.coverageStartDate)) {
+    const startMonth = monthOf(payment.coverageStartDate);
+    if (validDate(payment.coverageEndDate) && startMonth !== monthOf(payment.coverageEndDate)) {
+      const start = new Date(`${payment.coverageStartDate}T12:00:00Z`).getTime();
+      const end = new Date(`${payment.coverageEndDate}T12:00:00Z`).getTime();
+      const spansMultipleCompleteMonths = payment.coverageStartDate.endsWith("-01") && payment.coverageEndDate.endsWith(`-${String(daysInMonth(monthOf(payment.coverageEndDate) || "")).padStart(2, "0")}`) && end - start >= 45 * 86400000;
+      return spansMultipleCompleteMonths ? null : startMonth;
+    }
+    return startMonth;
+  }
+  if (payment.coverageEndDate) {
+    if (validDate(payment.coverageEndDate)) return monthOf(payment.coverageEndDate);
     return null;
   }
   return monthOf(payment.paymentDate) || monthOf(payment.rentMonth);
