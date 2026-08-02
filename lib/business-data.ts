@@ -81,6 +81,20 @@ export type BusinessRentPayment = {
   notes?: string;
 };
 
+export type BusinessViewingAppointment = {
+  id: string;
+  propertyId?: string;
+  roomId?: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  contactName?: string;
+  contactWhatsapp?: string;
+  contactPhone?: string;
+  status: string;
+  notes?: string;
+  createdAt?: string;
+};
+
 export type BusinessExpense = {
   id: string;
   propertyId: string;
@@ -126,6 +140,7 @@ export const rentPaymentKey = "business-rent-payments";
 export const expenseKey = "business-expenses";
 export const depositKey = "business-deposits";
 export const taskKey = "v1-tasks";
+export const viewingAppointmentKey = "business-viewing-appointments";
 
 const remoteIdKey = (key: string) => `supabase-ids:${key}`;
 const remoteSnapshotKey = (key: string) => `supabase-snapshot:${key}`;
@@ -270,6 +285,36 @@ const tableConfigs: Record<string, TableConfig> = {
       payment_status: normalizePaymentStatus(row.paymentStatus || (Number(row.amountPaid || 0) > 0 ? "已收" : "未收")),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_overdue: Boolean(row.isOverdue),
+      notes: row.notes || null
+    })
+  },
+  [viewingAppointmentKey]: {
+    table: "viewing_appointments",
+    order: "appointment_date",
+    fromDb: (row) => ({
+      id: row.id,
+      propertyId: row.property_id || "",
+      roomId: row.room_id || "",
+      appointmentDate: row.appointment_date || "",
+      appointmentTime: row.appointment_time || "",
+      contactName: row.contact_name || "",
+      contactWhatsapp: row.contact_whatsapp || "",
+      contactPhone: row.contact_phone || "",
+      status: row.status || "待看房",
+      notes: row.notes || "",
+      createdAt: row.created_at || ""
+    }),
+    toDb: (row, userId) => ({
+      id: row.id,
+      user_id: userId,
+      property_id: row.propertyId || null,
+      room_id: row.roomId || null,
+      appointment_date: row.appointmentDate,
+      appointment_time: row.appointmentTime,
+      contact_name: row.contactName || null,
+      contact_whatsapp: row.contactWhatsapp || null,
+      contact_phone: row.contactPhone || null,
+      status: row.status || "待看房",
       notes: row.notes || null
     })
   },

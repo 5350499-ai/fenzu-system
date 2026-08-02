@@ -9,6 +9,7 @@ const resources: Record<string, { table: string; module: string; propertyColumn:
   "business-tenants": { table: "tenants", module: "tenants", propertyColumn: "property_id" },
   "business-contracts": { table: "contracts", module: "tenants", propertyColumn: "property_id" },
   "business-rent-payments": { table: "rent_payments", module: "rent_payments", propertyColumn: "property_id" },
+  "business-viewing-appointments": { table: "viewing_appointments", module: "properties", propertyColumn: "property_id" },
   "business-expenses": { table: "expenses", module: "expenses", propertyColumn: "property_id" },
   "business-deposits": { table: "deposits", module: "deposits", propertyColumn: "property_id" },
   "v1-tasks": { table: "tasks", module: "tasks", propertyColumn: "property_id" }
@@ -31,6 +32,7 @@ function existingLookupColumns(table: string) {
     tenants: "id,status,property_id",
     contracts: "id,status,notes,property_id",
     rent_payments: "id,notes,property_id",
+    viewing_appointments: "id,notes,property_id",
     expenses: "id,notes,property_id",
     deposits: "id,status,notes,property_id",
     tasks: "id,status,notes,property_id"

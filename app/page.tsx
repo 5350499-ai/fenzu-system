@@ -12,6 +12,7 @@ import {
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
+  BusinessViewingAppointment,
   contractKey,
   depositKey,
   expenseKey,
@@ -26,13 +27,15 @@ import {
   propertyKey,
   rentPaymentKey,
   roomKey,
-  tenantKey
+  tenantKey,
+  viewingAppointmentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { localToday } from "@/lib/actual-move-out-date";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
-import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
+import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -56,6 +59,7 @@ export default function DashboardPage() {
   const [rentPayments, setRentPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [viewingAppointments, setViewingAppointments] = useState<BusinessViewingAppointment[]>([]);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
   const [dataError, setDataError] = useState("");
@@ -74,6 +78,7 @@ export default function DashboardPage() {
       const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
       const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
       const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
+      const loadedViewingAppointments = access.can("properties") ? await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : [];
       if (!active) return;
       setProperties(loadedProperties);
       setRooms(loadedRooms);
@@ -82,6 +87,7 @@ export default function DashboardPage() {
       setRentPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
+      setViewingAppointments(loadedViewingAppointments);
       setDataStatus("ready");
     }
     load().catch((error) => {
@@ -108,6 +114,11 @@ export default function DashboardPage() {
     () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits }),
     [contracts, deposits, rentPayments, rooms, tenants]
   );
+  const today = localToday();
+  const upcomingAppointments = useMemo(() => [...viewingAppointments]
+    .filter((item) => item.status !== "已取消" && item.appointmentDate >= today)
+    .sort((a, b) => `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`))
+    .slice(0, 5), [viewingAppointments]);
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
@@ -171,6 +182,14 @@ export default function DashboardPage() {
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
           </div>
         ) : null}
+      </section>
+      <section className="card panel viewing-summary">
+        <div className="panel-header"><div><h2 className="panel-title">看房预约</h2><p className="muted">今天、明天及未来几天</p></div><CalendarCheck size={20} className="info-text" /></div>
+        {upcomingAppointments.length ? <div className="viewing-summary-list">{upcomingAppointments.map((item) => {
+          const room = rooms.find((current) => current.id === item.roomId);
+          return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}><span><strong>{item.appointmentDate} {item.appointmentTime}</strong><small>{room?.roomNumber || room?.name || "未选房间"}</small></span><span><strong>{item.contactName || item.contactWhatsapp || item.contactPhone || "未填写联系人"}</strong><small>{item.status}</small></span></Link>;
+        })}</div> : <p className="muted">暂无看房预约</p>}
+        <div className="viewing-summary-actions"><Link className="btn" href="/viewing-appointments">查看全部</Link><Link className="btn primary" href="/viewing-appointments?new=1">新增预约</Link></div>
       </section>
         </>
       )}

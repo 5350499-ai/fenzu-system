@@ -46,6 +46,7 @@ export const navGroups = [
     items: [
       { href: "/reminders", label: "提醒中心", icon: Bell, module: "reminders" },
       { href: "/property-profits", label: "利润分析", icon: BarChart3, module: "profits" },
+      { href: "/viewing-appointments", label: "看房预约", icon: CalendarCheck, module: "properties" },
       { href: "/analytics", label: "统计分析", icon: LineChart, module: "analytics" },
       { href: "/archive", label: "档案中心", icon: FileArchive, module: "archive" },
       { href: "/tasks", label: "待办管理", icon: ClipboardList, module: "tasks" }
@@ -252,6 +253,7 @@ function moduleForPath(pathname: string): AccountModuleKey | null {
   if (pathname === "/") return "home";
   if (pathname.startsWith("/check-in")) return "check_in";
   if (pathname.startsWith("/properties")) return "properties";
+  if (pathname.startsWith("/viewing-appointments")) return "properties";
   if (pathname.startsWith("/rooms")) return "rooms";
   if (pathname.startsWith("/tenants") || pathname.startsWith("/contracts")) return "tenants";
   if (pathname.startsWith("/rent-payments")) return "rent_payments";
