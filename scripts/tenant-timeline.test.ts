@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data";
-import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantMonthRange, buildTenantTimeline, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel, groupTimelineEventsByDate } from "../lib/tenant-timeline";
+import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantMonthRange, buildTenantTimeline, calculateMonthlyPaymentStatusDays, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel, groupTimelineEventsByDate } from "../lib/tenant-timeline";
 
 const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, paymentDay: 20, status: "在租" };
 const payment = (overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({ id: "p1", propertyId: "p1", roomId: "r1", tenantId: "t1", incomeType: "房租收入", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 300, amountPaid: 300, amountUnpaid: 0, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", paymentStatus: "已收", paymentMethod: "转账", isOverdue: false, ...overrides });
@@ -54,5 +54,8 @@ assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18" }, 
 assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18", actualMoveOutDate: "2026-09-03" }, [], [], "2026-12-05"), ["2026-07", "2026-08", "2026-09"]);
 assert.equal(buildCalendarYearMonths(2026).length, 12);
 assert.deepEqual(buildCalendarYearMonths(2026).slice(0, 3), ["2026-01", "2026-02", "2026-03"]);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-08-26", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01"), 5);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01"), 0);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-09-03", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-04"), -3);
 
 console.log("tenant timeline tests passed");

@@ -3,19 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BusinessRentPayment, BusinessTenant } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, type TenantPaymentPerformance, type TenantTimelineEvent } from "@/lib/tenant-timeline";
+import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, calculateMonthlyPaymentStatusDays, type TenantPaymentPerformance, type TenantTimelineEvent } from "@/lib/tenant-timeline";
 
 type Props = { tenant: BusinessTenant; payments: BusinessRentPayment[]; events: TenantTimelineEvent[]; performance: TenantPaymentPerformance; today: string };
 const SVG_WIDTH = 336;
 const COL = 28;
+const BAR_WIDTH = 7;
 const AXIS_Y = 105;
 const PLOT_HEIGHT = 55;
-
-function daysBetween(later: string, earlier: string) {
-  const left = new Date(`${later}T12:00:00Z`).getTime();
-  const right = new Date(`${earlier}T12:00:00Z`).getTime();
-  return Number.isFinite(left) && Number.isFinite(right) ? Math.round((left - right) / 86400000) : null;
-}
 
 export function TenantMonthlyPaymentPanel({ tenant, payments, events, performance, today }: Props) {
   const years = useMemo(() => [...new Set([today, tenant.moveInDate, tenant.actualMoveOutDate, ...payments.map((payment) => payment.paymentDate || payment.rentMonth), ...events.map((event) => event.date)].filter(Boolean).map((value) => Number(String(value).slice(0, 4))).filter(Number.isFinite))].sort((a, b) => a - b), [tenant, payments, events, today]);
@@ -39,13 +34,7 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
     if ((start && month < start) || (end && month > end)) return "out-of-range";
     return statusByMonth.get(month)?.status || (month > today.slice(0, 7) ? "future" : "untracked");
   };
-  const statusValue = (month: string) => {
-    const point = statusByMonth.get(month);
-    const payment = [...(point?.payments || [])].sort((a, b) => (a.paymentDate || "").localeCompare(b.paymentDate || "")).at(-1);
-    if (!payment?.paymentDate) return null;
-    const monthEnd = new Date(Number(month.slice(0, 4)), Number(month.slice(5)) , 0);
-    return daysBetween(monthEnd.toISOString().slice(0, 10), payment.paymentDate);
-  };
+  const statusValue = (month: string) => calculateMonthlyPaymentStatusDays(month, statusByMonth.get(month)?.payments || [], today);
   return <section className="tenant-monthly-payment-panel">
     <div className="tenant-year-switcher"><button type="button" disabled={yearIndex <= 0} onClick={() => setSelectedYear(years[Math.max(0, yearIndex - 1)])}>‹</button>{years.map((year) => <button type="button" key={year} className={selectedYear === year ? "selected" : ""} onClick={() => setSelectedYear(year)}>{year}年</button>)}<button type="button" disabled={yearIndex < 0 || yearIndex >= years.length - 1} onClick={() => setSelectedYear(years[Math.min(years.length - 1, yearIndex + 1)])}>›</button></div>
     <div className="detail-section-title">付款表现</div>
@@ -57,15 +46,17 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
         const value = statusValue(month);
         const status = pointStatus(month);
         const statusMagnitude = value == null || value === 0 ? 0 : Math.min(22, Math.max(4, Math.abs(value) * 3));
-        const x = index * COL + 7;
+        const monthCenter = index * COL + COL / 2;
+        const amountX = monthCenter - BAR_WIDTH;
+        const statusX = monthCenter;
         const selected = selectedMonth === month;
         const statusColor = value == null ? "#8b95a5" : value > 0 ? "#1f9d72" : value < -5 ? "#dc2626" : "#d39a00";
         return <g key={month} className={`tenant-svg-month ${selected ? "selected" : ""}`} role="button" tabIndex={0} onClick={() => setSelectedMonth(month)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedMonth(month); }} aria-label={`${selectedYear}年${index + 1}月，房租${euro(amount)}${value == null ? "，未统计" : `，${value > 0 ? "+" : ""}${value}天`}`}>
-          <rect x={x + 3} y={AXIS_Y - amountHeight} width="8" height={amountHeight} rx="2" fill={selected ? "var(--accent)" : "var(--blue)"} opacity={amount ? ".9" : ".35"} />
-          {value === 0 ? <circle cx={x + 7} cy={AXIS_Y} r="3" fill="#1f9d72" /> : statusMagnitude ? <rect x={x + 5} y={(value || 0) > 0 ? AXIS_Y - statusMagnitude : AXIS_Y} width="4" height={statusMagnitude} rx="2" fill={statusColor} /> : <rect x={x + 5} y={AXIS_Y - 2} width="4" height="2" fill="#8b95a5" />}
-          <text x={x + 7} y={Math.max(12, AXIS_Y - amountHeight - 4)} textAnchor="middle" className="tenant-svg-amount-label">{euro(amount)}</text>
-          {value != null && value !== 0 ? <text x={x + 7} y={value > 0 ? AXIS_Y - statusMagnitude - 4 : AXIS_Y + statusMagnitude + 12} textAnchor="middle" className="tenant-svg-status-value">{value > 0 ? `+${value}` : value}</text> : null}
-          <text x={x + 7} y="142" textAnchor="middle" className="tenant-svg-month-label">{index + 1}</text>
+          <rect x={amountX} y={AXIS_Y - amountHeight} width={BAR_WIDTH} height={amountHeight} fill="var(--blue)" opacity={amount ? ".9" : ".35"} />
+          {value === 0 ? <circle cx={statusX + BAR_WIDTH / 2} cy={AXIS_Y} r="3" fill="#1f9d72" /> : statusMagnitude ? <rect x={statusX} y={(value || 0) > 0 ? AXIS_Y - statusMagnitude : AXIS_Y} width={BAR_WIDTH} height={statusMagnitude} fill={statusColor} /> : <rect x={statusX} y={AXIS_Y - 2} width={BAR_WIDTH} height="2" fill="#8b95a5" />}
+          <text x={amountX + BAR_WIDTH / 2} y={Math.max(12, AXIS_Y - amountHeight - 4)} textAnchor="middle" className="tenant-svg-amount-label">{euro(amount)}</text>
+          {value != null && value !== 0 ? <text x={statusX + BAR_WIDTH / 2} y={value > 0 ? AXIS_Y - statusMagnitude - 4 : AXIS_Y + statusMagnitude + 12} textAnchor="middle" className="tenant-svg-status-value">{value > 0 ? `+${value}` : value}</text> : null}
+          <text x={monthCenter} y="142" textAnchor="middle" className="tenant-svg-month-label">{index + 1}</text>
         </g>;
       })}
     </svg></div>
