@@ -43,6 +43,7 @@ import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { buildRentPaymentEditPayload, idSuffix, validateRentPaymentDates } from "@/lib/rent-payment-edit";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
@@ -385,6 +386,33 @@ export default function TenantsPage() {
     }
     try {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
+      if (form.id && paymentForm.id) {
+        if (!previousTenant) throw new Error("租客不存在，请刷新后重试。");
+        setSaving(true);
+        const dateError = validateRentPaymentDates(paymentForm);
+        if (dateError) throw new Error(dateError);
+        const originalPayment = payments.find((payment) => payment.id === paymentForm.id);
+        if (!originalPayment) throw new Error("收款记录不存在或已被删除，请刷新后重试。");
+        const draftPayment = buildTenantPayment(previousTenant, { ...paymentForm, receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode }, previousTenant.depositAmount);
+        const nextPayment = buildRentPaymentEditPayload(originalPayment, draftPayment);
+        nextPayment.isOverdue = isCoverageExpired(nextPayment);
+        const nextPayments = payments.map((payment) => payment.id === originalPayment.id ? nextPayment : payment);
+        const savedIds = await saveBusinessData(rentPaymentKey, nextPayments);
+        if (!savedIds.includes(originalPayment.id)) throw new Error("收款记录未更新，请刷新后重试。");
+        const refreshedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, nextPayments);
+        const refreshedPayment = refreshedPayments.find((payment) => payment.id === originalPayment.id);
+        if (!refreshedPayment) throw new Error("收款记录保存后无法重新读取，请刷新后重试。");
+        console.info("[tenant-payment-edit]", {
+          paymentId: idSuffix(originalPayment.id),
+          before: { coverageStartDate: originalPayment.coverageStartDate || "", coverageEndDate: originalPayment.coverageEndDate || "" },
+          submitted: { coverageStartDate: nextPayment.coverageStartDate || "", coverageEndDate: nextPayment.coverageEndDate || "" },
+          after: { coverageStartDate: refreshedPayment.coverageStartDate || "", coverageEndDate: refreshedPayment.coverageEndDate || "" },
+          sameId: refreshedPayment.id === originalPayment.id
+        });
+        setPayments(refreshedPayments);
+        close();
+        return;
+      }
       if (form.id) {
         if (!previousTenant) throw new Error("租客不存在，请刷新后重试。");
         setSaving(true);

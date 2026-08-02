@@ -40,6 +40,7 @@ import {
   uploadRentPaymentFile
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
+import { buildRentPaymentEditPayload, idSuffix, validateRentPaymentDates } from "@/lib/rent-payment-edit";
 import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -421,7 +422,7 @@ export default function RentPaymentsPage() {
     const amountUnpaid = isRent && form.paymentStatus === "未收" ? amountDue : 0;
     const paymentDate = form.paymentDate || todayString();
     const rentMonth = paymentDate.slice(0, 7);
-    const nextPayment = {
+    const nextPaymentDraft = {
       ...form,
       id: paymentId,
       createdAt: form.createdAt || (form.id ? undefined : new Date().toISOString()),
@@ -439,22 +440,53 @@ export default function RentPaymentsPage() {
       paymentStatus: isRent ? form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
       isOverdue: false
     };
+    if (isRent) {
+      const dateError = validateRentPaymentDates(nextPaymentDraft);
+      if (dateError) {
+        setSaving(false);
+        window.alert(dateError);
+        return;
+      }
+    }
+    const originalPayment = form.id ? payments.find((payment) => payment.id === form.id) : undefined;
+    const nextPayment = originalPayment
+      ? buildRentPaymentEditPayload(originalPayment, nextPaymentDraft)
+      : nextPaymentDraft;
     nextPayment.isOverdue = isCoverageExpired(nextPayment);
     const next = form.id
       ? payments.map((payment) => (payment.id === form.id ? nextPayment : payment))
       : [nextPayment, ...payments];
     const requestedMonthlyRent = Number(monthlyRentStandard || form.amountDue || 0);
     const currentTenant = tenants.find((tenant) => tenant.id === tenantId);
-    const nextTenants = isRent && currentTenant && currentTenant.monthlyRent !== requestedMonthlyRent
+    const nextTenants = !form.id && isRent && currentTenant && currentTenant.monthlyRent !== requestedMonthlyRent
       ? tenants.map((tenant) => tenant.id === tenantId ? { ...tenant, monthlyRent: requestedMonthlyRent } : tenant)
       : null;
     try {
-      await saveBusinessData(rentPaymentKey, next);
+      const savedIds = await saveBusinessData(rentPaymentKey, next);
+      if (form.id && !savedIds.includes(form.id)) {
+        throw new Error("收款记录未更新，请刷新后重试。");
+      }
+      const refreshedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, next);
+      const refreshedPayment = form.id ? refreshedPayments.find((payment) => payment.id === form.id) : undefined;
+      if (form.id && !refreshedPayment) {
+        throw new Error("收款记录保存后无法重新读取，请刷新后重试。");
+      }
+      if (form.id) {
+        console.info("[rent-payment-edit]", {
+          paymentId: idSuffix(form.id),
+          before: { coverageStartDate: originalPayment?.coverageStartDate || "", coverageEndDate: originalPayment?.coverageEndDate || "" },
+          submitted: { coverageStartDate: nextPayment.coverageStartDate || "", coverageEndDate: nextPayment.coverageEndDate || "" },
+          after: { coverageStartDate: refreshedPayment?.coverageStartDate || "", coverageEndDate: refreshedPayment?.coverageEndDate || "" },
+          sameId: refreshedPayment?.id === form.id,
+          dateShifted: refreshedPayment?.coverageStartDate !== nextPayment.coverageStartDate || refreshedPayment?.coverageEndDate !== nextPayment.coverageEndDate
+        });
+      }
       if (nextTenants) {
         await saveBusinessData(tenantKey, nextTenants);
         setTenants(nextTenants);
       }
-      setPayments(next);
+      setPayments(refreshedPayments);
+      window.alert(form.id ? "收款记录已保存。" : "收款记录已登记。" );
       close();
     } catch (error: any) {
       window.alert(error.message || "保存收租记录失败，请稍后重试。");
@@ -630,7 +662,7 @@ export default function RentPaymentsPage() {
               {isRentPayment(form) ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
               <div className="field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>
-              {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
+              {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {

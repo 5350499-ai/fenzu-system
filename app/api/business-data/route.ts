@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
       const { data, error } = await client.from(resource.table).update(row).eq("id", id).select("id");
       if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
+      if (!data || data.length !== 1) throw new AccountApiError(resource.table === "rent_payments" ? "收款记录未更新，请刷新后重试。" : "记录未更新，请刷新后重试。", 409);
       savedRows.push(...((data || []) as Array<{ id: string }>));
     }
 
