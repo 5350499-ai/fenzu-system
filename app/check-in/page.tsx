@@ -221,7 +221,7 @@ export default function CheckInPage() {
 
       let attachmentFailed = false;
       try {
-        if (attachment) await uploadContractFile(contractId, attachment);
+        if (attachment) await uploadContractFile(tenantId, contractId, attachment);
         if (paymentAttachment) await uploadRentPaymentFile(paymentId, paymentAttachment);
       } catch {
         attachmentFailed = true;

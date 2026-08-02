@@ -4,7 +4,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
 
 export const attachmentStorageConfigs = {
-  "contract-files": { table: "contract_files", parentTable: "contracts", ownerColumn: "contract_id" },
+  "contract-files": { table: "contract_files", parentTable: "contracts", ownerColumn: "contract_id", tenantColumn: "tenant_id" },
   "rent-payment-files": { table: "rent_payment_files", parentTable: "rent_payments", ownerColumn: "rent_payment_id" },
   "expense-files": { table: "expense_files", parentTable: "expenses", ownerColumn: "expense_id" }
 } as const;
@@ -17,6 +17,8 @@ type UploadTicketPayload = {
   workspaceOwnerId: string;
   bucket: AttachmentStorageBucket;
   ownerId: string;
+  tenantId?: string;
+  contractId?: string | null;
   path: string;
   fileName: string;
   fileType: string;
@@ -37,7 +39,10 @@ function sign(encodedPayload: string) {
 export function createAttachmentUploadTicket(input: Omit<UploadTicketPayload, "version" | "expiresAt" | "uploadId" | "path"> & { path?: string }) {
   const uploadId = randomUUID();
   const extension = extensionForMimeType(input.fileType);
-  const path = input.path || `${input.workspaceOwnerId}/attachments/${input.bucket}/${input.ownerId}/${uploadId}.${extension}`;
+  const scope = input.bucket === "contract-files"
+    ? `${input.tenantId || input.ownerId}/${input.contractId || "tenant"}`
+    : input.ownerId;
+  const path = input.path || `${input.workspaceOwnerId}/attachments/${input.bucket}/${scope}/${uploadId}.${extension}`;
   const payload: UploadTicketPayload = {
     version: 1,
     expiresAt: Date.now() + 10 * 60 * 1000,

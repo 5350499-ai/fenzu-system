@@ -135,23 +135,24 @@ export default function TenantsPage() {
   const [createDepositAmount, setCreateDepositAmount] = useState(0);
   const [createDepositStatus, setCreateDepositStatus] = useState<"待退" | "已退">("待退");
 
-  const refreshContractFiles = useCallback(async (contractIds: string[]) => {
+  const refreshContractFiles = useCallback(async (contractIds: string[], tenantIds: string[] = []) => {
     const ids = [...new Set(contractIds.filter(Boolean))];
+    const tenantsToLoad = [...new Set(tenantIds.filter(Boolean))];
     const requestId = ++contractFilesRequestRef.current;
     setContractFilesLoadState("loading");
     setContractFilesLoadError("");
 
-    if (!ids.length) {
+    if (!ids.length && !tenantsToLoad.length) {
       setContractFilesLoadState("success");
       return;
     }
 
     try {
-      const refreshedFiles = await loadContractFiles(ids);
+      const refreshedFiles = await loadContractFiles(ids, tenantsToLoad);
       if (requestId !== contractFilesRequestRef.current) return;
       setContractFiles((current) => [
         ...refreshedFiles,
-        ...current.filter((file) => !ids.includes(file.contractId))
+        ...current.filter((file) => !ids.includes(file.contractId || "") && !tenantsToLoad.includes(file.tenantId || ""))
       ]);
       setContractFilesLoadState("success");
     } catch (error: any) {
@@ -183,7 +184,7 @@ export default function TenantsPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
-      await refreshContractFiles(loadedContracts.map((contract) => contract.id));
+      await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDetailTenantId(requestedTenantId);
@@ -195,7 +196,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     if (!loaded || !detailTenantId) return;
-    void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id));
+    void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id), [detailTenantId]);
   }, [contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
@@ -221,7 +222,12 @@ export default function TenantsPage() {
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
-    map[file.contractId] = [...(map[file.contractId] || []), file];
+    const key = file.contractId || "";
+    map[key] = [...(map[key] || []), file];
+  return map;
+  }, {}), [contractFiles]);
+  const filesByTenant = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
+    if (file.tenantId) map[file.tenantId] = [...(map[file.tenantId] || []), file];
     return map;
   }, {}), [contractFiles]);
 
@@ -243,11 +249,11 @@ export default function TenantsPage() {
     return propertyVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
-      const fileNames = getTenantFiles(tenant.id, contracts, filesByContract).map((file) => file.fileName).join(" ");
+      const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
       const displayStatus = tenantDisplayStatus(tenant, payments);
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
+  }, [contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
 
 
   const sortedTenants = useMemo(() => {
@@ -614,7 +620,7 @@ export default function TenantsPage() {
       const tenantContractIds = tenantContracts.map((contract) => contract.id);
       const tenantPayments = payments.filter((payment) => payment.tenantId === tenant.id);
       const tenantPaymentIds = tenantPayments.map((payment) => payment.id);
-      const contractFilesToDelete = contractFiles.filter((file) => tenantContractIds.includes(file.contractId));
+      const contractFilesToDelete = contractFiles.filter((file) => file.tenantId === tenant.id || tenantContractIds.includes(file.contractId || ""));
       let paymentFilesToDelete: Awaited<ReturnType<typeof loadRentPaymentFiles>> = [];
       try {
         paymentFilesToDelete = await loadRentPaymentFiles(tenantPaymentIds);
@@ -643,7 +649,7 @@ export default function TenantsPage() {
       setPayments(nextPayments);
       setDeposits(nextDeposits);
       setRooms(nextRooms);
-      setContractFiles((current) => current.filter((file) => !tenantContractIds.includes(file.contractId)));
+      setContractFiles((current) => current.filter((file) => file.tenantId !== tenant.id && !tenantContractIds.includes(file.contractId || "")));
       setDetailTenantId("");
     } catch (error: any) {
       window.alert(error.message || "永久删除租客失败，请稍后重试。");
@@ -652,18 +658,15 @@ export default function TenantsPage() {
     }
   }
 
-  async function addTenantContractFile(tenant: BusinessTenant, file: File) {
+  async function addTenantFile(tenant: BusinessTenant, file: File) {
     const contract = latestContractForTenant(tenant.id, contracts);
-    if (!contract) {
-      throw new Error("该租客还没有合同记录，请先保存租客和合同后再上传合同附件。");
-    }
     setSaving(true);
     try {
-      const uploaded = await uploadContractFile(contract.id, file);
+      const uploaded = await uploadContractFile(tenant.id, contract?.id || null, file);
       setContractFiles((current) => [uploaded, ...current]);
-      await refreshContractFiles([contract.id]);
+      await refreshContractFiles(contract ? [contract.id] : [], [tenant.id]);
     } catch (error: any) {
-      throw new Error(error.message || "添加合同附件失败，请稍后重试。");
+      throw new Error(error.message || "添加租客附件失败，请稍后重试。");
     } finally {
       setSaving(false);
     }
@@ -761,7 +764,7 @@ export default function TenantsPage() {
             const previousRetired = index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
-            const files = getTenantFiles(tenant.id, contracts, filesByContract);
+            const files = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant);
             const contract = latestContractForTenant(tenant.id, contracts);
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
@@ -808,7 +811,7 @@ export default function TenantsPage() {
                     files={files}
                     attachmentLoadState={contractFilesLoadState}
                     attachmentLoadError={contractFilesLoadError}
-                    onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id))}
+                    onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id), [tenant.id])}
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
@@ -827,7 +830,7 @@ export default function TenantsPage() {
                     onEditMoveOutDate={() => openMoveOutDateDialog(tenant)}
                     onEditDepositStatus={() => openDepositStatusDialog(tenant)}
                     onCreateDeposit={() => openCreateDepositDialog(tenant)}
-                    onAddFile={(file) => addTenantContractFile(tenant, file)}
+                    onAddFile={(file) => addTenantFile(tenant, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
@@ -1192,10 +1195,10 @@ function TenantDetail({
       </div>
 
       {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>
-        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`合同附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
-        <div className="detail-section-title">合同附件</div>
+        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`租客附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
+        <div className="detail-section-title">租客附件</div>
         <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canUploadFiles ? <AttachmentAddControl label="合同附件" disabled={saving} onAdd={onAddFile} /> : null}
+        {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={onAddFile} /> : null}
       </div> : null}
 
       <div className="top-actions detail-actions">
@@ -1259,7 +1262,7 @@ function PaymentDelayTrendChart({ points }: { points: PaymentDelayTrendPoint[] }
 
 function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {
   if (loadState !== "success" || !files.length) {
-    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无合同附件" hasFiles={files.length > 0} />;
+    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无租客附件" hasFiles={files.length > 0} />;
   }
   return (
     <div className="attachment-list compact-attachment-list">
@@ -1376,11 +1379,13 @@ function latestContractForTenant(tenantId: string, contracts: BusinessContract[]
     .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))[0] || null;
 }
 
-function getTenantFiles(tenantId: string, contracts: BusinessContract[], filesByContract: Record<string, ContractFile[]>) {
+function getTenantFiles(tenantId: string, contracts: BusinessContract[], filesByContract: Record<string, ContractFile[]>, filesByTenant: Record<string, ContractFile[]>) {
   if (!tenantId) return [];
-  return contracts
+  const tenantFiles = filesByTenant[tenantId] || [];
+  const contractFiles = contracts
     .filter((contract) => contract.tenantId === tenantId)
     .flatMap((contract) => filesByContract[contract.id] || []);
+  return [...new Map([...tenantFiles, ...contractFiles].map((file) => [file.id, file])).values()];
 }
 
 function tenantTone(status: string) {
