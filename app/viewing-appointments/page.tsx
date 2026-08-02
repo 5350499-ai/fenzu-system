@@ -151,7 +151,7 @@ export default function ViewingAppointmentsPage() {
 
   return (
     <AppLayout title="看房预约" description="记录和管理潜在租客的看房时间。">
-      <section className="card panel">
+      <section className="card panel appointment-page-panel">
         <div className="toolbar">
           <div><h2 className="panel-title">看房预约</h2><p className="muted">按预约时间升序排列，V1不自动发送提醒。</p></div>
           <button className="btn primary" type="button" onClick={() => openForm()}><Plus size={17} /> 新增预约</button>
