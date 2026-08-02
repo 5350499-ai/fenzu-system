@@ -127,10 +127,10 @@ function receivedRentAmount(payment: BusinessRentPayment) {
   return due > 0 ? Math.min(due, paid) : 0;
 }
 
-export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string, tenant?: BusinessTenant): number | null {
+export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string, monthlyRent = 0): number | null {
   const complete = payments.filter((payment) => isRentIncome(payment) && getRentAttributionMonth(payment) === month && isCompleteNaturalMonthCoverage(payment));
   if (!complete.length) return null;
-  const expected = Number(tenant?.monthlyRent || 0) > 0 ? Number(tenant?.monthlyRent) : complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
+  const expected = Number(monthlyRent || 0) > 0 ? Number(monthlyRent) : complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
   const ordered = [...complete].filter((payment) => validDate(payment.paymentDate)).sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || ""));
   let paid = 0;
   let completionDate: string | null = null;
@@ -143,11 +143,9 @@ export function calculateMonthlyPaymentStatusDays(month: string, payments: Busin
   }
   const [year, monthNumber] = month.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
-  const monthStart = `${month}-01`;
-  const dueDate = tenant ? calculatePaymentDueDate(complete[0], tenant) || monthEnd : monthEnd;
+  const startDate = paymentCoverageStart(complete[0]);
+  const dueDate = validDate(startDate) ? previousCalendarDate(startDate) : monthEnd;
   if (paid < expected || expected <= 0 || !completionDate) return today > dueDate ? -dateDifference(today, dueDate) : null;
-  // A complete next-month rent paid before that month starts is normal prepayment, not +20/+30.
-  if (completionDate < monthStart) return 0;
   return dateDifference(dueDate, completionDate);
 }
 
@@ -195,6 +193,13 @@ function isPartialOrAmbiguous(payment: BusinessRentPayment) {
   return false;
 }
 
+function previousCalendarDate(value: string) {
+  const date = new Date(`${value}T12:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return value;
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function isCompletedRentPayment(payment: BusinessRentPayment) {
   const status = payment.paymentStatus || "";
   return isRentIncome(payment) && !status.includes("已作废") && !status.includes("已归档") && !payment.notes?.includes("[已作废]");
@@ -222,14 +227,14 @@ export function calculateTenantPaymentPerformance(tenant: BusinessTenant, paymen
   for (const [month, monthPayments] of byMonth) {
     const expected = Number(tenant.monthlyRent || 0) > 0 ? Number(tenant.monthlyRent) : monthPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
     const paid = monthPayments.reduce((sum, payment) => sum + receivedRentAmount(payment), 0);
-    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant);
+    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant.monthlyRent);
     if (paid < expected || statusDays == null) {
       excludedCount += 1;
       continue;
     }
     const payment = [...monthPayments].sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || "")).at(-1) || monthPayments[0];
     const delayDays = Math.max(0, -(statusDays || 0));
-    const dueDate = calculatePaymentDueDate(payment, tenant);
+    const dueDate = validDate(paymentCoverageStart(payment)) ? previousCalendarDate(paymentCoverageStart(payment)) : null;
     periods.push({ payment, delay: { included: true, dueDate: dueDate || undefined, paymentDate: payment.paymentDate, days: delayDays, level: delayDays >= 10 ? "red" : delayDays > 0 ? "yellow" : "on-time" } });
   }
   const latePeriods = periods.filter((period) => period.delay.days > 0);
@@ -356,7 +361,7 @@ export function buildMonthlyPaymentStatus(
       const end = paymentCoverageEnd(payment);
       return isCompleteNaturalMonthCoverage(payment) && end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
     });
-    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant);
+    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant.monthlyRent);
     let status: MonthlyPaymentStatus = "untracked";
     if (statusDays != null) {
       status = statusDays >= 0 ? "on-time" : Math.abs(statusDays) >= 6 ? "late-red" : "late-yellow";
