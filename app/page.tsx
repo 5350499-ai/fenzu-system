@@ -115,10 +115,11 @@ export default function DashboardPage() {
     [contracts, deposits, rentPayments, rooms, tenants]
   );
   const today = localToday();
-  const upcomingAppointments = useMemo(() => [...viewingAppointments]
-    .filter((item) => item.status !== "已取消" && item.appointmentDate >= today)
+  const pendingAppointments = useMemo(() => [...viewingAppointments]
+    .filter((item) => item.status === "待看房" && item.appointmentDate >= today)
     .sort((a, b) => `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`))
-    .slice(0, 5), [viewingAppointments]);
+    , [today, viewingAppointments]);
+  const upcomingAppointments = pendingAppointments.slice(0, 3);
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
@@ -189,6 +190,7 @@ export default function DashboardPage() {
           const room = rooms.find((current) => current.id === item.roomId);
           return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}><span><strong>{item.appointmentDate} {item.appointmentTime}</strong><small>{room?.roomNumber || room?.name || "未选房间"}</small></span><span><strong>{item.contactName || item.contactWhatsapp || item.contactPhone || "未填写联系人"}</strong><small>{item.status}</small></span></Link>;
         })}</div> : <p className="muted">暂无看房预约</p>}
+        {pendingAppointments.length > 3 ? <p className="muted viewing-summary-more">还有{pendingAppointments.length - 3}条待看房</p> : null}
         <div className="viewing-summary-actions"><Link className="btn" href="/viewing-appointments">查看全部</Link><Link className="btn primary" href="/viewing-appointments?new=1">新增预约</Link></div>
       </section>
         </>
