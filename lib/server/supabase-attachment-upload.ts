@@ -49,6 +49,8 @@ export function createAttachmentUploadTicket(input: Omit<UploadTicketPayload, "v
     workspaceOwnerId: input.workspaceOwnerId,
     bucket: input.bucket,
     ownerId: input.ownerId,
+    tenantId: input.tenantId,
+    contractId: input.contractId ?? null,
     path,
     fileName: input.fileName,
     fileType: input.fileType,

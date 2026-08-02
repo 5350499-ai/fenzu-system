@@ -30,10 +30,11 @@ export async function POST(request: Request) {
     let contractId: string | null = isContractAttachment ? (body.contractId || null) : body.ownerId!;
     if (isContractAttachment) {
       const { data: tenant, error: tenantError } = await verifier.from("tenants").select("id").eq("id", body.tenantId!).maybeSingle();
-      if (tenantError || !tenant) throw new AccountApiError("没有权限向该租客上传附件。", 403);
+      if (tenantError) throw new AccountApiError("无权为该租客上传附件。", 403);
+      if (!tenant) throw new AccountApiError("租客记录不存在或已被删除。", 404);
       if (contractId) {
         const { data: contract, error: contractError } = await verifier.from("contracts").select("id,tenant_id").eq("id", contractId).maybeSingle();
-        if (contractError || !contract || contract.tenant_id !== body.tenantId) throw new AccountApiError("合同与租客不匹配，无法上传附件。", 403);
+        if (contractError || !contract || contract.tenant_id !== body.tenantId) throw new AccountApiError("合同与租客不匹配。", 403);
       }
     } else {
       const { data: owner, error } = await verifier.from(config.parentTable).select("id").eq("id", body.ownerId!).maybeSingle();

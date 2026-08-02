@@ -97,7 +97,11 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
     });
     if (uploadError) throw new Error("私有附件上传失败，请检查网络后重试。");
     notifyAttachmentUploadProgress({ state: "saving", loaded: file.size, total: file.size });
-    const completed = await postAttachmentApi("/api/files/supabase-storage/complete", session.access_token, { ticket: payload.ticket });
+    const completed = await postAttachmentApi("/api/files/supabase-storage/complete", session.access_token, {
+      ticket: payload.ticket,
+      tenantId: options.tenantId,
+      contractId: options.contractId ?? null
+    });
     const stored = fromDb(completed.file, config);
     notifyAttachmentUploadProgress({ state: "success", loaded: file.size, total: file.size });
     return stored;
