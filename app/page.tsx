@@ -12,6 +12,7 @@ import {
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
+  BusinessViewingAppointment,
   contractKey,
   depositKey,
   expenseKey,
@@ -26,13 +27,16 @@ import {
   propertyKey,
   rentPaymentKey,
   roomKey,
-  tenantKey
+  tenantKey,
+  viewingAppointmentKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { localToday } from "@/lib/actual-move-out-date";
+import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
-import { AlertTriangle, BedDouble, Building2, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
+import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -56,6 +60,7 @@ export default function DashboardPage() {
   const [rentPayments, setRentPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [viewingAppointments, setViewingAppointments] = useState<BusinessViewingAppointment[]>([]);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
   const [dataError, setDataError] = useState("");
@@ -74,6 +79,7 @@ export default function DashboardPage() {
       const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
       const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
       const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
+      const loadedViewingAppointments = access.can("properties") ? await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : [];
       if (!active) return;
       setProperties(loadedProperties);
       setRooms(loadedRooms);
@@ -82,6 +88,7 @@ export default function DashboardPage() {
       setRentPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
+      setViewingAppointments(loadedViewingAppointments);
       setDataStatus("ready");
     }
     load().catch((error) => {
@@ -108,6 +115,12 @@ export default function DashboardPage() {
     () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits }),
     [contracts, deposits, rentPayments, rooms, tenants]
   );
+  const today = localToday();
+  const pendingAppointments = useMemo(() => [...viewingAppointments]
+    .filter((item) => item.status === "待看房" && item.appointmentDate >= today)
+    .sort((a, b) => `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`))
+    , [today, viewingAppointments]);
+  const upcomingAppointments = pendingAppointments.slice(0, 3);
 
   return (
     <AppLayout title="分租管理仪表盘" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
@@ -171,6 +184,20 @@ export default function DashboardPage() {
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
           </div>
         ) : null}
+      </section>
+      <section className="card panel viewing-summary">
+        <div className="panel-header viewing-summary-header"><div className="viewing-summary-heading"><h2 className="panel-title">看房预约</h2><span className="viewing-summary-subtitle">今天、明天及未来几天</span></div><CalendarCheck size={20} className="info-text" /></div>
+        {upcomingAppointments.length ? <div className="viewing-summary-list">{upcomingAppointments.map((item) => {
+          const location = resolveAppointmentLocation(item, properties, rooms);
+          const contact = item.contactName || item.contactWhatsapp || item.contactPhone || "未填联系人";
+          if (location) return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}>
+            <div className="viewing-summary-main"><strong>{formatHomeAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span className="viewing-summary-contact">{contact}</span><small className="appointment-status status-pending"><i className="appointment-status-dot pending" aria-hidden="true" />待看房</small></div>
+            <div className="viewing-summary-location"><span className={`property-code property-tone-${location.tone}`}>{location.code || "未选房源"}</span><span> · {location.roomLabel}</span></div>
+            {item.notes ? <small className="viewing-summary-note">{item.notes}</small> : null}
+          </Link>;
+        })}</div> : <p className="muted">暂无看房预约</p>}
+        {pendingAppointments.length > 3 ? <p className="muted viewing-summary-more">还有{pendingAppointments.length - 3}条待看房</p> : null}
+        <div className="viewing-summary-actions"><Link className="btn" href="/viewing-appointments">查看全部</Link><Link className="btn primary" href="/viewing-appointments?new=1">新增预约</Link></div>
       </section>
         </>
       )}

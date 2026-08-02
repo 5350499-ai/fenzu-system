@@ -333,6 +333,22 @@ a {
   padding: 16px;
 }
 
+/* Homepage density: preserve touch targets while reducing visual chrome. */
+.metrics .metric-card {
+  min-height: 96px;
+  padding: 13px;
+}
+
+.metrics .metric-value {
+  margin-top: 7px;
+  font-size: clamp(26px, 3.4vw, 36px);
+}
+
+.metrics .metric-note {
+  margin-top: 5px;
+  font-size: 11px;
+}
+
 .metric-label {
   display: flex;
   justify-content: space-between;
@@ -461,6 +477,306 @@ a {
 .home-shortcuts {
   margin-top: 14px;
 }
+
+.viewing-summary {
+  margin-top: 14px;
+}
+
+.viewing-summary.panel {
+  padding: 16px 20px 14px;
+}
+
+.appointment-page-panel {
+  padding: 16px 20px 18px;
+}
+
+.appointment-page-panel .toolbar {
+  margin-bottom: 12px;
+}
+
+.viewing-summary .panel-header {
+  margin-bottom: 14px;
+}
+
+.viewing-summary-header {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.viewing-summary-heading {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.viewing-summary-heading .panel-title {
+  flex: 0 0 auto;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.viewing-summary-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewing-summary-list {
+  display: grid;
+  gap: 0;
+}
+
+.viewing-summary-row {
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.viewing-summary-row:last-child {
+  border-bottom: 0;
+}
+
+.viewing-summary-more {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.viewing-summary-main,
+.viewing-summary-location {
+  min-width: 0;
+}
+
+.viewing-summary-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.viewing-summary-main > *,
+.viewing-summary-location > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewing-summary-contact {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.viewing-summary-location {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.viewing-summary-note {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewing-summary-row .viewing-summary-note,
+.appointment-row .appointment-note {
+  color: var(--muted);
+}
+
+.viewing-summary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.appointment-list {
+  display: grid;
+  gap: 0;
+}
+
+.appointment-sections {
+  display: grid;
+  gap: 0;
+}
+
+.appointment-property-group {
+  margin-top: 5px;
+}
+
+.appointment-property-group h4 {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.appointment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 28px 22px;
+  align-items: center;
+  gap: 5px;
+  align-content: center;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+
+.appointment-main-line,
+.appointment-meta-line {
+  min-width: 0;
+}
+
+.appointment-main-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 600;
+}
+
+.appointment-main-line > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.appointment-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+
+.property-code {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--property-accent) 55%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--property-accent) 18%, var(--surface));
+  color: color-mix(in srgb, var(--property-accent) 78%, var(--text));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.property-tone-0 { --property-accent: #2878d4; }
+.property-tone-1 { --property-accent: #009688; }
+.property-tone-2 { --property-accent: #7954c7; }
+.property-tone-3 { --property-accent: #d46a1f; }
+.property-tone-4 { --property-accent: #c04476; }
+.property-tone-5 { --property-accent: #4057b6; }
+.property-tone-6 { --property-accent: #2f8f58; }
+.property-tone-7 { --property-accent: #148ca5; }
+.property-tone-8 { --property-accent: #9a6724; }
+.property-tone-9 { --property-accent: #64748b; }
+.property-tone-10 { --property-accent: #a13e9e; }
+.property-tone-11 { --property-accent: #719b22; }
+
+.appointment-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-actions {
+  display: flex;
+  width: 126px;
+  flex: 0 0 126px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.icon-button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.icon-button.danger { color: var(--red); }
+
+.appointment-status {
+  display: inline-flex;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  height: 28px;
+  flex: 0 0 80px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Management rows use one fixed badge geometry for every standard and custom status. */
+.appointment-row .appointment-status {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  height: 28px;
+  flex: 0 0 80px;
+}
+
+.status-pending { color: var(--amber-strong, #9a6700); background: color-mix(in srgb, #f5b942 22%, var(--surface)); }
+.status-viewed { color: var(--blue-strong, #245ea8); background: color-mix(in srgb, #4d91e8 20%, var(--surface)); }
+.status-rescheduled { color: var(--orange-strong, #a64b00); background: color-mix(in srgb, #f08a24 20%, var(--surface)); }
+.status-converted { color: var(--green-strong, #197447); background: color-mix(in srgb, #39a96b 20%, var(--surface)); }
+.status-cancelled { color: var(--red); background: color-mix(in srgb, #e05252 18%, var(--surface)); }
+.status-custom { color: var(--muted); background: var(--surface-soft); }
+
+.custom-status-input { margin-top: 8px; }
 
 .compact-icon-grid {
   gap: 8px;
@@ -1495,6 +1811,52 @@ a {
 
   .operations-flow-column {
     grid-template-rows: 58px 1px 58px auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .viewing-summary-row {
+    gap: 2px;
+    font-size: 15px;
+  }
+
+  .viewing-summary-main {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .viewing-summary-location { font-size: 14px; }
+
+  .viewing-summary-heading { gap: 8px; }
+  .viewing-summary-heading .panel-title { font-size: 18px; }
+  .viewing-summary-subtitle { font-size: 13px; }
+
+  .appointment-main-line {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 5px;
+    font-size: 15px;
+  }
+
+  .appointment-actions {
+    width: 122px;
+    flex-basis: 122px;
+    gap: 4px;
+  }
+
+  .appointment-row .appointment-status {
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    height: 28px;
+    flex: 0 0 76px;
+  }
+
+  .appointment-status {
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    height: 28px;
+    flex: 0 0 76px;
   }
 }
 
@@ -3751,8 +4113,8 @@ td:last-child {
   }
 
   .metric-card {
-    min-height: 108px;
-    padding: 14px;
+    min-height: 92px;
+    padding: 12px;
   }
 
   .metric-card.hero {
@@ -3760,7 +4122,7 @@ td:last-child {
   }
 
   .metric-value {
-    font-size: 32px;
+    font-size: 28px;
   }
 
   .quick-actions {
