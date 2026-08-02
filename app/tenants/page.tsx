@@ -46,9 +46,11 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
-import { sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
+import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const tenantStatuses = ["在租", "空置"];
 type TenantSortKey = TenantSortMode;
@@ -116,6 +118,7 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
+  const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
@@ -132,23 +135,24 @@ export default function TenantsPage() {
   const [createDepositAmount, setCreateDepositAmount] = useState(0);
   const [createDepositStatus, setCreateDepositStatus] = useState<"待退" | "已退">("待退");
 
-  const refreshContractFiles = useCallback(async (contractIds: string[]) => {
+  const refreshContractFiles = useCallback(async (contractIds: string[], tenantIds: string[] = []) => {
     const ids = [...new Set(contractIds.filter(Boolean))];
+    const tenantsToLoad = [...new Set(tenantIds.filter(Boolean))];
     const requestId = ++contractFilesRequestRef.current;
     setContractFilesLoadState("loading");
     setContractFilesLoadError("");
 
-    if (!ids.length) {
+    if (!ids.length && !tenantsToLoad.length) {
       setContractFilesLoadState("success");
       return;
     }
 
     try {
-      const refreshedFiles = await loadContractFiles(ids);
+      const refreshedFiles = await loadContractFiles(ids, tenantsToLoad);
       if (requestId !== contractFilesRequestRef.current) return;
       setContractFiles((current) => [
         ...refreshedFiles,
-        ...current.filter((file) => !ids.includes(file.contractId))
+        ...current.filter((file) => !ids.includes(file.contractId || "") && !tenantsToLoad.includes(file.tenantId || ""))
       ]);
       setContractFilesLoadState("success");
     } catch (error: any) {
@@ -180,7 +184,7 @@ export default function TenantsPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
-      await refreshContractFiles(loadedContracts.map((contract) => contract.id));
+      await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDetailTenantId(requestedTenantId);
@@ -192,7 +196,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     if (!loaded || !detailTenantId) return;
-    void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id));
+    void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id), [detailTenantId]);
   }, [contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
@@ -212,9 +216,18 @@ export default function TenantsPage() {
     setPage(1);
   }, [propertyFilterId, query]);
 
+  useEffect(() => {
+    setRetiredExpanded(false);
+  }, [propertyFilterId, query, showArchived]);
+
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
-    map[file.contractId] = [...(map[file.contractId] || []), file];
+    const key = file.contractId || "";
+    map[key] = [...(map[key] || []), file];
+  return map;
+  }, {}), [contractFiles]);
+  const filesByTenant = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
+    if (file.tenantId) map[file.tenantId] = [...(map[file.tenantId] || []), file];
     return map;
   }, {}), [contractFiles]);
 
@@ -236,11 +249,11 @@ export default function TenantsPage() {
     return propertyVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
-      const fileNames = getTenantFiles(tenant.id, contracts, filesByContract).map((file) => file.fileName).join(" ");
+      const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
       const displayStatus = tenantDisplayStatus(tenant, payments);
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
+  }, [contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
 
 
   const sortedTenants = useMemo(() => {
@@ -254,6 +267,11 @@ export default function TenantsPage() {
   }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
   const visibleTenants = pageRows(sortedTenants, page, pageSize);
+  const explicitTenantFilter = Boolean(query.trim() || propertyFilterId);
+  const retiredVisible = visibleTenants.filter((tenant) => isEndedTenantStatus(tenant.status));
+  const currentVisible = visibleTenants.filter((tenant) => !isEndedTenantStatus(tenant.status));
+  const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
+  const showRetiredExpanded = retiredExpanded || (explicitTenantFilter && retiredVisible.length > 0 && currentVisible.length === 0);
 
   function selectPropertyFilter(property: BusinessProperty) {
     setPropertyFilterId(property.id);
@@ -602,7 +620,7 @@ export default function TenantsPage() {
       const tenantContractIds = tenantContracts.map((contract) => contract.id);
       const tenantPayments = payments.filter((payment) => payment.tenantId === tenant.id);
       const tenantPaymentIds = tenantPayments.map((payment) => payment.id);
-      const contractFilesToDelete = contractFiles.filter((file) => tenantContractIds.includes(file.contractId));
+      const contractFilesToDelete = contractFiles.filter((file) => file.tenantId === tenant.id || tenantContractIds.includes(file.contractId || ""));
       let paymentFilesToDelete: Awaited<ReturnType<typeof loadRentPaymentFiles>> = [];
       try {
         paymentFilesToDelete = await loadRentPaymentFiles(tenantPaymentIds);
@@ -631,7 +649,7 @@ export default function TenantsPage() {
       setPayments(nextPayments);
       setDeposits(nextDeposits);
       setRooms(nextRooms);
-      setContractFiles((current) => current.filter((file) => !tenantContractIds.includes(file.contractId)));
+      setContractFiles((current) => current.filter((file) => file.tenantId !== tenant.id && !tenantContractIds.includes(file.contractId || "")));
       setDetailTenantId("");
     } catch (error: any) {
       window.alert(error.message || "永久删除租客失败，请稍后重试。");
@@ -640,18 +658,14 @@ export default function TenantsPage() {
     }
   }
 
-  async function addTenantContractFile(tenant: BusinessTenant, file: File) {
-    const contract = latestContractForTenant(tenant.id, contracts);
-    if (!contract) {
-      throw new Error("该租客还没有合同记录，请先保存租客和合同后再上传合同附件。");
-    }
+  async function addTenantFile(uploadContext: { tenantId: string; contractId: string | null }, file: File) {
     setSaving(true);
     try {
-      const uploaded = await uploadContractFile(contract.id, file);
+      const uploaded = await uploadContractFile(uploadContext.tenantId, uploadContext.contractId, file);
       setContractFiles((current) => [uploaded, ...current]);
-      await refreshContractFiles([contract.id]);
+      await refreshContractFiles(uploadContext.contractId ? [uploadContext.contractId] : [], [uploadContext.tenantId]);
     } catch (error: any) {
-      throw new Error(error.message || "添加合同附件失败，请稍后重试。");
+      throw new Error(error.message || "添加租客附件失败，请稍后重试。");
     } finally {
       setSaving(false);
     }
@@ -744,10 +758,12 @@ export default function TenantsPage() {
         </div>
 
         <div className="finance-list tenant-compact-list">
-          {visibleTenants.map((tenant) => {
+          {visibleTenants.map((tenant, index, pageTenants) => {
+            const retired = isEndedTenantStatus(tenant.status);
+            const previousRetired = index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
-            const files = getTenantFiles(tenant.id, contracts, filesByContract);
+            const files = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant);
             const contract = latestContractForTenant(tenant.id, contracts);
             const displayStatus = tenantDisplayStatus(tenant, payments);
             const depositStatus = tenantDepositStatus(tenant, deposits);
@@ -755,7 +771,10 @@ export default function TenantsPage() {
             const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const expanded = detailTenantId === tenant.id;
             return (
-              <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`} key={tenant.id}>
+              <Fragment key={tenant.id}>
+                {index === 0 && !retired ? <div className="tenant-status-group-title">当前租客（{currentCount}组）</div> : null}
+                {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
+                {!retired || showRetiredExpanded ? <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`}>
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
@@ -791,7 +810,7 @@ export default function TenantsPage() {
                     files={files}
                     attachmentLoadState={contractFilesLoadState}
                     attachmentLoadError={contractFilesLoadError}
-                    onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id))}
+                    onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id), [tenant.id])}
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
@@ -810,7 +829,7 @@ export default function TenantsPage() {
                     onEditMoveOutDate={() => openMoveOutDateDialog(tenant)}
                     onEditDepositStatus={() => openDepositStatusDialog(tenant)}
                     onCreateDeposit={() => openCreateDepositDialog(tenant)}
-                    onAddFile={(file) => addTenantContractFile(tenant, file)}
+                    onAddFile={(context, file) => addTenantFile(context, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
@@ -819,7 +838,8 @@ export default function TenantsPage() {
                     depositStatus={depositStatus}
                   />
                 ) : null}
-              </article>
+                </article> : null}
+              </Fragment>
             );
           })}
         </div>
@@ -1058,7 +1078,7 @@ function TenantDetail({
   onEditDepositStatus: () => void;
   onCreateDeposit: () => void;
   onPermanentDelete: () => void;
-  onAddFile: (file: File) => Promise<void>;
+  onAddFile: (context: { tenantId: string; contractId: string | null }, file: File) => Promise<void>;
   onRestore: () => void;
   depositStatus: string;
 }) {
@@ -1066,6 +1086,11 @@ function TenantDetail({
   const movedOut = tenant.status.includes("已退租");
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const attachmentUploadContext = useMemo(() => ({ tenantId: tenant.id, contractId: contract?.id || null }), [tenant.id, contract?.id]);
+  const addAttachment = useCallback((file: File) => onAddFile(attachmentUploadContext, file), [attachmentUploadContext, onAddFile]);
+  const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
+  const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
@@ -1116,9 +1141,35 @@ function TenantDetail({
         </div>
       ) : null}
 
+      <section className="tenant-performance-section">
+        <div className="detail-section-title">付款摘要</div>
+        {performance.periods.length === 0 ? (
+          <div className="tenant-performance-empty">
+            <strong>暂无足够数据</strong>
+            <span>完成下一次完整自然月房租收款后，系统将开始生成迟交趋势和付款统计。</span>
+            {performance.excludedCount ? <span>另有{performance.excludedCount}条历史记录因首月、非完整月份或日期不足，未纳入统计。</span> : null}
+          </div>
+        ) : (
+          <>
+            <div className="tenant-performance-summary">
+              累计迟交 {performance.lateCount} 次｜平均迟交 {performance.averageLateDays?.toFixed(1)} 天｜最长迟交 {performance.longestLateDays} 天｜按时付款率 {performance.onTimeRate?.toFixed(0)}%
+            </div>
+            {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
+            {performance.periods.length === 1 ? <div className="muted tenant-performance-note">当前只有1个有效付款周期，暂不绘制趋势图。</div> : <>
+              <span className="muted tenant-performance-note">月度付款图表见下方。</span>
+            </>}
+          </>
+        )}
+      </section>
+
+      <section className="tenant-timeline-section">
+        <div className="detail-section-title">年度付款表现</div>
+        <TenantMonthlyPaymentPanel tenant={tenant} payments={payments} events={timeline} performance={performance} today={localToday()} />
+      </section>
+
       <div className="attachment-panel payment-history-panel">
-        <div className="detail-section-title">完整收款历史（{payments.length}笔）</div>
-        <div className="settlement-detail-list">
+        <button type="button" className="payment-history-toggle" onClick={() => setHistoryOpen((current) => !current)} aria-expanded={historyOpen}>查看原始收款记录（{payments.length}笔） <span>{historyOpen ? "收起" : "展开"}</span></button>
+        {historyOpen ? <div className="settlement-detail-list">
           {[...payments]
             .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
             .map((payment) => {
@@ -1128,23 +1179,27 @@ function TenantDetail({
               const rent = Number(payment.amountDue || 0);
               return (
                 <div className="payment-history-line" key={payment.id}>
-                  <span>{payment.paymentDate || payment.rentMonth}</span>
-                  <b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b>
-                  <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
-                  <span>押金 {euro(deposit)}</span>
-                  <strong>实收 {euro(payment.amountPaid)}</strong>
+                  <div className="payment-history-left">
+                    <span>{payment.paymentDate || payment.rentMonth}</span>
+                    <span>押金 {euro(deposit)}</span>
+                  </div>
+                  <div className="payment-history-right">
+                    <span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b></span>
+                    <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
+                    <strong>实收 {euro(payment.amountPaid)}</strong>
+                  </div>
                 </div>
               );
             })}
           {!payments.length ? <span className="muted">暂无收款记录</span> : null}
-        </div>
+        </div> : null}
       </div>
 
       {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>
-        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`合同附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
-        <div className="detail-section-title">合同附件</div>
+        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`租客附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
+        <div className="detail-section-title">租客附件</div>
         <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canUploadFiles ? <AttachmentAddControl label="合同附件" disabled={saving} onAdd={onAddFile} /> : null}
+        {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={addAttachment} /> : null}
       </div> : null}
 
       <div className="top-actions detail-actions">
@@ -1166,9 +1221,49 @@ function TenantDetail({
   );
 }
 
+function PaymentDelayTrendChart({ points }: { points: PaymentDelayTrendPoint[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(points[points.length - 1]?.id || null);
+  const selected = points.find((point) => point.id === selectedId) || null;
+  const width = Math.max(320, points.length * 64);
+  const height = 190;
+  const padding = { top: 22, right: 18, bottom: 48, left: 34 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maxDays = Math.max(10, ...points.map((point) => point.delay.days));
+  const x = (index: number) => padding.left + (points.length === 1 ? plotWidth / 2 : (plotWidth * index) / (points.length - 1));
+  const y = (days: number) => padding.top + plotHeight - (plotHeight * days) / maxDays;
+  const tone = (days: number) => days >= 10 ? "#dc2626" : days > 0 ? "#d39a00" : "#1f9d72";
+  const line = points.map((point, index) => `${x(index)},${y(point.delay.days)}`).join(" ");
+  return <div className="tenant-trend-wrap">
+    <div className="tenant-trend-heading"><strong>迟交趋势</strong><span>纵轴：迟交天数 · 横轴：付款周期</span></div>
+    <div className="tenant-trend-scroll">
+      <svg className="tenant-trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="迟交天数趋势图">
+        <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="var(--border)" />
+        <line x1={padding.left} x2={padding.left} y1={padding.top} y2={y(0)} stroke="var(--border)" />
+        <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">0</text>
+        <text x={padding.left - 8} y={y(maxDays) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">{maxDays}</text>
+        <polyline points={line} fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {points.map((point, index) => <g key={point.id}>
+          <circle cx={x(index)} cy={y(point.delay.days)} r="8" fill="transparent" onClick={() => setSelectedId(point.id)} />
+          <circle cx={x(index)} cy={y(point.delay.days)} r="5" fill={tone(point.delay.days)} stroke="var(--surface)" strokeWidth="2" />
+          <text x={x(index)} y={height - 24} textAnchor="middle" fill="var(--muted)" fontSize="10">{point.label}</text>
+        </g>)}
+      </svg>
+    </div>
+    {selected ? <div className="tenant-trend-detail">
+      <strong>{selected.label}</strong>
+      <span>应收日期：{selected.delay.dueDate || "未确定"}</span>
+      <span>实收日期：{selected.delay.paymentDate || "未确定"}</span>
+      <span>{selected.delay.days > 0 ? `迟交：${selected.delay.days}天` : "按时付款"}</span>
+      <span>本次房租：{euro(selected.payment.amountDue)}</span>
+      <span>覆盖：{selected.payment.coverageStartDate || "-"} 至 {selected.payment.coverageEndDate || "-"}</span>
+    </div> : null}
+  </div>;
+}
+
 function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {
   if (loadState !== "success" || !files.length) {
-    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无合同附件" hasFiles={files.length > 0} />;
+    return <AttachmentLoadStateNotice state={loadState} error={loadError} onRetry={onRetry} emptyLabel="暂无租客附件" hasFiles={files.length > 0} />;
   }
   return (
     <div className="attachment-list compact-attachment-list">
@@ -1285,11 +1380,13 @@ function latestContractForTenant(tenantId: string, contracts: BusinessContract[]
     .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))[0] || null;
 }
 
-function getTenantFiles(tenantId: string, contracts: BusinessContract[], filesByContract: Record<string, ContractFile[]>) {
+function getTenantFiles(tenantId: string, contracts: BusinessContract[], filesByContract: Record<string, ContractFile[]>, filesByTenant: Record<string, ContractFile[]>) {
   if (!tenantId) return [];
-  return contracts
+  const tenantFiles = filesByTenant[tenantId] || [];
+  const contractFiles = contracts
     .filter((contract) => contract.tenantId === tenantId)
     .flatMap((contract) => filesByContract[contract.id] || []);
+  return [...new Map([...tenantFiles, ...contractFiles].map((file) => [file.id, file])).values()];
 }
 
 function tenantTone(status: string) {

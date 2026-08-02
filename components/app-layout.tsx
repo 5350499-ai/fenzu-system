@@ -85,9 +85,12 @@ export function AppLayout({ children, title, description }: { children: React.Re
     .map((item) => item.href), [canOpenModule]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("theme") || "light";
-    setTheme(saved);
-    document.documentElement.dataset.theme = saved;
+    const saved = window.localStorage.getItem("theme");
+    const preferred = saved === "dark" || saved === "light"
+      ? saved
+      : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    setTheme(preferred);
+    document.documentElement.dataset.theme = preferred;
   }, []);
 
   useEffect(() => {

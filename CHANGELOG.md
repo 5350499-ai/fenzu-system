@@ -1,3 +1,9 @@
+## 2026-08-02 - Tenant-level attachments without contracts
+
+- Tenant attachments can now be uploaded, listed, viewed, downloaded, and deleted when a tenant has no contract; `tenant_id` is required and `contract_id` is optional.
+- Existing contract attachments keep their storage objects and contract links. The applied schema migration backfilled `tenant_id` and preserves attachments when a contract is deleted.
+- Preview only; no Production deployment or tenant attachment content upload was performed.
+
 ## 2026-08-01 - Actual move-out date rollout preparation
 
 - Added an opt-in actual move-out date feature flag. The migration remains unapplied and the Preview default is disabled.
@@ -524,5 +530,15 @@
 - Added an opt-in, authenticated server task repository and CRUD routes backed by the existing `public.tasks` table, while keeping the existing local task mode as the default when the feature flag is unset.
 - Added local-task migration preview, duplicate protection, persisted migration state and mobile task actions; no migration was executed and no Production environment setting was changed.
 # 2026-08-01
+
+## 2026-08-02 - Historical rent fields in annual payment chart (Preview)
+
+- Annual payment income uses each payment's historical `amount_due` rent field and shared coverage-month attribution; deposits and received totals remain separate.
+- Added redacted read-only payment diagnostics and strengthened the expanded tenant card boundary. No database, RLS, or business-data changes.
+
+## 2026-08-02 - Monthly actual receipts and persistent theme preference (Preview)
+
+- The annual chart's blue bars now sum valid `amount_paid` by `payment_date` month without rent/deposit splitting; the right-side timing status remains coverage-based.
+- Theme initialization now honors the saved `theme` preference before system color scheme and applies it before the first client render.
 
 - 新增管理员专用 Google Drive 历史附件只读扫描与迁移预览工具；迁移执行开关默认关闭，不下载、上传或切换任何附件。

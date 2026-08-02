@@ -7,7 +7,7 @@ import { attachmentStorageConfigs, verifyAttachmentUploadTicket } from "@/lib/se
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    const body = await parseJson(request) as { ticket?: string };
+    const body = await parseJson(request) as { ticket?: string; tenantId?: string; contractId?: string | null };
     if (!body.ticket) throw new AccountApiError("附件完成请求无效。", 400);
     const upload = verifyAttachmentUploadTicket(body.ticket);
     if (upload.workspaceOwnerId !== context.profile.workspace_owner_id || !isAllowedAttachmentType(upload.fileType) || upload.fileSize <= 0 || upload.fileSize > MAX_ATTACHMENT_FILE_SIZE) {
@@ -17,8 +17,23 @@ export async function POST(request: Request) {
     await requireModulePermission(context, "attachments", "create");
     await requireSensitivePermission(context, "can_upload_files");
     const verifier = getSupabaseAuthVerifier(context.accessToken);
-    const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", upload.ownerId).maybeSingle();
-    if (ownerError || !owner) throw new AccountApiError("没有权限向该业务记录保存附件。", 403);
+    if (upload.bucket === "contract-files") {
+      if (!body.tenantId) throw new AccountApiError("上传请求缺少租客ID。", 400);
+      if (!upload.tenantId) throw new AccountApiError("上传请求缺少租客ID。", 400);
+      if (body.tenantId !== upload.tenantId) throw new AccountApiError("上传租客上下文不一致。", 400);
+      const requestedContractId = body.contractId || null;
+      if (requestedContractId !== (upload.contractId || null)) throw new AccountApiError("上传合同上下文不一致。", 400);
+      const { data: tenant, error: tenantError } = await verifier.from("tenants").select("id").eq("id", upload.tenantId).maybeSingle();
+      if (tenantError) throw new AccountApiError("无权为该租客上传附件。", 403);
+      if (!tenant) throw new AccountApiError("租客记录不存在或已被删除。", 404);
+      if (upload.contractId) {
+        const { data: contract, error: contractError } = await verifier.from("contracts").select("id,tenant_id").eq("id", upload.contractId).maybeSingle();
+        if (contractError || !contract || contract.tenant_id !== upload.tenantId) throw new AccountApiError("合同与租客不匹配。", 403);
+      }
+    } else {
+      const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", upload.ownerId).maybeSingle();
+      if (ownerError || !owner) throw new AccountApiError("没有权限向该业务记录保存附件。", 403);
+    }
 
     const admin = getSupabaseAdmin();
     const { data: existing, error: existingError } = await admin.from(config.table).select("*").eq("storage_path", upload.path).maybeSingle();
@@ -38,9 +53,9 @@ export async function POST(request: Request) {
       throw new AccountApiError("私有附件核验失败，文件未保存。", 400);
     }
 
-    const { data, error } = await admin.from(config.table).insert({
+    const row: Record<string, unknown> = {
       user_id: context.profile.workspace_owner_id,
-      [config.ownerColumn]: upload.ownerId,
+      [config.ownerColumn]: upload.bucket === "contract-files" ? (upload.contractId || null) : upload.ownerId,
       storage_bucket: upload.bucket,
       storage_path: upload.path,
       file_url: null,
@@ -50,10 +65,12 @@ export async function POST(request: Request) {
       file_type: upload.fileType,
       file_size: upload.fileSize,
       uploaded_at: new Date().toISOString()
-    }).select("*").single();
+    };
+    if (upload.bucket === "contract-files") row.tenant_id = upload.tenantId;
+    const { data, error } = await admin.from(config.table).insert(row).select("*").single();
     if (error || !data) {
-      const cleaned = await removeOrReport(admin, upload.bucket, upload.path, upload.uploadId);
-      throw new AccountApiError(cleaned ? "附件索引保存失败，上传文件已清理。" : "附件索引保存失败，上传文件已记录为待处理。", 500);
+      await removeOrReport(admin, upload.bucket, upload.path, upload.uploadId);
+      throw new AccountApiError("附件文件已上传，但保存附件索引失败。", 500);
     }
     await writeAuditLog(context, {
       actionType: "upload_attachment", moduleKey: "attachments", entityType: config.table, entityId: data.id,
