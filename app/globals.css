@@ -495,9 +495,14 @@ a {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-soft);
-  padding: 10px 12px;
+  padding: 7px 10px;
   color: var(--text);
   text-decoration: none;
+}
+
+.viewing-summary-more {
+  margin: 8px 0 0;
+  font-size: 12px;
 }
 
 .viewing-summary-row span {
@@ -524,16 +529,27 @@ a {
 
 .appointment-list {
   display: grid;
-  gap: 8px;
+  gap: 4px;
+}
+
+.appointment-sections {
+  display: grid;
+  gap: 16px;
+}
+
+.appointment-section h3 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .appointment-row {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 11px 0;
+  padding: 7px 0;
 }
 
 .appointment-row > div:not(.appointment-actions) {
@@ -558,6 +574,24 @@ a {
 }
 
 .icon-button.danger { color: var(--red); }
+
+.appointment-status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-pending { color: var(--amber-strong, #9a6700); background: color-mix(in srgb, #f5b942 22%, var(--surface)); }
+.status-viewed { color: var(--blue-strong, #245ea8); background: color-mix(in srgb, #4d91e8 20%, var(--surface)); }
+.status-rescheduled { color: var(--orange-strong, #a64b00); background: color-mix(in srgb, #f08a24 20%, var(--surface)); }
+.status-converted { color: var(--green-strong, #197447); background: color-mix(in srgb, #39a96b 20%, var(--surface)); }
+.status-cancelled { color: var(--red); background: color-mix(in srgb, #e05252 18%, var(--surface)); }
+.status-custom { color: var(--muted); background: var(--surface-soft); }
+
+.custom-status-input { margin-top: 8px; }
 
 .compact-icon-grid {
   gap: 8px;

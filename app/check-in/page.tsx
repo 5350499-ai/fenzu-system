@@ -75,6 +75,19 @@ export default function CheckInPage() {
   const [form, setForm] = useState(createInitialForm);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("fromViewing") !== "1") return;
+    setForm((current) => ({
+      ...current,
+      propertyId: params.get("propertyId") || current.propertyId,
+      roomId: params.get("roomId") || current.roomId,
+      tenantName: params.get("tenantName") || current.tenantName,
+      phone: params.get("phone") || current.phone,
+      notes: params.get("notes") || current.notes
+    }));
+  }, []);
+
+  useEffect(() => {
     async function load() {
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
