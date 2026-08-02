@@ -15,8 +15,8 @@ assert.equal(classifyPaymentDelay("2026-08-14", "2026-08-20").days, 0);
 
 const performance = calculateTenantPaymentPerformance(tenant, [payment(), payment({ id: "p2", paymentDate: "2026-08-03", rentMonth: "2026-07", coverageStartDate: "2026-07-01", coverageEndDate: "2026-07-31" })], "2026-09-01");
 assert.equal(performance.lateCount, 1);
-assert.equal(performance.averageLateDays, 1.5);
-assert.equal(performance.longestLateDays, 3);
+assert.equal(performance.averageLateDays, 7);
+assert.equal(performance.longestLateDays, 14);
 assert.equal(performance.onTimeRate, 50);
 assert.equal(formatPaymentCycleLabel(payment()), "2026年8月");
 assert.deepEqual(buildPaymentDelayTrend(performance.periods).map((point) => point.payment.id), ["p2", "p1"]);
@@ -44,19 +44,22 @@ const monthly = buildMonthlyPaymentStatus(tenant, [
 ], [], "2026-10-01");
 assert.deepEqual(monthly.map((point) => point.month), ["2026-07", "2026-08", "2026-09"]);
 assert.equal(monthly[0].status, "on-time");
-assert.equal(monthly[1].status, "on-time");
-assert.equal(monthly[2].status, "on-time");
+assert.equal(monthly[1].status, "late-yellow");
+assert.equal(monthly[2].status, "late-red");
 const income = buildMonthlyRentIncome([payment({ id: "a", paymentDate: "2026-08-05", amountPaid: 100 }), payment({ id: "b", paymentDate: "2026-08-20", amountPaid: 200 }), payment({ id: "deposit", paymentDate: "2026-08-21", incomeType: "押金收入", amountPaid: 300 })]);
 assert.equal(income.length, 1);
 assert.equal(income[0].amount, 300);
 assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })])[0].month, "2026-08");
 assert.equal(buildMonthlyRentIncome([payment({ coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-31" })]).length, 0);
+assert.equal(buildMonthlyRentIncome([payment({ amountDue: 130, amountPaid: 430, paymentDate: "2026-07-18", coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31" })])[0].amount, 130);
 assert.equal(buildMonthlyPaymentStatus(tenant, [payment({ coverageStartDate: "2026-08-15", amountDue: 150 })], [], "2026-09-01")[0].status, "untracked");
 assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18" }, [], [], "2026-12-05"), ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
 assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18", actualMoveOutDate: "2026-09-03" }, [], [], "2026-12-05"), ["2026-07", "2026-08", "2026-09"]);
 assert.equal(buildCalendarYearMonths(2026).length, 12);
 assert.deepEqual(buildCalendarYearMonths(2026).slice(0, 3), ["2026-01", "2026-02", "2026-03"]);
-assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-08-26", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01"), 5);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-08-15", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01", tenant), 5);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-08-20", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01", tenant), 0);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-08-23", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01", tenant), -3);
 assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-01"), 0);
 assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ paymentDate: "2026-09-03", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })], "2026-09-04"), -3);
 
@@ -65,5 +68,5 @@ assert.equal(isCompleteNaturalMonthCoverage(payment({ coverageStartDate: "2026-0
 assert.equal(isCompleteNaturalMonthCoverage(payment({ coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31", amountDue: 130, amountPaid: 130 })), false);
 assert.equal(getRentAttributionMonth(payment({ coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-31" })), null);
 assert.equal(calculateMonthlyPaymentStatusDays("2026-07", [payment({ paymentDate: "2026-07-18", coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31", amountDue: 130, amountPaid: 130 })], "2026-08-01", tenant), null);
-assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ id: "part-1", paymentDate: "2026-08-20", amountPaid: 100 }), payment({ id: "part-2", paymentDate: "2026-08-31", amountPaid: 200 })], "2026-09-01", tenant), 0);
+assert.equal(calculateMonthlyPaymentStatusDays("2026-08", [payment({ id: "part-1", paymentDate: "2026-08-10", amountPaid: 100 }), payment({ id: "part-2", paymentDate: "2026-08-20", amountPaid: 200 })], "2026-09-01", tenant), 0);
 console.log("tenant timeline tests passed");
