@@ -2701,7 +2701,7 @@ td:last-child {
 .tenant-svg-month:focus-visible { filter: drop-shadow(0 0 3px var(--accent)); }
 .tenant-svg-status-text, .tenant-svg-month-label, .tenant-svg-amount-label { fill: var(--muted); font-size: 11px; font-family: inherit; }
 .tenant-svg-month.selected .tenant-svg-status-text, .tenant-svg-month.selected .tenant-svg-month-label { fill: var(--text); font-weight: 700; }
-.tenant-svg-amount-label { font-size: 10px; }
+.tenant-svg-amount-label { font-size: 10px; fill: var(--text); }
 .tenant-year-switcher { display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px; }
 .tenant-year-switcher button { border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); padding: 4px 8px; font-size: .78rem; cursor: pointer; }
 .tenant-year-switcher button.selected { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -2714,7 +2714,7 @@ td:last-child {
 .tenant-annual-svg { display: block; width: 100%; height: auto; min-width: 0; }
 .tenant-income-annual-svg { min-height: 150px; }
 .tenant-svg-month { cursor: pointer; outline: none; }.tenant-svg-month:focus-visible { filter: drop-shadow(0 0 3px var(--accent)); }
-.tenant-svg-month-label, .tenant-svg-amount-label { fill: var(--muted); font-size: 9px; font-family: inherit; }.tenant-svg-amount-label { font-size: 8px; }
+.tenant-svg-month-label, .tenant-svg-amount-label { fill: var(--muted); font-size: 9px; font-family: inherit; }.tenant-svg-amount-label { font-size: 9px; fill: var(--text); }
 .tenant-combined-chart-frame { min-height: 150px; }
 .tenant-combined-svg { display: block; width: 100%; height: auto; min-width: 0; }
 .tenant-svg-status-value { fill: var(--text); font-size: 8px; font-weight: 700; font-family: inherit; }

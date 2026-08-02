@@ -9,7 +9,7 @@ type Props = { tenant: BusinessTenant; payments: BusinessRentPayment[]; events: 
 const SVG_WIDTH = 336;
 const COL = 28;
 const BAR_WIDTH = 7;
-const AXIS_Y = 105;
+const AXIS_Y = 86;
 const PLOT_HEIGHT = 55;
 
 export function TenantMonthlyPaymentPanel({ tenant, payments, events, performance, today }: Props) {
@@ -54,11 +54,16 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
         return <g key={month} className={`tenant-svg-month ${selected ? "selected" : ""}`} role="button" tabIndex={0} onClick={() => setSelectedMonth(month)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedMonth(month); }} aria-label={`${selectedYear}年${index + 1}月，房租${euro(amount)}${value == null ? "，未统计" : `，${value > 0 ? "+" : ""}${value}天`}`}>
           <rect x={amountX} y={AXIS_Y - amountHeight} width={BAR_WIDTH} height={amountHeight} fill="var(--blue)" opacity={amount ? ".9" : ".35"} />
           {value === 0 ? <circle cx={statusX + BAR_WIDTH / 2} cy={AXIS_Y} r="3" fill="#1f9d72" /> : statusMagnitude ? <rect x={statusX} y={(value || 0) > 0 ? AXIS_Y - statusMagnitude : AXIS_Y} width={BAR_WIDTH} height={statusMagnitude} fill={statusColor} /> : <rect x={statusX} y={AXIS_Y - 2} width={BAR_WIDTH} height="2" fill="#8b95a5" />}
-          <text x={amountX + BAR_WIDTH / 2} y={Math.max(12, AXIS_Y - amountHeight - 4)} textAnchor="middle" className="tenant-svg-amount-label">{euro(amount)}</text>
-          {value != null ? <text x={statusX + BAR_WIDTH / 2} y={value > 0 ? AXIS_Y - statusMagnitude - 4 : value < 0 ? AXIS_Y + statusMagnitude + 12 : AXIS_Y - 8} textAnchor="middle" className="tenant-svg-status-value">{value > 0 ? `+${value}` : value}</text> : null}
+          {amount > 0 ? <text x={amountX + BAR_WIDTH / 2} y={Math.max(12, AXIS_Y - amountHeight - 5)} textAnchor="middle" className="tenant-svg-amount-label" fontSize={amountLabel(amount).length > 5 ? 9 : 10}>{amountLabel(amount)}</text> : null}
+          {value != null ? <text x={statusX + BAR_WIDTH / 2} y={value > 0 ? AXIS_Y - statusMagnitude - 5 : value < 0 ? AXIS_Y + statusMagnitude + 10 : AXIS_Y + 12} textAnchor="middle" className="tenant-svg-status-value" style={{ fill: statusColor }}>{value > 0 ? `+${value}` : value}</text> : null}
           <text x={monthCenter} y="142" textAnchor="middle" className="tenant-svg-month-label">{index + 1}</text>
         </g>;
       })}
     </svg></div>
   </section>;
+}
+
+function amountLabel(amount: number) {
+  const rounded = Math.round(amount * 100) / 100;
+  return `€${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}`;
 }
