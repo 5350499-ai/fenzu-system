@@ -616,13 +616,7 @@ a {
 
 .appointment-sections {
   display: grid;
-  gap: 14px;
-}
-
-.appointment-section h3 {
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 0;
 }
 
 .appointment-property-group {

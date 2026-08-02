@@ -156,7 +156,7 @@ export default function ViewingAppointmentsPage() {
           <div><h2 className="panel-title">看房预约</h2><p className="muted">按预约时间升序排列，V1不自动发送提醒。</p></div>
           <button className="btn primary" type="button" onClick={() => openForm()}><Plus size={17} /> 新增预约</button>
         </div>
-        {!loaded ? <p className="muted">正在加载预约...</p> : grouped.length ? <div className="appointment-sections">{groupedSections.map((section) => <section className="appointment-section" key={section.status}><h3>{section.status}</h3><div className="appointment-list">{section.items.map((item) => {
+        {!loaded ? <p className="muted">正在加载预约...</p> : grouped.length ? <div className="appointment-sections">{groupedSections.map((section) => <section className="appointment-section" key={section.status}><div className="appointment-list">{section.items.map((item) => {
           const room = rooms.find((current) => current.id === item.roomId);
           const property = properties.find((current) => current.id === item.propertyId);
           const location = resolveAppointmentLocation(item, properties, rooms);
