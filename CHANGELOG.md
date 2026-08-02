@@ -542,3 +542,14 @@
 - Theme initialization now honors the saved `theme` preference before system color scheme and applies it before the first client render.
 
 - 新增管理员专用 Google Drive 历史附件只读扫描与迁移预览工具；迁移执行开关默认关闭，不下载、上传或切换任何附件。
+## 2026-08-02 - Controlled tenant move-out and room vacancy (Preview)
+
+- Added a two-step move-out confirmation with actual move-out date, deposit handling, partial refund amount, and editable notes.
+- Move-out preserves historical payments, contracts, deposits and tenant attachments, ends the contract, retires the tenant, and restores the room to vacant only when no active tenant remains.
+- Saves are validated with best-effort rollback; no migration or real tenant operation was executed.
+
+## 2026-08-02 - Home density and viewing appointments (Preview)
+
+- Reduced dashboard metric and shortcut spacing while preserving touch targets and theme contrast.
+- Added a property-scoped viewing appointment table, list/editor page, navigation entry, and dashboard summary with today/future appointments.
+- Applied the schema-only viewing appointments migration with zero appointment rows; no existing business records were changed.
