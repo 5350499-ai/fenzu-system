@@ -6,6 +6,7 @@ import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_
 export type StoredFile = {
   id: string;
   ownerId: string;
+  tenantId: string | null;
   storageBucket: string;
   storagePath: string | null;
   fileUrl: string | null;
@@ -23,6 +24,7 @@ type FileConfig = {
   ownerColumn: string;
   ownerField: string;
   missingMessage: string;
+  tenantColumn?: string;
 };
 
 export const contractFileConfig: FileConfig = {
@@ -30,6 +32,7 @@ export const contractFileConfig: FileConfig = {
   table: "contract_files",
   ownerColumn: "contract_id",
   ownerField: "contractId",
+  tenantColumn: "tenant_id",
   missingMessage: "合同附件存储尚未初始化。请先执行 contract-files 迁移 SQL。"
 };
 
@@ -49,7 +52,7 @@ export const rentPaymentFileConfig: FileConfig = {
   missingMessage: "收款附件存储尚未初始化。请先执行 rent-payment-files 迁移 SQL。"
 };
 
-export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): Promise<StoredFile[]> {
+export async function loadStoredFiles(config: FileConfig, ownerIds?: string[], tenantIds?: string[]): Promise<StoredFile[]> {
   if (!isSupabaseConfigured || !supabase) throw new Error("附件服务尚未配置。");
   const session = await getValidSupabaseSession();
   if (!session) throw new Error("附件读取需要有效登录会话，请刷新页面后重试。");
@@ -58,14 +61,18 @@ export async function loadStoredFiles(config: FileConfig, ownerIds?: string[]): 
     throw new Error("当前账号没有查看此类附件的权限。");
   }
 
-  let query = supabase.from(config.table).select("*").order("uploaded_at", { ascending: false });
-  if (ownerIds?.length) query = query.in(config.ownerColumn, ownerIds);
-  const { data, error } = await query;
+  const queries = [] as Array<Promise<{ data: any[] | null; error: any }>>;
+  if (ownerIds?.length) queries.push(Promise.resolve(supabase.from(config.table).select("*").in(config.ownerColumn, ownerIds).order("uploaded_at", { ascending: false })));
+  if (config.tenantColumn && tenantIds?.length) queries.push(Promise.resolve(supabase.from(config.table).select("*").in(config.tenantColumn, tenantIds).order("uploaded_at", { ascending: false })));
+  if (!queries.length) queries.push(Promise.resolve(supabase.from(config.table).select("*").order("uploaded_at", { ascending: false })));
+  const results = await Promise.all(queries);
+  const error = results.find((result) => result.error)?.error;
   if (error) throw new Error(toFileError(error.message, config));
-  return (data || []).map((row: any) => fromDb(row, config));
+  const rows = [...new Map(results.flatMap((result) => result.data || []).map((row: any) => [row.id, row])).values()];
+  return rows.map((row: any) => fromDb(row, config));
 }
 
-export async function uploadStoredFile(config: FileConfig, ownerId: string, sourceFile: File): Promise<StoredFile> {
+export async function uploadStoredFile(config: FileConfig, ownerId: string, sourceFile: File, options: { tenantId?: string; contractId?: string | null } = {}): Promise<StoredFile> {
   notifyAttachmentUploadProgress({ state: "preparing" });
   try {
     if (!isSupabaseConfigured || !supabase) throw new Error("Supabase 尚未配置，不能上传附件。");
@@ -82,7 +89,7 @@ export async function uploadStoredFile(config: FileConfig, ownerId: string, sour
 
     const fileName = redactSensitiveFileName(sourceFile.name);
     const payload = await postAttachmentApi("/api/files/supabase-storage/prepare", session.access_token, {
-      bucket: config.bucket, ownerId, fileName, fileType: file.type || sourceFile.type, fileSize: file.size
+      bucket: config.bucket, ownerId, tenantId: options.tenantId, contractId: options.contractId, fileName, fileType: file.type || sourceFile.type, fileSize: file.size
     });
     notifyAttachmentUploadProgress({ state: "uploading", loaded: 0, total: file.size });
     const { error: uploadError } = await supabase.storage.from(payload.bucket).uploadToSignedUrl(payload.path, payload.token, file, {
@@ -166,6 +173,7 @@ function fromDb(row: any, config: FileConfig): StoredFile {
   return {
     id: row.id,
     ownerId: row[config.ownerColumn],
+    tenantId: row.tenant_id || null,
     storageBucket: row.storage_bucket || config.bucket,
     storagePath: row.storage_path,
     fileUrl: row.file_url || row.storage_path,

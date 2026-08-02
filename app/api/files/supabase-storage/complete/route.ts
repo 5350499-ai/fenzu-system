@@ -17,8 +17,18 @@ export async function POST(request: Request) {
     await requireModulePermission(context, "attachments", "create");
     await requireSensitivePermission(context, "can_upload_files");
     const verifier = getSupabaseAuthVerifier(context.accessToken);
-    const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", upload.ownerId).maybeSingle();
-    if (ownerError || !owner) throw new AccountApiError("没有权限向该业务记录保存附件。", 403);
+    if (upload.bucket === "contract-files") {
+      if (!upload.tenantId) throw new AccountApiError("缺少租客记录，无法保存附件。", 400);
+      const { data: tenant, error: tenantError } = await verifier.from("tenants").select("id").eq("id", upload.tenantId).maybeSingle();
+      if (tenantError || !tenant) throw new AccountApiError("没有权限向该租客保存附件。", 403);
+      if (upload.contractId) {
+        const { data: contract, error: contractError } = await verifier.from("contracts").select("id,tenant_id").eq("id", upload.contractId).maybeSingle();
+        if (contractError || !contract || contract.tenant_id !== upload.tenantId) throw new AccountApiError("合同与租客不匹配，无法保存附件。", 403);
+      }
+    } else {
+      const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", upload.ownerId).maybeSingle();
+      if (ownerError || !owner) throw new AccountApiError("没有权限向该业务记录保存附件。", 403);
+    }
 
     const admin = getSupabaseAdmin();
     const { data: existing, error: existingError } = await admin.from(config.table).select("*").eq("storage_path", upload.path).maybeSingle();
@@ -38,9 +48,9 @@ export async function POST(request: Request) {
       throw new AccountApiError("私有附件核验失败，文件未保存。", 400);
     }
 
-    const { data, error } = await admin.from(config.table).insert({
+    const row: Record<string, unknown> = {
       user_id: context.profile.workspace_owner_id,
-      [config.ownerColumn]: upload.ownerId,
+      [config.ownerColumn]: upload.bucket === "contract-files" ? (upload.contractId || null) : upload.ownerId,
       storage_bucket: upload.bucket,
       storage_path: upload.path,
       file_url: null,
@@ -50,7 +60,9 @@ export async function POST(request: Request) {
       file_type: upload.fileType,
       file_size: upload.fileSize,
       uploaded_at: new Date().toISOString()
-    }).select("*").single();
+    };
+    if (upload.bucket === "contract-files") row.tenant_id = upload.tenantId;
+    const { data, error } = await admin.from(config.table).insert(row).select("*").single();
     if (error || !data) {
       const cleaned = await removeOrReport(admin, upload.bucket, upload.path, upload.uploadId);
       throw new AccountApiError(cleaned ? "附件索引保存失败，上传文件已清理。" : "附件索引保存失败，上传文件已记录为待处理。", 500);
