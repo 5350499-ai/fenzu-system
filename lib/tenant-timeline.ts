@@ -94,12 +94,10 @@ export function isCompleteNaturalMonthCoverage(payment: BusinessRentPayment): bo
   return end.slice(0, 7) === month && start.slice(8) === "01" && end.slice(8) === String(daysInMonth(month)).padStart(2, "0");
 }
 
-/** Returns the single natural month a rent record belongs to; ambiguous cross-month records are excluded. */
+/** Returns the month selected by the recorded coverage start. End-date shape does not erase a real cycle. */
 export function getRentAttributionMonth(payment: BusinessRentPayment): string | null {
   const start = payment.coverageStartDate;
-  const end = payment.coverageEndDate;
-  if (!validDate(start) || !validDate(end) || start.slice(0, 7) !== end.slice(0, 7)) return null;
-  return start.slice(0, 7);
+  return validDate(start) ? start.slice(0, 7) : null;
 }
 
 /** Amount-only attribution may safely fall back to a structured month/date; status never uses this fallback. */
@@ -156,7 +154,7 @@ export function diagnoseTenantRentPayments(payments: BusinessRentPayment[]): Ten
     const attributionMonth = getRentAmountAttributionMonth(payment);
     const validRent = isCompletedRentPayment(payment) && isRentIncome(payment) && rentAmount > 0;
     const amountIncluded = validRent && Boolean(attributionMonth);
-    const timingIncluded = amountIncluded && isCompleteNaturalMonthCoverage(payment) && validDate(payment.paymentDate);
+    const timingIncluded = amountIncluded && isTimingEligibleRentPayment(payment);
     const exclusionReason = amountIncluded ? (timingIncluded ? undefined : "状态字段或完整覆盖日期不足") : !isRentIncome(payment) ? "非房租收入" : rentAmount <= 0 ? "缺少本次房租金额" : attributionMonth ? "收款已作废或归档" : "缺少可归属月份";
     return {
       paymentIdSuffix: payment.id.slice(-8),
@@ -177,10 +175,10 @@ export function diagnoseTenantRentPayments(payments: BusinessRentPayment[]): Ten
 }
 
 export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string, monthlyRent = 0): number | null {
-  const complete = payments.filter((payment) => isRentIncome(payment) && getRentAttributionMonth(payment) === month && isCompleteNaturalMonthCoverage(payment));
-  if (!complete.length) return null;
-  const expected = Number(monthlyRent || 0) > 0 ? Number(monthlyRent) : complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
-  const ordered = [...complete].filter((payment) => validDate(payment.paymentDate)).sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || ""));
+  const eligible = payments.filter((payment) => isTimingEligibleRentPayment(payment, monthlyRent) && getRentAttributionMonth(payment) === month);
+  if (!eligible.length) return null;
+  const expected = Number(monthlyRent || 0) > 0 ? Number(monthlyRent) : eligible.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
+  const ordered = [...eligible].sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || ""));
   let paid = 0;
   let completionDate: string | null = null;
   for (const payment of ordered) {
@@ -192,7 +190,7 @@ export function calculateMonthlyPaymentStatusDays(month: string, payments: Busin
   }
   const [year, monthNumber] = month.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
-  const startDate = paymentCoverageStart(complete[0]);
+  const startDate = paymentCoverageStart(ordered[0]);
   const dueDate = validDate(startDate) ? previousCalendarDate(startDate) : monthEnd;
   if (paid < expected || expected <= 0 || !completionDate) return today > dueDate ? -dateDifference(today, dueDate) : null;
   return dateDifference(dueDate, completionDate);
@@ -242,6 +240,19 @@ function isPartialOrAmbiguous(payment: BusinessRentPayment) {
   return false;
 }
 
+/** Status needs a real cycle amount and both dates, but does not require a month-end coverage shape. */
+function isTimingEligibleRentPayment(payment: BusinessRentPayment, monthlyRent = 0) {
+  const start = paymentCoverageStart(payment);
+  const amountDue = Number(payment.amountDue || 0);
+  const partialFirstCycle = validDate(start) && start.slice(8) !== "01" && Number(monthlyRent || 0) > 0 && amountDue < Number(monthlyRent);
+  return isCompletedRentPayment(payment)
+    && isRentIncome(payment)
+    && validDate(start)
+    && validDate(payment.paymentDate)
+    && amountDue > 0
+    && !partialFirstCycle;
+}
+
 function previousCalendarDate(value: string) {
   const date = new Date(`${value}T12:00:00Z`);
   if (!Number.isFinite(date.getTime())) return value;
@@ -267,7 +278,7 @@ export function calculateTenantPaymentPerformance(tenant: BusinessTenant, paymen
   const byMonth = new Map<string, BusinessRentPayment[]>();
   for (const payment of payments.filter(isCompletedRentPayment)) {
     const month = getRentAttributionMonth(payment);
-    if (!month || !isCompleteNaturalMonthCoverage(payment)) {
+    if (!month || !isTimingEligibleRentPayment(payment, tenant.monthlyRent)) {
       excludedCount += 1;
       continue;
     }
@@ -397,18 +408,18 @@ export function buildMonthlyPaymentStatus(
   const performance = calculateTenantPaymentPerformance(tenant, payments, today);
   const periodsByPayment = new Map(performance.periods.map((period) => [period.payment.id, period]));
   const months = new Set<string>();
-  for (const payment of payments.filter(isCompletedRentPayment)) months.add(getRentAmountAttributionMonth(payment) || "");
+  for (const payment of payments.filter(isCompletedRentPayment)) months.add(getRentAttributionMonth(payment) || getRentAmountAttributionMonth(payment) || "");
   for (const event of events) months.add(monthOf(event.date) || "");
   months.delete("");
   const points = [...months].sort();
   const selected = points.slice(-Math.max(1, limit));
   return selected.map((month) => {
-    const monthPayments = payments.filter((payment) => getRentAmountAttributionMonth(payment) === month && isCompletedRentPayment(payment));
+    const monthPayments = payments.filter((payment) => getRentAttributionMonth(payment) === month && isCompletedRentPayment(payment));
     const periods = monthPayments.map((payment) => periodsByPayment.get(payment.id)).filter(Boolean) as TenantPaymentPerformance["periods"];
     const monthEvents = events.filter((event) => monthOf(event.date) === month);
     const unpaid = monthPayments.find((payment) => {
       const end = paymentCoverageEnd(payment);
-      return isCompleteNaturalMonthCoverage(payment) && end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
+      return isTimingEligibleRentPayment(payment, tenant.monthlyRent) && end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
     });
     const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant.monthlyRent);
     let status: MonthlyPaymentStatus = "untracked";
