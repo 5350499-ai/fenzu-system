@@ -2705,6 +2705,9 @@ td:last-child {
 .tenant-income-annual-svg { min-height: 150px; }
 .tenant-svg-month { cursor: pointer; outline: none; }.tenant-svg-month:focus-visible { filter: drop-shadow(0 0 3px var(--accent)); }
 .tenant-svg-month-label, .tenant-svg-amount-label { fill: var(--muted); font-size: 9px; font-family: inherit; }.tenant-svg-amount-label { font-size: 8px; }
+.tenant-combined-chart-frame { min-height: 150px; }
+.tenant-combined-svg { display: block; width: 100%; height: auto; min-width: 0; }
+.tenant-svg-status-value { fill: var(--text); font-size: 8px; font-weight: 700; font-family: inherit; }
 
 .tenant-performance-empty,
 .tenant-performance-summary,
