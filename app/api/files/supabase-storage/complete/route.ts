@@ -7,7 +7,7 @@ import { attachmentStorageConfigs, verifyAttachmentUploadTicket } from "@/lib/se
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    const body = await parseJson(request) as { ticket?: string };
+    const body = await parseJson(request) as { ticket?: string; tenantId?: string; contractId?: string | null };
     if (!body.ticket) throw new AccountApiError("附件完成请求无效。", 400);
     const upload = verifyAttachmentUploadTicket(body.ticket);
     if (upload.workspaceOwnerId !== context.profile.workspace_owner_id || !isAllowedAttachmentType(upload.fileType) || upload.fileSize <= 0 || upload.fileSize > MAX_ATTACHMENT_FILE_SIZE) {
@@ -18,12 +18,17 @@ export async function POST(request: Request) {
     await requireSensitivePermission(context, "can_upload_files");
     const verifier = getSupabaseAuthVerifier(context.accessToken);
     if (upload.bucket === "contract-files") {
-      if (!upload.tenantId) throw new AccountApiError("缺少租客记录，无法保存附件。", 400);
+      if (!body.tenantId) throw new AccountApiError("上传请求缺少租客ID。", 400);
+      if (!upload.tenantId) throw new AccountApiError("上传请求缺少租客ID。", 400);
+      if (body.tenantId !== upload.tenantId) throw new AccountApiError("上传租客上下文不一致。", 400);
+      const requestedContractId = body.contractId || null;
+      if (requestedContractId !== (upload.contractId || null)) throw new AccountApiError("上传合同上下文不一致。", 400);
       const { data: tenant, error: tenantError } = await verifier.from("tenants").select("id").eq("id", upload.tenantId).maybeSingle();
-      if (tenantError || !tenant) throw new AccountApiError("没有权限向该租客保存附件。", 403);
+      if (tenantError) throw new AccountApiError("无权为该租客上传附件。", 403);
+      if (!tenant) throw new AccountApiError("租客记录不存在或已被删除。", 404);
       if (upload.contractId) {
         const { data: contract, error: contractError } = await verifier.from("contracts").select("id,tenant_id").eq("id", upload.contractId).maybeSingle();
-        if (contractError || !contract || contract.tenant_id !== upload.tenantId) throw new AccountApiError("合同与租客不匹配，无法保存附件。", 403);
+        if (contractError || !contract || contract.tenant_id !== upload.tenantId) throw new AccountApiError("合同与租客不匹配。", 403);
       }
     } else {
       const { data: owner, error: ownerError } = await verifier.from(config.parentTable).select("id").eq("id", upload.ownerId).maybeSingle();

@@ -658,13 +658,12 @@ export default function TenantsPage() {
     }
   }
 
-  async function addTenantFile(tenant: BusinessTenant, file: File) {
-    const contract = latestContractForTenant(tenant.id, contracts);
+  async function addTenantFile(uploadContext: { tenantId: string; contractId: string | null }, file: File) {
     setSaving(true);
     try {
-      const uploaded = await uploadContractFile(tenant.id, contract?.id || null, file);
+      const uploaded = await uploadContractFile(uploadContext.tenantId, uploadContext.contractId, file);
       setContractFiles((current) => [uploaded, ...current]);
-      await refreshContractFiles(contract ? [contract.id] : [], [tenant.id]);
+      await refreshContractFiles(uploadContext.contractId ? [uploadContext.contractId] : [], [uploadContext.tenantId]);
     } catch (error: any) {
       throw new Error(error.message || "添加租客附件失败，请稍后重试。");
     } finally {
@@ -830,7 +829,7 @@ export default function TenantsPage() {
                     onEditMoveOutDate={() => openMoveOutDateDialog(tenant)}
                     onEditDepositStatus={() => openDepositStatusDialog(tenant)}
                     onCreateDeposit={() => openCreateDepositDialog(tenant)}
-                    onAddFile={(file) => addTenantFile(tenant, file)}
+                    onAddFile={(context, file) => addTenantFile(context, file)}
                     onRestore={() => restoreTenant(tenant)}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
@@ -1079,7 +1078,7 @@ function TenantDetail({
   onEditDepositStatus: () => void;
   onCreateDeposit: () => void;
   onPermanentDelete: () => void;
-  onAddFile: (file: File) => Promise<void>;
+  onAddFile: (context: { tenantId: string; contractId: string | null }, file: File) => Promise<void>;
   onRestore: () => void;
   depositStatus: string;
 }) {
@@ -1088,6 +1087,8 @@ function TenantDetail({
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const attachmentUploadContext = useMemo(() => ({ tenantId: tenant.id, contractId: contract?.id || null }), [tenant.id, contract?.id]);
+  const addAttachment = useCallback((file: File) => onAddFile(attachmentUploadContext, file), [attachmentUploadContext, onAddFile]);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
   return (
@@ -1198,7 +1199,7 @@ function TenantDetail({
         <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`租客附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
         <div className="detail-section-title">租客附件</div>
         <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={onAddFile} /> : null}
+        {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={addAttachment} /> : null}
       </div> : null}
 
       <div className="top-actions detail-actions">
