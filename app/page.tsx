@@ -32,6 +32,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { localToday } from "@/lib/actual-move-out-date";
+import { formatAppointmentLocation, formatHomeAppointmentDateTime } from "@/lib/viewing-appointments";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
@@ -188,7 +189,8 @@ export default function DashboardPage() {
         <div className="panel-header"><div><h2 className="panel-title">看房预约</h2><p className="muted">今天、明天及未来几天</p></div><CalendarCheck size={20} className="info-text" /></div>
         {upcomingAppointments.length ? <div className="viewing-summary-list">{upcomingAppointments.map((item) => {
           const room = rooms.find((current) => current.id === item.roomId);
-          return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}><span><strong>{item.appointmentDate} {item.appointmentTime}</strong><small>{room?.roomNumber || room?.name || "未选房间"}</small></span><span><strong>{item.contactName || item.contactWhatsapp || item.contactPhone || "未填写联系人"}</strong><small>{item.status}</small></span></Link>;
+          const property = properties.find((current) => current.id === item.propertyId);
+          return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}><strong>{formatHomeAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{formatAppointmentLocation(property?.name, room?.roomNumber || room?.name)}</span><span>{item.contactName || item.contactWhatsapp || item.contactPhone || "未填联系人"}</span><small className="appointment-status status-pending">待看房</small>{item.notes ? <small className="viewing-summary-note">{item.notes}</small> : null}</Link>;
         })}</div> : <p className="muted">暂无看房预约</p>}
         {pendingAppointments.length > 3 ? <p className="muted viewing-summary-more">还有{pendingAppointments.length - 3}条待看房</p> : null}
         <div className="viewing-summary-actions"><Link className="btn" href="/viewing-appointments">查看全部</Link><Link className="btn primary" href="/viewing-appointments?new=1">新增预约</Link></div>
