@@ -34,7 +34,7 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
     if ((start && month < start) || (end && month > end)) return "out-of-range";
     return statusByMonth.get(month)?.status || (month > today.slice(0, 7) ? "future" : "untracked");
   };
-  const statusValue = (month: string) => calculateMonthlyPaymentStatusDays(month, statusByMonth.get(month)?.payments || [], today);
+  const statusValue = (month: string) => calculateMonthlyPaymentStatusDays(month, statusByMonth.get(month)?.payments || [], today, tenant);
   return <section className="tenant-monthly-payment-panel">
     <div className="tenant-year-switcher"><button type="button" disabled={yearIndex <= 0} onClick={() => setSelectedYear(years[Math.max(0, yearIndex - 1)])}>‹</button>{years.map((year) => <button type="button" key={year} className={selectedYear === year ? "selected" : ""} onClick={() => setSelectedYear(year)}>{year}年</button>)}<button type="button" disabled={yearIndex < 0 || yearIndex >= years.length - 1} onClick={() => setSelectedYear(years[Math.min(years.length - 1, yearIndex + 1)])}>›</button></div>
     <div className="detail-section-title">付款表现</div>
