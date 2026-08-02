@@ -530,4 +530,9 @@
 - Annual payment income uses each payment's historical `amount_due` rent field and shared coverage-month attribution; deposits and received totals remain separate.
 - Added redacted read-only payment diagnostics and strengthened the expanded tenant card boundary. No database, RLS, or business-data changes.
 
+## 2026-08-02 - Monthly actual receipts and persistent theme preference (Preview)
+
+- The annual chart's blue bars now sum valid `amount_paid` by `payment_date` month without rent/deposit splitting; the right-side timing status remains coverage-based.
+- Theme initialization now honors the saved `theme` preference before system color scheme and applies it before the first client render.
+
 - 新增管理员专用 Google Drive 历史附件只读扫描与迁移预览工具；迁移执行开关默认关闭，不下载、上传或切换任何附件。

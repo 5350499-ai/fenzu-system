@@ -48,11 +48,11 @@ assert.equal(monthly[1].status, "late-red");
 assert.equal(monthly[2].status, "late-red");
 const income = buildMonthlyRentIncome([payment({ id: "a", paymentDate: "2026-08-05", amountDue: 100, amountPaid: 100 }), payment({ id: "b", paymentDate: "2026-08-20", amountDue: 200, amountPaid: 200 }), payment({ id: "deposit", paymentDate: "2026-08-21", incomeType: "押金收入", amountDue: 0, amountPaid: 300 })]);
 assert.equal(income.length, 1);
-assert.equal(income[0].amount, 300);
-assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })])[0].month, "2026-08");
-assert.equal(buildMonthlyRentIncome([payment({ coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-31" })]).length, 0);
-assert.equal(buildMonthlyRentIncome([payment({ coverageStartDate: "2026-07-29", coverageEndDate: "2026-08-29", amountDue: 460, amountPaid: 460 })])[0].month, "2026-07");
-assert.equal(buildMonthlyRentIncome([payment({ amountDue: 130, amountPaid: 430, paymentDate: "2026-07-18", coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31" })])[0].amount, 130);
+assert.equal(income[0].amount, 600);
+assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", amountDue: 350, amountPaid: 350 })])[0].month, "2026-07");
+assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-05", coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-31", amountDue: 999, amountPaid: 480 })])[0].amount, 480);
+assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-29", coverageStartDate: "2026-07-29", coverageEndDate: "2026-08-29", amountDue: 460, amountPaid: 460 })])[0].month, "2026-07");
+assert.equal(buildMonthlyRentIncome([payment({ amountDue: 130, amountPaid: 430, paymentDate: "2026-07-18", coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31" })])[0].amount, 430);
 assert.equal(rentAmountFromRecord(payment({ amountDue: 430, amountPaid: 810 })), 430);
 const audited = diagnoseTenantRentPayments([
   payment({ id: "tenant-503-rent-480", amountDue: 480, amountPaid: 480, coverageStartDate: "2026-06-01", coverageEndDate: "2026-06-30" }),

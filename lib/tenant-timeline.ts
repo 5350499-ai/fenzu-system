@@ -423,16 +423,19 @@ export function buildMonthlyPaymentStatus(
   });
 }
 
-/** Aggregates received rent by the reliable coverage month; deposits and ambiguous cross-month records are excluded. */
+/** Aggregates actual cash received by payment month. Coverage dates do not remove cash from this chart. */
 export function buildMonthlyRentIncome(payments: BusinessRentPayment[], limit = 12): MonthlyRentIncomePoint[] {
   const grouped = new Map<string, BusinessRentPayment[]>();
-  for (const payment of payments.filter(isCompletedRentPayment)) {
-    const month = getRentAmountAttributionMonth(payment);
-    if (!month || !isRentIncome(payment)) continue;
+  for (const payment of payments) {
+    const month = monthOf(payment.paymentDate);
+    const amountPaid = Math.max(0, Number(payment.amountPaid || 0));
+    const status = payment.paymentStatus || "";
+    const invalid = status.includes("已作废") || status.includes("已归档") || payment.notes?.includes("[已作废]");
+    if (!month || amountPaid <= 0 || invalid) continue;
     grouped.set(month, [...(grouped.get(month) || []), payment]);
   }
   return [...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).slice(-Math.max(1, limit)).map(([month, monthPayments]) => {
     const { year, monthNumber } = monthParts(month);
-    return { month, year, monthNumber, payments: monthPayments, amount: monthPayments.reduce((sum, payment) => sum + rentAmountFromRecord(payment), 0) };
+    return { month, year, monthNumber, payments: monthPayments, amount: monthPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountPaid || 0)), 0) };
   });
 }

@@ -2625,6 +2625,12 @@ td:last-child {
   gap: 10px;
 }
 
+.tenant-chart-caption {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .tenant-performance-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
