@@ -32,7 +32,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { localToday } from "@/lib/actual-move-out-date";
-import { formatAppointmentLocation, formatHomeAppointmentDateTime } from "@/lib/viewing-appointments";
+import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
@@ -188,9 +188,13 @@ export default function DashboardPage() {
       <section className="card panel viewing-summary">
         <div className="panel-header"><div><h2 className="panel-title">看房预约</h2><p className="muted">今天、明天及未来几天</p></div><CalendarCheck size={20} className="info-text" /></div>
         {upcomingAppointments.length ? <div className="viewing-summary-list">{upcomingAppointments.map((item) => {
-          const room = rooms.find((current) => current.id === item.roomId);
-          const property = properties.find((current) => current.id === item.propertyId);
-          return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}><strong>{formatHomeAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{formatAppointmentLocation(property?.name, room?.roomNumber || room?.name)}</span><span>{item.contactName || item.contactWhatsapp || item.contactPhone || "未填联系人"}</span><small className="appointment-status status-pending">待看房</small>{item.notes ? <small className="viewing-summary-note">{item.notes}</small> : null}</Link>;
+          const location = resolveAppointmentLocation(item, properties, rooms);
+          const contact = item.contactName || item.contactWhatsapp || item.contactPhone || "未填联系人";
+          if (location) return <Link className="viewing-summary-row" href="/viewing-appointments" key={item.id}>
+            <div className="viewing-summary-main"><strong>{formatHomeAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span className="viewing-summary-contact">{contact}</span><small className="appointment-status status-pending"><i className="appointment-status-dot pending" aria-hidden="true" />待看房</small></div>
+            <div className="viewing-summary-location"><span className={`property-code property-tone-${location.tone}`}>{location.code || "未选房源"}</span><span> · {location.roomLabel}</span></div>
+            {item.notes ? <small className="viewing-summary-note">{item.notes}</small> : null}
+          </Link>;
         })}</div> : <p className="muted">暂无看房预约</p>}
         {pendingAppointments.length > 3 ? <p className="muted viewing-summary-more">还有{pendingAppointments.length - 3}条待看房</p> : null}
         <div className="viewing-summary-actions"><Link className="btn" href="/viewing-appointments">查看全部</Link><Link className="btn primary" href="/viewing-appointments?new=1">新增预约</Link></div>

@@ -3,7 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { localToday } from "@/lib/actual-move-out-date";
-import { formatAppointmentLocation, formatManagementAppointmentDateTime } from "@/lib/viewing-appointments";
+import { formatAppointmentLocation, formatManagementAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { BusinessProperty, BusinessRoom, BusinessViewingAppointment, getInitialProperties, getInitialRooms, loadBusinessData, propertyKey, roomKey, saveBusinessData, viewingAppointmentKey } from "@/lib/business-data";
 import { CalendarCheck, Edit3, LogIn, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -71,9 +71,19 @@ export default function ViewingAppointmentsPage() {
       const rankA = groupA === -1 ? statusOrder.length : groupA;
       const rankB = groupB === -1 ? statusOrder.length : groupB;
       if (rankA !== rankB) return rankA - rankB;
+      const locationA = resolveAppointmentLocation(a, properties, rooms);
+      const locationB = resolveAppointmentLocation(b, properties, rooms);
+      const propertyA = locationA.code || "未选房源";
+      const propertyB = locationB.code || "未选房源";
+      if (propertyA !== propertyB) {
+        if (!locationA.code) return 1;
+        if (!locationB.code) return -1;
+        const propertyOrder = propertyA.localeCompare(propertyB, undefined, { numeric: true, sensitivity: "base" });
+        if (propertyOrder !== 0) return propertyOrder;
+      }
       return `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`);
     });
-  }, [appointments]);
+  }, [appointments, properties, rooms]);
   const groupedSections = useMemo(() => {
     const keyFor = (item: BusinessViewingAppointment) => item.status === "已转租客" ? "已成交" : item.status === "改期" ? "已改期" : item.status;
     return [...statusOrder, customStatus].map((status) => ({
@@ -149,6 +159,12 @@ export default function ViewingAppointmentsPage() {
         {!loaded ? <p className="muted">正在加载预约...</p> : grouped.length ? <div className="appointment-sections">{groupedSections.map((section) => <section className="appointment-section" key={section.status}><h3>{section.status}</h3><div className="appointment-list">{section.items.map((item) => {
           const room = rooms.find((current) => current.id === item.roomId);
           const property = properties.find((current) => current.id === item.propertyId);
+          const location = resolveAppointmentLocation(item, properties, rooms);
+          if (location) return <article className="appointment-row" key={item.id}>
+            <div className="appointment-main-line"><strong>{formatManagementAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{contactLabel(item)}</span><small className={`appointment-status status-${statusTone(item.status)}`}><i className={`appointment-status-dot ${statusTone(item.status)}`} aria-hidden="true" />{item.status}</small></div>
+            <div className="appointment-meta-line"><span className={`property-code property-tone-${location.tone}`}>{location.code || "未选房源"}</span><span> · {location.roomLabel}</span>{item.notes ? <small className="appointment-note">{item.notes}</small> : null}</div>
+            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button>{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
+          </article>;
           return <article className="appointment-row" key={item.id}>
             <div className="appointment-main-line"><strong>{formatManagementAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{formatAppointmentLocation(property?.name, room?.roomNumber || room?.name)}</span><span>{contactLabel(item)}</span></div>
             <div className="appointment-meta-line"><small className={`appointment-status status-${statusTone(item.status)}`}>{item.status}</small>{item.notes ? <small className="appointment-note">{item.notes}</small> : null}</div>
