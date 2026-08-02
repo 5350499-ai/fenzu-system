@@ -86,20 +86,44 @@ export function buildCalendarYearMonths(year: number) {
   return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
 }
 
-export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string): number | null {
-  const complete = payments.filter((payment) => isRentIncome(payment) && paymentCoverageStart(payment)?.slice(0, 7) === month);
+export function isCompleteNaturalMonthCoverage(payment: BusinessRentPayment): boolean {
+  const start = payment.coverageStartDate;
+  const end = payment.coverageEndDate;
+  if (!validDate(start) || !validDate(end)) return false;
+  const month = start.slice(0, 7);
+  return end.slice(0, 7) === month && start.slice(8) === "01" && end.slice(8) === String(daysInMonth(month)).padStart(2, "0");
+}
+
+/** Returns the single natural month a rent record belongs to; ambiguous cross-month records are excluded. */
+export function getRentAttributionMonth(payment: BusinessRentPayment): string | null {
+  const start = payment.coverageStartDate;
+  const end = payment.coverageEndDate;
+  if (!validDate(start) || !validDate(end) || start.slice(0, 7) !== end.slice(0, 7)) return null;
+  return start.slice(0, 7);
+}
+
+export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string, tenant?: BusinessTenant): number | null {
+  const complete = payments.filter((payment) => isRentIncome(payment) && getRentAttributionMonth(payment) === month && isCompleteNaturalMonthCoverage(payment));
   if (!complete.length) return null;
-  const expected = complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
-  const paid = complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountPaid || 0)), 0);
-  const lastPaymentDate = [...complete].map((payment) => payment.paymentDate).filter((value): value is string => Boolean(value && validDate(value))).sort().at(-1);
+  const expected = Number(tenant?.monthlyRent || 0) > 0 ? Number(tenant?.monthlyRent) : complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
+  const ordered = [...complete].filter((payment) => validDate(payment.paymentDate)).sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || ""));
+  let paid = 0;
+  let completionDate: string | null = null;
+  for (const payment of ordered) {
+    paid += Math.max(0, Number(payment.amountPaid || 0));
+    if (paid >= expected && expected > 0) {
+      completionDate = payment.paymentDate || null;
+      break;
+    }
+  }
   const [year, monthNumber] = month.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
   const monthStart = `${month}-01`;
-  if (paid < expected || expected <= 0 || !lastPaymentDate) return monthEnd < today ? Math.min(0, dateDifference(today, monthEnd) * -1) : null;
+  if (paid < expected || expected <= 0 || !completionDate) return monthEnd < today ? Math.min(0, dateDifference(today, monthEnd) * -1) : null;
   // Paying on the last day of the previous month for a complete next-month period is on time, not +30/+31.
   const previousMonthEnd = new Date(Date.UTC(year, monthNumber - 1, 0)).toISOString().slice(0, 10);
-  if (lastPaymentDate <= previousMonthEnd && lastPaymentDate < monthStart) return 0;
-  return dateDifference(monthEnd, lastPaymentDate);
+  if (completionDate <= previousMonthEnd && completionDate < monthStart) return 0;
+  return dateDifference(monthEnd, completionDate);
 }
 
 function validDate(value: string | undefined | null): value is string {
@@ -141,7 +165,7 @@ function isPartialOrAmbiguous(payment: BusinessRentPayment) {
   const month = start.slice(0, 7);
   if (!validDate(start) || !validDate(end) || !/^\d{4}-\d{2}$/.test(month)) return true;
   // Partial first-month periods and multi-month coverage do not provide a reliable monthly due cycle.
-  if (start.slice(8) !== "01" || end.slice(0, 7) !== month || end.slice(8) !== String(daysInMonth(month)).padStart(2, "0")) return true;
+  if (!isCompleteNaturalMonthCoverage(payment)) return true;
   return false;
 }
 
@@ -156,7 +180,51 @@ function latestCoveragePayment(payments: BusinessRentPayment[]) {
   )[0] || null;
 }
 
+/** Summarizes only complete, reliably attributed natural-month cycles. */
 export function calculateTenantPaymentPerformance(tenant: BusinessTenant, payments: BusinessRentPayment[], today: string): TenantPaymentPerformance {
+  const periods: TenantPaymentPerformance["periods"] = [];
+  let excludedCount = 0;
+  const byMonth = new Map<string, BusinessRentPayment[]>();
+  for (const payment of payments.filter(isCompletedRentPayment)) {
+    const month = getRentAttributionMonth(payment);
+    if (!month || !isCompleteNaturalMonthCoverage(payment)) {
+      excludedCount += 1;
+      continue;
+    }
+    byMonth.set(month, [...(byMonth.get(month) || []), payment]);
+  }
+  for (const [month, monthPayments] of byMonth) {
+    const expected = Number(tenant.monthlyRent || 0) > 0 ? Number(tenant.monthlyRent) : monthPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
+    const paid = monthPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountPaid || 0)), 0);
+    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant);
+    if (paid < expected || statusDays == null) {
+      excludedCount += 1;
+      continue;
+    }
+    const payment = [...monthPayments].sort((left, right) => (left.paymentDate || "").localeCompare(right.paymentDate || "")).at(-1) || monthPayments[0];
+    const delayDays = Math.max(0, -(statusDays || 0));
+    const dueDate = calculatePaymentDueDate(payment, tenant);
+    periods.push({ payment, delay: { included: true, dueDate: dueDate || undefined, paymentDate: payment.paymentDate, days: delayDays, level: delayDays >= 10 ? "red" : delayDays > 0 ? "yellow" : "on-time" } });
+  }
+  const latePeriods = periods.filter((period) => period.delay.days > 0);
+  const totalLateDays = periods.reduce((sum, period) => sum + period.delay.days, 0);
+  const currentPayment = latestCoveragePayment(payments);
+  const currentOverdue = !/退租|归档/.test(tenant.status) && currentPayment && paymentCoverageEnd(currentPayment) < today
+    && (currentPayment.paymentStatus?.includes("鏈敹") || Number(currentPayment.amountUnpaid || 0) > 0 || Number(currentPayment.amountPaid || 0) < Number(currentPayment.amountDue || 0))
+    ? Math.max(0, dateDifference(today, paymentCoverageEnd(currentPayment)))
+    : null;
+  return {
+    periods,
+    excludedCount,
+    lateCount: latePeriods.length,
+    averageLateDays: periods.length ? totalLateDays / periods.length : null,
+    longestLateDays: periods.length ? Math.max(...periods.map((period) => period.delay.days)) : null,
+    onTimeRate: periods.length ? (periods.filter((period) => period.delay.days === 0).length / periods.length) * 100 : null,
+    currentOverdueDays: currentOverdue
+  };
+}
+
+function calculateTenantPaymentPerformanceLegacy(tenant: BusinessTenant, payments: BusinessRentPayment[], today: string): TenantPaymentPerformance {
   const periods: TenantPaymentPerformance["periods"] = [];
   let excludedCount = 0;
   for (const payment of payments.filter(isCompletedRentPayment)) {
@@ -249,23 +317,23 @@ export function buildMonthlyPaymentStatus(
   const performance = calculateTenantPaymentPerformance(tenant, payments, today);
   const periodsByPayment = new Map(performance.periods.map((period) => [period.payment.id, period]));
   const months = new Set<string>();
-  for (const payment of payments.filter(isCompletedRentPayment)) months.add(monthOf(paymentCoverageStart(payment) || payment.rentMonth) || "");
+  for (const payment of payments.filter(isCompletedRentPayment)) months.add(getRentAttributionMonth(payment) || "");
   for (const event of events) months.add(monthOf(event.date) || "");
   months.delete("");
   const points = [...months].sort();
   const selected = points.slice(-Math.max(1, limit));
   return selected.map((month) => {
-    const monthPayments = payments.filter((payment) => monthOf(paymentCoverageStart(payment) || payment.rentMonth) === month && isCompletedRentPayment(payment));
+    const monthPayments = payments.filter((payment) => getRentAttributionMonth(payment) === month && isCompletedRentPayment(payment));
     const periods = monthPayments.map((payment) => periodsByPayment.get(payment.id)).filter(Boolean) as TenantPaymentPerformance["periods"];
     const monthEvents = events.filter((event) => monthOf(event.date) === month);
     const unpaid = monthPayments.find((payment) => {
       const end = paymentCoverageEnd(payment);
-      return end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
+      return isCompleteNaturalMonthCoverage(payment) && end < today && (Number(payment.amountUnpaid || 0) > 0 || Number(payment.amountPaid || 0) < Number(payment.amountDue || 0));
     });
+    const statusDays = calculateMonthlyPaymentStatusDays(month, monthPayments, today, tenant);
     let status: MonthlyPaymentStatus = "untracked";
-    if (periods.length) {
-      const maxDelay = Math.max(...periods.map((period) => period.delay.days));
-      status = maxDelay >= 6 ? "late-red" : maxDelay > 0 ? "late-yellow" : "on-time";
+    if (statusDays != null) {
+      status = statusDays >= 0 ? "on-time" : Math.abs(statusDays) >= 6 ? "late-red" : "late-yellow";
     } else if (unpaid) {
       const overdueDays = Math.max(0, dateDifference(today, paymentCoverageEnd(unpaid)));
       status = overdueDays >= 6 ? "current-red" : "current-yellow";
@@ -275,11 +343,11 @@ export function buildMonthlyPaymentStatus(
   });
 }
 
-/** Aggregates received rent by payment month; deposits and unpaid amounts are excluded. */
+/** Aggregates received rent by the reliable coverage month; deposits and ambiguous cross-month records are excluded. */
 export function buildMonthlyRentIncome(payments: BusinessRentPayment[], limit = 12): MonthlyRentIncomePoint[] {
   const grouped = new Map<string, BusinessRentPayment[]>();
   for (const payment of payments.filter(isCompletedRentPayment)) {
-    const month = monthOf(payment.paymentDate || payment.rentMonth);
+    const month = getRentAttributionMonth(payment);
     if (!month || !isRentIncome(payment)) continue;
     grouped.set(month, [...(grouped.get(month) || []), payment]);
   }
