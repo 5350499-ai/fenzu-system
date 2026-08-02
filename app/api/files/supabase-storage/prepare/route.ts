@@ -18,9 +18,10 @@ export async function POST(request: Request) {
     };
     const config = body.bucket ? attachmentStorageConfigs[body.bucket] : null;
     const isContractAttachment = body.bucket === "contract-files";
-    if (!config || !body.fileName || !body.fileType || !Number.isFinite(body.fileSize) || (isContractAttachment ? !body.tenantId : !body.ownerId)) {
+    if (!config || !body.fileName || !body.fileType || !Number.isFinite(body.fileSize) || (!isContractAttachment && !body.ownerId)) {
       throw new AccountApiError("附件上传请求无效。", 400);
     }
+    if (isContractAttachment && !body.tenantId) throw new AccountApiError("上传请求缺少租客ID。", 400);
     if (!isAllowedAttachmentType(body.fileType) || body.fileSize! <= 0 || body.fileSize! > MAX_ATTACHMENT_FILE_SIZE) {
       throw new AccountApiError(`只支持不超过 ${MAX_ATTACHMENT_FILE_SIZE_LABEL} 的 PDF、JPG、PNG 文件。`, 400);
     }
