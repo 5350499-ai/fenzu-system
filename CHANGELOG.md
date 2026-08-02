@@ -525,4 +525,9 @@
 - Added local-task migration preview, duplicate protection, persisted migration state and mobile task actions; no migration was executed and no Production environment setting was changed.
 # 2026-08-01
 
+## 2026-08-02 - Historical rent fields in annual payment chart (Preview)
+
+- Annual payment income uses each payment's historical `amount_due` rent field and shared coverage-month attribution; deposits and received totals remain separate.
+- Added redacted read-only payment diagnostics and strengthened the expanded tenant card boundary. No database, RLS, or business-data changes.
+
 - 新增管理员专用 Google Drive 历史附件只读扫描与迁移预览工具；迁移执行开关默认关闭，不下载、上传或切换任何附件。

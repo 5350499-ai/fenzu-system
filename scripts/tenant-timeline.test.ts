@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data";
-import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantMonthRange, buildTenantTimeline, calculateMonthlyPaymentStatusDays, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, formatPaymentCycleLabel, getRentAttributionMonth, groupTimelineEventsByDate, isCompleteNaturalMonthCoverage } from "../lib/tenant-timeline";
+import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantMonthRange, buildTenantTimeline, calculateMonthlyPaymentStatusDays, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, diagnoseTenantRentPayments, formatPaymentCycleLabel, getRentAttributionMonth, groupTimelineEventsByDate, isCompleteNaturalMonthCoverage, rentAmountFromRecord } from "../lib/tenant-timeline";
 
 const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, paymentDay: 20, status: "在租" };
 const payment = (overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({ id: "p1", propertyId: "p1", roomId: "r1", tenantId: "t1", incomeType: "房租收入", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 300, amountPaid: 300, amountUnpaid: 0, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", paymentStatus: "已收", paymentMethod: "转账", isOverdue: false, ...overrides });
@@ -46,13 +46,19 @@ assert.deepEqual(monthly.map((point) => point.month), ["2026-07", "2026-08", "20
 assert.equal(monthly[0].status, "late-red");
 assert.equal(monthly[1].status, "late-red");
 assert.equal(monthly[2].status, "late-red");
-const income = buildMonthlyRentIncome([payment({ id: "a", paymentDate: "2026-08-05", amountPaid: 100 }), payment({ id: "b", paymentDate: "2026-08-20", amountPaid: 200 }), payment({ id: "deposit", paymentDate: "2026-08-21", incomeType: "押金收入", amountPaid: 300 })]);
+const income = buildMonthlyRentIncome([payment({ id: "a", paymentDate: "2026-08-05", amountDue: 100, amountPaid: 100 }), payment({ id: "b", paymentDate: "2026-08-20", amountDue: 200, amountPaid: 200 }), payment({ id: "deposit", paymentDate: "2026-08-21", incomeType: "押金收入", amountDue: 0, amountPaid: 300 })]);
 assert.equal(income.length, 1);
 assert.equal(income[0].amount, 300);
 assert.equal(buildMonthlyRentIncome([payment({ paymentDate: "2026-07-31", coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })])[0].month, "2026-08");
 assert.equal(buildMonthlyRentIncome([payment({ coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-31" })]).length, 0);
 assert.equal(buildMonthlyRentIncome([payment({ coverageStartDate: "2026-07-29", coverageEndDate: "2026-08-29", amountDue: 460, amountPaid: 460 })])[0].month, "2026-07");
 assert.equal(buildMonthlyRentIncome([payment({ amountDue: 130, amountPaid: 430, paymentDate: "2026-07-18", coverageStartDate: "2026-07-18", coverageEndDate: "2026-07-31" })])[0].amount, 130);
+assert.equal(rentAmountFromRecord(payment({ amountDue: 430, amountPaid: 810 })), 430);
+const audited = diagnoseTenantRentPayments([
+  payment({ id: "tenant-503-rent-480", amountDue: 480, amountPaid: 480, coverageStartDate: "2026-06-01", coverageEndDate: "2026-06-30" }),
+  payment({ id: "tenant-503-rent-430", amountDue: 430, amountPaid: 810, coverageStartDate: "2026-07-01", coverageEndDate: "2026-07-31" })
+]);
+assert.deepEqual(audited.map((item) => [item.attributionMonth, item.rentAmount, item.amountIncluded]), [["2026-06", 480, true], ["2026-07", 430, true]]);
 assert.equal(buildMonthlyPaymentStatus(tenant, [payment({ coverageStartDate: "2026-08-15", amountDue: 150 })], [], "2026-09-01")[0].status, "untracked");
 assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18" }, [], [], "2026-12-05"), ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
 assert.deepEqual(buildTenantMonthRange({ ...tenant, moveInDate: "2026-07-18", actualMoveOutDate: "2026-09-03" }, [], [], "2026-12-05"), ["2026-07", "2026-08", "2026-09"]);
