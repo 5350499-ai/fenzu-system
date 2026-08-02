@@ -3,8 +3,9 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { localToday } from "@/lib/actual-move-out-date";
+import { formatAppointmentLocation, formatManagementAppointmentDateTime } from "@/lib/viewing-appointments";
 import { BusinessProperty, BusinessRoom, BusinessViewingAppointment, getInitialProperties, getInitialRooms, loadBusinessData, propertyKey, roomKey, saveBusinessData, viewingAppointmentKey } from "@/lib/business-data";
-import { CalendarCheck, Edit3, Plus, Trash2, X } from "lucide-react";
+import { CalendarCheck, Edit3, LogIn, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const statuses = ["待看房", "已看房", "已改期", "已成交", "已取消"];
@@ -149,9 +150,9 @@ export default function ViewingAppointmentsPage() {
           const room = rooms.find((current) => current.id === item.roomId);
           const property = properties.find((current) => current.id === item.propertyId);
           return <article className="appointment-row" key={item.id}>
-            <div><strong>{item.appointmentDate} {item.appointmentTime}</strong><small>{property?.name || "未选房源"}{room ? ` · ${room.roomNumber || room.name}` : ""}</small></div>
-            <div><span>{contactLabel(item)}</span><small className={`appointment-status status-${statusTone(item.status)}`}>{item.status}</small></div>
-            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button><button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
+            <div className="appointment-main-line"><strong>{formatManagementAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{formatAppointmentLocation(property?.name, room?.roomNumber || room?.name)}</span><span>{contactLabel(item)}</span></div>
+            <div className="appointment-meta-line"><small className={`appointment-status status-${statusTone(item.status)}`}>{item.status}</small>{item.notes ? <small className="appointment-note">{item.notes}</small> : null}</div>
+            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button>{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
           </article>;
         })}</div></section>)}</div> : <p className="muted">暂无看房预约</p>}
       </section>
