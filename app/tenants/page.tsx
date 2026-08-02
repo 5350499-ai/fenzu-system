@@ -47,7 +47,7 @@ import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
-import { buildMoveOutPlan, MoveOutDepositHandling } from "@/lib/tenant-move-out";
+import { buildMoveOutPlan } from "@/lib/tenant-move-out";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -128,8 +128,7 @@ export default function TenantsPage() {
   const [moveOutDate, setMoveOutDate] = useState(localToday());
   const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDateValue, setMoveOutDateValue] = useState("");
-  const [moveOutDepositHandling, setMoveOutDepositHandling] = useState<MoveOutDepositHandling>("pending");
-  const [moveOutRefundAmount, setMoveOutRefundAmount] = useState(0);
+  const [moveOutDepositHandled, setMoveOutDepositHandled] = useState(false);
   const [moveOutNote, setMoveOutNote] = useState("");
   const [moveOutReview, setMoveOutReview] = useState(false);
   const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
@@ -459,8 +458,7 @@ export default function TenantsPage() {
         contracts,
         deposits,
         actualMoveOutDate,
-        depositHandling: moveOutDepositHandling,
-        refundAmount: moveOutRefundAmount,
+        depositHandled: moveOutDepositHandled,
         note: moveOutNote
       });
     } catch (error: any) {
@@ -513,8 +511,7 @@ export default function TenantsPage() {
     }
     setMoveOutTenant(tenant);
     setMoveOutDate(tenant.actualMoveOutDate || localToday());
-    setMoveOutDepositHandling("pending");
-    setMoveOutRefundAmount(0);
+    setMoveOutDepositHandled(tenantDepositStorageStatus(tenant, deposits) === "已退");
     setMoveOutNote("");
     setMoveOutReview(false);
   }
@@ -964,17 +961,11 @@ export default function TenantsPage() {
               <p className="muted">{moveOutTenant.name} · {properties.find((item) => item.id === moveOutTenant.propertyId)?.name || "-"} / {rooms.find((item) => item.id === moveOutTenant.roomId)?.name || "-"}</p>
               <div className="field">
                 <label htmlFor="move-out-deposit-status">押金处理状态</label>
-                <select id="move-out-deposit-status" value={moveOutDepositHandling} onChange={(event) => setMoveOutDepositHandling(event.target.value as MoveOutDepositHandling)}>
-                  <option value="full_refund">已全额退还</option>
-                  <option value="partial_refund">部分退还</option>
-                  <option value="not_refunded">不退还</option>
-                  <option value="pending">尚未处理</option>
+                <select id="move-out-deposit-status" value={moveOutDepositHandled ? "已退" : "未退"} onChange={(event) => setMoveOutDepositHandled(event.target.value === "已退")}>
+                  <option value="已退">已退</option>
+                  <option value="未退">未退</option>
                 </select>
               </div>
-              {moveOutDepositHandling === "partial_refund" ? <div className="field">
-                <label htmlFor="move-out-refund-amount">退款金额</label>
-                <input id="move-out-refund-amount" type="number" min="0" step="0.01" value={moveOutRefundAmount} onChange={(event) => setMoveOutRefundAmount(Number(event.target.value || 0))} />
-              </div> : null}
               <div className="field">
               <label htmlFor="move-out-date">实际退租日期</label>
               <input id="move-out-date" type="date" value={moveOutDate} onChange={(event) => setMoveOutDate(event.target.value)} required />
@@ -986,7 +977,7 @@ export default function TenantsPage() {
             </> : <div className="move-out-review">
               <p><strong>租客：</strong>{moveOutTenant.name}</p>
               <p><strong>实际退租日期：</strong>{moveOutDate}</p>
-              <p><strong>押金处理：</strong>{moveOutDepositHandling === "full_refund" ? "已全额退还" : moveOutDepositHandling === "partial_refund" ? `部分退还 ${euro(moveOutRefundAmount)}` : moveOutDepositHandling === "not_refunded" ? "不退还" : "尚未处理"}</p>
+              <p><strong>押金处理：</strong>{moveOutDepositHandled ? "已退" : "未退"}</p>
               <p><strong>房租说明：</strong>{moveOutNote || "未填写，保留现有收款记录，不自动退款。"}</p>
               <p className="muted">房间将恢复为空置；历史收款、合同、附件和押金记录继续保留。</p>
             </div>}
@@ -1467,8 +1458,6 @@ function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]
   if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return "未建立押金管理记录";
   const status = tenantDepositStorageStatus(tenant, deposits);
   if (status === "已退") return "押金已处理";
-  if (status === "部分退还") return "押金部分退还";
-  if (status === "不退还") return "押金不退还";
   return "押金待处理";
 }
 

@@ -2,8 +2,6 @@ import { BusinessContract, BusinessDeposit, BusinessRoom, BusinessTenant } from 
 import { isValidCalendarDate } from "@/lib/actual-move-out-date";
 import { isEndedTenantStatus } from "@/lib/tenant-sorting";
 
-export type MoveOutDepositHandling = "full_refund" | "partial_refund" | "not_refunded" | "pending";
-
 export type MoveOutInput = {
   tenant: BusinessTenant;
   tenants: BusinessTenant[];
@@ -11,8 +9,7 @@ export type MoveOutInput = {
   contracts: BusinessContract[];
   deposits: BusinessDeposit[];
   actualMoveOutDate: string;
-  depositHandling: MoveOutDepositHandling;
-  refundAmount: number;
+  depositHandled: boolean;
   note: string;
 };
 
@@ -30,9 +27,6 @@ export function validateMoveOutInput(input: MoveOutInput): string | null {
   }
   const moveInDate = input.tenant.moveInDate || input.contracts.find((contract) => contract.tenantId === input.tenant.id)?.startDate;
   if (moveInDate && input.actualMoveOutDate < moveInDate) return "实际退租日期不能早于入住日期。";
-  if (!Number.isFinite(input.refundAmount) || input.refundAmount < 0) return "退款金额不能为负数。";
-  if (input.depositHandling === "partial_refund" && input.refundAmount <= 0) return "部分退还时请输入大于0的退款金额。";
-  if (input.depositHandling !== "partial_refund" && input.refundAmount !== 0) return "只有部分退还可以填写退款金额。";
   return null;
 }
 
@@ -51,8 +45,8 @@ export function buildMoveOutPlan(input: MoveOutInput): MoveOutPlan {
   ));
   const nextDeposits = input.deposits.map((deposit) => {
     if (deposit.tenantId !== tenantId || deposit.status === "已作废" || deposit.notes?.includes("[已作废]")) return deposit;
-    const status = input.depositHandling === "full_refund" ? "已退" : input.depositHandling === "partial_refund" ? "部分退还" : input.depositHandling === "not_refunded" ? "不退还" : "待退";
-    const marker = `[退租押金处理:${status};退款金额:${input.refundAmount}]`;
+    const status = input.depositHandled ? "已退" : "待退";
+    const marker = `[退租押金处理:${status}]`;
     return { ...deposit, status, notes: appendMarker(deposit.notes, marker) };
   });
   const nextTenants = input.tenants.map((tenant) => tenant.id === tenantId ? nextTenant : tenant);
