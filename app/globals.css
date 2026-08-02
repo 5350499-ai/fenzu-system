@@ -498,6 +498,34 @@ a {
   margin-bottom: 14px;
 }
 
+.viewing-summary-header {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.viewing-summary-heading {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.viewing-summary-heading .panel-title {
+  flex: 0 0 auto;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.viewing-summary-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .viewing-summary-list {
   display: grid;
   gap: 0;
@@ -695,6 +723,10 @@ a {
 
 .appointment-actions {
   display: flex;
+  width: 126px;
+  flex: 0 0 126px;
+  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -715,13 +747,19 @@ a {
 
 .appointment-status {
   display: inline-flex;
-  width: fit-content;
-  min-height: 24px;
+  width: 80px;
+  min-width: 80px;
+  height: 28px;
   align-items: center;
-  padding: 2px 7px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 8px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-pending { color: var(--amber-strong, #9a6700); background: color-mix(in srgb, #f5b942 22%, var(--surface)); }
@@ -1782,6 +1820,10 @@ a {
 
   .viewing-summary-location { font-size: 14px; }
 
+  .viewing-summary-heading { gap: 8px; }
+  .viewing-summary-heading .panel-title { font-size: 18px; }
+  .viewing-summary-subtitle { font-size: 13px; }
+
   .appointment-main-line {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 5px;
@@ -1789,7 +1831,14 @@ a {
   }
 
   .appointment-actions {
+    width: 122px;
+    flex-basis: 122px;
     gap: 4px;
+  }
+
+  .appointment-status {
+    width: 76px;
+    min-width: 76px;
   }
 }
 

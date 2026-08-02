@@ -186,7 +186,7 @@ export default function DashboardPage() {
         ) : null}
       </section>
       <section className="card panel viewing-summary">
-        <div className="panel-header"><div><h2 className="panel-title">看房预约</h2><p className="muted">今天、明天及未来几天</p></div><CalendarCheck size={20} className="info-text" /></div>
+        <div className="panel-header viewing-summary-header"><div className="viewing-summary-heading"><h2 className="panel-title">看房预约</h2><span className="viewing-summary-subtitle">今天、明天及未来几天</span></div><CalendarCheck size={20} className="info-text" /></div>
         {upcomingAppointments.length ? <div className="viewing-summary-list">{upcomingAppointments.map((item) => {
           const location = resolveAppointmentLocation(item, properties, rooms);
           const contact = item.contactName || item.contactWhatsapp || item.contactPhone || "未填联系人";
