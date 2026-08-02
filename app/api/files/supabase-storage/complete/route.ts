@@ -69,8 +69,8 @@ export async function POST(request: Request) {
     if (upload.bucket === "contract-files") row.tenant_id = upload.tenantId;
     const { data, error } = await admin.from(config.table).insert(row).select("*").single();
     if (error || !data) {
-      const cleaned = await removeOrReport(admin, upload.bucket, upload.path, upload.uploadId);
-      throw new AccountApiError(cleaned ? "附件索引保存失败，上传文件已清理。" : "附件索引保存失败，上传文件已记录为待处理。", 500);
+      await removeOrReport(admin, upload.bucket, upload.path, upload.uploadId);
+      throw new AccountApiError("附件文件已上传，但保存附件索引失败。", 500);
     }
     await writeAuditLog(context, {
       actionType: "upload_attachment", moduleKey: "attachments", entityType: config.table, entityId: data.id,
