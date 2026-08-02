@@ -1,3 +1,9 @@
+## 2026-08-02 - Tenant-level attachments without contracts
+
+- Tenant attachments can now be uploaded, listed, viewed, downloaded, and deleted when a tenant has no contract; `tenant_id` is required and `contract_id` is optional.
+- Existing contract attachments keep their storage objects and contract links. The applied schema migration backfilled `tenant_id` and preserves attachments when a contract is deleted.
+- Preview only; no Production deployment or tenant attachment content upload was performed.
+
 ## 2026-08-01 - Actual move-out date rollout preparation
 
 - Added an opt-in actual move-out date feature flag. The migration remains unapplied and the Preview default is disabled.
