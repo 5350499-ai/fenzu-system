@@ -553,3 +553,9 @@
 - Reduced dashboard metric and shortcut spacing while preserving touch targets and theme contrast.
 - Added a property-scoped viewing appointment table, list/editor page, navigation entry, and dashboard summary with today/future appointments.
 - Applied the schema-only viewing appointments migration with zero appointment rows; no existing business records were changed.
+
+## 2026-08-02 - Viewing appointment workflow polish (Preview)
+
+- The dashboard now shows only future pending appointments, capped at three with a remaining-count hint.
+- Appointment management uses compact status-grouped rows, fixed status choices, custom status input, and status color cues.
+- Added a non-creating one-click check-in handoff that prefills the existing check-in form from an appointment.
