@@ -2684,6 +2684,14 @@ td:last-child {
 .tenant-rent-bar-fill { width: 26px; min-height: 4px; align-self: end; border-radius: 5px 5px 1px 1px; background: var(--accent); opacity: .82; }
 .tenant-rent-bar.selected .tenant-rent-bar-fill { opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 .tenant-rent-bar small { font-size: .82rem; }
+.tenant-svg-chart-frame { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.tenant-svg-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: thin; }
+.tenant-status-svg, .tenant-income-svg { display: block; min-width: 768px; max-width: none; }
+.tenant-svg-month { cursor: pointer; outline: none; }
+.tenant-svg-month:focus-visible { filter: drop-shadow(0 0 3px var(--accent)); }
+.tenant-svg-status-text, .tenant-svg-month-label, .tenant-svg-amount-label { fill: var(--muted); font-size: 11px; font-family: inherit; }
+.tenant-svg-month.selected .tenant-svg-status-text, .tenant-svg-month.selected .tenant-svg-month-label { fill: var(--text); font-weight: 700; }
+.tenant-svg-amount-label { font-size: 10px; }
 
 .tenant-performance-empty,
 .tenant-performance-summary,
