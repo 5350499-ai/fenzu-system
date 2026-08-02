@@ -41,13 +41,13 @@ import {
 } from "@/lib/contract-files";
 import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
-import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
+import { buildMoveOutPlan, MoveOutDepositHandling } from "@/lib/tenant-move-out";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -93,7 +93,7 @@ const emptyTenantPayment: BusinessRentPayment = {
 };
 
 export default function TenantsPage() {
-  const actualMoveOutDateEnabled = isActualMoveOutDateEnabled();
+  const actualMoveOutDateEnabled = true;
   const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -128,9 +128,12 @@ export default function TenantsPage() {
   const [moveOutDate, setMoveOutDate] = useState(localToday());
   const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDateValue, setMoveOutDateValue] = useState("");
-  const [moveOutDepositStatus, setMoveOutDepositStatus] = useState<"待退" | "已退">("待退");
+  const [moveOutDepositHandling, setMoveOutDepositHandling] = useState<MoveOutDepositHandling>("pending");
+  const [moveOutRefundAmount, setMoveOutRefundAmount] = useState(0);
+  const [moveOutNote, setMoveOutNote] = useState("");
+  const [moveOutReview, setMoveOutReview] = useState(false);
   const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
-  const [depositStatusValue, setDepositStatusValue] = useState<"待退" | "已退">("待退");
+  const [depositStatusValue, setDepositStatusValue] = useState<string>("待退");
   const [createDepositTenant, setCreateDepositTenant] = useState<BusinessTenant | null>(null);
   const [createDepositAmount, setCreateDepositAmount] = useState(0);
   const [createDepositStatus, setCreateDepositStatus] = useState<"待退" | "已退">("待退");
@@ -446,37 +449,74 @@ export default function TenantsPage() {
     close();
   }
 
-  async function moveOut(tenant: BusinessTenant, depositStatus: "待退" | "已退", actualMoveOutDate: string) {
-    if (actualMoveOutDateEnabled && !isValidCalendarDate(actualMoveOutDate)) {
-      window.alert("请输入有效的实际退租日期。");
+  async function moveOut(tenant: BusinessTenant, actualMoveOutDate: string) {
+    let plan;
+    try {
+      plan = buildMoveOutPlan({
+        tenant,
+        tenants,
+        rooms,
+        contracts,
+        deposits,
+        actualMoveOutDate,
+        depositHandling: moveOutDepositHandling,
+        refundAmount: moveOutRefundAmount,
+        note: moveOutNote
+      });
+    } catch (error: any) {
+      window.alert(error?.message || "退租信息不完整，请检查后重试。");
       return;
     }
-    if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
-    const nextTenants = tenants.map((item) => (item.id === tenant.id ? {
-      ...item,
-      status: "已退租",
-      ...(actualMoveOutDateEnabled ? { actualMoveOutDate } : {})
-    } : item));
-    const saved = await persistAll({
-      tenants: nextTenants,
-      rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
-      contracts: contracts.map((contract) => (contract.tenantId === tenant.id ? { ...contract, status: "已结束" } : contract)),
-      deposits: deposits.map((deposit) => (deposit.tenantId === tenant.id && !isVoidedDeposit(deposit) ? { ...deposit, status: depositStatus } : deposit))
-    }, "退租保存失败，请重新进入租客详情确认押金状态。");
-    if (!saved) return;
+    setSaving(true);
+    const snapshots = { tenants, rooms, contracts, deposits };
+    const completed: Array<keyof typeof snapshots> = [];
+    const resourceKeys = { tenants: tenantKey, rooms: roomKey, contracts: contractKey, deposits: depositKey } as const;
     try {
-      const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
-      setDeposits(refreshedDeposits);
+      for (const key of ["tenants", "rooms", "contracts", "deposits"] as const) {
+        if (key === "tenants") await saveBusinessData(resourceKeys[key], plan.tenants);
+        if (key === "rooms") await saveBusinessData(resourceKeys[key], plan.rooms);
+        if (key === "contracts") await saveBusinessData(resourceKeys[key], plan.contracts);
+        if (key === "deposits") await saveBusinessData(resourceKeys[key], plan.deposits);
+        completed.push(key);
+      }
+      setTenants(plan.tenants);
+      setRooms(plan.rooms);
+      setContracts(plan.contracts);
+      setDeposits(plan.deposits);
       setMoveOutTenant(null);
-    } catch {
-      window.alert("退租已提交，但押金状态无法确认，请重新进入租客详情确认。");
+      setMoveOutReview(false);
+      setMoveOutNote("");
+    } catch (error: any) {
+      const rollbackErrors: string[] = [];
+      for (const key of completed.reverse()) {
+        try {
+          if (key === "tenants") await saveBusinessData(resourceKeys[key], snapshots.tenants);
+          if (key === "rooms") await saveBusinessData(resourceKeys[key], snapshots.rooms);
+          if (key === "contracts") await saveBusinessData(resourceKeys[key], snapshots.contracts);
+          if (key === "deposits") await saveBusinessData(resourceKeys[key], snapshots.deposits);
+        } catch (rollbackError: any) {
+          rollbackErrors.push(rollbackError?.message || key);
+        }
+      }
+      window.alert(rollbackErrors.length
+        ? "退租保存失败，自动回滚也未能完全确认，请立即刷新页面核对租客、合同、房间和押金状态。"
+        : "退租保存失败，已回滚本次已写入内容，未完成退租。\n" + (error?.message || "请稍后重试。"));
+    } finally {
+      setSaving(false);
     }
   }
 
   function openMoveOutDialog(tenant: BusinessTenant) {
+    if (isEndedTenantStatus(tenant.status)) {
+      window.alert("该租客已经退租或归档，不能重复办理退租。");
+      return;
+    }
     setMoveOutTenant(tenant);
     setMoveOutDate(tenant.actualMoveOutDate || localToday());
-    setMoveOutDepositStatus("待退");
+    setMoveOutDepositHandling("pending");
+    setMoveOutRefundAmount(0);
+    setMoveOutNote("");
+    setMoveOutReview(false);
   }
 
   function openMoveOutDateDialog(tenant: BusinessTenant) {
@@ -552,7 +592,7 @@ export default function TenantsPage() {
     }
   }
 
-  async function updateDepositStatus(tenant: BusinessTenant, status: "待退" | "已退") {
+  async function updateDepositStatus(tenant: BusinessTenant, status: string) {
     const targetDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
     if (!targetDeposits.length) {
       window.alert("未找到该租客的有效押金记录，状态未修改。");
@@ -917,24 +957,42 @@ export default function TenantsPage() {
         <div className="modal-backdrop" onMouseDown={() => setMoveOutTenant(null)}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
-              <h2 className="panel-title">办理退租</h2>
+              <h2 className="panel-title">{moveOutReview ? "确认办理退租" : "办理退租"}</h2>
               <button className="btn" onClick={() => setMoveOutTenant(null)} type="button"><X size={17} /> 关闭</button>
             </div>
-            <p className="muted">这里结束租赁关系并记录押金处理状态，不会自动新增退押金支出，也不会修改任何金额。</p>
-            <div className="field">
-              <label htmlFor="move-out-deposit-status">押金处理状态</label>
-              <select id="move-out-deposit-status" value={moveOutDepositStatus} onChange={(event) => setMoveOutDepositStatus(event.target.value as "待退" | "已退")}>
-                <option value="待退">押金待处理</option>
-                <option value="已退">押金已处理</option>
-              </select>
-            </div>
-            {actualMoveOutDateEnabled ? <div className="field">
+            {!moveOutReview ? <>
+              <p className="muted">{moveOutTenant.name} · {properties.find((item) => item.id === moveOutTenant.propertyId)?.name || "-"} / {rooms.find((item) => item.id === moveOutTenant.roomId)?.name || "-"}</p>
+              <div className="field">
+                <label htmlFor="move-out-deposit-status">押金处理状态</label>
+                <select id="move-out-deposit-status" value={moveOutDepositHandling} onChange={(event) => setMoveOutDepositHandling(event.target.value as MoveOutDepositHandling)}>
+                  <option value="full_refund">已全额退还</option>
+                  <option value="partial_refund">部分退还</option>
+                  <option value="not_refunded">不退还</option>
+                  <option value="pending">尚未处理</option>
+                </select>
+              </div>
+              {moveOutDepositHandling === "partial_refund" ? <div className="field">
+                <label htmlFor="move-out-refund-amount">退款金额</label>
+                <input id="move-out-refund-amount" type="number" min="0" step="0.01" value={moveOutRefundAmount} onChange={(event) => setMoveOutRefundAmount(Number(event.target.value || 0))} />
+              </div> : null}
+              <div className="field">
               <label htmlFor="move-out-date">实际退租日期</label>
               <input id="move-out-date" type="date" value={moveOutDate} onChange={(event) => setMoveOutDate(event.target.value)} required />
-            </div> : null}
+              </div>
+              <div className="field">
+                <label htmlFor="move-out-note">退租备注</label>
+                <textarea id="move-out-note" value={moveOutNote} onChange={(event) => setMoveOutNote(event.target.value)} placeholder="可填写退租、押金和租金处理说明" />
+              </div>
+            </> : <div className="move-out-review">
+              <p><strong>租客：</strong>{moveOutTenant.name}</p>
+              <p><strong>实际退租日期：</strong>{moveOutDate}</p>
+              <p><strong>押金处理：</strong>{moveOutDepositHandling === "full_refund" ? "已全额退还" : moveOutDepositHandling === "partial_refund" ? `部分退还 ${euro(moveOutRefundAmount)}` : moveOutDepositHandling === "not_refunded" ? "不退还" : "尚未处理"}</p>
+              <p><strong>房租说明：</strong>{moveOutNote || "未填写，保留现有收款记录，不自动退款。"}</p>
+              <p className="muted">房间将恢复为空置；历史收款、合同、附件和押金记录继续保留。</p>
+            </div>}
             <div className="modal-actions">
-              <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>
-              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus, moveOutDate)} type="button">确认退租</button>
+              {moveOutReview ? <button className="btn" disabled={saving} onClick={() => setMoveOutReview(false)} type="button">返回修改</button> : <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>}
+              {moveOutReview ? <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDate)} type="button">确认退租</button> : <button className="btn primary" disabled={saving} onClick={() => setMoveOutReview(true)} type="button">查看确认摘要</button>}
             </div>
           </section>
         </div>
@@ -1131,7 +1189,7 @@ function TenantDetail({
         </div>
       ) : null}
 
-      {movedOut && isActualMoveOutDateEnabled() ? (
+      {movedOut ? (
         <div className="deposit-status-detail">
           <div>
             <span className="muted">实际退租日期</span>
@@ -1407,7 +1465,11 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
   if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return "未建立押金管理记录";
-  return tenantDepositStorageStatus(tenant, deposits) === "已退" ? "押金已处理" : "押金待处理";
+  const status = tenantDepositStorageStatus(tenant, deposits);
+  if (status === "已退") return "押金已处理";
+  if (status === "部分退还") return "押金部分退还";
+  if (status === "不退还") return "押金不退还";
+  return "押金待处理";
 }
 
 function depositReferenceForTenant(tenantId: string, payments: BusinessRentPayment[]) {
@@ -1422,8 +1484,10 @@ function depositReferenceForTenant(tenantId: string, payments: BusinessRentPayme
   return { amount: latest, label: `收款记录中发现 ${amounts.length} 笔押金差额，最近一笔参考金额：${euro(latest)}；请自行确认最终押金金额。` };
 }
 
-function tenantDepositStorageStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]): "待退" | "已退" {
+function tenantDepositStorageStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]): string {
   const tenantDeposits = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
+  const latest = tenantDeposits.find((deposit) => deposit.notes?.includes("[退租押金处理:"));
+  if (latest?.status) return latest.status;
   return tenantDeposits.some((deposit) => deposit.status === "已退") ? "已退" : "待退";
 }
 
