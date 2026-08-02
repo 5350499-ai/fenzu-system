@@ -1138,7 +1138,7 @@ function TenantDetail({
       ) : null}
 
       <section className="tenant-performance-section">
-        <div className="detail-section-title">付款表现概览</div>
+        <div className="detail-section-title">付款摘要</div>
         {performance.periods.length === 0 ? (
           <div className="tenant-performance-empty">
             <strong>暂无足够数据</strong>
@@ -1159,7 +1159,7 @@ function TenantDetail({
       </section>
 
       <section className="tenant-timeline-section">
-        <div className="detail-section-title">每月付款图表</div>
+        <div className="detail-section-title">年度付款表现</div>
         <TenantMonthlyPaymentPanel tenant={tenant} payments={payments} events={timeline} performance={performance} today={localToday()} />
       </section>
 

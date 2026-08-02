@@ -86,6 +86,22 @@ export function buildCalendarYearMonths(year: number) {
   return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
 }
 
+export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string): number | null {
+  const complete = payments.filter((payment) => isRentIncome(payment) && paymentCoverageStart(payment)?.slice(0, 7) === month);
+  if (!complete.length) return null;
+  const expected = complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountDue || 0)), 0);
+  const paid = complete.reduce((sum, payment) => sum + Math.max(0, Number(payment.amountPaid || 0)), 0);
+  const lastPaymentDate = [...complete].map((payment) => payment.paymentDate).filter((value): value is string => Boolean(value && validDate(value))).sort().at(-1);
+  const [year, monthNumber] = month.split("-").map(Number);
+  const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  const monthStart = `${month}-01`;
+  if (paid < expected || expected <= 0 || !lastPaymentDate) return monthEnd < today ? Math.min(0, dateDifference(today, monthEnd) * -1) : null;
+  // Paying on the last day of the previous month for a complete next-month period is on time, not +30/+31.
+  const previousMonthEnd = new Date(Date.UTC(year, monthNumber - 1, 0)).toISOString().slice(0, 10);
+  if (lastPaymentDate <= previousMonthEnd && lastPaymentDate < monthStart) return 0;
+  return dateDifference(monthEnd, lastPaymentDate);
+}
+
 function validDate(value: string | undefined | null): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
