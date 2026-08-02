@@ -37,7 +37,7 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
   const statusValue = (month: string) => calculateMonthlyPaymentStatusDays(month, statusByMonth.get(month)?.payments || [], today, tenant.monthlyRent);
   return <section className="tenant-monthly-payment-panel">
     <div className="tenant-year-switcher"><button type="button" disabled={yearIndex <= 0} onClick={() => setSelectedYear(years[Math.max(0, yearIndex - 1)])}>‹</button>{years.map((year) => <button type="button" key={year} className={selectedYear === year ? "selected" : ""} onClick={() => setSelectedYear(year)}>{year}年</button>)}<button type="button" disabled={yearIndex < 0 || yearIndex >= years.length - 1} onClick={() => setSelectedYear(years[Math.min(years.length - 1, yearIndex + 1)])}>›</button></div>
-    <div className="detail-section-title">付款表现</div>
+    <div className="tenant-chart-caption">蓝柱：每月实际收款 · 右柱：房租周期状态</div>
     <div className="tenant-svg-chart-frame tenant-combined-chart-frame"><svg className="tenant-combined-svg" viewBox={`0 0 ${SVG_WIDTH} 150`} role="img" aria-label={`${selectedYear}年每月付款金额和付款表现`}>
       <line x1="8" x2={SVG_WIDTH - 8} y1={AXIS_Y} y2={AXIS_Y} stroke="var(--border)" strokeWidth="2" />
       {yearMonths.map((month, index) => {
