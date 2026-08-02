@@ -127,6 +127,55 @@ function receivedRentAmount(payment: BusinessRentPayment) {
   return due > 0 ? Math.min(due, paid) : 0;
 }
 
+/** The historical rent field used by the chart. Deposits are not part of amount_due. */
+export function rentAmountFromRecord(payment: BusinessRentPayment) {
+  const amount = Number(payment.amountDue || 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
+
+export type TenantPaymentDiagnostic = {
+  paymentIdSuffix: string;
+  paymentDate: string;
+  coverageStartDate: string;
+  coverageEndDate: string;
+  rentAmount: number;
+  depositAmount: number;
+  receivedTotal: number;
+  incomeType?: string;
+  paymentStatus?: string;
+  attributionMonth: string | null;
+  amountIncluded: boolean;
+  timingIncluded: boolean;
+  exclusionReason?: string;
+};
+
+/** Redacted read-only audit data for diagnosing tenant chart inclusion. */
+export function diagnoseTenantRentPayments(payments: BusinessRentPayment[]): TenantPaymentDiagnostic[] {
+  return payments.map((payment) => {
+    const rentAmount = rentAmountFromRecord(payment);
+    const attributionMonth = getRentAmountAttributionMonth(payment);
+    const validRent = isCompletedRentPayment(payment) && isRentIncome(payment) && rentAmount > 0;
+    const amountIncluded = validRent && Boolean(attributionMonth);
+    const timingIncluded = amountIncluded && isCompleteNaturalMonthCoverage(payment) && validDate(payment.paymentDate);
+    const exclusionReason = amountIncluded ? (timingIncluded ? undefined : "状态字段或完整覆盖日期不足") : !isRentIncome(payment) ? "非房租收入" : rentAmount <= 0 ? "缺少本次房租金额" : attributionMonth ? "收款已作废或归档" : "缺少可归属月份";
+    return {
+      paymentIdSuffix: payment.id.slice(-8),
+      paymentDate: payment.paymentDate || "",
+      coverageStartDate: payment.coverageStartDate || "",
+      coverageEndDate: payment.coverageEndDate || "",
+      rentAmount,
+      depositAmount: Math.max(Number(payment.amountPaid || 0) - rentAmount, 0),
+      receivedTotal: Math.max(Number(payment.amountPaid || 0), 0),
+      incomeType: payment.incomeType,
+      paymentStatus: payment.paymentStatus,
+      attributionMonth,
+      amountIncluded,
+      timingIncluded,
+      exclusionReason
+    };
+  });
+}
+
 export function calculateMonthlyPaymentStatusDays(month: string, payments: BusinessRentPayment[], today: string, monthlyRent = 0): number | null {
   const complete = payments.filter((payment) => isRentIncome(payment) && getRentAttributionMonth(payment) === month && isCompleteNaturalMonthCoverage(payment));
   if (!complete.length) return null;
@@ -384,6 +433,6 @@ export function buildMonthlyRentIncome(payments: BusinessRentPayment[], limit = 
   }
   return [...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).slice(-Math.max(1, limit)).map(([month, monthPayments]) => {
     const { year, monthNumber } = monthParts(month);
-    return { month, year, monthNumber, payments: monthPayments, amount: monthPayments.reduce((sum, payment) => sum + receivedRentAmount(payment), 0) };
+    return { month, year, monthNumber, payments: monthPayments, amount: monthPayments.reduce((sum, payment) => sum + rentAmountFromRecord(payment), 0) };
   });
 }
