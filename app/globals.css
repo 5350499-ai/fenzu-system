@@ -4295,6 +4295,21 @@ td:last-child {
     padding-inline: 6px;
     font-size: 12px;
   }
+
+  .property-monthly-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+    min-height: 52px;
+  }
+
+  .property-monthly-values {
+    gap: 5px;
+    text-align: left;
+  }
+
+  .property-monthly-values b {
+    font-size: 11px;
+  }
 }
 
 .note-expand {
@@ -4307,26 +4322,31 @@ td:last-child {
 }
 
 .tabs {
-  display: flex;
+  display: grid;
   gap: 8px;
-  overflow-x: auto;
+  overflow: visible;
   overscroll-behavior-x: contain;
-  scroll-padding-inline: 18px;
-  scroll-snap-type: x proximity;
   margin: 12px 0;
   padding: 0 10px 5px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
 
-.tabs::-webkit-scrollbar {
-  display: none;
+.tab-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tab-row-five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.tab-row-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .tab-button {
-  flex: 0 0 auto;
-  width: auto;
-  scroll-snap-align: center;
+  width: 100%;
+  min-width: 0;
   min-height: 36px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -4335,6 +4355,183 @@ td:last-child {
   padding: 0 13px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.compact-card-section {
+  padding: 14px;
+}
+
+.compact-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-record-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.compact-record-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compact-record-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.compact-record-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+.compact-record-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compact-record-field span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compact-record-field strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.compact-record-note {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.compact-record-card > .top-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.compact-record-card > .top-actions .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  height: 38px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.property-profit-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.property-profit-metrics .metric-card {
+  min-height: 82px;
+  padding: 11px 12px;
+}
+
+.property-profit-metrics .metric-value {
+  margin-top: 5px;
+  font-size: clamp(19px, 3vw, 26px);
+  line-height: 1.15;
+}
+
+.property-monthly-list {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.property-monthly-row {
+  display: grid;
+  grid-template-columns: minmax(74px, .7fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  padding: 8px 10px;
+}
+
+.property-monthly-row:last-child {
+  border-bottom: 0;
+}
+
+.property-monthly-row > strong {
+  font-size: 13px;
+}
+
+.property-monthly-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.property-monthly-values span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-monthly-values b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.property-monthly-values .profit b,
+.property-monthly-values .danger-text b {
+  color: inherit;
+}
+
+.property-notes-panel {
+  padding: 14px;
+}
+
+.property-notes-panel .notes-editor {
+  min-height: 170px;
+  margin-top: 10px;
+  padding: 11px;
 }
 
 .tab-button.active,

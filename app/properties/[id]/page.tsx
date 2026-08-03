@@ -31,7 +31,7 @@ import {
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
-import { euro, noteSummary } from "@/lib/format";
+import { euro } from "@/lib/format";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { Archive, ChevronDown, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -127,6 +127,7 @@ export default function PropertyDetailPage() {
   const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last3Months")) : null;
   const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last12Months")) : null;
   const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, deposits, 12) : [];
+  const visibleTabs = tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits"));
 
   const roomOptions = scopedRooms.map((room) => ({
     value: room.id,
@@ -279,11 +280,12 @@ export default function PropertyDetailPage() {
       </section>
 
       <div className="tabs">
-        {tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits")).map((item) => (
-          <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">
-            {item.label}
-          </button>
-        ))}
+        <div className="tab-row tab-row-five">
+          {visibleTabs.slice(0, 5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
+        </div>
+        <div className="tab-row tab-row-four">
+          {visibleTabs.slice(5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
+        </div>
       </div>
 
       {tab === "overview" ? (
@@ -301,50 +303,77 @@ export default function PropertyDetailPage() {
       ) : null}
 
       {tab === "rooms" ? (
-        <ScopedTable title="房间" action="新增房间" onAdd={() => { setRoomForm(emptyRoom(propertyId)); setEditor("room"); }}>
-          <thead><tr><th>房间</th><th>编号</th><th>月租</th><th>押金</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedRooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.roomNumber}</td><td>{euro(room.monthlyRent)}</td><td>{euro(room.depositAmount)}</td><td><StatusBadge tone={room.status === "已租" ? "green" : room.status === "空置" ? "blue" : "amber"}>{room.status}</StatusBadge></td><td title={room.notes || ""}>{noteSummary(room.notes)}</td><td><RowActions onEdit={() => { setRoomForm(room); setEditor("room"); }} onDelete={() => remove<BusinessRoom>(room.id, setRooms)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="房间" action="新增房间" onAdd={() => { setRoomForm(emptyRoom(propertyId)); setEditor("room"); }}>
+          {scopedRooms.map((room) => <CompactRecordCard key={room.id} title={room.name || room.roomNumber || "未命名房间"} status={room.status} tone={room.status === "已租" ? "green" : room.status === "空置" ? "blue" : "amber"} note={room.notes} onEdit={() => { setRoomForm(room); setEditor("room"); }} onDelete={() => remove<BusinessRoom>(room.id, setRooms)}>
+            <CardField label="编号" value={room.roomNumber} />
+            <CardField label="月租" value={euro(room.monthlyRent)} />
+            <CardField label="押金" value={euro(room.depositAmount)} />
+            {scopedTenants.find((tenant) => tenant.roomId === room.id && tenant.status === "在租") ? <CardField label="当前租客" value={scopedTenants.find((tenant) => tenant.roomId === room.id && tenant.status === "在租")?.name || ""} /> : null}
+          </CompactRecordCard>)}
+        </ScopedCardList>
       ) : null}
 
       {tab === "tenants" ? (
-        <ScopedTable title="租客" action="新增租客" onAdd={() => { setTenantForm(emptyTenant(propertyId)); setEditor("tenant"); }}>
-          <thead><tr><th>姓名</th><th>电话</th><th>微信</th><th>房间</th><th>月租</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedTenants.map((tenant) => <tr key={tenant.id}><td>{tenant.name}</td><td>{tenant.phone}</td><td>{tenant.wechat || "-"}</td><td>{scopedRooms.find((room) => room.id === tenant.roomId)?.name || "-"}</td><td>{euro(tenant.monthlyRent)}</td><td><StatusBadge tone={tenant.status === "在租" ? "green" : "amber"}>{tenant.status}</StatusBadge></td><td title={tenant.notes || ""}>{noteSummary(tenant.notes)}</td><td><RowActions onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="租客" action="新增租客" onAdd={() => { setTenantForm(emptyTenant(propertyId)); setEditor("tenant"); }}>
+          {scopedTenants.map((tenant) => {
+            const latestPayment = scopedPayments.filter((payment) => payment.tenantId === tenant.id).sort((a, b) => (b.paymentDate || b.rentMonth || "").localeCompare(a.paymentDate || a.rentMonth || ""))[0];
+            return <CompactRecordCard key={tenant.id} title={tenant.name || "未命名租客"} status={tenant.status} tone={tenant.status === "在租" ? "green" : "amber"} note={tenant.notes} onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)}>
+              <CardField label="房间" value={scopedRooms.find((room) => room.id === tenant.roomId)?.name || ""} />
+              <CardField label="当前月租" value={euro(tenant.monthlyRent)} />
+              {tenant.moveInDate ? <CardField label="入住日期" value={tenant.moveInDate} /> : null}
+              {latestPayment ? <CardField label="最近实收" value={euro(latestPayment.amountPaid)} /> : null}
+            </CompactRecordCard>;
+          })}
+        </ScopedCardList>
       ) : null}
 
       {tab === "contracts" ? (
-        <ScopedTable title="合同" action="新增合同" onAdd={() => { setContractForm(emptyContract(propertyId)); setEditor("contract"); }}>
-          <thead><tr><th>房间</th><th>租客</th><th>开始</th><th>结束</th><th>月租</th><th>押金</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedContracts.map((contract) => <tr key={contract.id}><td>{scopedRooms.find((room) => room.id === contract.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === contract.tenantId)?.name || "-"}</td><td>{contract.startDate}</td><td>{contract.endDate}</td><td>{euro(contract.monthlyRent)}</td><td>{euro(contract.depositAmount)}</td><td><StatusBadge tone={contract.status === "有效" ? "green" : contract.status === "即将到期" ? "amber" : "red"}>{contract.status}</StatusBadge></td><td title={contract.notes || ""}>{noteSummary(contract.notes)}</td><td><RowActions onEdit={() => { setContractForm(contract); setEditor("contract"); }} onDelete={() => remove<BusinessContract>(contract.id, setContracts)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="合同" action="新增合同" onAdd={() => { setContractForm(emptyContract(propertyId)); setEditor("contract"); }}>
+          {scopedContracts.map((contract) => <CompactRecordCard key={contract.id} title={`${scopedRooms.find((room) => room.id === contract.roomId)?.name || ""}${scopedTenants.find((tenant) => tenant.id === contract.tenantId)?.name ? ` / ${scopedTenants.find((tenant) => tenant.id === contract.tenantId)?.name}` : ""}` || "未命名合同"} status={contract.status} tone={contract.status === "有效" ? "green" : contract.status === "即将到期" ? "amber" : "red"} note={contract.notes} onEdit={() => { setContractForm(contract); setEditor("contract"); }} onDelete={() => remove<BusinessContract>(contract.id, setContracts)}>
+            <CardField label="开始日期" value={contract.startDate} />
+            <CardField label="到期日期" value={contract.endDate} />
+            <CardField label="月租" value={euro(contract.monthlyRent)} />
+            <CardField label="押金" value={euro(contract.depositAmount)} />
+          </CompactRecordCard>)}
+        </ScopedCardList>
       ) : null}
 
       {tab === "payments" ? (
-        <ScopedTable title="收租" action="登记收款" onAdd={() => { setPaymentForm(emptyPayment(propertyId)); setEditor("payment"); }}>
-          <thead><tr><th>月份</th><th>房间</th><th>租客</th><th>应收</th><th>已收</th><th>未收</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedPayments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.isOverdue ? "red" : "green"}>{payment.isOverdue ? "欠费" : "已结清"}</StatusBadge></td><td title={payment.notes || ""}>{noteSummary(payment.notes)}</td><td><RowActions onEdit={() => { setPaymentForm(payment); setEditor("payment"); }} onDelete={() => remove<BusinessRentPayment>(payment.id, setPayments)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="收租" action="登记收款" onAdd={() => { setPaymentForm(emptyPayment(propertyId)); setEditor("payment"); }}>
+          {scopedPayments.map((payment) => <CompactRecordCard key={payment.id} title={payment.rentMonth || payment.paymentDate || "未标注月份"} status={payment.isOverdue ? "欠费" : "已结清"} tone={payment.isOverdue ? "red" : "green"} note={payment.notes} onEdit={() => { setPaymentForm(payment); setEditor("payment"); }} onDelete={() => remove<BusinessRentPayment>(payment.id, setPayments)}>
+            <CardField label="房间 / 租客" value={`${scopedRooms.find((room) => room.id === payment.roomId)?.name || ""}${scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name ? ` / ${scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name}` : ""}`} />
+            <CardField label="应收" value={euro(payment.amountDue)} />
+            <CardField label="实收" value={euro(payment.amountPaid)} />
+            <CardField label="欠费" value={euro(payment.amountUnpaid)} tone={payment.amountUnpaid > 0 ? "danger" : "profit"} />
+          </CompactRecordCard>)}
+        </ScopedCardList>
       ) : null}
 
       {tab === "deposits" ? (
-        <ScopedTable title="押金" action="新增押金记录" onAdd={() => { setDepositForm(emptyDeposit(propertyId)); setEditor("deposit"); }}>
-          <thead><tr><th>日期</th><th>房间</th><th>租客</th><th>类型</th><th>金额</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedDeposits.map((deposit) => <tr key={deposit.id}><td>{deposit.transactionDate}</td><td>{scopedRooms.find((room) => room.id === deposit.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === deposit.tenantId)?.name || "-"}</td><td>{deposit.type}</td><td>{euro(deposit.amount)}</td><td><StatusBadge tone={deposit.status === "已收" ? "green" : deposit.status === "待退" ? "amber" : "blue"}>{deposit.status}</StatusBadge></td><td title={deposit.notes || ""}>{noteSummary(deposit.notes)}</td><td><RowActions onEdit={() => { setDepositForm(deposit); setEditor("deposit"); }} onDelete={() => remove<BusinessDeposit>(deposit.id, setDeposits)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="押金" action="新增押金记录" onAdd={() => { setDepositForm(emptyDeposit(propertyId)); setEditor("deposit"); }}>
+          {scopedDeposits.map((deposit) => <CompactRecordCard key={deposit.id} title={deposit.transactionDate || "未标注日期"} status={deposit.status} tone={deposit.status === "已收" ? "green" : deposit.status === "待退" ? "amber" : "blue"} note={deposit.notes} onEdit={() => { setDepositForm(deposit); setEditor("deposit"); }} onDelete={() => remove<BusinessDeposit>(deposit.id, setDeposits)}>
+            <CardField label="房间" value={scopedRooms.find((room) => room.id === deposit.roomId)?.name || ""} />
+            <CardField label="租客" value={scopedTenants.find((tenant) => tenant.id === deposit.tenantId)?.name || ""} />
+            <CardField label="类型" value={deposit.type} />
+            <CardField label="金额" value={euro(deposit.amount)} />
+          </CompactRecordCard>)}
+        </ScopedCardList>
       ) : null}
 
       {tab === "expenses" ? (
-        <ScopedTable title="支出" action="新增支出" onAdd={() => { setExpenseForm(emptyExpense(propertyId)); setEditor("expense"); }}>
-          <thead><tr><th>付款日期</th><th>类别</th><th>金额</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
-          <tbody>{scopedExpenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td><td title={expense.notes || ""}>{noteSummary(expense.notes)}</td><td><RowActions onEdit={() => { setExpenseForm(expense); setEditor("expense"); }} onDelete={() => remove<BusinessExpense>(expense.id, setExpenses)} /></td></tr>)}</tbody>
-        </ScopedTable>
+        <ScopedCardList title="支出" action="新增支出" onAdd={() => { setExpenseForm(emptyExpense(propertyId)); setEditor("expense"); }}>
+          {scopedExpenses.map((expense) => <CompactRecordCard key={expense.id} title={expense.paymentDate || "未标注日期"} status={expense.isPaid ? "已支出" : "已作废"} tone={expense.isPaid ? "green" : "red"} note={expense.notes} onEdit={() => { setExpenseForm(expense); setEditor("expense"); }} onDelete={() => remove<BusinessExpense>(expense.id, setExpenses)}>
+            <CardField label="项目" value={expense.category} />
+            <CardField label="金额" value={euro(expense.amount)} />
+            {expense.roomId ? <CardField label="房间" value={scopedRooms.find((room) => room.id === expense.roomId)?.name || ""} /> : null}
+            {expense.paidBy ? <CardField label="付款归属" value={expense.paidBy} /> : null}
+          </CompactRecordCard>)}
+        </ScopedCardList>
       ) : null}
 
       {tab === "profit" && monthProfit && threeMonthProfit && twelveMonthProfit ? (
         <>
-          <section className="grid metrics">
+          <section className="grid property-profit-metrics">
             <Summary label="本月收款" value={euro(monthProfit.income)} />
             <Summary label="本月支出" value={euro(monthProfit.expense)} />
             <Summary label="本月净利润" value={euro(monthProfit.netProfit)} tone={monthProfit.netProfit < 0 ? "red" : "green"} />
@@ -357,11 +386,15 @@ export default function PropertyDetailPage() {
           <div className="grid dashboard-panels">
             <section className="card panel">
               <h2 className="panel-title">按月收入/支出/利润</h2>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>月份</th><th>收入</th><th>支出</th><th>净利润</th></tr></thead>
-                  <tbody>{monthlyRows.map((row) => <tr key={row.month}><td>{row.month}</td><td>{euro(row.income)}</td><td>{euro(row.expense)}</td><td className={row.netProfit < 0 ? "danger-text" : "profit"}>{euro(row.netProfit)}</td></tr>)}</tbody>
-                </table>
+              <div className="property-monthly-list">
+                {monthlyRows.map((row) => <div className="property-monthly-row" key={row.month}>
+                  <strong>{row.month}</strong>
+                  <div className="property-monthly-values">
+                    <span>收入 <b>{euro(row.income)}</b></span>
+                    <span>支出 <b>{euro(row.expense)}</b></span>
+                    <span className={row.netProfit < 0 ? "danger-text" : "profit"}>利润 <b>{euro(row.netProfit)}</b></span>
+                  </div>
+                </div>)}
               </div>
             </section>
             <section className="card panel">
@@ -376,18 +409,18 @@ export default function PropertyDetailPage() {
           <div className="grid dashboard-panels">
             <ScopedReadOnlyTable title="收租明细">
               <thead><tr><th>月份</th><th>房间</th><th>租客</th><th>应收</th><th>已收</th><th>未收</th><th>状态</th></tr></thead>
-              <tbody>{monthProfit.payments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || "-"}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "-"}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>)}</tbody>
+              <tbody>{monthProfit.payments.map((payment) => <tr key={payment.id}><td>{payment.rentMonth}</td><td>{scopedRooms.find((room) => room.id === payment.roomId)?.name || ""}</td><td>{scopedTenants.find((tenant) => tenant.id === payment.tenantId)?.name || ""}</td><td>{euro(payment.amountDue)}</td><td>{euro(payment.amountPaid)}</td><td>{euro(payment.amountUnpaid)}</td><td><StatusBadge tone={payment.amountUnpaid > 0 ? "red" : "green"}>{payment.amountUnpaid > 0 ? "欠费" : "已收清"}</StatusBadge></td></tr>)}</tbody>
             </ScopedReadOnlyTable>
             <ScopedReadOnlyTable title="支出明细">
               <thead><tr><th>付款日期</th><th>类别</th><th>金额</th><th>状态</th></tr></thead>
-              <tbody>{monthProfit.expenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || "-"}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}</tbody>
+              <tbody>{monthProfit.expenses.map((expense) => <tr key={expense.id}><td>{expense.paymentDate || ""}</td><td>{expense.category}</td><td>{euro(expense.amount)}</td><td><StatusBadge tone={expense.isPaid ? "green" : "red"}>{expense.isPaid ? "已支付" : "未支付"}</StatusBadge></td></tr>)}</tbody>
             </ScopedReadOnlyTable>
           </div>
         </>
       ) : null}
 
       {tab === "notes" ? (
-        <section className="card panel">
+        <section className="card panel property-notes-panel">
           <h2 className="panel-title">房源备注</h2>
           <textarea className="notes-editor" value={property.notes || ""} readOnly={!access.can("properties", "edit")} onChange={(event) => savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
         </section>
@@ -523,10 +556,24 @@ function ExpenseFields({ form, setForm }: any) {
   return <><Text label="月份" value={form.expenseMonth} onChange={(expenseMonth) => setForm((c: BusinessExpense) => ({ ...c, expenseMonth }))} /><SearchableSelect label="类别" value={form.category} options={["房东租金", "维修", "清洁", "家具", "日用品", "税费", "杂费", "其他"].map((v) => ({ value: v, label: v }))} onChange={(category) => setForm((c: BusinessExpense) => ({ ...c, category }))} /><NumberInput label="金额" value={form.amount} onChange={(amount) => setForm((c: BusinessExpense) => ({ ...c, amount }))} /><Text label="付款日期" type="date" value={form.paymentDate} onChange={(paymentDate) => setForm((c: BusinessExpense) => ({ ...c, paymentDate }))} /><SearchableSelect label="状态" value={form.isPaid ? "已支付" : "未支付"} options={["已支付", "未支付"].map((v) => ({ value: v, label: v }))} onChange={(status) => setForm((c: BusinessExpense) => ({ ...c, isPaid: status === "已支付" }))} /><Note value={form.notes} onChange={(notes) => setForm((c: BusinessExpense) => ({ ...c, notes }))} /></>;
 }
 
-function ScopedTable({ title, action, onAdd, children }: { title: string; action: string; onAdd: () => void; children: React.ReactNode }) {
+function ScopedCardList({ title, action, onAdd, children }: { title: string; action: string; onAdd: () => void; children: React.ReactNode }) {
   const access = useAccountAccess();
   const moduleKey: AccountModuleKey = title === "房间" ? "rooms" : title === "租客" || title === "合同" ? "tenants" : title === "收租" ? "rent_payments" : title === "押金" ? "deposits" : "expenses";
-  return <ScopedModuleContext.Provider value={moduleKey}><section className="card panel"><div className="panel-header"><h2 className="panel-title">{title}</h2>{access.can(moduleKey, "create") ? <button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button> : null}</div><div className="table-wrap"><table>{children}</table></div></section></ScopedModuleContext.Provider>;
+  return <ScopedModuleContext.Provider value={moduleKey}><section className="card panel compact-card-section"><div className="panel-header"><h2 className="panel-title">{title}</h2>{access.can(moduleKey, "create") ? <button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button> : null}</div><div className="compact-card-list">{children}</div></section></ScopedModuleContext.Provider>;
+}
+
+function CompactRecordCard({ title, status, tone, note, onEdit, onDelete, children }: { title: string; status: string; tone?: string; note?: string; onEdit: () => void; onDelete: () => void; children: React.ReactNode }) {
+  return <article className="compact-record-card">
+    <div className="compact-record-heading"><strong>{title}</strong><StatusBadge tone={tone === "danger" ? "red" : tone === "profit" ? "green" : tone as any}>{status}</StatusBadge></div>
+    <div className="compact-record-grid">{children}</div>
+    {note?.trim() ? <p className="compact-record-note" title={note}>{note}</p> : null}
+    <RowActions onEdit={onEdit} onDelete={onDelete} />
+  </article>;
+}
+
+function CardField({ label, value, tone }: { label: string; value?: string; tone?: string }) {
+  if (!value?.trim()) return null;
+  return <div className="compact-record-field"><span>{label}</span><strong className={tone === "danger" ? "danger-text" : tone === "profit" ? "profit" : ""}>{value}</strong></div>;
 }
 
 function ScopedReadOnlyTable({ title, children }: { title: string; children: React.ReactNode }) {
@@ -551,6 +598,7 @@ function CompactSummary({ label, value, tone }: { label: string; value: string; 
 }
 
 function DetailField({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  if (!value || value === "-") return null;
   return <div className={`property-detail-field ${className}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
