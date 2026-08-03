@@ -4677,6 +4677,135 @@ td:last-child {
   white-space: nowrap;
 }
 
+.profit-occupancy-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.profit-occupancy-summary > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profit-occupancy-summary span,
+.profit-occupancy-summary small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profit-occupancy-summary strong {
+  font-size: clamp(20px, 4vw, 28px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.occupancy-details-list,
+.occupancy-monthly-list {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.occupancy-property-summary,
+.occupancy-room-row,
+.occupancy-monthly-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: transparent;
+  color: inherit;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.occupancy-property-summary {
+  width: 100%;
+  cursor: pointer;
+}
+
+.occupancy-property-summary:last-child,
+.occupancy-room-row:last-child,
+.occupancy-monthly-row:last-child {
+  border-bottom: 0;
+}
+
+.occupancy-property-summary span,
+.occupancy-room-row small,
+.occupancy-monthly-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.occupancy-property-summary b,
+.occupancy-room-row b,
+.occupancy-monthly-row b {
+  min-width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.occupancy-room-list {
+  display: grid;
+  border-top: 1px solid var(--border);
+  padding-left: 12px;
+}
+
+.reminder-page-row:has(.reminder-rent-actions) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.reminder-page-row-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: inherit;
+}
+
+.reminder-rent-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.reminder-rent-actions .btn {
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.reminder-waive-modal {
+  max-width: 480px;
+}
+
+.reminder-waive-modal .modal-actions {
+  justify-content: flex-end;
+}
+
+.occupancy-monthly-panel {
+  margin-bottom: 16px;
+}
+
 @media (max-width: 640px) {
   .global-profit-overview-values {
     grid-template-columns: 1fr;
@@ -5701,5 +5830,52 @@ td:last-child {
   .account-share-card .modal-actions .btn {
     flex: 1 1 140px;
     justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .profit-occupancy-summary {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .profit-occupancy-summary .btn {
+    width: 100%;
+  }
+
+  .occupancy-property-summary,
+  .occupancy-room-row,
+  .occupancy-monthly-row {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .occupancy-property-summary b,
+  .occupancy-room-row b,
+  .occupancy-monthly-row b {
+    min-width: 58px;
+    font-size: 12px;
+  }
+
+  .reminder-page-row:has(.reminder-rent-actions) {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder-rent-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reminder-rent-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (min-width: 641px) {
+  .occupancy-monthly-row,
+  .occupancy-room-row {
+    grid-template-columns: minmax(140px, 1fr) minmax(130px, auto) minmax(90px, auto);
   }
 }

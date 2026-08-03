@@ -8,14 +8,17 @@ import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessDeposit,
   BusinessExpense,
+  BusinessContract,
   BusinessProperty,
   BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
   depositKey,
+  contractKey,
   expenseKey,
   getInitialDeposits,
   getInitialExpenses,
+  getInitialContracts,
   getInitialProperties,
   getInitialRentPayments,
   getInitialRooms,
@@ -28,6 +31,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, paymentAccountingDate } from "@/lib/profit";
+import { calculateOccupancySummary } from "@/lib/room-occupancy";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -39,6 +43,7 @@ export default function PropertyProfitsPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState("all");
   const [monthlyMode, setMonthlyMode] = useState<"overview" | "year" | "custom">("overview");
   const [monthlyYear, setMonthlyYear] = useState(() => new Date().getFullYear());
@@ -48,6 +53,12 @@ export default function PropertyProfitsPage() {
   const [appliedCustomEnd, setAppliedCustomEnd] = useState(() => todayDate());
   const [customError, setCustomError] = useState("");
   const [historyPage, setHistoryPage] = useState(0);
+  const [showOccupancyDetails, setShowOccupancyDetails] = useState(false);
+  const [expandedOccupancyProperties, setExpandedOccupancyProperties] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setExpandedOccupancyProperties(selectedPropertyId === "all" ? new Set() : new Set([selectedPropertyId]));
+  }, [selectedPropertyId]);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -58,12 +69,14 @@ export default function PropertyProfitsPage() {
       const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : [];
       const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
       const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : [];
+      const loadedContracts = access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setPayments(loadedPayments);
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
+      setContracts(loadedContracts);
     }
     load().catch((error) => window.alert(`加载房源利润失败：${error.message || error}`));
   }, [access.ready]);
@@ -84,6 +97,14 @@ export default function PropertyProfitsPage() {
   }, [monthlyYear]);
   const customRange = useMemo(() => getDateRange("custom", appliedCustomStart, appliedCustomEnd), [appliedCustomEnd, appliedCustomStart]);
   const range = monthlyMode === "overview" ? allTimeRange : monthlyMode === "year" ? yearRange : customRange;
+  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, rooms, tenants, contracts, yearRange, customRange), [contracts, customRange, monthlyMode, rooms, selectedPropertyId, tenants, yearRange]);
+  const occupancySummary = useMemo(() => calculateOccupancySummary(
+    selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId),
+    selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId),
+    contracts,
+    occupancyRange,
+    todayDate()
+  ), [contracts, occupancyRange, rooms, selectedPropertyId, tenants]);
   const stats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range).sort((a, b) => a.netProfit - b.netProfit),
     [deposits, expenses, payments, properties, range, rooms, tenants]
@@ -107,6 +128,7 @@ export default function PropertyProfitsPage() {
   const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(monthlyRows.length / pageSize));
   const displayedMonthlyRows = monthlyMode === "overview" ? monthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : monthlyRows;
+  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(rooms, tenants, contracts, occupancyRange, selectedPropertyId), [contracts, occupancyRange, rooms, selectedPropertyId, tenants]);
 
   function selectMonthlyMode(mode: "overview" | "year" | "custom") {
     setMonthlyMode(mode);
@@ -163,11 +185,11 @@ export default function PropertyProfitsPage() {
           {selectedPropertyId !== "all" ? <Link className="text-link" href={`/property-profits/${selectedPropertyId}`}>查看收入支出明细</Link> : null}
         </div>
         <ProfitBarChart income={totals.income} expense={totals.expense} netProfit={totals.netProfit} label={`${scopeLabel}收入、支出与净利润对比`} />
-        <div className="profit-secondary-metrics" aria-label="次要利润指标">
-          <ProfitSecondaryMetric label="欠租" value={euro(totals.unpaid)} tone={totals.unpaid > 0 ? "danger" : ""} />
-          <ProfitSecondaryMetric label="入住率" value={`${totals.occupancy}%`} />
-          <ProfitSecondaryMetric label="空置" value={`${totals.vacantRooms}间`} />
+        <div className="profit-occupancy-summary">
+          <div><span>出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.rentedDays}/{occupancySummary.availableDays} 房间日</small></div>
+          <button className="btn" type="button" onClick={() => setShowOccupancyDetails((current) => !current)}>{showOccupancyDetails ? "收起出租率明细" : "查看出租率明细"}</button>
         </div>
+        {showOccupancyDetails ? <OccupancyDetails summary={occupancySummary} properties={properties} expanded={expandedOccupancyProperties} onToggle={(propertyId) => setExpandedOccupancyProperties((current) => { const next = new Set(current); if (next.has(propertyId)) next.delete(propertyId); else next.add(propertyId); return next; })} /> : null}
         {unassignedIncome > 0 ? <p className="profit-unassigned-note">已按现有首页规则计入未分配房源收入：{euro(unassignedIncome)}。</p> : null}
       </section>
 
@@ -230,12 +252,97 @@ export default function PropertyProfitsPage() {
           <button className="btn" type="button" disabled={historyPage >= pageCount - 1} onClick={() => setHistoryPage((page) => Math.min(pageCount - 1, page + 1))}>更早月份</button>
         </div> : null}
       </section>
+
+      <section className="card panel occupancy-monthly-panel">
+        <div className="panel-header"><div><h2 className="panel-title">按月出租率</h2><p className="muted">{occupancyRange.start} 至 {occupancyRange.end} · 房间日统计</p></div></div>
+        <div className="occupancy-monthly-list">
+          {monthlyOccupancyRows.map((row) => <div className="occupancy-monthly-row" key={row.month}>
+            <strong>{row.monthLabel}</strong><span>{row.rentedDays}/{row.availableDays} 房间日</span><b className={row.rate != null && row.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.rate)}</b>
+          </div>)}
+          {!monthlyOccupancyRows.length ? <p className="muted">暂无可出租房间数据</p> : null}
+        </div>
+      </section>
     </AppLayout>
   );
 }
 
 function ProfitSecondaryMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
   return <div className={`profit-secondary-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function OccupancyDetails({
+  summary,
+  properties,
+  expanded,
+  onToggle
+}: {
+  summary: ReturnType<typeof calculateOccupancySummary>;
+  properties: BusinessProperty[];
+  expanded: Set<string>;
+  onToggle: (propertyId: string) => void;
+}) {
+  return <div className="occupancy-details-list">
+    {summary.properties.map((property) => <div className="occupancy-property-detail" key={property.propertyId}>
+      <button className="occupancy-property-summary" type="button" onClick={() => onToggle(property.propertyId)}>
+        <strong>{properties.find((item) => item.id === property.propertyId)?.name || "未命名房源"}</strong><span>{property.rentedDays}/{property.availableDays} 房间日</span><b>{formatRate(property.rate)}</b>
+      </button>
+      {expanded.has(property.propertyId) ? <div className="occupancy-room-list">{property.rooms.map((room) => <div className="occupancy-room-row" key={room.roomId}><span>{room.roomName}</span><small>{room.rentedDays}/{room.availableDays} 天</small><b>{formatRate(room.rate)}</b></div>)}</div> : null}
+    </div>)}
+  </div>;
+}
+
+function formatRate(rate: number | null) {
+  if (rate == null) return "暂无数据";
+  const rounded = Math.round(rate * 100) / 100;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}%`;
+}
+
+function getOccupancyRange(
+  mode: "overview" | "year" | "custom",
+  selectedPropertyId: string,
+  rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
+  contracts: BusinessContract[],
+  yearRange: { start: string; end: string },
+  customRange: { start: string; end: string }
+) {
+  if (mode === "year") return yearRange;
+  if (mode === "custom") return customRange;
+  const propertyRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
+  const propertyTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
+  const dates = [
+    ...propertyRooms.map((room) => room.createdAt || ""),
+    ...propertyTenants.map((tenant) => tenant.moveInDate || ""),
+    ...contracts.filter((contract) => selectedPropertyId === "all" || contract.propertyId === selectedPropertyId).map((contract) => contract.startDate || "")
+  ].filter(isDateString).sort();
+  const end = todayDate();
+  return { start: dates[0] && dates[0] <= end ? dates[0] : end, end };
+}
+
+function buildMonthlyOccupancyRows(
+  rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
+  contracts: BusinessContract[],
+  dateRange: { start: string; end: string },
+  selectedPropertyId: string
+) {
+  if (!dateRange.start || !dateRange.end || dateRange.start > dateRange.end) return [];
+  const rows: Array<{ month: string; monthLabel: string; rentedDays: number; availableDays: number; rate: number | null }> = [];
+  const start = new Date(`${dateRange.start}T00:00:00`);
+  const end = new Date(`${dateRange.end}T00:00:00`);
+  for (const cursor = new Date(start.getFullYear(), start.getMonth(), 1); cursor <= end; cursor.setMonth(cursor.getMonth() + 1)) {
+    const year = cursor.getFullYear();
+    const monthNumber = cursor.getMonth() + 1;
+    const month = `${year}-${String(monthNumber).padStart(2, "0")}`;
+    const monthLastDay = new Date(year, monthNumber, 0).getDate();
+    const monthStart = month === dateRange.start.slice(0, 7) ? dateRange.start : `${month}-01`;
+    const monthEnd = month === dateRange.end.slice(0, 7) ? dateRange.end : `${month}-${String(monthLastDay).padStart(2, "0")}`;
+    const scopedRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
+    const scopedTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
+    const summary = calculateOccupancySummary(scopedRooms, scopedTenants, contracts, { start: monthStart, end: monthEnd }, todayDate());
+    rows.push({ month, monthLabel: `${year}年${monthNumber}月`, rentedDays: summary.rentedDays, availableDays: summary.availableDays, rate: summary.rate });
+  }
+  return rows.reverse();
 }
 
 function buildGlobalMonthlyRows(

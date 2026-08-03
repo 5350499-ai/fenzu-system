@@ -27,6 +27,8 @@ import {
 import { euro } from "@/lib/format";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { fixedRentCollectionReminderStage, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { rentCollectionRemaining } from "@/lib/rent-collection";
+import { getValidSupabaseSession } from "@/lib/supabase";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -39,6 +41,7 @@ type Reminder = {
   tone: "danger" | "warning" | "yellow" | "green" | "info" | "blue";
   priority: number;
   rentContext?: {
+    paymentId: string;
     propertyLabel: string;
     roomLabel: string;
     tenantName: string;
@@ -55,6 +58,10 @@ export default function RemindersPage() {
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [waivedPaymentIds, setWaivedPaymentIds] = useState<Set<string>>(new Set());
+  const [waiveTarget, setWaiveTarget] = useState<Reminder | null>(null);
+  const [waiveReason, setWaiveReason] = useState("");
+  const [waiving, setWaiving] = useState(false);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -68,14 +75,45 @@ export default function RemindersPage() {
       setContracts(access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : []);
       setPayments(access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : []);
       setDeposits(access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : []);
+      const session = await getValidSupabaseSession();
+      if (session) {
+        const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+        if (response.ok) {
+          const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
+          setWaivedPaymentIds(new Set((payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[]));
+        }
+      }
     }
     load().catch((error) => window.alert(`加载提醒中心失败：${error.message || error}`));
   }, [access.ready]);
 
   const reminders = useMemo(
-    () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits }),
-    [contracts, deposits, payments, properties, rooms, tenants]
+    () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits, waivedPaymentIds }),
+    [contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
   );
+
+  async function waiveReminder() {
+    if (!waiveTarget?.rentContext?.paymentId) return;
+    setWaiving(true);
+    try {
+      const session = await getValidSupabaseSession();
+      if (!session) throw new Error("登录已失效，请重新登录。");
+      const response = await fetch("/api/rent-collection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: "waive", rentPaymentId: waiveTarget.rentContext.paymentId, reason: waiveReason.trim() })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "放弃追缴失败。");
+      setWaivedPaymentIds((current) => new Set([...current, waiveTarget.rentContext!.paymentId]));
+      setWaiveTarget(null);
+      setWaiveReason("");
+    } catch (error: any) {
+      window.alert(error.message || "放弃追缴失败。");
+    } finally {
+      setWaiving(false);
+    }
+  }
 
   const grouped = useMemo(() => {
     const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "空置房间", "备份提醒"];
@@ -97,7 +135,7 @@ export default function RemindersPage() {
         </div>
         <div className="reminder-page-list">
           {reminders.slice(0, 8).map((item) => (
-            <ReminderRow item={item} key={item.id} />
+            <ReminderRow item={item} key={item.id} onWaive={setWaiveTarget} />
           ))}
           {!reminders.length ? <p className="muted">暂无系统提醒。</p> : null}
         </div>
@@ -111,17 +149,32 @@ export default function RemindersPage() {
               <span className="muted">{group.items.length} 条</span>
             </div>
             <div className="reminder-page-list compact">
-              {group.items.map((item) => <ReminderRow item={item} key={item.id} />)}
+              {group.items.map((item) => <ReminderRow item={item} key={item.id} onWaive={setWaiveTarget} />)}
               {!group.items.length ? <p className="muted">暂无</p> : null}
             </div>
           </section>
         ))}
       </div>
+      {waiveTarget ? <div className="modal-backdrop" onMouseDown={() => !waiving && setWaiveTarget(null)}>
+        <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
+          <h2 className="panel-title">确认放弃追缴</h2>
+          <p>确认放弃追缴这笔欠租吗？该操作不会生成收入或支出，欠租历史仍会保留，但不会继续出现在提醒中心。</p>
+          <div className="field"><label>原因（可选）</label><textarea value={waiveReason} maxLength={500} onChange={(event) => setWaiveReason(event.target.value)} /></div>
+          <div className="modal-actions"><button className="btn" disabled={waiving} type="button" onClick={() => setWaiveTarget(null)}>取消</button><button className="btn warning" disabled={waiving} type="button" onClick={() => void waiveReminder()}>{waiving ? "处理中…" : "确认放弃追缴"}</button></div>
+        </section>
+      </div> : null}
     </AppLayout>
   );
 }
 
-function ReminderRow({ item }: { item: Reminder }) {
+function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Reminder) => void }) {
+  if (item.rentContext?.paymentId && item.category === "欠费提醒") return <div className={`reminder-page-row ${item.tone}`}>
+    <Link className="reminder-page-row-link" href={item.href}>
+      <StatusBadge tone="red">欠费提醒</StatusBadge>
+      <span className="reminder-page-rent-content"><strong>{item.rentContext.propertyLabel} · {item.rentContext.roomLabel}</strong><b className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b><small>{item.rentContext.tenantName} · 覆盖至：{item.rentContext.coverageEnd}</small></span>
+    </Link>
+    <span className="reminder-rent-actions"><Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.rentContext.paymentId)}&overdue=1`}>登记补交</Link><button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button></span>
+  </div>;
   return (
     <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
       <StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge>
@@ -147,7 +200,8 @@ function buildReminders({
   tenants,
   contracts,
   payments,
-  deposits
+  deposits,
+  waivedPaymentIds
 }: {
   properties: BusinessProperty[];
   rooms: BusinessRoom[];
@@ -155,6 +209,7 @@ function buildReminders({
   contracts: BusinessContract[];
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
+  waivedPaymentIds: Set<string>;
 }) {
   const today = new Date();
   const propertyById = new Map(properties.map((item) => [item.id, item]));
@@ -168,11 +223,11 @@ function buildReminders({
         const payment = latestCoverageForTenant(tenant.id, payments);
         return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
     })
-    .filter(({ stage }) => Boolean(stage))
+    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id) && (stage!.level !== "overdue" || rentCollectionRemaining(payment!) > 0))
     .forEach(({ tenant, payment, stage }) => {
       if (!stage) return;
       const room = roomById.get(tenant.roomId);
-      const amount = overdueReferenceAmount(payment, tenant);
+      const amount = stage.level === "overdue" ? rentCollectionRemaining(payment!) : overdueReferenceAmount(payment, tenant);
       const roomLabel = room?.roomNumber || room?.name || tenant.name || "房间";
       reminders.push({
         id: `payment-${tenant.id}`,
@@ -183,6 +238,7 @@ function buildReminders({
         tone: rentStageTone(stage.level),
         priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining),
         rentContext: {
+          paymentId: payment!.id,
           propertyLabel: compactReminderPropertyName(propertyById.get(tenant.propertyId)?.name),
           roomLabel: compactReminderRoomName(room),
           tenantName: tenant.name || "未命名租客",

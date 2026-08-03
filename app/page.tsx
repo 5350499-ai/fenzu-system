@@ -36,6 +36,8 @@ import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { rentCollectionRemaining } from "@/lib/rent-collection";
+import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -65,6 +67,7 @@ export default function DashboardPage() {
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
   const [dataError, setDataError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [waivedPaymentIds, setWaivedPaymentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!access.ready || !access.authenticated) return;
@@ -89,6 +92,14 @@ export default function DashboardPage() {
       setExpenses(loadedExpenses);
       setDeposits(loadedDeposits);
       setViewingAppointments(loadedViewingAppointments);
+      const session = await getValidSupabaseSession();
+      if (session) {
+        const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+        if (response.ok) {
+          const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
+          setWaivedPaymentIds(new Set((payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[]));
+        }
+      }
       setDataStatus("ready");
     }
     load().catch((error) => {
@@ -106,14 +117,19 @@ export default function DashboardPage() {
     [deposits, expenses, properties, rentPayments, rooms, tenants, thisMonthRange]
   );
   const totals = calculateTotals(propertyStats, calculateUnassignedIncome(rentPayments, thisMonthRange));
+  const waivedUnpaid = useMemo(() => tenants.reduce((sum, tenant) => {
+    const payment = latestCoverageForTenant(tenant.id, rentPayments);
+    return sum + (payment && waivedPaymentIds.has(payment.id) && isCoverageExpired(payment) ? rentCollectionRemaining(payment) : 0);
+  }, 0), [rentPayments, tenants, waivedPaymentIds]);
+  const dashboardTotals = { ...totals, unpaid: Math.max(0, totals.unpaid - waivedUnpaid) };
   const reminders = useMemo(
-    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits }),
-    [contracts, deposits, properties, rentPayments, rooms, tenants]
+    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds }),
+    [contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
-    () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits }),
-    [contracts, deposits, rentPayments, rooms, tenants]
+    () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds }),
+    [contracts, deposits, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const today = localToday();
   const pendingAppointments = useMemo(() => [...viewingAppointments]
@@ -137,7 +153,7 @@ export default function DashboardPage() {
         <MetricCard label="本月总收入" value={euro(totals.income)} note="点击查看本月收款" href={`/rent-payments?month=${currentMonth}`} />
         <MetricCard label="本月总支出" value={euro(totals.expense)} note="点击查看本月支出" href={`/expenses?month=${currentMonth}`} />
         <MetricCard label="本月净利润" value={euro(totals.netProfit)} note="收入减支出" tone={totals.netProfit < 0 ? "danger" : "profit"} href="/property-profits" hero />
-        <MetricCard label="应收未收金额" value={euro(totals.unpaid)} note="点击查看欠费" tone={totals.unpaid > 0 ? "danger" : "info"} href="/rent-payments?overdue=1" />
+        <MetricCard label="应收未收金额" value={euro(dashboardTotals.unpaid)} note="点击查看欠费" tone={dashboardTotals.unpaid > 0 ? "danger" : "info"} href="/rent-payments?overdue=1" />
         <MetricCard label="入住率" value={`${totals.occupancy}%`} note={`${totals.rentedRooms}/${totals.rentableRooms} 间可出租房间`} tone="info" href="/rooms" />
         <MetricCard label="空置房间数" value={`${totals.vacantRooms} 间`} note="点击查看空置房间" href="/rooms?status=空置" />
       </div>
@@ -228,7 +244,8 @@ function buildDashboardReminders({
   tenants,
   contracts,
   rentPayments,
-  deposits
+  deposits,
+  waivedPaymentIds
 }: {
   properties: BusinessProperty[];
   rooms: BusinessRoom[];
@@ -236,6 +253,7 @@ function buildDashboardReminders({
   contracts: BusinessContract[];
   rentPayments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
+  waivedPaymentIds: Set<string>;
 }) {
   const reminders: Reminder[] = [];
   const today = new Date();
@@ -249,12 +267,12 @@ function buildDashboardReminders({
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
       return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
     })
-    .filter(({ stage }) => Boolean(stage))
+    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id) && (stage!.level !== "overdue" || rentCollectionRemaining(payment!) > 0))
     .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
     .forEach(({ tenant, payment, stage }) => {
       if (!stage) return;
       const room = roomById.get(tenant.roomId);
-      const amount = overdueReferenceAmount(payment, tenant);
+      const amount = stage.level === "overdue" ? rentCollectionRemaining(payment!) : overdueReferenceAmount(payment, tenant);
       const roomLabel = room?.roomNumber || room?.name || tenant.name || "租客";
       reminders.push({
         id: `rent-${tenant.id}`,
@@ -341,19 +359,21 @@ function buildReminderSummary({
   tenants,
   contracts,
   rentPayments,
-  deposits
+  deposits,
+  waivedPaymentIds
 }: {
   rooms: BusinessRoom[];
   tenants: BusinessTenant[];
   contracts: BusinessContract[];
   rentPayments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
+  waivedPaymentIds: Set<string>;
 }) {
   const today = new Date();
   const unpaid = tenants.reduce((sum, tenant) => {
     if (!strictCurrentRentalTenant(tenant)) return sum;
     const payment = latestCoverageForTenant(tenant.id, rentPayments);
-    return sum + (isCoverageExpired(payment) ? overdueReferenceAmount(payment, tenant) : 0);
+    return sum + (payment && !waivedPaymentIds.has(payment.id) && isCoverageExpired(payment) ? rentCollectionRemaining(payment) : 0);
   }, 0);
   const rentDueCount = tenants.filter((tenant) => {
     if (!isRentReminderTenant(tenant, rooms, contracts)) return false;

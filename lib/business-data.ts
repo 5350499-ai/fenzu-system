@@ -21,6 +21,8 @@ export type BusinessProperty = {
 export type BusinessRoom = {
   id: string;
   propertyId: string;
+  createdAt?: string;
+  updatedAt?: string;
   name: string;
   roomNumber: string;
   monthlyRent: number;
@@ -156,6 +158,8 @@ const tableConfigs: Record<string, TableConfig> = {
     fromDb: (row) => ({
       id: row.id,
       propertyId: row.property_id || "",
+      createdAt: row.created_at || undefined,
+      updatedAt: row.updated_at || undefined,
       name: row.name || "",
       roomNumber: row.room_number || "",
       monthlyRent: Number(row.monthly_rent || 0),
