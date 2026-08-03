@@ -2904,7 +2904,8 @@ td:last-child {
 }
 
 .tenant-finance-line {
-  grid-template-columns: minmax(48px, 64px) minmax(62px, 92px) minmax(72px, 1fr) 70px auto auto;
+  grid-template-columns: minmax(48px, 60px) minmax(56px, 78px) minmax(72px, 1fr) 70px auto auto minmax(58px, 58px);
+  gap: 5px;
   min-height: 32px;
   padding-block: 5px;
 }
@@ -2920,6 +2921,23 @@ td:last-child {
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
+}
+
+.tenant-payment-performance {
+  display: inline-flex;
+  min-width: 58px;
+  max-width: 58px;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.tenant-payment-performance .badge {
+  width: 58px;
+  justify-content: center;
+  padding-inline: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tenant-finance-line .contract-count {
@@ -3105,9 +3123,34 @@ td:last-child {
 }
 
 .tenant-performance-summary {
-  overflow-wrap: anywhere;
-  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+  padding: 6px 9px;
+  font-size: 12px;
 }
+
+.tenant-performance-summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-payment-rate {
+  margin-left: 2px;
+  font-weight: 850;
+}
+
+.tenant-payment-rate.green { color: var(--green); }
+.tenant-payment-rate.blue { color: var(--blue); }
+.tenant-payment-rate.orange { color: #ea580c; }
+.tenant-payment-rate.neutral { color: var(--muted); }
 
 .tenant-current-overdue {
   font-weight: 850;
@@ -3591,7 +3634,7 @@ td:last-child {
   }
 
 .tenant-compact-list .tenant-finance-line {
-  grid-template-columns: minmax(44px, 0.7fr) minmax(100px, 2.1fr) minmax(92px, 1.4fr) auto;
+  grid-template-columns: minmax(38px, 0.55fr) minmax(76px, 1.6fr) minmax(68px, 1.25fr) auto minmax(52px, auto);
   gap: 2px;
   min-height: 32px;
   padding-block: 5px;
@@ -3605,6 +3648,11 @@ td:last-child {
 
 .tenant-compact-list .tenant-finance-line > :nth-child(5) {
   grid-column: 4;
+  justify-self: end;
+}
+
+.tenant-compact-list .tenant-finance-line > :nth-child(7) {
+  grid-column: 5;
   justify-self: end;
 }
 
@@ -3627,6 +3675,16 @@ td:last-child {
   padding-inline: 4px;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-finance-line .tenant-payment-performance {
+  min-width: 52px;
+  max-width: 52px;
+}
+
+.tenant-compact-list .tenant-finance-line .tenant-payment-performance .badge {
+  width: 52px;
+  font-size: 9px;
 }
 
 .tenant-compact-list .tenant-expiry-row {

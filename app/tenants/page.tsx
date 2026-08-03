@@ -256,6 +256,9 @@ export default function TenantsPage() {
     });
   }, [contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
 
+  const tenantPaymentPerformanceById = useMemo(() => new Map(
+    tenants.map((tenant) => [tenant.id, calculateTenantPaymentPerformance(tenant, payments, localToday())])
+  ), [payments, tenants]);
 
   const sortedTenants = useMemo(() => {
     return sortTenantsByRoomAndStatus(filteredTenants, rooms, {
@@ -796,6 +799,16 @@ export default function TenantsPage() {
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expiryInfo = fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments));
             const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
+            const paymentPerformance = tenantPaymentPerformanceById.get(tenant.id);
+            const paymentPerformanceHasPeriods = Boolean(paymentPerformance?.periods.length);
+            const paymentPerformanceLabel = paymentPerformanceHasPeriods
+              ? `按时${Math.round(paymentPerformance?.onTimeRate || 0)}%`
+              : "暂无记录";
+            const paymentPerformanceTone = paymentPerformanceHasPeriods
+              ? paymentPerformance?.onTimeRate === 100
+                ? "green"
+                : (paymentPerformance?.onTimeRate || 0) >= 80 ? "blue" : "orange"
+              : "neutral";
             const expanded = detailTenantId === tenant.id;
             return (
               <Fragment key={tenant.id}>
@@ -812,6 +825,7 @@ export default function TenantsPage() {
                   </strong>
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge></span>
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
+                  <span className="tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
                   </span>
                 <span className="tenant-mobile-meta">
                   <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
@@ -1117,6 +1131,11 @@ function TenantDetail({
   const attachmentUploadContext = useMemo(() => ({ tenantId: tenant.id, contractId: contract?.id || null }), [tenant.id, contract?.id]);
   const addAttachment = useCallback((file: File) => onAddFile(attachmentUploadContext, file), [attachmentUploadContext, onAddFile]);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
+  const paymentRateHasPeriods = performance.periods.length > 0;
+  const paymentRateLabel = paymentRateHasPeriods ? `${performance.onTimeRate?.toFixed(0)}%` : "暂无记录";
+  const paymentRateTone = paymentRateHasPeriods
+    ? performance.onTimeRate === 100 ? "green" : (performance.onTimeRate || 0) >= 80 ? "blue" : "orange"
+    : "neutral";
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
   return (
     <div className="record-detail-panel tenant-detail-panel">
@@ -1170,6 +1189,12 @@ function TenantDetail({
 
       <section className="tenant-performance-section">
         <div className="detail-section-title">付款摘要</div>
+        <div className="tenant-performance-summary">
+          <span>累计迟交{performance.lateCount}次</span><span aria-hidden="true">｜</span>
+          <span>平均迟交{performance.averageLateDays?.toFixed(1) || "-"}天</span><span aria-hidden="true">｜</span>
+          <span>最长迟交{performance.longestLateDays ?? "-"}天</span><span aria-hidden="true">｜</span>
+          <span>按时付款率<span className={`tenant-payment-rate ${paymentRateTone}`}>{paymentRateLabel}</span></span>
+        </div>
         {performance.periods.length === 0 ? (
           <div className="tenant-performance-empty">
             <strong>暂无足够数据</strong>
@@ -1178,9 +1203,6 @@ function TenantDetail({
           </div>
         ) : (
           <>
-            <div className="tenant-performance-summary">
-              累计迟交 {performance.lateCount} 次｜平均迟交 {performance.averageLateDays?.toFixed(1)} 天｜最长迟交 {performance.longestLateDays} 天｜按时付款率 {performance.onTimeRate?.toFixed(0)}%
-            </div>
             {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
             {performance.periods.length === 1 ? <div className="muted tenant-performance-note">当前只有1个有效付款周期，暂不绘制趋势图。</div> : <>
               <span className="muted tenant-performance-note">月度付款图表见下方。</span>

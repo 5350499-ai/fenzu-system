@@ -559,3 +559,9 @@
 - The dashboard now shows only future pending appointments, capped at three with a remaining-count hint.
 - Appointment management uses compact status-grouped rows, fixed status choices, custom status input, and status color cues.
 - Added a non-creating one-click check-in handoff that prefills the existing check-in form from an appointment.
+
+## 2026-08-03 - Compact tenant payment performance labels (Preview)
+
+- Added read-only tenant-list payment performance labels by reusing the existing tenant payment performance calculation and memoizing the tenant-id map.
+- Condensed the tenant detail payment summary into a single-line inline layout with rate-based color emphasis and an explicit no-record state.
+- No database, migration, RLS, API, payment algorithm, or real business data changes.
