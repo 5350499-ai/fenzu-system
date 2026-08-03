@@ -1187,9 +1187,11 @@ function TenantDetail({
           <DetailField label="备注" value={tenant.notes || "-"} />
         </div>
         <div className="tenant-details-toggle-row">
-          <button className="tenant-details-toggle" type="button" onClick={() => setDetailsOpen((current) => !current)} aria-expanded={detailsOpen}>
-            <span>{detailsOpen ? "收起详情" : "详细资料"}</span>
-            <span className="tenant-details-chevron" aria-hidden="true">{detailsOpen ? "⌃" : "⌄"}</span>
+          <button className="tenant-details-toggle" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setDetailsOpen((current) => !current); }} aria-expanded={detailsOpen}>
+            <span className="tenant-details-toggle-content">
+              <span>{detailsOpen ? "收起详情" : "详细资料"}</span>
+              <span className="tenant-details-chevron" aria-hidden="true">{detailsOpen ? "⌃" : "⌄"}</span>
+            </span>
           </button>
         </div>
         {detailsOpen ? <>
