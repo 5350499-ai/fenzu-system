@@ -2961,6 +2961,39 @@ td:last-child {
   margin: 2px 0 8px;
 }
 
+.tenant-details-toggle-row {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-top: 1px;
+  border-top: 1px solid var(--border);
+}
+
+.tenant-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  padding: 4px 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tenant-detail-panel .detail-field {
+  min-width: 0;
+}
+
+.tenant-amount-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
 .tenant-status-group-title {
   grid-column: 1 / -1;
   margin: 8px 2px 2px;

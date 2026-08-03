@@ -1159,6 +1159,7 @@ function TenantDetail({
   const receivedDeposit = collectedDepositForTenant(payments, deposits);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const attachmentUploadContext = useMemo(() => ({ tenantId: tenant.id, contractId: contract?.id || null }), [tenant.id, contract?.id]);
   const addAttachment = useCallback((file: File) => onAddFile(attachmentUploadContext, file), [attachmentUploadContext, onAddFile]);
   const performance = calculateTenantPaymentPerformance(tenant, payments, localToday());
@@ -1168,23 +1169,33 @@ function TenantDetail({
     ? performance.onTimeRate === 100 ? "green" : (performance.onTimeRate || 0) >= 80 ? "blue" : "orange"
     : "neutral";
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
+  const latestReceived = latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0;
   return (
     <div className="record-detail-panel tenant-detail-panel">
       <div className="detail-grid">
         {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
         <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
-        <DetailField label="电话" value={tenant.phone || "-"} />
-        <DetailField label="WhatsApp / 微信" value={tenant.wechat || "-"} />
-        <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
-        <DetailField label="押金标准 / 应收押金" value={euro(tenant.depositAmount)} />
-        <DetailField label="已收押金" value={euro(receivedDeposit)} />
+        <div className="tenant-amount-grid">
+          <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
+          <DetailField label="最近一次实收" value={euro(latestReceived)} />
+          <DetailField label="押金标准" value={euro(tenant.depositAmount)} />
+          <DetailField label="已收押金" value={euro(receivedDeposit)} />
+        </div>
         <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
-        <DetailField label="入住日期" value={contract?.startDate || "-"} />
-        <DetailField label="合同到期" value={contract?.endDate || "-"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
-        <DetailField label="最近一次实收" value={euro(latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0)} />
-        <DetailField label="来源" value={tenant.source || "-"} />
         <DetailField label="备注" value={tenant.notes || "-"} />
+        <div className="tenant-details-toggle-row">
+          <button className="tenant-details-toggle" type="button" onClick={() => setDetailsOpen((current) => !current)} aria-expanded={detailsOpen}>
+            {detailsOpen ? "收起详情" : "详细资料"}
+          </button>
+        </div>
+        {detailsOpen ? <>
+          <DetailField label="电话" value={tenant.phone || "-"} />
+          <DetailField label="WhatsApp / 微信" value={tenant.wechat || "-"} />
+          <DetailField label="入住日期" value={contract?.startDate || "-"} />
+          <DetailField label="合同到期" value={contract?.endDate || "-"} />
+          <DetailField label="来源" value={tenant.source || "-"} />
+        </> : null}
       </div>
 
       {depositStatus === "未建立押金管理记录" ? (
