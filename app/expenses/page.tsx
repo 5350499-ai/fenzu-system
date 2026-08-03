@@ -72,6 +72,7 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailExpenseId, setDetailExpenseId] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
@@ -152,6 +153,7 @@ export default function ExpensesPage() {
   function close() {
     setOpen(false);
     setForm(emptyExpense);
+    setPendingFiles([]);
   }
 
   function updateDatePreset(preset: DateFilterPreset) {
@@ -208,6 +210,16 @@ export default function ExpensesPage() {
     try {
       await saveBusinessData(expenseKey, next);
       setExpenses(next);
+      if (!form.id && pendingFiles.length) {
+        const uploadedFiles: ExpenseFile[] = [];
+        try {
+          for (const file of pendingFiles) uploadedFiles.push(await uploadExpenseFile(expenseId, file));
+          setFiles((current) => [...uploadedFiles, ...current]);
+        } catch (error: any) {
+          if (uploadedFiles.length) setFiles((current) => [...uploadedFiles, ...current]);
+          window.alert(`支出已保存，但附件上传失败：${error.message || error}`);
+        }
+      }
       close();
     } catch (error: any) {
       window.alert(error.message || "保存支出失败，请稍后重试。");
@@ -254,7 +266,7 @@ export default function ExpensesPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
-          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 录入支出</button> : null}
+          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm(emptyExpense); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -287,7 +299,7 @@ export default function ExpensesPage() {
                     attachmentLoadState={filesLoadState}
                     attachmentLoadError={filesLoadError}
                     onRetryFiles={() => void refreshExpenseFiles([expense.id])}
-                    onEdit={() => { setForm(expense); setOpen(true); }}
+                    onEdit={() => { setForm(expense); setPendingFiles([]); setOpen(true); }}
                     onVoid={() => voidExpense(expense)}
                     onDelete={() => permanentlyDelete(expense)}
                     onAddFile={(file) => addExpenseFile(expense, file)}
@@ -326,7 +338,12 @@ export default function ExpensesPage() {
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
-              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
+              {!form.id ? <div className="expense-new-attachments field" style={{ gridColumn: "1 / -1" }}>
+                <label>附件（可选）</label>
+                <input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} />
+                <span className="muted">{pendingFiles.length ? `已选择 ${pendingFiles.length} 个文件，保存支出后自动上传。` : "可先选择文件，保存支出时一起上传。"}</span>
+              </div> : null}
+              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">{!form.id && pendingFiles.length ? "保存并上传附件" : "保存"}</button></div>
             </form>
           </section>
         </div>
@@ -378,6 +395,7 @@ function ExpenseDetail({
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
 }) {
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   return (
     <div className="record-detail-panel">
       <div className="detail-grid">
@@ -387,15 +405,19 @@ function ExpenseDetail({
         <DetailField label="付款归属" value={expense.paidBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
       </div>
-      {canViewFiles ? <div>
-        <div className="detail-section-title">附件</div>
-        <ExpenseAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canUploadFiles ? <AttachmentAddControl label="支出附件" disabled={saving} onAdd={onAddFile} /> : null}
+      {canViewFiles ? <div className={`attachment-panel expense-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
+        <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>
+          附件（{files.length}个） <span>{attachmentsOpen ? "收起 ▲" : "展开 ▼"}</span>
+        </button>
+        {attachmentsOpen ? <>
+          <ExpenseAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+          {canUploadFiles ? <AttachmentAddControl label="支出附件" disabled={saving} onAdd={onAddFile} /> : null}
+        </> : null}
       </div> : null}
-      <div className="top-actions detail-actions">
-        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑支出</button> : null}
-        {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
-        {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
+      <div className="expense-detail-actions">
+        {canEdit ? <button className="btn expense-detail-action" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑支出</button> : <span aria-hidden="true" />}
+        {canArchive ? <button className="btn expense-detail-action" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : <span aria-hidden="true" />}
+        {canDelete ? <button className="btn danger expense-detail-action" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
       </div>
     </div>
   );

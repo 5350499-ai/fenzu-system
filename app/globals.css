@@ -3672,6 +3672,57 @@ td:last-child {
   justify-content: flex-end;
 }
 
+.expense-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.expense-detail-action {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  height: 42px;
+  box-sizing: border-box;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.expense-detail-action:hover {
+  background: var(--surface-soft);
+}
+
+.expense-detail-action.danger {
+  color: var(--red);
+}
+
+.expense-attachment-panel {
+  gap: 6px;
+}
+
+.expense-attachment-panel:not(.attachments-open) {
+  gap: 0;
+}
+
+.expense-new-attachments {
+  gap: 6px;
+}
+
+.expense-new-attachments input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .compact-actions {
   flex-wrap: nowrap;
 }
