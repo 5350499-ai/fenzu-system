@@ -4552,9 +4552,9 @@ td:last-child {
 }
 
 .profit-period-switch .tab-button {
-  flex: 0 0 auto;
+  flex: 1 1 0;
   width: auto;
-  min-width: 72px;
+  min-width: 0;
 }
 
 .global-profit-overview-values {
@@ -4584,6 +4584,33 @@ td:last-child {
 .global-monthly-controls select {
   min-height: 34px;
   max-width: 92px;
+}
+
+.global-custom-range-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.global-custom-range-controls .field {
+  min-width: 0;
+}
+
+.global-custom-range-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.global-custom-range-actions .btn {
+  flex: 1 1 0;
+  min-height: 36px;
+}
+
+.global-custom-range-error {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
 }
 
 .global-monthly-list {
@@ -4636,6 +4663,20 @@ td:last-child {
   color: var(--danger, #ef6b73);
 }
 
+.global-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.global-history-pagination .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .global-profit-overview-values {
     grid-template-columns: 1fr;
@@ -4647,6 +4688,19 @@ td:last-child {
   }
 
   .global-monthly-controls .btn {
+    padding: 0 7px;
+    font-size: 12px;
+  }
+
+  .global-custom-range-controls {
+    gap: 7px;
+  }
+
+  .global-history-pagination {
+    gap: 6px;
+  }
+
+  .global-history-pagination .btn {
     padding: 0 7px;
     font-size: 12px;
   }

@@ -27,7 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, RangePreset, rangeOptions } from "@/lib/profit";
+import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -39,13 +39,15 @@ export default function PropertyProfitsPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
-  const [preset, setPreset] = useState<RangePreset>("thisMonth");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState("all");
-  const [monthlyMode, setMonthlyMode] = useState<"overview" | "year" | "month">("year");
+  const [monthlyMode, setMonthlyMode] = useState<"overview" | "year" | "custom">("overview");
   const [monthlyYear, setMonthlyYear] = useState(() => new Date().getFullYear());
-  const [monthlyMonth, setMonthlyMonth] = useState(() => new Date().getMonth() + 1);
+  const [customStart, setCustomStart] = useState(() => firstDayOfCurrentMonth());
+  const [customEnd, setCustomEnd] = useState(() => todayDate());
+  const [appliedCustomStart, setAppliedCustomStart] = useState(() => firstDayOfCurrentMonth());
+  const [appliedCustomEnd, setAppliedCustomEnd] = useState(() => todayDate());
+  const [customError, setCustomError] = useState("");
+  const [historyPage, setHistoryPage] = useState(0);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -66,7 +68,20 @@ export default function PropertyProfitsPage() {
     load().catch((error) => window.alert(`加载房源利润失败：${error.message || error}`));
   }, [access.ready]);
 
-  const range = useMemo(() => getDateRange(preset, customStart, customEnd), [customEnd, customStart, preset]);
+  const allTimeRange = useMemo(() => {
+    const dates = [
+      ...payments.map((payment) => payment.paymentDate || payment.rentMonth),
+      ...expenses.map((expense) => expense.expenseMonth)
+    ].filter(isDateString).sort();
+    const end = todayDate();
+    return getDateRange("custom", dates[0] && dates[0] <= end ? dates[0] : end, end);
+  }, [expenses, payments]);
+  const yearRange = useMemo(() => {
+    const year = String(monthlyYear);
+    return getDateRange("custom", `${year}-01-01`, `${year}-12-31`);
+  }, [monthlyYear]);
+  const customRange = useMemo(() => getDateRange("custom", appliedCustomStart, appliedCustomEnd), [appliedCustomEnd, appliedCustomStart]);
+  const range = monthlyMode === "overview" ? allTimeRange : monthlyMode === "year" ? yearRange : customRange;
   const stats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range).sort((a, b) => a.netProfit - b.netProfit),
     [deposits, expenses, payments, properties, range, rooms, tenants]
@@ -84,10 +99,44 @@ export default function PropertyProfitsPage() {
     return [...years].filter(Number.isFinite).sort((a, b) => a - b);
   }, [deposits, expenses, payments]);
   const monthlyRows = useMemo(
-    () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, monthlyYear, selectedPropertyId),
-    [deposits, expenses, monthlyYear, payments, properties, rooms, selectedPropertyId, tenants]
+    () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, range, selectedPropertyId),
+    [deposits, expenses, payments, properties, range, rooms, selectedPropertyId, tenants]
   );
-  const displayedMonthlyRows = monthlyMode === "month" ? monthlyRows.filter((row) => row.monthNumber === monthlyMonth) : monthlyRows;
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(monthlyRows.length / pageSize));
+  const displayedMonthlyRows = monthlyMode === "overview" ? monthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : monthlyRows;
+
+  function selectMonthlyMode(mode: "overview" | "year" | "custom") {
+    setMonthlyMode(mode);
+    setHistoryPage(0);
+    if (mode === "custom") setCustomError("");
+  }
+
+  function applyCustomRange() {
+    if (!customStart || !customEnd) {
+      setCustomError("开始日期和结束日期不能为空。");
+      return;
+    }
+    if (customStart > customEnd) {
+      setCustomError("开始日期不得晚于结束日期。");
+      return;
+    }
+    setAppliedCustomStart(customStart);
+    setAppliedCustomEnd(customEnd);
+    setCustomError("");
+    setHistoryPage(0);
+  }
+
+  function resetCustomRange() {
+    const start = firstDayOfCurrentMonth();
+    const end = todayDate();
+    setCustomStart(start);
+    setCustomEnd(end);
+    setAppliedCustomStart(start);
+    setAppliedCustomEnd(end);
+    setCustomError("");
+    setHistoryPage(0);
+  }
 
   return (
     <AppLayout title="房源利润分析" description="按现有收款与支出流水只读汇总；可查看全部房源或单套房源在当前时间范围的结果。">
@@ -99,14 +148,7 @@ export default function PropertyProfitsPage() {
           </div>
         </div>
         <div className="filter-grid">
-          <SearchableSelect label="时间范围" value={preset} options={rangeOptions.map((item) => ({ value: item.value, label: item.label }))} onChange={(value) => setPreset(value as RangePreset)} />
           <SearchableSelect label="房源范围" value={selectedPropertyId} options={[{ value: "all", label: "全部房源" }, ...properties.map((property) => ({ value: property.id, label: property.name }))]} onChange={setSelectedPropertyId} />
-          {preset === "custom" ? (
-            <>
-              <div className="field"><label>开始日期</label><input type="date" value={customStart} max={customEnd || undefined} onChange={(event) => setCustomStart(event.target.value)} /></div>
-              <div className="field"><label>结束日期</label><input type="date" value={customEnd} min={customStart || undefined} onChange={(event) => setCustomEnd(event.target.value)} /></div>
-            </>
-          ) : null}
         </div>
       </section>
 
@@ -152,28 +194,39 @@ export default function PropertyProfitsPage() {
           <div><h2 className="panel-title">按月收入/支出/利润</h2><p className="muted">{scopeLabel} · 使用现有利润统计口径</p></div>
         </div>
         <div className="profit-period-switch" role="tablist" aria-label="利润时间模式">
-          {([["overview", "总览"], ["year", "按年"], ["month", "按月"]] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? "active" : ""}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => setMonthlyMode(value)}>{label}</button>)}
+          {([["overview", "总览"], ["year", "按年"], ["custom", "自定义"]] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? "active" : ""}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => selectMonthlyMode(value)}>{label}</button>)}
         </div>
-        {monthlyMode === "overview" ? <div className="global-profit-overview-values">
-          <ProfitSecondaryMetric label="累计收入（当前筛选范围）" value={euro(totals.income)} />
-          <ProfitSecondaryMetric label="累计支出（当前筛选范围）" value={euro(totals.expense)} />
-          <ProfitSecondaryMetric label="累计净利润（当前筛选范围）" value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
-        </div> : <>
-          <div className="global-monthly-controls">
+        {monthlyMode === "custom" ? <div className="global-custom-range-controls">
+          <div className="field"><label>开始日期</label><input type="date" value={customStart} max={customEnd || undefined} onChange={(event) => setCustomStart(event.target.value)} /></div>
+          <div className="field"><label>结束日期</label><input type="date" value={customEnd} min={customStart || undefined} onChange={(event) => setCustomEnd(event.target.value)} /></div>
+          <div className="global-custom-range-actions"><button className="btn primary" type="button" onClick={applyCustomRange}>应用</button><button className="btn" type="button" onClick={resetCustomRange}>重置</button></div>
+          {customError ? <p className="form-error global-custom-range-error">{customError}</p> : null}
+        </div> : null}
+        <div className="global-profit-overview-values">
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计收入" : "时间段收入"} value={euro(totals.income)} />
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计支出" : "时间段支出"} value={euro(totals.expense)} />
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计净利润" : "时间段净利润"} value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
+        </div>
+        {monthlyMode !== "overview" ? <div className="global-monthly-controls">
+          {monthlyMode === "year" ? <>
             <button className="btn" type="button" disabled={monthlyYear <= availableYears[0]} onClick={() => setMonthlyYear((current) => Math.max(availableYears[0], current - 1))}>上一年</button>
             <strong>{monthlyYear}年</strong>
             <button className="btn" type="button" disabled={monthlyYear >= availableYears[availableYears.length - 1]} onClick={() => setMonthlyYear((current) => Math.min(availableYears[availableYears.length - 1], current + 1))}>下一年</button>
-            {monthlyMode === "month" ? <select aria-label="选择月份" value={monthlyMonth} onChange={(event) => setMonthlyMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}月</option>)}</select> : null}
-          </div>
-          <div className="global-monthly-list">
-            {displayedMonthlyRows.map((row) => <div className="global-monthly-row" key={row.month}>
-              <strong>{row.monthLabel}</strong>
-              <span className="global-monthly-income">收入 <b>{euro(row.income)}</b></span>
-              <span className="global-monthly-expense">支出 <b>{euro(row.expense)}</b></span>
-              <span className={`global-monthly-profit ${row.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.netProfit)}</b></span>
-            </div>)}
-          </div>
-        </>}
+          </> : <strong>{range.start} 至 {range.end}</strong>}
+        </div> : null}
+        <div className="global-monthly-list">
+          {displayedMonthlyRows.map((row) => <div className="global-monthly-row" key={row.month}>
+            <strong>{row.monthLabel}</strong>
+            <span className="global-monthly-income">收入 <b>{euro(row.income)}</b></span>
+            <span className="global-monthly-expense">支出 <b>{euro(row.expense)}</b></span>
+            <span className={`global-monthly-profit ${row.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.netProfit)}</b></span>
+          </div>)}
+        </div>
+        {monthlyMode === "overview" && pageCount > 1 ? <div className="global-history-pagination">
+          <button className="btn" type="button" disabled={historyPage === 0} onClick={() => setHistoryPage((page) => Math.max(0, page - 1))}>较新月份</button>
+          <span className="muted">第 {historyPage + 1} / {pageCount} 页</span>
+          <button className="btn" type="button" disabled={historyPage >= pageCount - 1} onClick={() => setHistoryPage((page) => Math.min(pageCount - 1, page + 1))}>更早月份</button>
+        </div> : null}
       </section>
     </AppLayout>
   );
@@ -190,18 +243,39 @@ function buildGlobalMonthlyRows(
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
-  year: number,
+  dateRange: { start: string; end: string },
   selectedPropertyId: string
 ) {
-  return Array.from({ length: 12 }, (_, index) => {
-    const monthNumber = index + 1;
+  const start = new Date(`${dateRange.start}T00:00:00`);
+  const end = new Date(`${dateRange.end}T00:00:00`);
+  const rows: Array<{ month: string; monthNumber: number; monthLabel: string; income: number; expense: number; netProfit: number }> = [];
+  for (const cursor = new Date(start.getFullYear(), start.getMonth(), 1); cursor <= end; cursor.setMonth(cursor.getMonth() + 1)) {
+    const year = cursor.getFullYear();
+    const monthNumber = cursor.getMonth() + 1;
     const month = `${year}-${String(monthNumber).padStart(2, "0")}`;
-    const lastDay = new Date(year, monthNumber, 0).getDate();
-    const range = getDateRange("custom", `${month}-01`, `${month}-${String(lastDay).padStart(2, "0")}`);
+    const monthEnd = new Date(year, monthNumber, 0);
+    const monthStart = month === dateRange.start.slice(0, 7) ? dateRange.start : `${month}-01`;
+    const monthEndValue = month === dateRange.end.slice(0, 7) ? dateRange.end : `${month}-${String(monthEnd.getDate()).padStart(2, "0")}`;
+    const range = getDateRange("custom", monthStart, monthEndValue);
     const stats = calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range);
     const visibleStats = selectedPropertyId === "all" ? stats : stats.filter((stat) => stat.property.id === selectedPropertyId);
     const unassignedIncome = selectedPropertyId === "all" ? calculateUnassignedIncome(payments, range) : 0;
     const totals = calculateTotals(visibleStats, unassignedIncome);
-    return { month, monthNumber, monthLabel: `${monthNumber}月`, income: totals.income, expense: totals.expense, netProfit: totals.netProfit };
-  });
+    rows.push({ month, monthNumber, monthLabel: `${year}年${monthNumber}月`, income: totals.income, expense: totals.expense, netProfit: totals.netProfit });
+  }
+  return rows.reverse();
+}
+
+function todayDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function firstDayOfCurrentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function isDateString(value: string | undefined): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}/.test(value));
 }
