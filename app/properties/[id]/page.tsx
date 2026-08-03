@@ -33,7 +33,7 @@ import {
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
-import { Edit3, Plus, Trash2, X } from "lucide-react";
+import { Archive, ChevronDown, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
@@ -73,6 +73,10 @@ export default function PropertyDetailPage() {
   const [depositForm, setDepositForm] = useState<BusinessDeposit>(emptyDeposit(propertyId));
   const [expenseForm, setExpenseForm] = useState<BusinessExpense>(emptyExpense(propertyId));
   const [loaded, setLoaded] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [propertyEditorOpen, setPropertyEditorOpen] = useState(false);
+  const [propertyForm, setPropertyForm] = useState<BusinessProperty>(emptyProperty());
+  const [propertySaving, setPropertySaving] = useState(false);
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -160,6 +164,69 @@ export default function PropertyDetailPage() {
     saveBusinessData(propertyKey, next).catch(console.error);
   }
 
+  function openPropertyEditor() {
+    if (!access.can("properties", "edit")) return;
+    setPropertyForm(property || emptyProperty());
+    setPropertyEditorOpen(true);
+  }
+
+  async function saveProperty(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!propertyForm.name.trim() || !access.can("properties", "edit")) return;
+    setPropertySaving(true);
+    const next = properties.map((item) => item.id === propertyId ? propertyForm : item);
+    try {
+      await saveBusinessData(propertyKey, next);
+      setProperties(next);
+      setPropertyEditorOpen(false);
+    } catch (error: any) {
+      window.alert(error.message || "房源资料保存失败，请稍后重试。");
+    } finally {
+      setPropertySaving(false);
+    }
+  }
+
+  async function updatePropertyNotes(nextNotes: string) {
+    const next = properties.map((item) => item.id === propertyId ? { ...item, notes: nextNotes } : item);
+    await saveBusinessData(propertyKey, next);
+    setProperties(next);
+  }
+
+  async function archiveProperty() {
+    if (!access.can("properties", "archive")) return;
+    if (!window.confirm("确认归档该房源吗？归档后历史业务数据仍会保留。")) return;
+    try {
+      await updatePropertyNotes(markArchived(property?.notes));
+    } catch (error: any) {
+      window.alert(error.message || "房源归档失败，请稍后重试。");
+    }
+  }
+
+  async function restoreProperty() {
+    if (!access.can("properties", "archive")) return;
+    try {
+      await updatePropertyNotes(cleanArchiveNote(property?.notes));
+    } catch (error: any) {
+      window.alert(error.message || "房源恢复失败，请稍后重试。");
+    }
+  }
+
+  async function permanentlyDeleteProperty() {
+    if (!access.can("properties", "delete")) return;
+    const related = scopedRooms.length + scopedTenants.length + scopedContracts.length + scopedPayments.length + scopedDeposits.length + scopedExpenses.length;
+    if (related > 0) {
+      window.alert("该房源已有业务数据，不能直接删除。你可以选择归档该房源。");
+      return;
+    }
+    if (!window.confirm("确定要永久删除这个空房源吗？\n删除后不可恢复。")) return;
+    try {
+      await saveBusinessData(propertyKey, properties.filter((item) => item.id !== propertyId));
+      window.location.href = "/properties";
+    } catch (error: any) {
+      window.alert(error.message || "房源删除失败，请稍后重试。");
+    }
+  }
+
   useEffect(() => { if (loaded) saveBusinessData(roomKey, rooms).catch(console.error); }, [loaded, rooms]);
   useEffect(() => { if (loaded) saveBusinessData(tenantKey, tenants).catch(console.error); }, [loaded, tenants]);
   useEffect(() => { if (loaded) saveBusinessData(contractKey, contracts).catch(console.error); }, [contracts, loaded]);
@@ -181,14 +248,38 @@ export default function PropertyDetailPage() {
 
   return (
     <AppLayout title={property.name} description="集中管理这套房子的房间、租客、合同、收租、押金和支出。">
-      <section className="grid metrics">
-        <Summary label="城市" value={property.city || "-"} />
-        <Summary label="地址" value={property.address || "-"} />
-        <Summary label="房东" value={property.landlordName || "-"} />
-        <Summary label="房间数量" value={`${scopedRooms.length} 间`} />
-        <Summary label="当前租客数" value={`${currentTenantCount} 人`} />
-        <Summary label="本月收入" value={`€${monthlyIncome}`} />
-        <Summary label="是否有欠费" value={hasOverdue ? "有欠费" : "无欠费"} tone={hasOverdue ? "red" : "green"} />
+      <section className="card property-detail-header">
+        <div className="property-detail-heading">
+          <div>
+            <h1>{property.name || "未命名房源"}</h1>
+            <p title={property.address || property.city || ""}>{shortPropertyAddress(property)}</p>
+            <span className="muted">集中管理房间、租客、合同、收租、押金和支出。</span>
+          </div>
+          <StatusBadge tone={isArchived(property.notes) ? "amber" : "green"}>{isArchived(property.notes) ? "已归档" : "正常"}</StatusBadge>
+        </div>
+        <div className="property-summary-grid">
+          <CompactSummary label="房间数量" value={`${scopedRooms.length} 间`} />
+          <CompactSummary label="当前在租人数" value={`${currentTenantCount} 人`} />
+          <CompactSummary label="本月收款" value={euro(monthlyIncome)} />
+          <CompactSummary label="欠费状态" value={hasOverdue ? "有欠费" : "无欠费"} tone={hasOverdue ? "red" : "green"} />
+        </div>
+        <button className="property-details-toggle" type="button" aria-expanded={detailsOpen} onClick={(event) => { event.stopPropagation(); setDetailsOpen((current) => !current); }}>
+          <span>{detailsOpen ? "收起详情" : "详细资料"}</span><ChevronDown size={16} className={detailsOpen ? "open" : ""} />
+        </button>
+        {detailsOpen ? <div className="property-details-grid">
+          <DetailField label="城市" value={property.city || "-"} />
+          <DetailField label="房东" value={property.landlordName || "-"} />
+          <DetailField className="wide" label="完整地址" value={property.address || "-"} />
+          <DetailField className="wide" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
+          <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
+        </div> : null}
+        <div className="property-management-actions">
+          {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}
+          {access.can("properties", "archive") ? (isArchived(property.notes)
+            ? <button className="btn property-management-action" type="button" onClick={() => void restoreProperty()}><RotateCcw size={15} /> 恢复</button>
+            : <button className="btn property-management-action" type="button" onClick={() => void archiveProperty()}><Archive size={15} /> 归档</button>) : <span aria-hidden="true" />}
+          {access.can("properties", "delete") ? <button className="btn danger property-management-action" type="button" onClick={() => void permanentlyDeleteProperty()}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
+        </div>
       </section>
 
       <div className="tabs">
@@ -202,11 +293,13 @@ export default function PropertyDetailPage() {
       {tab === "overview" ? (
         <section className="card panel">
           <h2 className="panel-title">概览</h2>
-          <div className="list" style={{ marginTop: 14 }}>
-            <div className="list-item"><span>房间</span><strong>{scopedRooms.length} 间</strong></div>
-            <div className="list-item"><span>在租租客</span><strong>{currentTenantCount} 人</strong></div>
-            <div className="list-item"><span>合同</span><strong>{scopedContracts.length} 份</strong></div>
-            <div className="list-item"><span>本月收款</span><strong>{euro(monthlyIncome)}</strong></div>
+          <div className="property-overview-list">
+            <div className="list-item"><span>空置房间</span><strong>{scopedRooms.filter((room) => room.status === "空置").length} 间</strong></div>
+            <div className="list-item"><span>即将到期合同</span><strong>{scopedContracts.filter((contract) => contract.status === "即将到期").length} 份</strong></div>
+            <div className="list-item"><span>押金待处理</span><strong>{scopedDeposits.filter((deposit) => deposit.status === "待退").length} 笔</strong></div>
+            <div className="list-item"><span>当前欠费租客</span><strong className={hasOverdue ? "danger-text" : "profit"}>{hasOverdue ? "有欠费" : "无欠费"}</strong></div>
+            {monthProfit ? <div className="list-item"><span>本月支出</span><strong>{euro(monthProfit.expense)}</strong></div> : null}
+            {monthProfit ? <div className="list-item"><span>本月利润</span><strong className={monthProfit.netProfit < 0 ? "danger-text" : "profit"}>{euro(monthProfit.netProfit)}</strong></div> : null}
           </div>
         </section>
       ) : null}
@@ -256,7 +349,7 @@ export default function PropertyDetailPage() {
       {tab === "profit" && monthProfit && threeMonthProfit && twelveMonthProfit ? (
         <>
           <section className="grid metrics">
-            <Summary label="本月收入" value={euro(monthProfit.income)} />
+            <Summary label="本月收款" value={euro(monthProfit.income)} />
             <Summary label="本月支出" value={euro(monthProfit.expense)} />
             <Summary label="本月净利润" value={euro(monthProfit.netProfit)} tone={monthProfit.netProfit < 0 ? "red" : "green"} />
             <Summary label="最近3个月利润" value={euro(threeMonthProfit.netProfit)} tone={threeMonthProfit.netProfit < 0 ? "red" : "green"} />
@@ -303,6 +396,21 @@ export default function PropertyDetailPage() {
           <textarea className="notes-editor" value={property.notes || ""} readOnly={!access.can("properties", "edit")} onChange={(event) => savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
         </section>
       ) : null}
+
+      {propertyEditorOpen ? <div className="modal-backdrop" onMouseDown={() => setPropertyEditorOpen(false)}>
+        <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="panel-header"><h2 className="panel-title">编辑房源</h2><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}><X size={17} /> 关闭</button></div>
+          <form className="form-grid" onSubmit={saveProperty}>
+            <Text label="房源名称" value={propertyForm.name} onChange={(name) => setPropertyForm((current) => ({ ...current, name }))} />
+            <Text label="地址" value={propertyForm.address} onChange={(address) => setPropertyForm((current) => ({ ...current, address }))} />
+            <Text label="城市" value={propertyForm.city} onChange={(city) => setPropertyForm((current) => ({ ...current, city }))} />
+            <Text label="房东姓名" value={propertyForm.landlordName || ""} onChange={(landlordName) => setPropertyForm((current) => ({ ...current, landlordName }))} />
+            <div className="field"><label>是否允许分租</label><select value={propertyForm.subletAllowed ? "yes" : "no"} onChange={(event) => setPropertyForm((current) => ({ ...current, subletAllowed: event.target.value === "yes" }))}><option value="yes">允许</option><option value="no">不允许</option></select></div>
+            <Note value={cleanArchiveNote(propertyForm.notes)} onChange={(notes) => setPropertyForm((current) => ({ ...current, notes }))} />
+            <div className="modal-actions"><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}>取消</button><button className="btn primary" disabled={propertySaving} type="submit">保存</button></div>
+          </form>
+        </section>
+      </div> : null}
 
       {editor ? (
         <PropertyEditor
@@ -442,6 +550,14 @@ function Summary({ label, value, tone }: { label: string; value: string; tone?: 
   return <section className="card metric-card"><div className="metric-label">{label}</div><div className={`metric-value ${tone === "red" ? "danger-text" : tone === "green" ? "profit" : ""}`}>{value}</div></section>;
 }
 
+function CompactSummary({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return <div className="property-summary-item"><span>{label}</span><strong className={tone === "red" ? "danger-text" : tone === "green" ? "profit" : ""}>{value}</strong></div>;
+}
+
+function DetailField({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return <div className={`property-detail-field ${className}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
 function Text({ label, value, onChange, type = "text", readOnly }: { label: string; value: string; onChange: (value: string) => void; type?: string; readOnly?: boolean }) {
   return <div className="field"><label>{label}</label><input readOnly={readOnly} type={type} value={value} onChange={(event) => onChange(event.target.value)} /></div>;
 }
@@ -452,6 +568,27 @@ function NumberInput({ label, value, onChange }: { label: string; value: number;
 
 function Note({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
   return <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
+}
+
+function emptyProperty(): BusinessProperty {
+  return { id: "", name: "", address: "", city: "", landlordName: "", subletAllowed: true, notes: "" };
+}
+
+function markArchived(notes?: string) {
+  const clean = cleanArchiveNote(notes);
+  return clean ? `[已归档] ${clean}` : "[已归档]";
+}
+
+function isArchived(notes?: string) {
+  return Boolean(notes?.includes("[已归档]"));
+}
+
+function cleanArchiveNote(notes?: string) {
+  return (notes || "").replace("[已归档]", "").trim();
+}
+
+function shortPropertyAddress(property: BusinessProperty) {
+  return property.address || property.city || "-";
 }
 
 function upsert<T extends { id: string }>(record: T, setter: (updater: (current: T[]) => T[]) => void) {

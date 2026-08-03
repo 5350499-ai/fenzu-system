@@ -4,30 +4,17 @@ import { AppLayout } from "@/components/app-layout";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
 import {
-  BusinessContract,
-  BusinessDeposit,
-  BusinessExpense,
   BusinessProperty,
-  BusinessRentPayment,
   BusinessRoom,
   BusinessTenant,
-  contractKey,
-  depositKey,
-  expenseKey,
-  getInitialContracts,
-  getInitialDeposits,
-  getInitialExpenses,
   getInitialProperties,
-  getInitialRentPayments,
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
   propertyKey,
-  rentPaymentKey,
   saveBusinessData
 } from "@/lib/business-data";
-import { noteSummary } from "@/lib/format";
-import { Archive, Edit3, Plus, Trash2, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
@@ -47,10 +34,6 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
-  const [contracts, setContracts] = useState<BusinessContract[]>([]);
-  const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
-  const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
-  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [form, setForm] = useState<BusinessProperty>(emptyProperty);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -64,17 +47,9 @@ export default function PropertiesPage() {
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
-      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
-      const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses());
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
-      setContracts(loadedContracts);
-      setPayments(loadedPayments);
-      setExpenses(loadedExpenses);
-      setDeposits(loadedDeposits);
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载房源失败：${error.message || error}`));
@@ -118,94 +93,36 @@ export default function PropertiesPage() {
     close();
   }
 
-  async function archiveProperty(property: BusinessProperty) {
-    if (!window.confirm("确认归档该房源吗？归档后历史业务数据仍会保留。")) return;
-    await persist(properties.map((item) => (item.id === property.id ? { ...item, notes: markArchived(item.notes) } : item)));
-  }
-
-  async function permanentlyDelete(property: BusinessProperty) {
-    const related = propertyRelationCount(property.id);
-    if (related > 0) {
-      window.alert("该房源已有业务数据，不能直接删除。你可以选择归档该房源。");
-      return;
-    }
-    if (!window.confirm("确定要永久删除这个空房源吗？\n删除后不可恢复。")) return;
-    await persist(properties.filter((item) => item.id !== property.id));
-  }
-
-  function propertyRelationCount(propertyId: string) {
-    return (
-      rooms.filter((item) => item.propertyId === propertyId).length +
-      tenants.filter((item) => item.propertyId === propertyId).length +
-      contracts.filter((item) => item.propertyId === propertyId).length +
-      payments.filter((item) => item.propertyId === propertyId).length +
-      deposits.filter((item) => item.propertyId === propertyId).length +
-      expenses.filter((item) => item.propertyId === propertyId).length
-    );
-  }
-
   return (
-    <AppLayout title="房源管理" description="管理每一套分租房源。已有业务数据的房源不能直接删除，只能归档。">
+    <AppLayout title="房源管理" description="查看房源概况，并进入单个房源集中管理。">
       <section className="card panel">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">房源列表</h2>
             <p className="muted">点击房源名称进入集中管理。</p>
           </div>
-          {access.can("properties", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button">
+          {access.can("properties", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm(emptyProperty); setOpen(true); }} type="button">
             <Plus size={17} /> 新增房源
           </button> : null}
         </div>
         <div className="list-controls">
           <label className="search-box">
-            <input placeholder="搜索房源名称、地址、城市、房东" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <input placeholder="搜索房源名称、地址" value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>房源名称</th>
-                <th>地址</th>
-                <th>城市</th>
-                <th>房东</th>
-                <th>分租</th>
-                <th>状态</th>
-                <th>备注</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((property) => (
-                <tr key={property.id}>
-                  <td><Link className="table-link" href={`/properties/${property.id}`}>{property.name || "-"}</Link></td>
-                  <td>{property.address || "-"}</td>
-                  <td>{property.city || "-"}</td>
-                  <td>{property.landlordName || "-"}</td>
-                  <td><StatusBadge tone={property.subletAllowed ? "green" : "red"}>{property.subletAllowed ? "允许" : "不允许"}</StatusBadge></td>
-                  <td><StatusBadge tone={isArchived(property.notes) ? "amber" : "green"}>{isArchived(property.notes) ? "已归档" : "正常"}</StatusBadge></td>
-                  <td title={property.notes || ""}>{noteSummary(cleanArchiveNote(property.notes))}</td>
-                  <td><ActionButtons canArchive={access.can("properties", "archive")} canDelete={access.can("properties", "delete")} canEdit={access.can("properties", "edit")} onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
+        <div className="property-card-list">
           {visible.map((property) => (
-            <article className="mobile-record-card" key={property.id}>
-              <div className="mobile-record-title">
-                <strong>{property.name}</strong>
+            <article className="property-list-card" key={property.id}>
+              <div className="property-list-card-heading">
+                <strong>{property.name || "-"}</strong>
                 <StatusBadge tone={isArchived(property.notes) ? "amber" : "green"}>{isArchived(property.notes) ? "已归档" : "正常"}</StatusBadge>
               </div>
-              <div className="mobile-record-fields">
-                <div className="mobile-record-field"><span>地址</span><strong>{property.address || "-"}</strong></div>
-                <div className="mobile-record-field"><span>城市</span><strong>{property.city || "-"}</strong></div>
-                <div className="mobile-record-field"><span>房东</span><strong>{property.landlordName || "-"}</strong></div>
-                <div className="mobile-record-field"><span>备注</span><strong>{noteSummary(cleanArchiveNote(property.notes))}</strong></div>
+              <div className="property-list-meta">
+                <span>{shortPropertyAddress(property)}</span>
+                <span>{rooms.filter((room) => room.propertyId === property.id).length} 间房间</span>
+                <span>{tenants.filter((tenant) => tenant.propertyId === property.id && tenant.status === "在租").length} 人在租</span>
               </div>
-              <ActionButtons canArchive={access.can("properties", "archive")} canDelete={access.can("properties", "delete")} canEdit={access.can("properties", "edit")} onArchive={() => archiveProperty(property)} onDelete={() => permanentlyDelete(property)} onEdit={() => { setForm(property); setOpen(true); }} saving={saving} />
-              <Link className="btn" href={`/properties/${property.id}`}>进入管理</Link>
+              <Link className="btn property-manage-link" href={`/properties/${property.id}`}>进入管理</Link>
             </article>
           ))}
         </div>
@@ -216,7 +133,7 @@ export default function PropertiesPage() {
         <div className="modal-backdrop" onMouseDown={close}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
-              <h2 className="panel-title">{form.id ? "编辑房源" : "新增房源"}</h2>
+              <h2 className="panel-title">新增房源</h2>
               <button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button>
             </div>
             <form className="form-grid" onSubmit={submit}>
@@ -247,17 +164,6 @@ export default function PropertiesPage() {
   );
 }
 
-function ActionButtons({ onEdit, onArchive, onDelete, saving, canEdit, canArchive, canDelete }: { onEdit: () => void; onArchive: () => void; onDelete: () => void; saving: boolean; canEdit: boolean; canArchive: boolean; canDelete: boolean }) {
-  if (!canEdit && !canArchive && !canDelete) return null;
-  return (
-    <div className="top-actions">
-      {canEdit ? <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button> : null}
-      {canArchive ? <button className="btn" disabled={saving} onClick={onArchive} type="button"><Archive size={15} /> 归档</button> : null}
-      {canDelete ? <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button> : null}
-    </div>
-  );
-}
-
 function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
   return (
     <div className="field">
@@ -278,4 +184,8 @@ function isArchived(notes?: string) {
 
 function cleanArchiveNote(notes?: string) {
   return (notes || "").replace("[已归档]", "").trim();
+}
+
+function shortPropertyAddress(property: BusinessProperty) {
+  return property.address || property.city || "-";
 }
