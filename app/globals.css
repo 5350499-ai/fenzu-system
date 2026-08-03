@@ -5882,37 +5882,47 @@ td:last-child {
 
 .unified-monthly-row {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 42fr) minmax(0, 29fr) minmax(0, 29fr);
+  gap: 8px;
   min-height: 0;
   padding: 9px 10px;
   font-variant-numeric: tabular-nums;
 }
 
-.unified-monthly-line {
+.unified-monthly-column {
   display: grid;
-  grid-template-columns: minmax(0, 44fr) minmax(0, 28fr) minmax(0, 28fr);
+  grid-template-rows: minmax(0, auto) minmax(0, auto);
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+
+.unified-monthly-head,
+.unified-monthly-metric,
+.unified-monthly-status,
+.unified-monthly-occupancy {
+  min-width: 0;
+}
+
+.unified-monthly-metric,
+.unified-monthly-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .unified-monthly-head,
 .unified-monthly-income,
 .unified-monthly-expense,
 .unified-monthly-net,
-.unified-monthly-status,
 .unified-monthly-occupancy {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
   min-width: 0;
 }
 
 .unified-monthly-head strong,
-.unified-monthly-income,
-.unified-monthly-expense,
-.unified-monthly-net,
+.unified-monthly-metric,
 .unified-monthly-status,
 .unified-monthly-occupancy span,
 .unified-monthly-occupancy small {
@@ -5920,9 +5930,7 @@ td:last-child {
   white-space: nowrap;
 }
 
-.unified-monthly-income,
-.unified-monthly-expense,
-.unified-monthly-net,
+.unified-monthly-metric,
 .unified-monthly-status,
 .unified-monthly-occupancy span,
 .unified-monthly-occupancy small {
@@ -5938,21 +5946,21 @@ td:last-child {
 }
 
 .unified-monthly-head strong,
-.unified-monthly-income b,
-.unified-monthly-expense b,
-.unified-monthly-net b,
+.unified-monthly-metric b,
 .unified-monthly-occupancy span b {
   font-weight: 800;
 }
 
-.unified-monthly-income b,
-.unified-monthly-expense b {
+.unified-monthly-metric b {
   color: var(--text);
 }
 
 .unified-monthly-occupancy {
+  display: flex;
+  align-items: baseline;
   justify-content: flex-start;
   gap: 7px;
+  min-width: 0;
 }
 
 .unified-monthly-occupancy span {
@@ -5990,29 +5998,34 @@ td:last-child {
 
 @media (max-width: 640px) {
   .unified-monthly-row {
-    gap: 4px;
+    grid-template-columns: minmax(0, 43fr) minmax(0, 28.5fr) minmax(0, 28.5fr);
+    gap: 7px;
     padding: 8px 9px;
   }
 
-  .unified-monthly-line {
+  .unified-monthly-column {
     gap: 5px;
   }
 
   .unified-monthly-head strong,
-  .unified-monthly-income,
-  .unified-monthly-expense,
-  .unified-monthly-net,
+  .unified-monthly-metric,
   .unified-monthly-status,
   .unified-monthly-occupancy span,
   .unified-monthly-occupancy small {
-    font-size: clamp(9px, 2.7vw, 11px);
+    font-size: clamp(10px, 2.8vw, 11px);
   }
 
-  .unified-monthly-line > * {
+  .unified-monthly-metric,
+  .unified-monthly-status {
     gap: 4px;
   }
 
   .unified-monthly-occupancy {
-    gap: 4px;
+    gap: 2px;
+  }
+
+  .unified-monthly-occupancy span,
+  .unified-monthly-occupancy small {
+    font-size: 10px;
   }
 }
