@@ -5882,64 +5882,77 @@ td:last-child {
 
 .unified-monthly-row {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   min-height: 0;
   padding: 9px 10px;
   font-variant-numeric: tabular-nums;
 }
 
+.unified-monthly-line {
+  display: grid;
+  grid-template-columns: minmax(0, 44fr) minmax(0, 28fr) minmax(0, 28fr);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
 .unified-monthly-head,
-.unified-monthly-finance,
+.unified-monthly-income,
+.unified-monthly-expense,
+.unified-monthly-net,
+.unified-monthly-status,
 .unified-monthly-occupancy {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
 }
 
-.unified-monthly-finance {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
-}
-
 .unified-monthly-head strong,
-.unified-monthly-head span,
-.unified-monthly-finance span,
+.unified-monthly-income,
+.unified-monthly-expense,
+.unified-monthly-net,
+.unified-monthly-status,
 .unified-monthly-occupancy span,
 .unified-monthly-occupancy small {
   min-width: 0;
   white-space: nowrap;
 }
 
-.unified-monthly-head span,
-.unified-monthly-finance span,
+.unified-monthly-income,
+.unified-monthly-expense,
+.unified-monthly-net,
+.unified-monthly-status,
 .unified-monthly-occupancy span,
 .unified-monthly-occupancy small {
   color: var(--muted);
   font-size: 12px;
-  text-align: right;
-}
-
-.unified-monthly-finance span {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
   text-align: left;
 }
 
-.unified-monthly-head span b,
-.unified-monthly-finance span b,
-.unified-monthly-occupancy span b {
+.unified-monthly-head strong,
+.unified-monthly-net,
+.unified-monthly-status {
   color: var(--text);
+}
+
+.unified-monthly-head strong,
+.unified-monthly-income b,
+.unified-monthly-expense b,
+.unified-monthly-net b,
+.unified-monthly-occupancy span b {
   font-weight: 800;
 }
 
+.unified-monthly-income b,
+.unified-monthly-expense b {
+  color: var(--text);
+}
+
 .unified-monthly-occupancy {
-  padding-top: 2px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  justify-content: flex-start;
+  gap: 7px;
 }
 
 .unified-monthly-occupancy span {
@@ -5953,36 +5966,25 @@ td:last-child {
 }
 
 .unified-monthly-net {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.unified-monthly-net {
-  padding-top: 2px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-}
-
-.unified-monthly-net span,
-.unified-monthly-net strong {
-  white-space: nowrap;
-}
-
-.unified-monthly-net span b {
+.unified-monthly-status {
+  justify-content: flex-end;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .unified-monthly-net.profit,
-.unified-monthly-net.profit b {
+.unified-monthly-net.profit b,
+.unified-monthly-status.profit {
   color: var(--success, #24b47e);
 }
 
 .unified-monthly-net.danger-text,
-.unified-monthly-net.danger-text b {
+.unified-monthly-net.danger-text b,
+.unified-monthly-status.danger-text {
   color: var(--danger, #ef6b73);
 }
 
@@ -5992,16 +5994,25 @@ td:last-child {
     padding: 8px 9px;
   }
 
-  .unified-monthly-head,
-  .unified-monthly-finance,
-  .unified-monthly-occupancy {
-    gap: 7px;
+  .unified-monthly-line {
+    gap: 5px;
   }
 
-  .unified-monthly-head span,
-  .unified-monthly-finance span,
+  .unified-monthly-head strong,
+  .unified-monthly-income,
+  .unified-monthly-expense,
+  .unified-monthly-net,
+  .unified-monthly-status,
   .unified-monthly-occupancy span,
   .unified-monthly-occupancy small {
-    font-size: 11px;
+    font-size: clamp(9px, 2.7vw, 11px);
+  }
+
+  .unified-monthly-line > * {
+    gap: 4px;
+  }
+
+  .unified-monthly-occupancy {
+    gap: 4px;
   }
 }
