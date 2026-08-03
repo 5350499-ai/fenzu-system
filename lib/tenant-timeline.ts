@@ -191,7 +191,7 @@ export function calculateMonthlyPaymentStatusDays(month: string, payments: Busin
   const [year, monthNumber] = month.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
   const startDate = paymentCoverageStart(ordered[0]);
-  const dueDate = validDate(startDate) ? previousCalendarDate(startDate) : monthEnd;
+  const dueDate = validDate(startDate) ? startDate : monthEnd;
   if (paid < expected || expected <= 0 || !completionDate) return today > dueDate ? -dateDifference(today, dueDate) : null;
   return dateDifference(dueDate, completionDate);
 }
