@@ -27,7 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
+import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, paymentAccountingDate } from "@/lib/profit";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -69,13 +69,15 @@ export default function PropertyProfitsPage() {
   }, [access.ready]);
 
   const allTimeRange = useMemo(() => {
+    const scopedPayments = selectedPropertyId === "all" ? payments : payments.filter((payment) => payment.propertyId === selectedPropertyId);
+    const scopedExpenses = selectedPropertyId === "all" ? expenses : expenses.filter((expense) => expense.propertyId === selectedPropertyId);
     const dates = [
-      ...payments.map((payment) => payment.paymentDate || payment.rentMonth),
-      ...expenses.map((expense) => expense.expenseMonth)
+      ...scopedPayments.filter((payment) => !isVoidedRecord(payment.notes)).map(paymentAccountingDate),
+      ...scopedExpenses.filter((expense) => !isVoidedRecord(expense.notes)).map((expense) => expense.expenseMonth ? `${expense.expenseMonth.slice(0, 7)}-01` : "")
     ].filter(isDateString).sort();
     const end = todayDate();
     return getDateRange("custom", dates[0] && dates[0] <= end ? dates[0] : end, end);
-  }, [expenses, payments]);
+  }, [expenses, payments, selectedPropertyId]);
   const yearRange = useMemo(() => {
     const year = String(monthlyYear);
     return getDateRange("custom", `${year}-01-01`, `${year}-12-31`);
@@ -278,4 +280,8 @@ function firstDayOfCurrentMonth() {
 
 function isDateString(value: string | undefined): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}/.test(value));
+}
+
+function isVoidedRecord(notes?: string) {
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
