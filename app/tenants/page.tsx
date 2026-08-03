@@ -1150,7 +1150,7 @@ function TenantDetail({
         {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
         <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
         <DetailField label="电话" value={tenant.phone || "-"} />
-        <DetailField label="微信" value={tenant.wechat || "-"} />
+        <DetailField label="WhatsApp / 微信" value={tenant.wechat || "-"} />
         <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
         <DetailField label="押金标准 / 应收押金" value={euro(tenant.depositAmount)} />
         <DetailField label="已收押金" value={euro(receivedDeposit)} />
