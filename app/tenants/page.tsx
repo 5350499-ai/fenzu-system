@@ -1284,7 +1284,7 @@ function TenantDetail({
         </div> : null}
       </div>
 
-      {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>
+        {canViewFiles ? <div className={`attachment-panel contract-attachments-panel${attachmentsOpen ? " attachments-open" : ""}`}>
         <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>{`租客附件（${files.length}个）`} {attachmentsOpen ? "收起" : "展开"}</button>
         <div className="detail-section-title">租客附件</div>
         <TenantAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onDeleteFile} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
@@ -1293,19 +1293,20 @@ function TenantDetail({
 
       <div className="tenant-detail-actions">
         <div className="tenant-detail-actions-row tenant-detail-actions-primary">
-          {canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : null}
-          {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : null}
-          {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
+          {canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+          {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+          {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
         </div>
         <div className="tenant-detail-actions-row tenant-detail-actions-secondary">
+          <span className="tenant-detail-action-spacer" aria-hidden="true" />
           {canArchive && archived ? (
             <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
           ) : canArchive ? (
             <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
-          ) : null}
+          ) : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
           {isAdmin ? (
             <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
-          ) : null}
+          ) : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
         </div>
       </div>
     </div>
