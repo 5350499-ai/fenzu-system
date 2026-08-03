@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's strip-types runner needs the explicit source extension.
-import { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages } from "../lib/partner-rules.ts";
+import { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages, validatePartnerPlanRows } from "../lib/partner-rules.ts";
 
 const partner = (id: string, legacyCode: string | null) => ({ id, legacyCode });
 
@@ -18,6 +18,13 @@ test("percentage plans accept 100, 70+5+25 and zero percent", () => {
   assert.equal(validatePartnerPercentages([100, 0]).valid, true);
   assert.equal(validatePartnerPercentages([50, 40]).valid, false);
   assert.equal(validatePartnerPercentages([50, 60]).valid, false);
+});
+
+test("a plan contains only explicitly selected unique participants", () => {
+  assert.equal(validatePartnerPlanRows([{ partnerId: "a", percentage: 100 }]).valid, true);
+  assert.equal(validatePartnerPlanRows([{ partnerId: "a", percentage: 70 }, { partnerId: "b", percentage: 5 }, { partnerId: "c", percentage: 25 }]).valid, true);
+  assert.equal(validatePartnerPlanRows([{ partnerId: "a", percentage: 50 }, { partnerId: "b", percentage: 50 }, { partnerId: "b", percentage: 0 }]).valid, false);
+  assert.equal(validatePartnerPlanRows([]).valid, false);
 });
 
 test("legacy resolution is explicit and unknown values are not mapped to A", () => {

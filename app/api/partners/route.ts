@@ -21,11 +21,14 @@ export async function GET(request: Request) {
     ]);
     if (partnersResult.error || sharesResult.error || propertiesResult.error) throw new Error("加载合伙人资料失败");
     const shares = (sharesResult.data || []) as Array<Record<string, unknown>>;
-    const propertyCounts = new Map<string, Set<string>>();
+    const currentPropertyCounts = new Map<string, Set<string>>();
+    const futurePropertyCounts = new Map<string, Set<string>>();
+    const today = new Date().toISOString().slice(0, 10);
     shares.forEach((share) => {
       const partnerId = String(share.partner_id);
-      if (!propertyCounts.has(partnerId)) propertyCounts.set(partnerId, new Set());
-      propertyCounts.get(partnerId)!.add(String(share.property_id));
+      const target = String(share.effective_from) > today ? futurePropertyCounts : currentPropertyCounts;
+      if (!target.has(partnerId)) target.set(partnerId, new Set());
+      target.get(partnerId)!.add(String(share.property_id));
     });
     return NextResponse.json({
       partners: (partnersResult.data || []).map((partner) => ({
@@ -37,7 +40,9 @@ export async function GET(request: Request) {
         sortOrder: partner.sort_order,
         isActive: partner.is_active,
         linkedAccountId: partner.linked_account_id,
-        propertyCount: propertyCounts.get(partner.id)?.size || 0
+        propertyCount: currentPropertyCounts.get(partner.id)?.size || 0,
+        currentPropertyCount: currentPropertyCounts.get(partner.id)?.size || 0,
+        futurePropertyCount: futurePropertyCounts.get(partner.id)?.size || 0
       })),
       shares: shares.map((share) => ({
         id: share.id,

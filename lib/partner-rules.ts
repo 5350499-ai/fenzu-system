@@ -5,6 +5,17 @@ export function validatePartnerPercentages(values: Array<number | string>) {
   return { valid: validNumbers && percentages.length > 0 && Math.abs(total - 100) < 0.005, total, percentages };
 }
 
+export function validatePartnerPlanRows(rows: Array<{ partnerId: string; percentage: number | string }>) {
+  const ids = rows.map((row) => row.partnerId.trim());
+  const percentageResult = validatePartnerPercentages(rows.map((row) => row.percentage));
+  return {
+    valid: percentageResult.valid && ids.every(Boolean) && new Set(ids).size === ids.length,
+    total: percentageResult.total,
+    partnerIds: ids,
+    percentages: percentageResult.percentages
+  };
+}
+
 export function validateActivePartnerCount(count: number) {
   return Number.isInteger(count) && count >= 1 && count <= 5;
 }

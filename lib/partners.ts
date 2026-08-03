@@ -1,5 +1,5 @@
 import { getValidSupabaseSession } from "./supabase";
-export { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages } from "./partner-rules";
+export { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages, validatePartnerPlanRows } from "./partner-rules";
 
 export type Partner = {
   id: string;
@@ -11,6 +11,8 @@ export type Partner = {
   isActive: boolean;
   linkedAccountId: string | null;
   propertyCount: number;
+  currentPropertyCount: number;
+  futurePropertyCount: number;
 };
 
 export type PartnerPropertyShare = {
