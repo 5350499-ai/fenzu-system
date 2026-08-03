@@ -127,10 +127,19 @@ export default function PropertyProfitsPage() {
     () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, range, selectedPropertyId),
     [deposits, expenses, payments, properties, range, rooms, selectedPropertyId, tenants]
   );
-  const pageSize = 12;
-  const pageCount = Math.max(1, Math.ceil(monthlyRows.length / pageSize));
-  const displayedMonthlyRows = monthlyMode === "overview" ? monthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : monthlyRows;
   const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, payments, occupancyRange, selectedPropertyId), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyId, tenants]);
+  const unifiedMonthlyRows = useMemo(() => {
+    const occupancyByMonth = new Map(monthlyOccupancyRows.map((row) => [row.month, row]));
+    const financialByMonth = new Map(monthlyRows.map((row) => [row.month, row]));
+    const months = [...new Set([...financialByMonth.keys(), ...occupancyByMonth.keys()])].sort().reverse();
+    return months.map((month) => ({
+      financial: financialByMonth.get(month) || { month, monthLabel: occupancyByMonth.get(month)?.monthLabel || month, income: 0, expense: 0, netProfit: 0 },
+      occupancy: occupancyByMonth.get(month) || { rentedDays: 0, availableDays: 0, rate: null }
+    }));
+  }, [monthlyOccupancyRows, monthlyRows]);
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(unifiedMonthlyRows.length / pageSize));
+  const displayedMonthlyRows = monthlyMode === "overview" ? unifiedMonthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : unifiedMonthlyRows;
 
   function selectMonthlyMode(mode: "overview" | "year" | "custom") {
     setMonthlyMode(mode);
@@ -217,7 +226,7 @@ export default function PropertyProfitsPage() {
 
       <section className="card panel global-monthly-profit-panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">按月收入/支出/利润</h2><p className="muted">{scopeLabel} · 使用现有利润统计口径</p></div>
+          <div><h2 className="panel-title">按月经营统计</h2><p className="muted">{scopeLabel} · 收入、支出、利润与出租率</p></div>
         </div>
         <div className="profit-period-switch" role="tablist" aria-label="利润时间模式">
           {([["overview", "总览"], ["year", "按年"], ["custom", "自定义"]] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? "active" : ""}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => selectMonthlyMode(value)}>{label}</button>)}
@@ -241,11 +250,10 @@ export default function PropertyProfitsPage() {
           </> : <strong>{range.start} 至 {range.end}</strong>}
         </div> : null}
         <div className="global-monthly-list">
-          {displayedMonthlyRows.map((row) => <div className="global-monthly-row" key={row.month}>
-            <strong>{row.monthLabel}</strong>
-            <span className="global-monthly-income">收入 <b>{euro(row.income)}</b></span>
-            <span className="global-monthly-expense">支出 <b>{euro(row.expense)}</b></span>
-            <span className={`global-monthly-profit ${row.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.netProfit)}</b></span>
+          {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
+            <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong><span className={`global-monthly-profit ${row.financial.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.financial.netProfit)}</b></span></div>
+            <div className="unified-monthly-finance"><span className="global-monthly-income">收入 <b>{euro(row.financial.income)}</b></span><span className="global-monthly-expense">支出 <b>{euro(row.financial.expense)}</b></span></div>
+            <div className="unified-monthly-occupancy"><span>出租率 <b className={row.occupancy.rate != null && row.occupancy.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
           </div>)}
         </div>
         {monthlyMode === "overview" && pageCount > 1 ? <div className="global-history-pagination">
@@ -255,15 +263,6 @@ export default function PropertyProfitsPage() {
         </div> : null}
       </section>
 
-      <section className="card panel occupancy-monthly-panel">
-        <div className="panel-header"><div><h2 className="panel-title">按月出租率</h2><p className="muted">{occupancyRange.start} 至 {occupancyRange.end} · 房间日统计</p></div></div>
-        <div className="occupancy-monthly-list">
-          {monthlyOccupancyRows.map((row) => <div className="occupancy-monthly-row" key={row.month}>
-            <strong>{row.monthLabel}</strong><span>{row.availableDays > 0 ? `${row.rentedDays}/${row.availableDays} 房间日` : "尚未开始统计"}</span><b className={row.rate != null && row.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.rate)}</b>
-          </div>)}
-          {!monthlyOccupancyRows.length ? <p className="muted">暂无可出租房间数据</p> : null}
-        </div>
-      </section>
     </AppLayout>
   );
 }

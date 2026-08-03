@@ -43,7 +43,7 @@ export function calculateOccupancySummary(
     .map((room) => {
       const property = propertyById.get(room.propertyId)!;
       const start = resolvePropertyOccupancyStart(property, tenants, contracts, payments);
-      return calculateRoomOccupancy(room, tenants, contracts, range, today, start);
+      return calculateRoomOccupancy(room, tenants, contracts, payments, range, today, start);
     })
     .filter((room): room is RoomOccupancySummary => room !== null);
   const propertyMap = new Map<string, RoomOccupancySummary[]>();
@@ -62,6 +62,7 @@ export function calculateRoomOccupancy(
   room: BusinessRoom,
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
+  payments: BusinessRentPayment[],
   range: OccupancyRange,
   today = range.end,
   propertyStart?: string
@@ -77,7 +78,13 @@ export function calculateRoomOccupancy(
   const intervals = tenants
     .filter((tenant) => tenant.propertyId === room.propertyId && tenant.roomId === room.id)
     .flatMap((tenant) => tenantIntervals(tenant, contracts, safeRange, start, end));
-  const rentedDays = Math.min(mergeIntervals(intervals).reduce((sum, interval) => sum + inclusiveDays(interval.start, interval.end), 0), availableDays);
+  const paymentIntervals = payments
+    .filter((payment) => isUsableRentCoverage(payment, room))
+    .map((payment) => ({ start: payment.coverageStartDate!, end: payment.coverageEndDate! }))
+    .filter((interval) => validDate(interval.start) && validDate(interval.end))
+    .map((interval) => ({ start: maxDate(safeRange.start, start, interval.start), end: minDate(safeRange.end, end, interval.end) }))
+    .filter((interval) => interval.start <= interval.end);
+  const rentedDays = Math.min(mergeIntervals([...intervals, ...paymentIntervals]).reduce((sum, interval) => sum + inclusiveDays(interval.start, interval.end), 0), availableDays);
   return {
     roomId: room.id,
     propertyId: room.propertyId,
@@ -127,6 +134,22 @@ function tenantIntervals(tenant: BusinessTenant, contracts: BusinessContract[], 
     .filter((interval) => validDate(interval.start) && validDate(interval.end))
     .map((interval) => ({ start: maxDate(range.start, availableStart, interval.start), end: minDate(range.end, availableEnd, interval.end) }))
     .filter((interval) => interval.start <= interval.end);
+}
+
+function isUsableRentCoverage(payment: BusinessRentPayment, room: BusinessRoom) {
+  const nonRentType = /退款|赔偿|其他收入|refund|compensation|other/i.test(payment.incomeType || "");
+  const unpaid = /未收|待收|unpaid|pending/i.test(payment.paymentStatus || "");
+  return payment.propertyId === room.propertyId
+    && payment.roomId === room.id
+    && Boolean(payment.tenantId)
+    && !nonRentType
+    && !unpaid
+    && !isInvalidRecord(payment.notes)
+    && !isInvalidRecord(payment.paymentStatus)
+    && Number.isFinite(payment.amountPaid)
+    && payment.amountPaid > 0
+    && validDate(payment.coverageStartDate)
+    && validDate(payment.coverageEndDate);
 }
 
 function mergeIntervals(intervals: Array<{ start: string; end: string }>) {

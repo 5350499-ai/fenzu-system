@@ -5879,3 +5879,75 @@ td:last-child {
     grid-template-columns: minmax(140px, 1fr) minmax(130px, auto) minmax(90px, auto);
   }
 }
+
+.unified-monthly-row {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  padding: 9px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unified-monthly-head,
+.unified-monthly-finance,
+.unified-monthly-occupancy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.unified-monthly-head strong,
+.unified-monthly-head span,
+.unified-monthly-finance span,
+.unified-monthly-occupancy span,
+.unified-monthly-occupancy small {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.unified-monthly-head span,
+.unified-monthly-finance span,
+.unified-monthly-occupancy span,
+.unified-monthly-occupancy small {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.unified-monthly-head span b,
+.unified-monthly-finance span b,
+.unified-monthly-occupancy span b {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.unified-monthly-occupancy {
+  padding-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.unified-monthly-occupancy span {
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .unified-monthly-row {
+    gap: 4px;
+    padding: 8px 9px;
+  }
+
+  .unified-monthly-head,
+  .unified-monthly-finance,
+  .unified-monthly-occupancy {
+    gap: 7px;
+  }
+
+  .unified-monthly-head span,
+  .unified-monthly-finance span,
+  .unified-monthly-occupancy span,
+  .unified-monthly-occupancy small {
+    font-size: 11px;
+  }
+}
