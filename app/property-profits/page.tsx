@@ -237,10 +237,11 @@ export default function PropertyProfitsPage() {
           <div className="global-custom-range-actions"><button className="btn primary" type="button" onClick={applyCustomRange}>应用</button><button className="btn" type="button" onClick={resetCustomRange}>重置</button></div>
           {customError ? <p className="form-error global-custom-range-error">{customError}</p> : null}
         </div> : null}
-        <div className="global-profit-overview-values">
+        <div className={`global-profit-overview-values ${monthlyMode === "custom" ? "custom-period-overview-values" : ""}`}>
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计收入" : "时间段收入"} value={euro(totals.income)} />
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计支出" : "时间段支出"} value={euro(totals.expense)} />
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计净利润" : "时间段净利润"} value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
+          {monthlyMode === "custom" ? <div className="profit-secondary-metric custom-period-occupancy-metric"><span>时间段出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.availableDays > 0 ? `${occupancySummary.rentedDays}/${occupancySummary.availableDays} 房间日` : "暂无数据"}</small></div> : null}
         </div>
         {monthlyMode !== "overview" ? <div className="global-monthly-controls">
           {monthlyMode === "year" ? <>
