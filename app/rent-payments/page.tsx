@@ -260,7 +260,7 @@ export default function RentPaymentsPage() {
     const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
     const room = rooms.find((item) => item.id === (tenant?.roomId || form.roomId));
     const defaultRent = Number(tenant?.monthlyRent || room?.monthlyRent || 0);
-    const defaultDeposit = form.incomeType === "续交房租" ? 0 : Number(tenant?.depositAmount || room?.depositAmount || 0);
+    const defaultDeposit = tenant ? 0 : Number(room?.depositAmount || 0);
     updateMoney({
       tenantId,
       amountDue: defaultRent,
@@ -285,7 +285,7 @@ export default function RentPaymentsPage() {
     const latest = onlyTenant ? latestCoverageForTenant(onlyTenant.id, payments) : null;
     const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : form.coverageStartDate || todayString();
     const defaultRent = Number(onlyTenant?.monthlyRent || room?.monthlyRent || 0);
-    const defaultDeposit = form.incomeType === "续交房租" ? 0 : Number(onlyTenant?.depositAmount || room?.depositAmount || 0);
+    const defaultDeposit = onlyTenant ? 0 : Number(room?.depositAmount || 0);
     updateMoney({
       roomId,
       tenantId: onlyTenant?.id || "",
@@ -391,7 +391,7 @@ export default function RentPaymentsPage() {
         wechat: "",
         source: "其他",
         monthlyRent: Number(monthlyRentStandard || form.amountDue || room?.monthlyRent || 0),
-        depositAmount: Number(depositAmount || room?.depositAmount || 0),
+        depositAmount: Number(depositAmount || 0),
         paymentDay: 20,
         status: "在租",
         notes: "由收款登记自动创建"
@@ -416,7 +416,7 @@ export default function RentPaymentsPage() {
     const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const depositIncomeAmount = isRent ? Number(depositAmount || 0) : 0;
     const amountPaid = isRent
-      ? (form.paymentStatus === "未收" ? 0 : amountDue + depositIncomeAmount)
+      ? (form.paymentStatus === "未收" ? depositIncomeAmount : amountDue + depositIncomeAmount)
       : Number(form.amountPaid || 0);
     const amountUnpaid = isRent && form.paymentStatus === "未收" ? amountDue : 0;
     const paymentDate = form.paymentDate || todayString();
@@ -443,6 +443,23 @@ export default function RentPaymentsPage() {
     const next = form.id
       ? payments.map((payment) => (payment.id === form.id ? nextPayment : payment))
       : [nextPayment, ...payments];
+    const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(paymentId)));
+    const nextDeposits = isRent && depositIncomeAmount > 0
+      ? linkedDeposit
+        ? deposits.map((deposit) => deposit.id === linkedDeposit.id ? { ...deposit, amount: depositIncomeAmount, transactionDate: paymentDate, receivedBy: nextPayment.receivedBy } : deposit)
+        : !form.id ? [{
+            id: crypto.randomUUID(),
+            propertyId: form.propertyId,
+            roomId: form.roomId,
+            tenantId,
+            type: "收取",
+            amount: depositIncomeAmount,
+            status: "已收",
+            transactionDate: paymentDate,
+            receivedBy: nextPayment.receivedBy,
+            notes: depositPaymentMarker(paymentId)
+          }, ...deposits] : deposits
+      : deposits;
     const requestedMonthlyRent = Number(monthlyRentStandard || form.amountDue || 0);
     const currentTenant = tenants.find((tenant) => tenant.id === tenantId);
     const nextTenants = isRent && currentTenant && currentTenant.monthlyRent !== requestedMonthlyRent
@@ -450,6 +467,10 @@ export default function RentPaymentsPage() {
       : null;
     try {
       await saveBusinessData(rentPaymentKey, next);
+      if (JSON.stringify(deposits) !== JSON.stringify(nextDeposits)) {
+        await saveBusinessData(depositKey, nextDeposits);
+        setDeposits(nextDeposits);
+      }
       if (nextTenants) {
         await saveBusinessData(tenantKey, nextTenants);
         setTenants(nextTenants);
@@ -626,7 +647,7 @@ export default function RentPaymentsPage() {
               {isRentPayment(form) ? <div className="field"><label>租客姓名（可直接输入）</label><input disabled={!form.roomId} maxLength={80} placeholder={form.roomId ? "没有租客时直接输入，例如 01、李、临时租客" : "先选择房间"} value={newTenantName} onChange={(event) => { setNewTenantName(event.target.value); if (event.target.value.trim()) setForm((current) => ({ ...current, tenantId: "" })); }} /></div> : null}
               {isRentPayment(form) ? <MoneyInput label="当前月租标准" value={monthlyRentStandard ?? tenants.find((tenant) => tenant.id === form.tenantId)?.monthlyRent ?? rooms.find((room) => room.id === form.roomId)?.monthlyRent ?? 0} onChange={setMonthlyRentStandard} /> : null}
               {isRentPayment(form) ? <MoneyInput label="本次实收房租" value={form.amountDue} onChange={(amountDue) => { updateMoney({ amountDue }); if (!form.tenantId && (monthlyRentStandard == null || monthlyRentStandard === 0)) setMonthlyRentStandard(amountDue); }} /> : <MoneyInput label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
-              {isRentPayment(form) ? <MoneyInput label="押金金额" value={depositAmount} onChange={setDepositAmount} /> : null}
+              {isRentPayment(form) ? <MoneyInput label="本次新增押金" value={depositAmount} onChange={setDepositAmount} /> : null}
               {isRentPayment(form) ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
               <div className="field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>
