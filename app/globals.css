@@ -4341,7 +4341,12 @@ td:last-child {
 }
 
 .tab-row-four {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.tab-placeholder {
+  min-width: 0;
+  min-height: 36px;
 }
 
 .tab-button {
@@ -4532,6 +4537,175 @@ td:last-child {
   min-height: 170px;
   margin-top: 10px;
   padding: 11px;
+}
+
+.profit-period-switch {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.profit-period-switch::-webkit-scrollbar {
+  display: none;
+}
+
+.profit-period-switch .tab-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 72px;
+}
+
+.global-profit-overview-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.global-profit-overview-values .profit-secondary-metric {
+  min-width: 0;
+}
+
+.global-monthly-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.global-monthly-controls .btn {
+  min-height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.global-monthly-controls select {
+  min-height: 34px;
+  max-width: 92px;
+}
+
+.global-monthly-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.global-monthly-row {
+  display: grid;
+  grid-template-columns: minmax(70px, .7fr) repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  padding: 7px 10px;
+}
+
+.global-monthly-row:last-child {
+  border-bottom: 0;
+}
+
+.global-monthly-row > strong,
+.global-monthly-row > span {
+  min-width: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.global-monthly-row > span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.global-monthly-row > span b {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.global-monthly-row .global-monthly-profit.profit,
+.global-monthly-row .global-monthly-profit.profit b {
+  color: var(--success, #24b47e);
+}
+
+.global-monthly-row .global-monthly-profit.danger-text,
+.global-monthly-row .global-monthly-profit.danger-text b {
+  color: var(--danger, #ef6b73);
+}
+
+@media (max-width: 640px) {
+  .global-profit-overview-values {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .global-monthly-controls {
+    gap: 7px;
+  }
+
+  .global-monthly-controls .btn {
+    padding: 0 7px;
+    font-size: 12px;
+  }
+
+  .global-monthly-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3px 8px;
+    min-height: 52px;
+    padding: 7px 9px;
+  }
+
+  .global-monthly-row > strong {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 12px;
+  }
+
+  .global-monthly-row > span {
+    font-size: 11px;
+  }
+
+  .global-monthly-row .global-monthly-income {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  .global-monthly-row .global-monthly-expense {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .global-monthly-row .global-monthly-profit {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .property-monthly-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    min-height: 52px;
+  }
+
+  .property-monthly-values {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    text-align: right;
+  }
+
+  .property-monthly-values span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+
+  .property-monthly-values b {
+    font-size: 10px;
+  }
 }
 
 .tab-button.active,

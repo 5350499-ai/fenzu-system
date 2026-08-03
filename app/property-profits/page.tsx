@@ -43,6 +43,9 @@ export default function PropertyProfitsPage() {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState("all");
+  const [monthlyMode, setMonthlyMode] = useState<"overview" | "year" | "month">("year");
+  const [monthlyYear, setMonthlyYear] = useState(() => new Date().getFullYear());
+  const [monthlyMonth, setMonthlyMonth] = useState(() => new Date().getMonth() + 1);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -73,6 +76,18 @@ export default function PropertyProfitsPage() {
   const unassignedIncome = useMemo(() => selectedPropertyId === "all" ? calculateUnassignedIncome(payments, range) : 0, [payments, range, selectedPropertyId]);
   const totals = useMemo(() => calculateTotals(visibleStats, unassignedIncome), [unassignedIncome, visibleStats]);
   const scopeLabel = selectedPropertyId === "all" ? "全部房源汇总" : selectedProperty?.name || "房源汇总";
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([new Date().getFullYear()]);
+    payments.forEach((payment) => { const value = payment.paymentDate || payment.rentMonth; if (value) years.add(Number(value.slice(0, 4))); });
+    expenses.forEach((expense) => { if (expense.expenseMonth) years.add(Number(expense.expenseMonth.slice(0, 4))); });
+    deposits.forEach((deposit) => { if (deposit.transactionDate) years.add(Number(deposit.transactionDate.slice(0, 4))); });
+    return [...years].filter(Number.isFinite).sort((a, b) => a - b);
+  }, [deposits, expenses, payments]);
+  const monthlyRows = useMemo(
+    () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, monthlyYear, selectedPropertyId),
+    [deposits, expenses, monthlyYear, payments, properties, rooms, selectedPropertyId, tenants]
+  );
+  const displayedMonthlyRows = monthlyMode === "month" ? monthlyRows.filter((row) => row.monthNumber === monthlyMonth) : monthlyRows;
 
   return (
     <AppLayout title="房源利润分析" description="按现有收款与支出流水只读汇总；可查看全部房源或单套房源在当前时间范围的结果。">
@@ -131,10 +146,62 @@ export default function PropertyProfitsPage() {
           ))}
         </div>
       </section>
+
+      <section className="card panel global-monthly-profit-panel">
+        <div className="panel-header">
+          <div><h2 className="panel-title">按月收入/支出/利润</h2><p className="muted">{scopeLabel} · 使用现有利润统计口径</p></div>
+        </div>
+        <div className="profit-period-switch" role="tablist" aria-label="利润时间模式">
+          {([["overview", "总览"], ["year", "按年"], ["month", "按月"]] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? "active" : ""}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => setMonthlyMode(value)}>{label}</button>)}
+        </div>
+        {monthlyMode === "overview" ? <div className="global-profit-overview-values">
+          <ProfitSecondaryMetric label="累计收入（当前筛选范围）" value={euro(totals.income)} />
+          <ProfitSecondaryMetric label="累计支出（当前筛选范围）" value={euro(totals.expense)} />
+          <ProfitSecondaryMetric label="累计净利润（当前筛选范围）" value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
+        </div> : <>
+          <div className="global-monthly-controls">
+            <button className="btn" type="button" disabled={monthlyYear <= availableYears[0]} onClick={() => setMonthlyYear((current) => Math.max(availableYears[0], current - 1))}>上一年</button>
+            <strong>{monthlyYear}年</strong>
+            <button className="btn" type="button" disabled={monthlyYear >= availableYears[availableYears.length - 1]} onClick={() => setMonthlyYear((current) => Math.min(availableYears[availableYears.length - 1], current + 1))}>下一年</button>
+            {monthlyMode === "month" ? <select aria-label="选择月份" value={monthlyMonth} onChange={(event) => setMonthlyMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}月</option>)}</select> : null}
+          </div>
+          <div className="global-monthly-list">
+            {displayedMonthlyRows.map((row) => <div className="global-monthly-row" key={row.month}>
+              <strong>{row.monthLabel}</strong>
+              <span className="global-monthly-income">收入 <b>{euro(row.income)}</b></span>
+              <span className="global-monthly-expense">支出 <b>{euro(row.expense)}</b></span>
+              <span className={`global-monthly-profit ${row.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.netProfit)}</b></span>
+            </div>)}
+          </div>
+        </>}
+      </section>
     </AppLayout>
   );
 }
 
 function ProfitSecondaryMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
   return <div className={`profit-secondary-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function buildGlobalMonthlyRows(
+  properties: BusinessProperty[],
+  rooms: BusinessRoom[],
+  tenants: BusinessTenant[],
+  payments: BusinessRentPayment[],
+  expenses: BusinessExpense[],
+  deposits: BusinessDeposit[],
+  year: number,
+  selectedPropertyId: string
+) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const monthNumber = index + 1;
+    const month = `${year}-${String(monthNumber).padStart(2, "0")}`;
+    const lastDay = new Date(year, monthNumber, 0).getDate();
+    const range = getDateRange("custom", `${month}-01`, `${month}-${String(lastDay).padStart(2, "0")}`);
+    const stats = calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range);
+    const visibleStats = selectedPropertyId === "all" ? stats : stats.filter((stat) => stat.property.id === selectedPropertyId);
+    const unassignedIncome = selectedPropertyId === "all" ? calculateUnassignedIncome(payments, range) : 0;
+    const totals = calculateTotals(visibleStats, unassignedIncome);
+    return { month, monthNumber, monthLabel: `${monthNumber}月`, income: totals.income, expense: totals.expense, netProfit: totals.netProfit };
+  });
 }

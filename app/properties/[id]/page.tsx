@@ -285,6 +285,7 @@ export default function PropertyDetailPage() {
         </div>
         <div className="tab-row tab-row-four">
           {visibleTabs.slice(5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
+          <span className="tab-placeholder" aria-hidden="true" />
         </div>
       </div>
 
