@@ -3102,6 +3102,13 @@ td:last-child {
 
 .tenant-detail-actions-secondary {
   justify-content: flex-end;
+  gap: 6px;
+}
+
+.tenant-detail-actions-secondary .tenant-detail-action-button {
+  flex: 0 1 112px;
+  width: 112px;
+  max-width: 112px;
 }
 
 .tenant-detail-action-button {
