@@ -169,7 +169,7 @@ export default function PropertyDetailPage() {
   function openPropertyEditor() {
     if (!access.can("properties", "edit")) return;
     const current = property || emptyProperty();
-    setPropertyForm({ ...current, occupancyTrackingStartDate: current.occupancyTrackingStartDate || resolvePropertyOccupancyStart(current, scopedTenants, scopedContracts) || undefined });
+    setPropertyForm({ ...current, occupancyTrackingStartDate: current.occupancyTrackingStartDate || resolvePropertyOccupancyStart(current, scopedTenants, scopedContracts, scopedPayments) || undefined });
     setPropertyEditorOpen(true);
   }
 
@@ -277,7 +277,7 @@ export default function PropertyDetailPage() {
           <DetailField className="wide" label="完整地址" value={property.address || "-"} />
           <DetailField className="wide" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
           <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
-          <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts) || "尚无入住记录"} />
+          <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts, scopedPayments) || "尚无入住记录"} />
         </div> : null}
         <div className="property-management-actions">
           {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}
@@ -445,7 +445,7 @@ export default function PropertyDetailPage() {
             <Text label="城市" value={propertyForm.city} onChange={(city) => setPropertyForm((current) => ({ ...current, city }))} />
             <Text label="房东姓名" value={propertyForm.landlordName || ""} onChange={(landlordName) => setPropertyForm((current) => ({ ...current, landlordName }))} />
             <div className="field"><label>是否允许分租</label><select value={propertyForm.subletAllowed ? "yes" : "no"} onChange={(event) => setPropertyForm((current) => ({ ...current, subletAllowed: event.target.value === "yes" }))}><option value="yes">允许</option><option value="no">不允许</option></select></div>
-            <div className="field"><label>出租率统计起始日</label><input type="date" max={new Date().toISOString().slice(0, 10)} value={propertyForm.occupancyTrackingStartDate || ""} onChange={(event) => setPropertyForm((current) => ({ ...current, occupancyTrackingStartDate: event.target.value || undefined }))} /><span className="muted">{property?.occupancyTrackingStartDate ? "已保存的房源起算日。" : resolvePropertyOccupancyStart(property || emptyProperty(), scopedTenants, scopedContracts) ? "系统默认：从本房源首次入住月份的1号开始计算。可根据实际开始出租日期修改；该房源全部房间统一使用此日期。" : "尚无入住记录，可手动设置开始日期。"}</span></div>
+            <div className="field"><label>出租率统计起始日</label><input type="date" max={new Date().toISOString().slice(0, 10)} value={propertyForm.occupancyTrackingStartDate || ""} onChange={(event) => setPropertyForm((current) => ({ ...current, occupancyTrackingStartDate: event.target.value || undefined }))} /><span className="muted">{property?.occupancyTrackingStartDate ? "已保存的房源起算日。" : resolvePropertyOccupancyStart(property || emptyProperty(), scopedTenants, scopedContracts, scopedPayments) ? "系统默认：从本房源首次入住月份的1号开始计算。可根据实际开始出租日期修改；该房源全部房间统一使用此日期。" : "尚无入住记录，可手动设置开始日期。"}</span></div>
             <Note value={cleanArchiveNote(propertyForm.notes)} onChange={(notes) => setPropertyForm((current) => ({ ...current, notes }))} />
             <div className="modal-actions"><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}>取消</button><button className="btn primary" disabled={propertySaving} type="submit">保存</button></div>
           </form>

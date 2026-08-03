@@ -1,4 +1,4 @@
-import type { BusinessContract, BusinessProperty, BusinessRoom, BusinessTenant } from "./business-data";
+import type { BusinessContract, BusinessProperty, BusinessRoom, BusinessRentPayment, BusinessTenant } from "./business-data";
 
 export type OccupancyRange = { start: string; end: string };
 
@@ -33,6 +33,7 @@ export function calculateOccupancySummary(
   rooms: BusinessRoom[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
+  payments: BusinessRentPayment[] = [],
   range: OccupancyRange,
   today = range.end
 ): OccupancySummary {
@@ -41,7 +42,7 @@ export function calculateOccupancySummary(
     .filter((room) => propertyById.has(room.propertyId))
     .map((room) => {
       const property = propertyById.get(room.propertyId)!;
-      const start = resolvePropertyOccupancyStart(property, tenants, contracts);
+      const start = resolvePropertyOccupancyStart(property, tenants, contracts, payments);
       return calculateRoomOccupancy(room, tenants, contracts, range, today, start);
     })
     .filter((room): room is RoomOccupancySummary => room !== null);
@@ -87,18 +88,22 @@ export function calculateRoomOccupancy(
   };
 }
 
-export function resolvePropertyOccupancyStart(property: BusinessProperty, tenants: BusinessTenant[], contracts: BusinessContract[]) {
+export function resolvePropertyOccupancyStart(property: BusinessProperty, tenants: BusinessTenant[], contracts: BusinessContract[], payments: BusinessRentPayment[] = []) {
   if (validDate(property.occupancyTrackingStartDate)) return property.occupancyTrackingStartDate!;
-  const contractDates = contracts
+  const dates = [
+    ...contracts
     .filter((contract) => contract.propertyId === property.id && !isInvalidRecord(contract.status))
     .map((contract) => contract.startDate)
-    .filter(validDate)
-    .sort();
-  const dates = (contractDates.length ? contractDates : tenants
+    .filter(validDate),
+    ...tenants
     .filter((tenant) => tenant.propertyId === property.id && !isInvalidRecord(tenant.status))
     .map((tenant) => tenant.moveInDate || "")
+    .filter(validDate),
+    ...payments
+    .filter((payment) => payment.propertyId === property.id && payment.tenantId && !isInvalidRecord(payment.notes) && !isInvalidRecord(payment.paymentStatus))
+    .map((payment) => payment.coverageStartDate || "")
     .filter(validDate)
-    .sort());
+  ].sort();
   if (!dates.length) return "";
   return `${dates[0].slice(0, 7)}-01`;
 }

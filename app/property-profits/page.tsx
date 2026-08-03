@@ -97,15 +97,16 @@ export default function PropertyProfitsPage() {
   }, [monthlyYear]);
   const customRange = useMemo(() => getDateRange("custom", appliedCustomStart, appliedCustomEnd), [appliedCustomEnd, appliedCustomStart]);
   const range = monthlyMode === "overview" ? allTimeRange : monthlyMode === "year" ? yearRange : customRange;
-  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, properties, tenants, contracts, yearRange, customRange), [contracts, customRange, monthlyMode, properties, selectedPropertyId, tenants, yearRange]);
+  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, properties, tenants, contracts, payments, yearRange, customRange), [contracts, customRange, monthlyMode, payments, properties, selectedPropertyId, tenants, yearRange]);
   const occupancySummary = useMemo(() => calculateOccupancySummary(
     selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId),
     selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId),
     selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId),
     contracts,
+    payments,
     occupancyRange,
     todayDate()
-  ), [contracts, occupancyRange, properties, rooms, selectedPropertyId, tenants]);
+  ), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyId, tenants]);
   const stats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range).sort((a, b) => a.netProfit - b.netProfit),
     [deposits, expenses, payments, properties, range, rooms, tenants]
@@ -129,7 +130,7 @@ export default function PropertyProfitsPage() {
   const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(monthlyRows.length / pageSize));
   const displayedMonthlyRows = monthlyMode === "overview" ? monthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : monthlyRows;
-  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, occupancyRange, selectedPropertyId), [contracts, occupancyRange, properties, rooms, selectedPropertyId, tenants]);
+  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, payments, occupancyRange, selectedPropertyId), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyId, tenants]);
 
   function selectMonthlyMode(mode: "overview" | "year" | "custom") {
     setMonthlyMode(mode);
@@ -187,7 +188,7 @@ export default function PropertyProfitsPage() {
         </div>
         <ProfitBarChart income={totals.income} expense={totals.expense} netProfit={totals.netProfit} label={`${scopeLabel}收入、支出与净利润对比`} />
         <div className="profit-occupancy-summary">
-          <div><span>出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.rentedDays}/{occupancySummary.availableDays} 房间日</small></div>
+          <div><span>出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.availableDays > 0 ? `${occupancySummary.rentedDays}/${occupancySummary.availableDays} 房间日` : "暂无可统计房间日"}</small></div>
           <button className="btn" type="button" onClick={() => setShowOccupancyDetails((current) => !current)}>{showOccupancyDetails ? "收起出租率明细" : "查看出租率明细"}</button>
         </div>
         {showOccupancyDetails ? <OccupancyDetails summary={occupancySummary} properties={properties} expanded={expandedOccupancyProperties} onToggle={(propertyId) => setExpandedOccupancyProperties((current) => { const next = new Set(current); if (next.has(propertyId)) next.delete(propertyId); else next.add(propertyId); return next; })} /> : null}
@@ -258,7 +259,7 @@ export default function PropertyProfitsPage() {
         <div className="panel-header"><div><h2 className="panel-title">按月出租率</h2><p className="muted">{occupancyRange.start} 至 {occupancyRange.end} · 房间日统计</p></div></div>
         <div className="occupancy-monthly-list">
           {monthlyOccupancyRows.map((row) => <div className="occupancy-monthly-row" key={row.month}>
-            <strong>{row.monthLabel}</strong><span>{row.rentedDays}/{row.availableDays} 房间日</span><b className={row.rate != null && row.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.rate)}</b>
+            <strong>{row.monthLabel}</strong><span>{row.availableDays > 0 ? `${row.rentedDays}/${row.availableDays} 房间日` : "尚未开始统计"}</span><b className={row.rate != null && row.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.rate)}</b>
           </div>)}
           {!monthlyOccupancyRows.length ? <p className="muted">暂无可出租房间数据</p> : null}
         </div>
@@ -285,9 +286,9 @@ function OccupancyDetails({
   return <div className="occupancy-details-list">
     {summary.properties.map((property) => <div className="occupancy-property-detail" key={property.propertyId}>
       <button className="occupancy-property-summary" type="button" onClick={() => onToggle(property.propertyId)}>
-        <strong>{properties.find((item) => item.id === property.propertyId)?.name || "未命名房源"}</strong><span>{property.rentedDays}/{property.availableDays} 房间日</span><b>{formatRate(property.rate)}</b>
+        <strong>{properties.find((item) => item.id === property.propertyId)?.name || "未命名房源"}</strong><span>{property.availableDays > 0 ? `${property.rentedDays}/${property.availableDays} 房间日` : "尚未开始统计"}</span><b>{formatRate(property.rate)}</b>
       </button>
-      {expanded.has(property.propertyId) ? <div className="occupancy-room-list">{property.rooms.map((room) => <div className="occupancy-room-row" key={room.roomId}><span>{room.roomName}</span><small>{room.rentedDays}/{room.availableDays} 天</small><b>{formatRate(room.rate)}</b></div>)}</div> : null}
+      {expanded.has(property.propertyId) ? <div className="occupancy-room-list">{property.rooms.map((room) => <div className="occupancy-room-row" key={room.roomId}><span>{room.roomName}</span><small>{room.availableDays > 0 ? `${room.rentedDays}/${room.availableDays} 天` : "尚未开始统计"}</small><b>{formatRate(room.rate)}</b></div>)}</div> : null}
     </div>)}
   </div>;
 }
@@ -304,13 +305,14 @@ function getOccupancyRange(
   properties: BusinessProperty[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
+  payments: BusinessRentPayment[],
   yearRange: { start: string; end: string },
   customRange: { start: string; end: string }
 ) {
   if (mode === "year") return yearRange;
   if (mode === "custom") return customRange;
   const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
-  const dates = scopedProperties.map((property) => resolvePropertyOccupancyStart(property, tenants, contracts)).filter(isDateString).sort();
+  const dates = scopedProperties.map((property) => resolvePropertyOccupancyStart(property, tenants, contracts, payments)).filter(isDateString).sort();
   const end = todayDate();
   return { start: dates[0] && dates[0] <= end ? dates[0] : end, end };
 }
@@ -320,6 +322,7 @@ function buildMonthlyOccupancyRows(
   rooms: BusinessRoom[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
+  payments: BusinessRentPayment[],
   dateRange: { start: string; end: string },
   selectedPropertyId: string
 ) {
@@ -337,7 +340,7 @@ function buildMonthlyOccupancyRows(
     const scopedRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
     const scopedTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
     const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
-    const summary = calculateOccupancySummary(scopedProperties, scopedRooms, scopedTenants, contracts, { start: monthStart, end: monthEnd }, todayDate());
+    const summary = calculateOccupancySummary(scopedProperties, scopedRooms, scopedTenants, contracts, payments, { start: monthStart, end: monthEnd }, todayDate());
     rows.push({ month, monthLabel: `${year}年${monthNumber}月`, rentedDays: summary.rentedDays, availableDays: summary.availableDays, rate: summary.rate });
   }
   return rows.reverse();
