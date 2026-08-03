@@ -1198,7 +1198,7 @@ function TenantDetail({
         <div className="detail-section-title">付款摘要</div>
         <div className="tenant-performance-summary">
           <span>累计迟交{performance.lateCount}次</span><span aria-hidden="true">｜</span>
-          <span>平均迟交{performance.averageLateDays?.toFixed(1) || "-"}天</span><span aria-hidden="true">｜</span>
+          <span>平均迟交{performance.averageLateDays?.toFixed(0) || "-"}天</span><span aria-hidden="true">｜</span>
           <span>最长迟交{performance.longestLateDays ?? "-"}天</span><span aria-hidden="true">｜</span>
           <span>按时付款率<span className={`tenant-payment-rate ${paymentRateTone}`}>{paymentRateLabel}</span></span>
         </div>
