@@ -1291,20 +1291,22 @@ function TenantDetail({
         {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={addAttachment} /> : null}
       </div> : null}
 
-      <div className="top-actions detail-actions">
-        {canCollectRent ? <a className="btn primary" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : null}
-        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
-        {canArchive && archived ? (
-          <button className="btn" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
-        ) : canArchive ? (
-          <>
-            {!movedOut ? <button className="btn" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : null}
-            <button className="btn" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
-          </>
-        ) : null}
-        {isAdmin ? (
-          <button className="btn danger" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
-        ) : null}
+      <div className="tenant-detail-actions">
+        <div className="tenant-detail-actions-row tenant-detail-actions-primary">
+          {canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : null}
+          {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : null}
+          {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
+        </div>
+        <div className="tenant-detail-actions-row tenant-detail-actions-secondary">
+          {canArchive && archived ? (
+            <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
+          ) : canArchive ? (
+            <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
+          ) : null}
+          {isAdmin ? (
+            <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

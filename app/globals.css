@@ -3080,6 +3080,55 @@ td:last-child {
   justify-content: flex-start;
 }
 
+.tenant-detail-actions {
+  order: -1;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.tenant-detail-actions-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tenant-detail-actions-primary .tenant-detail-action-button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tenant-detail-actions-secondary {
+  justify-content: flex-end;
+}
+
+.tenant-detail-action-button {
+  flex: 0 1 112px;
+  min-width: 96px;
+  min-height: 42px;
+  height: 42px;
+  box-sizing: border-box;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tenant-detail-action-button:hover {
+  background: var(--surface-soft);
+}
+
+.tenant-detail-action-button.danger {
+  color: var(--red);
+}
+
 .tenant-detail-panel > .deposit-status-detail {
   order: -1;
 }
