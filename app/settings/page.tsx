@@ -228,7 +228,7 @@ export default function SettingsPage() {
       <section className="card panel">
         <h2 className="panel-title">后续设置项</h2>
         <div className="settings-list">
-          <span>合伙人管理 A/B/C/D</span>
+          {access.isOwner ? <Link className="settings-list-link" href="/partners">合伙人管理</Link> : <span>合伙人管理（仅Owner）</span>}
           <span>默认货币</span>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>
