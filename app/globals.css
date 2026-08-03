@@ -3135,6 +3135,7 @@ td:last-child {
 .tenant-performance-summary {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 0;
   gap: 0;
   overflow: visible;
