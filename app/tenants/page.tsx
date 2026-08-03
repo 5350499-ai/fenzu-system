@@ -1183,10 +1183,13 @@ function TenantDetail({
         </div>
         <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
         <DetailField label="租金已覆盖至" value={coverageEnd} />
-        <DetailField label="备注" value={tenant.notes || "-"} />
+        <div className="tenant-note-field">
+          <DetailField label="备注" value={tenant.notes || "-"} />
+        </div>
         <div className="tenant-details-toggle-row">
           <button className="tenant-details-toggle" type="button" onClick={() => setDetailsOpen((current) => !current)} aria-expanded={detailsOpen}>
-            {detailsOpen ? "收起详情" : "详细资料"}
+            <span>{detailsOpen ? "收起详情" : "详细资料"}</span>
+            <span className="tenant-details-chevron" aria-hidden="true">{detailsOpen ? "⌃" : "⌄"}</span>
           </button>
         </div>
         {detailsOpen ? <>

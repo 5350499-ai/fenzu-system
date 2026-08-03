@@ -2964,22 +2964,37 @@ td:last-child {
 .tenant-details-toggle-row {
   grid-column: 1 / -1;
   min-width: 0;
-  padding-top: 1px;
-  border-top: 1px solid var(--border);
+  margin-top: 1px;
 }
 
 .tenant-details-toggle {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   align-items: center;
-  min-height: 30px;
-  border: 0;
-  background: transparent;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
   color: var(--blue);
-  padding: 4px 0;
+  padding: 5px 10px;
   font: inherit;
   font-size: 12px;
   font-weight: 800;
+  letter-spacing: .12em;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.tenant-details-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.tenant-details-chevron {
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .tenant-detail-panel .detail-field {
@@ -2992,6 +3007,17 @@ td:last-child {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   min-width: 0;
+}
+
+.tenant-note-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.tenant-note-field .detail-field strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .tenant-status-group-title {
