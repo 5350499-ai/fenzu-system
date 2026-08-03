@@ -176,7 +176,7 @@ export default function SettingsPage() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">合伙人设置</h2>
-            <p className="muted">当前先支持 A/B，合计必须为 100%。</p>
+            <p className="muted">当前先支持 A/B，合计必须为 100%。旧版结算比例，仅供当前A/B结算页面使用。新的房源合伙比例请进入“合伙人管理”。</p>
           </div>
         </div>
         <div className="filter-grid">
@@ -228,7 +228,7 @@ export default function SettingsPage() {
       <section className="card panel">
         <h2 className="panel-title">后续设置项</h2>
         <div className="settings-list">
-          {access.isOwner ? <Link className="settings-list-link" href="/partners">合伙人管理</Link> : <span>合伙人管理（仅Owner）</span>}
+          {access.isOwner ? <Link className="settings-list-link settings-action-row" href="/partners"><span>合伙人管理</span><span aria-hidden="true">→</span></Link> : <span>合伙人管理（仅Owner）</span>}
           <span>默认货币</span>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>

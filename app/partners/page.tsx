@@ -21,6 +21,8 @@ export default function PartnersPage() {
   const [draftPercentages, setDraftPercentages] = useState<Record<string, string>>({});
   const [effectiveFrom, setEffectiveFrom] = useState(nextMonthFirst);
   const [newName, setNewName] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,12 +73,13 @@ export default function PartnersPage() {
 
   async function savePartner(id: string) {
     setWorking(true); setMessage("");
-    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ displayName: draftNames[id], sortOrder: Number(draftSortOrders[id] || 0) }) }); await reload(); setMessage("合伙人资料已保存"); }
+    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ displayName: draftNames[id], sortOrder: Number(draftSortOrders[id] || 0) }) }); setEditingId(null); await reload(); setMessage("合伙人资料已保存"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "保存失败"); }
     finally { setWorking(false); }
   }
 
   async function togglePartner(id: string, isActive: boolean) {
+    if (!isActive && !window.confirm("确认停用这位合伙人吗？停用后不能加入新的房源比例计划。")) return;
     setWorking(true); setMessage("");
     try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }); await reload(); setMessage("状态已更新"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "保存失败"); }
@@ -85,7 +88,7 @@ export default function PartnersPage() {
 
   async function addPartner() {
     setWorking(true); setMessage("");
-    try { await request("/api/partners", { method: "POST", body: JSON.stringify({ displayName: newName }) }); setNewName(""); await reload(); setMessage("合伙人已新增"); }
+    try { await request("/api/partners", { method: "POST", body: JSON.stringify({ displayName: newName }) }); setNewName(""); setShowAddForm(false); await reload(); setMessage("合伙人已新增"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "新增失败"); }
     finally { setWorking(false); }
   }
@@ -108,30 +111,33 @@ export default function PartnersPage() {
     finally { setWorking(false); }
   }
 
+  if (!access.ready) return <AppLayout title="合伙人管理"><section className="card panel"><p className="muted">正在检查登录状态…</p></section></AppLayout>;
   if (!access.isOwner) return <AppLayout title="合伙人管理"><section className="card panel"><p className="muted">仅Owner可以管理合伙人和房源利润比例。</p></section></AppLayout>;
 
   return (
     <AppLayout title="合伙人管理" description="管理工作区合伙人名称，以及各房源的利润分配比例。">
       <section className="card panel partner-management-panel">
-        <div className="panel-header"><div><h2 className="panel-title">工作区合伙人</h2><p className="muted">支持1—5位启用合伙人；旧账目的A/B归属暂不改变。</p></div></div>
+        <div className="panel-header partner-panel-header"><div><h2 className="panel-title">工作区合伙人</h2><p className="muted">支持1—5位启用合伙人；旧账目的A/B归属暂不改变。</p></div><button className="btn primary" disabled={working || activePartners.length >= 5} onClick={() => setShowAddForm((current) => !current)} type="button"><Plus size={16} />{showAddForm ? "取消新增" : "新增合伙人"}</button></div>
         {loading ? <p className="muted">正在加载…</p> : <>
           <div className="partner-list">
             {(data?.partners || []).map((partner) => (
               <div className="partner-management-row" key={partner.id}>
                 <span className="partner-management-icon"><UserRound size={17} /></span>
                 <div className="partner-management-main">
-                  <input aria-label={`${partner.displayName}显示名称`} value={draftNames[partner.id] ?? partner.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [partner.id]: event.target.value }))} />
+                  {editingId === partner.id ? <input aria-label={`${partner.displayName}显示名称`} value={draftNames[partner.id] ?? partner.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [partner.id]: event.target.value }))} /> : <strong>{partner.displayName}</strong>}
                   <span className="muted partner-management-meta">{partner.legacyCode ? `兼容归属 ${partner.legacyCode}` : "新合伙人"} · 参与 {partner.propertyCount} 套房源</span>
                 </div>
-                <input className="partner-sort-input" aria-label={`${partner.displayName}排序`} type="number" min="0" value={draftSortOrders[partner.id] ?? partner.sortOrder} onChange={(event) => setDraftSortOrders((current) => ({ ...current, [partner.id]: event.target.value }))} />
+                {editingId === partner.id ? <input className="partner-sort-input" aria-label={`${partner.displayName}排序`} type="number" min="0" value={draftSortOrders[partner.id] ?? partner.sortOrder} onChange={(event) => setDraftSortOrders((current) => ({ ...current, [partner.id]: event.target.value }))} /> : <span className="partner-sort-label">排序 {partner.sortOrder}</span>}
                 <span className={`status-badge ${partner.isActive ? "success" : "muted-badge"}`}>{partner.isActive ? "启用" : "停用"}</span>
-                <button className="btn compact" disabled={working} onClick={() => void savePartner(partner.id)} type="button"><Save size={15} />保存</button>
-                <button className="btn compact" disabled={working || (partner.isActive && activePartners.length <= 1)} onClick={() => void togglePartner(partner.id, !partner.isActive)} type="button">{partner.isActive ? "停用" : "启用"}</button>
-                {!partner.legacyCode && partner.propertyCount === 0 ? <button className="btn compact danger" disabled={working} onClick={() => void removePartner(partner.id)} type="button"><Trash2 size={15} />删除</button> : null}
+                <div className="partner-management-actions">
+                  {editingId === partner.id ? <><button className="btn compact" disabled={working} onClick={() => void savePartner(partner.id)} type="button"><Save size={15} />保存</button><button className="btn compact" disabled={working} onClick={() => setEditingId(null)} type="button">取消</button></> : <button className="btn compact" disabled={working} onClick={() => setEditingId(partner.id)} type="button">编辑</button>}
+                  <button className="btn compact" disabled={working || (partner.isActive && activePartners.length <= 1)} onClick={() => void togglePartner(partner.id, !partner.isActive)} type="button">{partner.isActive ? "停用" : "启用"}</button>
+                  {!partner.legacyCode && partner.propertyCount === 0 ? <button className="btn compact danger" disabled={working} onClick={() => void removePartner(partner.id)} type="button"><Trash2 size={15} />删除</button> : null}
+                </div>
               </div>
             ))}
           </div>
-          <div className="partner-add-row"><input placeholder="新合伙人名称" value={newName} onChange={(event) => setNewName(event.target.value)} /><button className="btn primary" disabled={working || !newName.trim() || activePartners.length >= 5} onClick={() => void addPartner()} type="button"><Plus size={16} />新增合伙人</button></div>
+          {showAddForm ? <div className="partner-add-row"><input autoFocus placeholder="新合伙人名称" value={newName} onChange={(event) => setNewName(event.target.value)} /><button className="btn primary" disabled={working || !newName.trim() || activePartners.length >= 5} onClick={() => void addPartner()} type="button"><Plus size={16} />确认新增</button></div> : null}
         </>}
       </section>
 
