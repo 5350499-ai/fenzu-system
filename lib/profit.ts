@@ -260,7 +260,7 @@ function isArchived(status: string) {
 }
 
 function isVoided(notes?: string) {
-  return Boolean(notes?.includes("[已作废]"));
+  return Boolean(notes?.includes("[已作废]") || notes?.includes("[宸蹭綔搴焆"));
 }
 
 /** Formats a calendar day in the rental business timezone without UTC conversion. */

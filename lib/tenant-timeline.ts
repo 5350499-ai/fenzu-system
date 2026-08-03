@@ -262,7 +262,7 @@ function previousCalendarDate(value: string) {
 
 function isCompletedRentPayment(payment: BusinessRentPayment) {
   const status = payment.paymentStatus || "";
-  return isRentIncome(payment) && !status.includes("已作废") && !status.includes("已归档") && !payment.notes?.includes("[已作废]");
+  return isRentIncome(payment) && !status.includes("已作废") && !status.includes("已归档") && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆");
 }
 
 function latestCoveragePayment(payments: BusinessRentPayment[]) {
@@ -441,7 +441,7 @@ export function buildMonthlyRentIncome(payments: BusinessRentPayment[], limit = 
     const month = monthOf(payment.paymentDate);
     const amountPaid = Math.max(0, Number(payment.amountPaid || 0));
     const status = payment.paymentStatus || "";
-    const invalid = status.includes("已作废") || status.includes("已归档") || payment.notes?.includes("[已作废]");
+    const invalid = status.includes("已作废") || status.includes("已归档") || payment.notes?.includes("[已作废]") || payment.notes?.includes("[宸蹭綔搴焆");
     if (!month || amountPaid <= 0 || invalid) continue;
     grouped.set(month, [...(grouped.get(month) || []), payment]);
   }

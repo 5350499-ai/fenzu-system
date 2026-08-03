@@ -1347,7 +1347,7 @@ function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRent
 
 function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {
   return payments
-    .filter((payment) => isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]"))
+    .filter((payment) => isTenantRentPayment(payment) && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆"))
     .reduce((total, payment) => {
       const legacyDeposit = linkedDepositAmount(payment.id, deposits);
       const deposit = legacyDeposit || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
@@ -1461,7 +1461,7 @@ function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]
 
 function depositReferenceForTenant(tenantId: string, payments: BusinessRentPayment[]) {
   const amounts = payments
-    .filter((payment) => payment.tenantId === tenantId && !payment.notes?.includes("[已作废]"))
+    .filter((payment) => payment.tenantId === tenantId && !payment.notes?.includes("[已作废]") && !payment.notes?.includes("[宸蹭綔搴焆"))
     .sort((left, right) => (right.paymentDate || right.createdAt || "").localeCompare(left.paymentDate || left.createdAt || ""))
     .map((payment) => Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0))
     .filter((amount) => amount > 0);

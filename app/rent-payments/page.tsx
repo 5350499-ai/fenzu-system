@@ -71,7 +71,6 @@ const emptyPayment: BusinessRentPayment = {
 };
 
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
-const paymentStatusOptions = ["已收", "未收"];
 const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "续交房租", "赔偿收入", "其他收入"];
 
 function defaultCoverageEnd(startDate: string) {
@@ -495,8 +494,8 @@ export default function RentPaymentsPage() {
   }
 
   async function voidPayment(payment: BusinessRentPayment) {
-    if (!window.confirm("确认作废这条收租记录吗？作废后金额会变为 0，但历史记录仍保留。")) return;
-    await persist(payments.map((item) => (item.id === payment.id ? { ...item, amountDue: 0, amountPaid: 0, amountUnpaid: 0, isOverdue: false, notes: markVoided(item.notes) } : item)));
+    if (!window.confirm("确认作废这条收租记录吗？作废后原始金额和历史信息仍会保留。")) return;
+    await persist(payments.map((item) => (item.id === payment.id ? { ...item, notes: markVoided(item.notes) } : item)));
   }
 
   async function permanentlyDelete(payment: BusinessRentPayment) {
@@ -592,7 +591,7 @@ export default function RentPaymentsPage() {
                   <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</span>
                   <span>{isRentPayment(payment) ? `${room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
                   <strong>{euro(paymentListAmount(payment))}</strong>
-                  <StatusBadge tone={isVoided(payment.notes) ? "red" : isLatestExpiredPayment(payment, payments) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : isRentPayment(payment) ? isLatestExpiredPayment(payment, payments) ? "已过期" : "已覆盖" : "已收"}</StatusBadge>
+                  <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
                 </button>
                 {expanded ? (
                   <PaymentDetail
@@ -670,7 +669,7 @@ export default function RentPaymentsPage() {
                 setOwnershipMode(mode);
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
-              {isRentPayment(form) ? <TapSelect label="收款状态" value={form.paymentStatus || "已收"} options={paymentStatusOptions.map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => updateMoney({ paymentStatus })} /> : null}
+              <TapSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已收取"} options={["已收取", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               <p className="muted" style={{ gridColumn: "1 / -1" }}>收款保存后，可在收款详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
@@ -810,7 +809,7 @@ function PaymentDetail({
         <DetailField label="本次合计收入" value={euro(payment.amountPaid)} />
         {isRentPayment(payment) ? <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} /> : null}
         {isRentPayment(payment) ? <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
-        {isRentPayment(payment) ? <DetailField label="收款状态" value={payment.paymentStatus || "-"} /> : null}
+        <DetailField label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
         <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
