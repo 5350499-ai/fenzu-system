@@ -79,7 +79,7 @@ export function calculateRoomOccupancy(
   const availableDays = inclusiveDays(start, end);
   const intervals = tenants
     .filter((tenant) => tenant.propertyId === room.propertyId && tenant.roomId === room.id)
-    .flatMap((tenant) => tenantIntervals(tenant, contracts, safeRange, start, end));
+    .flatMap((tenant) => tenantIntervals(tenant, contracts, safeRange, start, end, today));
   const paymentIntervals = payments
     .filter((payment) => isUsableRentCoverage(payment, room))
     .map((payment) => ({ start: payment.coverageStartDate!, end: payment.coverageEndDate! }))
@@ -127,11 +127,11 @@ export function isValidOccupancyDate(value?: string): value is string {
   return validDate(value);
 }
 
-function tenantIntervals(tenant: BusinessTenant, contracts: BusinessContract[], range: OccupancyRange, availableStart: string, availableEnd: string) {
+function tenantIntervals(tenant: BusinessTenant, contracts: BusinessContract[], range: OccupancyRange, availableStart: string, availableEnd: string, openEndedEnd: string) {
   const tenantContracts = contracts.filter((contract) => contract.tenantId === tenant.id && contract.roomId === tenant.roomId && !isInvalidRecord(contract.status) && validDate(contract.startDate));
   const source = tenantContracts.length
-    ? tenantContracts.map((contract) => ({ start: contract.startDate, end: contract.endDate || tenant.actualMoveOutDate || range.end }))
-    : [{ start: tenant.moveInDate || "", end: tenant.actualMoveOutDate || range.end }];
+    ? tenantContracts.map((contract) => ({ start: contract.startDate, end: contract.endDate || tenant.actualMoveOutDate || openEndedEnd }))
+    : [{ start: tenant.moveInDate || "", end: tenant.actualMoveOutDate || openEndedEnd }];
   return source
     .filter((interval) => validDate(interval.start) && validDate(interval.end))
     .map((interval) => ({ start: maxDate(range.start, availableStart, interval.start), end: minDate(range.end, availableEnd, interval.end) }))

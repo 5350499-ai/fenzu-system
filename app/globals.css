@@ -5898,6 +5898,12 @@ td:last-child {
   min-width: 0;
 }
 
+.unified-monthly-finance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
 .unified-monthly-head strong,
 .unified-monthly-head span,
 .unified-monthly-finance span,
@@ -5914,6 +5920,14 @@ td:last-child {
   color: var(--muted);
   font-size: 12px;
   text-align: right;
+}
+
+.unified-monthly-finance span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
 }
 
 .unified-monthly-head span b,
@@ -5946,6 +5960,11 @@ td:last-child {
   min-width: 0;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.unified-monthly-net {
+  padding-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
 }
 
 .unified-monthly-net span,

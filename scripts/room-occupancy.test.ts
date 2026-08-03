@@ -53,4 +53,37 @@ const fullAugust = calculateOccupancySummary([{ ...property, occupancyTrackingSt
 assert.deepEqual([fullAugust.rentedDays, fullAugust.availableDays, fullAugust.rate], [124, 124, 100]);
 const partialAugust = calculateOccupancySummary([{ ...property, occupancyTrackingStartDate: "2026-06-01" }], augustRooms, [], [], augustPayments, { start: "2026-08-01", end: "2026-08-03" }, "2026-08-03");
 assert.deepEqual([partialAugust.rentedDays, partialAugust.availableDays, partialAugust.rate], [12, 12, 100]);
+
+const openEndedSeptember = calculateOccupancySummary(
+  [{ ...property, occupancyTrackingStartDate: "2026-06-01" }],
+  [room("r1")],
+  [{ id: "tenant", propertyId: "p", roomId: "r1", moveInDate: "2026-08-01", status: "active" } as any],
+  [{ id: "contract", propertyId: "p", tenantId: "tenant", roomId: "r1", startDate: "2026-08-01", endDate: "", status: "active" } as any],
+  [],
+  { start: "2026-09-01", end: "2026-09-30" },
+  "2026-08-03"
+);
+assert.deepEqual([openEndedSeptember.rentedDays, openEndedSeptember.availableDays, openEndedSeptember.rate], [0, 30, 0]);
+
+const explicitFutureSeptember = calculateOccupancySummary(
+  [{ ...property, occupancyTrackingStartDate: "2026-06-01" }],
+  [room("r1")],
+  [],
+  [],
+  [payment({ coverageStartDate: "2026-09-01", coverageEndDate: "2026-09-30" })],
+  { start: "2026-09-01", end: "2026-09-30" },
+  "2026-08-03"
+);
+assert.deepEqual([explicitFutureSeptember.rentedDays, explicitFutureSeptember.availableDays, explicitFutureSeptember.rate], [30, 30, 100]);
+
+const augustCoverageDoesNotReachSeptember = calculateOccupancySummary(
+  [{ ...property, occupancyTrackingStartDate: "2026-06-01" }],
+  [room("r1")],
+  [],
+  [],
+  [payment({ coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" })],
+  { start: "2026-09-01", end: "2026-09-30" },
+  "2026-08-03"
+);
+assert.deepEqual([augustCoverageDoesNotReachSeptember.rentedDays, augustCoverageDoesNotReachSeptember.availableDays], [0, 30]);
 console.log("room occupancy tests passed");
