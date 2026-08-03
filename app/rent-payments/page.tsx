@@ -110,6 +110,7 @@ export default function RentPaymentsPage() {
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");
   const filesRequestRef = useRef(0);
+  const historicalOriginalRef = useRef<BusinessRentPayment | null>(null);
 
   const refreshPaymentFiles = useCallback(async (paymentIds: string[]) => {
     const ids = [...new Set(paymentIds.filter(Boolean))];
@@ -217,10 +218,12 @@ export default function RentPaymentsPage() {
     [filteredPayments]
   );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
+  const canEditHistorical = access.isOwner && access.can("rent_payments", "edit");
 
   function close() {
     setOpen(false);
     setForm(emptyPayment);
+    historicalOriginalRef.current = null;
     setDepositAmount(0);
     setMonthlyRentStandard(null);
     setCustomReceivedBy("");
@@ -412,11 +415,15 @@ export default function RentPaymentsPage() {
       tenantNameSnapshot = tenant.name;
     }
     if (isRent && !tenantNameSnapshot) tenantNameSnapshot = typedTenantName || "未填写租客";
-    const paymentId = form.id || crypto.randomUUID();
+    const originalPayment = historicalOriginalRef.current;
+    const isHistoricalEdit = Boolean(originalPayment?.id);
+    const paymentId = originalPayment?.id || form.id || crypto.randomUUID();
     const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const depositIncomeAmount = isRent ? Number(depositAmount || 0) : 0;
     const amountPaid = isRent
-      ? (form.paymentStatus === "未收" ? depositIncomeAmount : amountDue + depositIncomeAmount)
+      ? isHistoricalEdit
+        ? Number(form.amountPaid || 0)
+        : (form.paymentStatus === "未收" ? depositIncomeAmount : amountDue + depositIncomeAmount)
       : Number(form.amountPaid || 0);
     const amountUnpaid = isRent && form.paymentStatus === "未收" ? amountDue : 0;
     const paymentDate = form.paymentDate || todayString();
@@ -424,19 +431,22 @@ export default function RentPaymentsPage() {
     const nextPayment = {
       ...form,
       id: paymentId,
-      createdAt: form.createdAt || (form.id ? undefined : new Date().toISOString()),
-      tenantId,
+      tenantId: isHistoricalEdit ? originalPayment?.tenantId || "" : tenantId,
+      propertyId: isHistoricalEdit ? originalPayment?.propertyId || "" : form.propertyId,
+      roomId: isHistoricalEdit ? originalPayment?.roomId || "" : form.roomId,
       paymentDate,
-      rentMonth,
-      incomeType,
-      incomeItem: isRent ? tenantNameSnapshot : form.incomeItem?.trim() || "",
+      rentMonth: isHistoricalEdit ? form.rentMonth : rentMonth,
+      incomeType: isHistoricalEdit ? originalPayment?.incomeType : incomeType,
+      incomeItem: isHistoricalEdit ? originalPayment?.incomeItem : (isRent ? tenantNameSnapshot : form.incomeItem?.trim() || ""),
       amountDue,
       amountPaid,
       amountUnpaid,
       coverageStartDate: isRent ? form.coverageStartDate : "",
       coverageEndDate: isRent ? form.coverageEndDate : "",
-      receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode,
-      paymentStatus: isRent ? form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
+      receivedBy: isHistoricalEdit ? originalPayment?.receivedBy : ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode,
+      paymentStatus: isHistoricalEdit ? originalPayment?.paymentStatus : isRent ? form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
+      paymentMethod: isHistoricalEdit ? originalPayment?.paymentMethod || form.paymentMethod : form.paymentMethod,
+      createdAt: isHistoricalEdit ? originalPayment?.createdAt : form.createdAt || (form.id ? undefined : new Date().toISOString()),
       isOverdue: false
     };
     nextPayment.isOverdue = isCoverageExpired(nextPayment);
@@ -447,28 +457,28 @@ export default function RentPaymentsPage() {
     const nextDeposits = isRent && depositIncomeAmount > 0
       ? linkedDeposit
         ? deposits.map((deposit) => deposit.id === linkedDeposit.id ? { ...deposit, amount: depositIncomeAmount, transactionDate: paymentDate, receivedBy: nextPayment.receivedBy } : deposit)
-        : !form.id ? [{
+        : [{
             id: crypto.randomUUID(),
-            propertyId: form.propertyId,
-            roomId: form.roomId,
-            tenantId,
+            propertyId: nextPayment.propertyId,
+            roomId: nextPayment.roomId,
+            tenantId: nextPayment.tenantId,
             type: "收取",
             amount: depositIncomeAmount,
             status: "已收",
             transactionDate: paymentDate,
             receivedBy: nextPayment.receivedBy,
             notes: depositPaymentMarker(paymentId)
-          }, ...deposits] : deposits
+          }, ...deposits]
       : deposits;
     const requestedMonthlyRent = Number(monthlyRentStandard || form.amountDue || 0);
     const currentTenant = tenants.find((tenant) => tenant.id === tenantId);
-    const nextTenants = isRent && currentTenant && currentTenant.monthlyRent !== requestedMonthlyRent
+    const nextTenants = !isHistoricalEdit && isRent && currentTenant && currentTenant.monthlyRent !== requestedMonthlyRent
       ? tenants.map((tenant) => tenant.id === tenantId ? { ...tenant, monthlyRent: requestedMonthlyRent } : tenant)
       : null;
     try {
-      await saveBusinessData(rentPaymentKey, next);
+      await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit });
       if (JSON.stringify(deposits) !== JSON.stringify(nextDeposits)) {
-        await saveBusinessData(depositKey, nextDeposits);
+        await saveBusinessData(depositKey, nextDeposits, { ownerOnly: isHistoricalEdit });
         setDeposits(nextDeposits);
       }
       if (nextTenants) {
@@ -556,7 +566,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -596,6 +606,7 @@ export default function RentPaymentsPage() {
                     attachmentLoadError={filesLoadError}
                     onRetryFiles={() => void refreshPaymentFiles([payment.id])}
                     onEdit={() => {
+                      historicalOriginalRef.current = payment;
                       const mode = ownershipChoice(payment.receivedBy);
                       const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount;
                       const rentAmount = Number(payment.amountDue || 0);
@@ -612,7 +623,7 @@ export default function RentPaymentsPage() {
                     onAddFile={(file) => addPaymentFile(payment, file)}
                     onFileDelete={removeFile}
                     saving={saving}
-                    canEdit={access.can("rent_payments", "edit")}
+                    canEdit={canEditHistorical}
                     canArchive={access.can("rent_payments", "archive")}
                     canDelete={access.can("rent_payments", "delete")}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewRentFiles")}
@@ -635,19 +646,20 @@ export default function RentPaymentsPage() {
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑收款" : "登记收款"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
             <form className="form-grid" onSubmit={submit}>
-              <TapSelect label="收款类型" value={form.incomeType || "房租收入"} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
+              <TapSelect label="收款类型" value={form.incomeType || "房租收入"} disabled={Boolean(form.id)} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
                 const nextType = incomeType as BusinessRentPayment["incomeType"];
                 const nextIsRent = nextType === "房租收入" || nextType === "续交房租";
                 setForm((current) => ({ ...current, incomeType: nextType, incomeItem: "", amountDue: nextIsRent ? current.amountDue : 0, amountUnpaid: 0, coverageStartDate: nextIsRent ? current.coverageStartDate : "", coverageEndDate: nextIsRent ? current.coverageEndDate : "", paymentStatus: "已收" }));
                 if (!nextIsRent) setDepositAmount(0);
               }} />
-              <TapSelect label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city || "-"} · ${property.address || "-"}` }))} onChange={(propertyId) => { setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "", amountDue: 0 })); setDepositAmount(0); setMonthlyRentStandard(null); setNewTenantName(""); }} placeholder={isRentPayment(form) ? "点这里选择房源" : "不关联房源"} allowEmpty={!isRentPayment(form)} />
-              <TapSelect label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={!form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `月租 ${euro(room.monthlyRent || 0)} · 押金 ${euro(room.depositAmount || 0)} · ${room.status}` }))} onChange={chooseRoom} placeholder={form.propertyId ? "点这里选择房间" : "先选择房源"} allowEmpty={!isRentPayment(form)} />
-              <TapSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={!form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone || "无电话"} · 月租 ${euro(tenant.monthlyRent || 0)} · 押金 ${euro(tenant.depositAmount || 0)}` }))} onChange={(tenantId) => { chooseTenant(tenantId); setNewTenantName(""); }} placeholder={form.roomId ? "点这里选择租客" : "先选择房间"} allowEmpty />
-              {isRentPayment(form) ? <div className="field"><label>租客姓名（可直接输入）</label><input disabled={!form.roomId} maxLength={80} placeholder={form.roomId ? "没有租客时直接输入，例如 01、李、临时租客" : "先选择房间"} value={newTenantName} onChange={(event) => { setNewTenantName(event.target.value); if (event.target.value.trim()) setForm((current) => ({ ...current, tenantId: "" })); }} /></div> : null}
-              {isRentPayment(form) ? <MoneyInput label="当前月租标准" value={monthlyRentStandard ?? tenants.find((tenant) => tenant.id === form.tenantId)?.monthlyRent ?? rooms.find((room) => room.id === form.roomId)?.monthlyRent ?? 0} onChange={setMonthlyRentStandard} /> : null}
+              <TapSelect label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} disabled={Boolean(form.id)} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city || "-"} · ${property.address || "-"}` }))} onChange={(propertyId) => { setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "", amountDue: 0 })); setDepositAmount(0); setMonthlyRentStandard(null); setNewTenantName(""); }} placeholder={isRentPayment(form) ? "点这里选择房源" : "不关联房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={Boolean(form.id) || !form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `月租 ${euro(room.monthlyRent || 0)} · 押金 ${euro(room.depositAmount || 0)} · ${room.status}` }))} onChange={chooseRoom} placeholder={form.propertyId ? "点这里选择房间" : "先选择房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={Boolean(form.id) || !form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone || "无电话"} · 月租 ${euro(tenant.monthlyRent || 0)} · 押金 ${euro(tenant.depositAmount || 0)}` }))} onChange={(tenantId) => { chooseTenant(tenantId); setNewTenantName(""); }} placeholder={form.roomId ? "点这里选择租客" : "先选择房间"} allowEmpty />
+              {isRentPayment(form) && !form.id ? <div className="field"><label>租客姓名（可直接输入）</label><input disabled={!form.roomId} maxLength={80} placeholder={form.roomId ? "没有租客时直接输入，例如 01、李、临时租客" : "先选择房间"} value={newTenantName} onChange={(event) => { setNewTenantName(event.target.value); if (event.target.value.trim()) setForm((current) => ({ ...current, tenantId: "" })); }} /></div> : null}
+              {isRentPayment(form) && !form.id ? <MoneyInput label="当前月租标准" value={monthlyRentStandard ?? tenants.find((tenant) => tenant.id === form.tenantId)?.monthlyRent ?? rooms.find((room) => room.id === form.roomId)?.monthlyRent ?? 0} onChange={setMonthlyRentStandard} /> : null}
               {isRentPayment(form) ? <MoneyInput label="本次实收房租" value={form.amountDue} onChange={(amountDue) => { updateMoney({ amountDue }); if (!form.tenantId && (monthlyRentStandard == null || monthlyRentStandard === 0)) setMonthlyRentStandard(amountDue); }} /> : <MoneyInput label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
               {isRentPayment(form) ? <MoneyInput label="本次新增押金" value={depositAmount} onChange={setDepositAmount} /> : null}
+              {isRentPayment(form) && form.id ? <MoneyInput label="本次实际收款" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /> : null}
               {isRentPayment(form) ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
               <div className="field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>

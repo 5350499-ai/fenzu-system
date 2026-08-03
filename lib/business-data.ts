@@ -463,7 +463,7 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
   return rows;
 }
 
-export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[]) {
+export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
   if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
     if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
     return value.map((row) => row.id).filter(Boolean);
@@ -490,7 +490,7 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
     ...removedIds.map((id) => ({ action: "delete", id }))
   ];
   if (!operations.length) return [];
-  const requestBody = JSON.stringify({ key, operations });
+  const requestBody = JSON.stringify({ key, operations, ownerOnly: options?.ownerOnly === true });
   const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },

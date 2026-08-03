@@ -48,8 +48,10 @@ type BusinessOperation = {
 
 export async function POST(request: Request) {
   try {
-    const context = await requireActiveAccount(request);
-    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[] };
+    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean };
+    const paymentUpdateRequiresOwner = body.key === "business-rent-payments"
+      && body.operations?.some((operation) => operation?.action === "update");
+    const context = await requireActiveAccount(request, body.ownerOnly === true || paymentUpdateRequiresOwner);
     const resource = body.key ? resources[body.key] : null;
     if (!resource) throw new AccountApiError("不支持的业务数据类型。", 400);
     if (!Array.isArray(body.operations)) throw new AccountApiError("页面版本已更新，请刷新后重试。", 400);
