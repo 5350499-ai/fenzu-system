@@ -3723,6 +3723,25 @@ td:last-child {
   font-size: 12px;
 }
 
+.rent-attachment-panel {
+  gap: 6px;
+}
+
+.rent-attachment-panel:not(.attachments-open) {
+  gap: 0;
+}
+
+.rent-new-attachments {
+  gap: 6px;
+}
+
+.rent-new-attachments input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .compact-actions {
   flex-wrap: nowrap;
 }

@@ -87,6 +87,7 @@ export default function RentPaymentsPage() {
   const [depositAmount, setDepositAmount] = useState(0);
   const [monthlyRentStandard, setMonthlyRentStandard] = useState<number | null>(null);
   const [files, setFiles] = useState<RentPaymentFile[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [filesLoadState, setFilesLoadState] = useState<AttachmentLoadState>("loading");
   const [filesLoadError, setFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
@@ -230,6 +231,7 @@ export default function RentPaymentsPage() {
     setAddingTenant(false);
     setNewTenantName("");
     setNewTenantPhone("");
+    setPendingFiles([]);
   }
 
   async function persist(next: BusinessRentPayment[]) {
@@ -416,6 +418,7 @@ export default function RentPaymentsPage() {
     if (isRent && !tenantNameSnapshot) tenantNameSnapshot = typedTenantName || "未填写租客";
     const originalPayment = historicalOriginalRef.current;
     const isHistoricalEdit = Boolean(originalPayment?.id);
+    const filesToUpload = !form.id ? pendingFiles : [];
     const paymentId = originalPayment?.id || form.id || crypto.randomUUID();
     const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const depositIncomeAmount = isRent ? Number(depositAmount || 0) : 0;
@@ -485,6 +488,16 @@ export default function RentPaymentsPage() {
         setTenants(nextTenants);
       }
       setPayments(next);
+      if (filesToUpload.length) {
+        const uploadedFiles: RentPaymentFile[] = [];
+        try {
+          for (const file of filesToUpload) uploadedFiles.push(await uploadRentPaymentFile(paymentId, file));
+          setFiles((current) => [...uploadedFiles, ...current]);
+        } catch (error: any) {
+          if (uploadedFiles.length) setFiles((current) => [...uploadedFiles, ...current]);
+          window.alert(`收款已保存，但附件上传失败：${error?.message || error}`);
+        }
+      }
       close();
     } catch (error: any) {
       window.alert(error.message || "保存收租记录失败，请稍后重试。");
@@ -565,7 +578,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -614,6 +627,7 @@ export default function RentPaymentsPage() {
                       setOwnershipMode(mode);
                       setCustomReceivedBy(mode === "自定义" ? customOwnershipName(payment.receivedBy) : "");
                       setNewTenantName(!payment.tenantId && isRentPayment(payment) ? payment.incomeItem || "" : "");
+                      setPendingFiles([]);
                       setDepositAmount(paymentDepositAmount(payment, linkedDeposit));
                       setOpen(true);
                     }}
@@ -670,9 +684,9 @@ export default function RentPaymentsPage() {
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
               <TapSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已收取"} options={["已收取", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
-              <p className="muted" style={{ gridColumn: "1 / -1" }}>收款保存后，可在收款详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
+              {!form.id ? <div className="field rent-new-attachments" style={{ gridColumn: "1 / -1" }}><label>附件（可选）</label><input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} /><span className="muted">可先选择文件，保存收款后自动上传。</span></div> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
-              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
+              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">{!form.id && pendingFiles.length ? "保存并上传附件" : "保存"}</button></div>
             </form>
           </section>
         </div>
@@ -795,6 +809,8 @@ function PaymentDetail({
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
 }) {
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+
   return (
     <div className="record-detail-panel">
       <div className="detail-grid">
@@ -814,15 +830,20 @@ function PaymentDetail({
         <DetailField label="收款归属" value={payment.receivedBy || "A"} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
       </div>
-      {canViewFiles ? <div>
-        <div className="detail-section-title">收款附件</div>
-        <RentPaymentAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
-        {canUploadFiles ? <AttachmentAddControl label="收款附件" disabled={saving} onAdd={onAddFile} /> : null}
+      {canViewFiles ? <div className={`attachment-panel rent-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
+        <button className="attachment-toggle" type="button" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen((current) => !current)}>
+          <span>收款附件（{files.length}个）</span>
+          <span>{attachmentsOpen ? "收起 ▲" : "展开 ▼"}</span>
+        </button>
+        {attachmentsOpen ? <>
+          <RentPaymentAttachmentActions files={files} loadState={attachmentLoadState} loadError={attachmentLoadError} onRetry={onRetryFiles} onDelete={onFileDelete} canDownload={canDownloadFiles} canDelete={canDeleteFiles} />
+          {canUploadFiles ? <AttachmentAddControl label="收款附件" disabled={saving} onAdd={onAddFile} /> : null}
+        </> : null}
       </div> : null}
-      <div className="top-actions detail-actions">
-        {canEdit ? <button className="btn" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑收款</button> : null}
-        {canArchive ? <button className="btn" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : null}
-        {canDelete ? <button className="btn danger" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : null}
+      <div className="expense-detail-actions">
+        {canEdit ? <button className="btn expense-detail-action" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑收款</button> : <span aria-hidden="true" />}
+        {canArchive ? <button className="btn expense-detail-action" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : <span aria-hidden="true" />}
+        {canDelete ? <button className="btn danger expense-detail-action" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
       </div>
     </div>
   );
