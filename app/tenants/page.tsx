@@ -257,7 +257,14 @@ export default function TenantsPage() {
   }, [contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
-    tenants.map((tenant) => [tenant.id, calculateTenantPaymentPerformance(tenant, payments, localToday())])
+    tenants.map((tenant) => [
+      tenant.id,
+      calculateTenantPaymentPerformance(
+        tenant,
+        payments.filter((payment) => payment.tenantId === tenant.id),
+        localToday()
+      )
+    ])
   ), [payments, tenants]);
 
   const sortedTenants = useMemo(() => {

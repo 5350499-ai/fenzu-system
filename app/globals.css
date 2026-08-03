@@ -2810,6 +2810,16 @@ td:last-child {
   background: var(--surface-soft);
 }
 
+.tenant-compact-list .tenant-card-expanded,
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle,
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle:hover,
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle:active,
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle:focus,
+.tenant-compact-list .tenant-card-expanded .tenant-card-toggle:focus-visible,
+.tenant-compact-list .tenant-card-expanded .tenant-detail-panel {
+  border-radius: 0;
+}
+
 .tenant-card-expanded {
   margin: 6px 0 10px;
   overflow: hidden;
@@ -3127,18 +3137,20 @@ td:last-child {
   align-items: center;
   min-height: 0;
   gap: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
   line-height: 1.25;
   padding: 6px 9px;
-  font-size: 12px;
+  font-size: clamp(8px, 1.2vw, 12px);
+  letter-spacing: -0.25px;
 }
 
 .tenant-performance-summary > span {
+  flex: 0 0 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -3151,6 +3163,15 @@ td:last-child {
 .tenant-payment-rate.blue { color: var(--blue); }
 .tenant-payment-rate.orange { color: #ea580c; }
 .tenant-payment-rate.neutral { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .tenant-performance-summary {
+    padding: 4px;
+    line-height: 1.1;
+    font-size: clamp(8px, 2.4vw, 12px);
+    letter-spacing: -0.5px;
+  }
+}
 
 .tenant-current-overdue {
   font-weight: 850;
