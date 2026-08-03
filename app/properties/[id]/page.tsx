@@ -247,14 +247,10 @@ export default function PropertyDetailPage() {
   }
 
   return (
-    <AppLayout title={property.name} description="集中管理这套房子的房间、租客、合同、收租、押金和支出。">
+    <AppLayout title={property.name} description="查看房源摘要并管理相关业务。">
       <section className="card property-detail-header">
         <div className="property-detail-heading">
-          <div>
-            <h1>{property.name || "未命名房源"}</h1>
-            <p title={property.address || property.city || ""}>{shortPropertyAddress(property)}</p>
-            <span className="muted">集中管理房间、租客、合同、收租、押金和支出。</span>
-          </div>
+          <p title={property.address || property.city || ""}>{shortPropertyAddress(property)}</p>
           <StatusBadge tone={isArchived(property.notes) ? "amber" : "green"}>{isArchived(property.notes) ? "已归档" : "正常"}</StatusBadge>
         </div>
         <div className="property-summary-grid">
