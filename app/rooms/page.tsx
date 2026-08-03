@@ -29,7 +29,7 @@ import {
 import { euro } from "@/lib/format";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
 import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
-import { Archive, Edit3, Home, Plus, Trash2, X } from "lucide-react";
+import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
@@ -60,6 +60,7 @@ export default function RoomsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedRoomId, setExpandedRoomId] = useState("");
+  const [expandedRoomHistoryIds, setExpandedRoomHistoryIds] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -105,6 +106,24 @@ export default function RoomsPage() {
   function close() {
     setOpen(false);
     setForm(emptyRoom);
+  }
+
+  function toggleRoom(roomId: string) {
+    setExpandedRoomId((current) => current === roomId ? "" : roomId);
+    setExpandedRoomHistoryIds((current) => {
+      const next = new Set(current);
+      next.delete(roomId);
+      return next;
+    });
+  }
+
+  function toggleRoomHistory(roomId: string) {
+    setExpandedRoomHistoryIds((current) => {
+      const next = new Set(current);
+      if (next.has(roomId)) next.delete(roomId);
+      else next.add(roomId);
+      return next;
+    });
   }
 
   async function persist(next: BusinessRoom[]) {
@@ -188,6 +207,7 @@ export default function RoomsPage() {
             const property = properties.find((item) => item.id === room.propertyId);
             const currentTenants = tenants.filter((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant));
             const currentTenantIds = new Set(currentTenants.map((tenant) => tenant.id));
+            const historicalTenants = tenants.filter((tenant) => tenant.roomId === room.id && !currentTenantIds.has(tenant.id));
             const currentContracts = contracts.filter((contract) => currentTenantIds.has(contract.tenantId) && isActiveContract(contract));
             const nearestContract = [...currentContracts].filter((contract) => contract.endDate).sort((a, b) => a.endDate.localeCompare(b.endDate))[0] || null;
             const displayStatus = roomOccupancyStatus(room, tenants);
@@ -201,7 +221,7 @@ export default function RoomsPage() {
             const expanded = expandedRoomId === room.id;
             return (
               <article className="finance-list-item" key={room.id}>
-                <button className="finance-line room-finance-line" onClick={() => setExpandedRoomId(expanded ? "" : room.id)} type="button">
+                <button className="finance-line room-finance-line" onClick={() => toggleRoom(room.id)} type="button">
                   <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
                   <span className="room-display-name" title={room.roomNumber || room.name}>{room.roomNumber || room.name}</span>
                   <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
@@ -216,6 +236,7 @@ export default function RoomsPage() {
                     room={room}
                     unpaid={unpaid}
                     currentTenants={currentTenants}
+                    historicalTenants={historicalTenants}
                     currentMonthlyRent={currentMonthlyRent}
                     currentDepositAmount={currentDepositAmount}
                     coverageEnd={coverageLabel(latestPayment)}
@@ -226,6 +247,7 @@ export default function RoomsPage() {
                     allTenants={tenants}
                     payments={payments.filter((payment) => payment.roomId === room.id)}
                     deposits={deposits.filter((deposit) => deposit.roomId === room.id)}
+                    historyExpanded={expandedRoomHistoryIds.has(room.id)}
                     saving={saving}
                     canEdit={access.can("rooms", "edit")}
                     canArchive={access.can("rooms", "archive")}
@@ -234,6 +256,7 @@ export default function RoomsPage() {
                     onDelete={() => permanentlyDelete(room)}
                     onEdit={() => { setForm(room); setOpen(true); }}
                     onVacant={() => setVacant(room)}
+                    onToggleHistory={() => toggleRoomHistory(room.id)}
                   />
                 ) : null}
               </article>
@@ -282,6 +305,7 @@ function RoomDetail({
   expiryLabel,
   unpaid,
   currentTenants,
+  historicalTenants,
   currentMonthlyRent,
   currentDepositAmount,
   coverageEnd,
@@ -292,6 +316,7 @@ function RoomDetail({
   allTenants,
   payments,
   deposits,
+  historyExpanded,
   saving,
   canEdit,
   canArchive,
@@ -299,13 +324,15 @@ function RoomDetail({
   onEdit,
   onVacant,
   onArchive,
-  onDelete
+  onDelete,
+  onToggleHistory
 }: {
   room: BusinessRoom;
   propertyName: string;
   expiryLabel: string;
   unpaid: number;
   currentTenants: BusinessTenant[];
+  historicalTenants: BusinessTenant[];
   currentMonthlyRent: number;
   currentDepositAmount: number;
   coverageEnd: string;
@@ -316,6 +343,7 @@ function RoomDetail({
   allTenants: BusinessTenant[];
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
+  historyExpanded: boolean;
   saving: boolean;
   canEdit: boolean;
   canArchive: boolean;
@@ -324,7 +352,9 @@ function RoomDetail({
   onVacant: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onToggleHistory: () => void;
 }) {
+  const hasHistory = historicalTenants.length > 0 || payments.length > 0;
   return (
     <div className="record-detail-panel room-detail-panel">
       <div className="detail-grid">
@@ -359,21 +389,43 @@ function RoomDetail({
         })}
         {!currentTenants.length ? <span className="muted">当前无在租租客</span> : null}
       </div>
-      <div className="attachment-panel">
-        <div className="detail-section-title">历史收款记录（{payments.length}笔）</div>
-        <div className="settlement-detail-list">
-          {[...payments]
-            .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
-            .map((payment) => {
-              const deposit = paymentDepositAmount(payment, deposits);
-              const rent = Number(payment.amountDue || 0);
-              const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
-              const tenantName = allTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "未填写租客";
-              return <div className="payment-history-line room-payment-history-line" key={payment.id}><span>{payment.paymentDate || payment.rentMonth}</span><span>{tenantName}</span><span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span><span>押金 {euro(deposit)}</span><span>归属 {payment.receivedBy || "-"}</span><span>状态 {payment.paymentStatus || "-"}</span><strong>实收 {euro(payment.amountPaid)}</strong></div>;
-            })}
-          {!payments.length ? <span className="muted">暂无收款记录</span> : null}
-        </div>
-      </div>
+      {hasHistory ? <>
+        <button className="room-history-toggle" type="button" aria-expanded={historyExpanded} onClick={(event) => { event.stopPropagation(); onToggleHistory(); }}>
+          <span>历史记录（{historicalTenants.length ? `${historicalTenants.length}位租客` : ""}{historicalTenants.length && payments.length ? "／" : ""}{payments.length ? `${payments.length}笔收款` : ""}）</span>
+          <span className="room-history-toggle-action">{historyExpanded ? "收起" : "展开"}<ChevronDown size={16} className={historyExpanded ? "open" : ""} /></span>
+        </button>
+        {historyExpanded ? <div className="room-history-content">
+          {historicalTenants.length ? <section className="room-history-section">
+            <div className="detail-section-title">历史租客记录（{historicalTenants.length}位）</div>
+            <div className="room-history-tenant-list">
+              {historicalTenants.map((tenant) => {
+                const payment = latestCoverageForTenant(tenant.id, allPayments);
+                const contract = latestActiveContractForTenant(tenant.id, contracts);
+                return <Link className="room-current-tenant room-history-tenant" href={`/tenants?tenantId=${tenant.id}`} key={tenant.id}>
+                  <strong>{tenant.name}</strong>
+                  <span>入住 {contract?.startDate || tenant.moveInDate || "-"}</span>
+                  <span>覆盖至 {coverageLabel(payment)}</span>
+                  <StatusBadge tone="amber">{tenant.status}</StatusBadge>
+                </Link>;
+              })}
+            </div>
+          </section> : null}
+          {payments.length ? <section className="room-history-section">
+            <div className="detail-section-title">历史收款记录（{payments.length}笔）</div>
+            <div className="settlement-detail-list">
+              {[...payments]
+                .sort((a, b) => (b.paymentDate || b.coverageEndDate || b.rentMonth).localeCompare(a.paymentDate || a.coverageEndDate || a.rentMonth))
+                .map((payment) => {
+                  const deposit = paymentDepositAmount(payment, deposits);
+                  const rent = Number(payment.amountDue || 0);
+                  const rentPayment = !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
+                  const tenantName = allTenants.find((tenant) => tenant.id === payment.tenantId)?.name || "未填写租客";
+                  return <div className="payment-history-line room-payment-history-line" key={payment.id}><span>{payment.paymentDate || payment.rentMonth}</span><span>{tenantName}</span><span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span><span>押金 {euro(deposit)}</span><span>归属 {payment.receivedBy || "-"}</span><span>状态 {payment.paymentStatus || "-"}</span><strong>实收 {euro(payment.amountPaid)}</strong></div>;
+                })}
+            </div>
+          </section> : null}
+        </div> : null}
+      </> : null}
       <RoomActions canArchive={canArchive} canDelete={canDelete} canEdit={canEdit} onArchive={onArchive} onDelete={onDelete} onEdit={onEdit} onVacant={onVacant} saving={saving} />
     </div>
   );

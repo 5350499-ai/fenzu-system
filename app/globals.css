@@ -3972,6 +3972,62 @@ td:last-child {
   grid-template-columns: minmax(82px, auto) minmax(90px, 1fr) repeat(4, minmax(72px, auto)) minmax(88px, auto);
 }
 
+.room-history-toggle {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 40px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-soft) 82%, var(--primary) 8%);
+  color: var(--text);
+  padding: 0 56px;
+  font: inherit;
+  font-weight: 750;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.room-history-toggle:hover,
+.room-history-toggle:active {
+  background: color-mix(in srgb, var(--surface-soft) 70%, var(--primary) 12%);
+}
+
+.room-history-toggle-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.room-history-toggle svg {
+  color: var(--blue);
+  transition: transform 160ms ease;
+}
+
+.room-history-toggle svg.open {
+  transform: rotate(180deg);
+}
+
+.room-history-content,
+.room-history-section,
+.room-history-tenant-list {
+  display: grid;
+  gap: 8px;
+}
+
+.room-history-content {
+  margin-top: 2px;
+}
+
+.room-history-tenant {
+  grid-template-columns: minmax(120px, 1.2fr) minmax(90px, auto) minmax(110px, auto) auto;
+}
+
 .compact-record-button small {
   grid-column: 1 / -1;
   color: var(--muted);
@@ -5567,8 +5623,28 @@ td:last-child {
     justify-self: start;
   }
 
+  .room-history-toggle {
+    padding-inline: 18px;
+  }
+
+  .room-history-tenant {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 8px;
+  }
+
+  .room-history-tenant > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .room-payment-history-line {
-    grid-template-columns: minmax(72px, auto) minmax(86px, 1fr) minmax(72px, auto);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .room-payment-history-line > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .room-payment-history-line strong {
