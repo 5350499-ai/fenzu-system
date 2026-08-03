@@ -35,7 +35,8 @@ export function calculateOccupancySummary(
   contracts: BusinessContract[],
   payments: BusinessRentPayment[] = [],
   range: OccupancyRange,
-  today = range.end
+  today = range.end,
+  capAtToday = false
 ): OccupancySummary {
   const propertyById = new Map(properties.map((property) => [property.id, property]));
   const roomSummaries = rooms
@@ -43,7 +44,7 @@ export function calculateOccupancySummary(
     .map((room) => {
       const property = propertyById.get(room.propertyId)!;
       const start = resolvePropertyOccupancyStart(property, tenants, contracts, payments);
-      return calculateRoomOccupancy(room, tenants, contracts, payments, range, today, start);
+      return calculateRoomOccupancy(room, tenants, contracts, payments, range, today, start, capAtToday);
     })
     .filter((room): room is RoomOccupancySummary => room !== null);
   const propertyMap = new Map<string, RoomOccupancySummary[]>();
@@ -65,13 +66,14 @@ export function calculateRoomOccupancy(
   payments: BusinessRentPayment[],
   range: OccupancyRange,
   today = range.end,
-  propertyStart?: string
+  propertyStart?: string,
+  capAtToday = false
 ): RoomOccupancySummary | null {
-  const safeRange = validRange(range, today);
+  const safeRange = validRange(range, today, capAtToday);
   const safePropertyStart = validDate(propertyStart) ? propertyStart! : "";
   if (!safeRange || !safePropertyStart) return null;
   const start = maxDate(safeRange.start, safePropertyStart);
-  const end = minDate(safeRange.end, today);
+  const end = capAtToday ? minDate(safeRange.end, today) : safeRange.end;
   if (!start || !end || start > end) return null;
 
   const availableDays = inclusiveDays(start, end);
@@ -163,9 +165,9 @@ function mergeIntervals(intervals: Array<{ start: string; end: string }>) {
   return merged;
 }
 
-function validRange(range: OccupancyRange, today: string) {
-  if (!validDate(range.start) || !validDate(range.end) || !validDate(today) || range.start > range.end) return null;
-  const end = minDate(range.end, today);
+function validRange(range: OccupancyRange, today: string, capAtToday: boolean) {
+  if (!validDate(range.start) || !validDate(range.end) || (capAtToday && !validDate(today)) || range.start > range.end) return null;
+  const end = capAtToday ? minDate(range.end, today) : range.end;
   return range.start <= end ? { start: range.start, end } : null;
 }
 

@@ -5932,6 +5932,41 @@ td:last-child {
   text-align: left;
 }
 
+.unified-monthly-occupancy span,
+.unified-monthly-occupancy span b,
+.unified-monthly-occupancy small {
+  color: var(--warning, #e3b341);
+}
+
+.unified-monthly-net {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.unified-monthly-net span,
+.unified-monthly-net strong {
+  white-space: nowrap;
+}
+
+.unified-monthly-net span b {
+  font-weight: 800;
+}
+
+.unified-monthly-net.profit,
+.unified-monthly-net.profit b {
+  color: var(--success, #24b47e);
+}
+
+.unified-monthly-net.danger-text,
+.unified-monthly-net.danger-text b {
+  color: var(--danger, #ef6b73);
+}
+
 @media (max-width: 640px) {
   .unified-monthly-row {
     gap: 4px;

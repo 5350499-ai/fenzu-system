@@ -251,9 +251,10 @@ export default function PropertyProfitsPage() {
         </div> : null}
         <div className="global-monthly-list">
           {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
-            <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong><span className={`global-monthly-profit ${row.financial.netProfit < 0 ? "danger-text" : "profit"}`}>利润 <b>{euro(row.financial.netProfit)}</b></span></div>
+            <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong></div>
             <div className="unified-monthly-finance"><span className="global-monthly-income">收入 <b>{euro(row.financial.income)}</b></span><span className="global-monthly-expense">支出 <b>{euro(row.financial.expense)}</b></span></div>
-            <div className="unified-monthly-occupancy"><span>出租率 <b className={row.occupancy.rate != null && row.occupancy.rate < 50 ? "danger-text" : "profit"}>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
+            <div className="unified-monthly-occupancy"><span>出租率 <b>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
+            <div className={`unified-monthly-net ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}><span>净利润 <b>{euro(row.financial.netProfit)}</b></span><strong>{profitStatus(row.financial.netProfit)}</strong></div>
           </div>)}
         </div>
         {monthlyMode === "overview" && pageCount > 1 ? <div className="global-history-pagination">
@@ -298,6 +299,10 @@ function formatRate(rate: number | null) {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}%`;
 }
 
+function profitStatus(value: number) {
+  return value > 0 ? "盈利" : value < 0 ? "亏损" : "持平";
+}
+
 function getOccupancyRange(
   mode: "overview" | "year" | "custom",
   selectedPropertyId: string,
@@ -312,7 +317,7 @@ function getOccupancyRange(
   if (mode === "custom") return customRange;
   const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
   const dates = scopedProperties.map((property) => resolvePropertyOccupancyStart(property, tenants, contracts, payments)).filter(isDateString).sort();
-  const end = todayDate();
+  const end = endOfCurrentMonth();
   return { start: dates[0] && dates[0] <= end ? dates[0] : end, end };
 }
 
@@ -383,6 +388,12 @@ function todayDate() {
 function firstDayOfCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function endOfCurrentMonth() {
+  const now = new Date();
+  const lastDay = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0)).getUTCDate();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }
 
 function isDateString(value: string | undefined): value is string {

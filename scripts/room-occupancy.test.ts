@@ -46,4 +46,11 @@ const combined = calculateOccupancySummary(
   "2026-06-30"
 );
 assert.deepEqual([combined.rentedDays, combined.availableDays], [19, 46]);
+
+const augustPayments = ["r1", "r2", "r3", "r4"].map((roomId) => payment({ id: `aug-${roomId}`, roomId, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31" }));
+const augustRooms = ["r1", "r2", "r3", "r4"].map((id) => room(id));
+const fullAugust = calculateOccupancySummary([{ ...property, occupancyTrackingStartDate: "2026-06-01" }], augustRooms, [], [], augustPayments, { start: "2026-08-01", end: "2026-08-31" }, "2026-08-03");
+assert.deepEqual([fullAugust.rentedDays, fullAugust.availableDays, fullAugust.rate], [124, 124, 100]);
+const partialAugust = calculateOccupancySummary([{ ...property, occupancyTrackingStartDate: "2026-06-01" }], augustRooms, [], [], augustPayments, { start: "2026-08-01", end: "2026-08-03" }, "2026-08-03");
+assert.deepEqual([partialAugust.rentedDays, partialAugust.availableDays, partialAugust.rate], [12, 12, 100]);
 console.log("room occupancy tests passed");
