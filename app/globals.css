@@ -2964,26 +2964,33 @@ td:last-child {
 .tenant-details-toggle-row {
   grid-column: 1 / -1;
   min-width: 0;
-  margin-top: 1px;
+  width: 100%;
+  margin: 4px 0;
+  padding: 0;
 }
 
 .tenant-details-toggle {
   display: flex;
   width: 100%;
+  box-sizing: border-box;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 32px;
+  position: relative;
+  height: 40px;
+  min-height: 40px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-  color: var(--blue);
-  padding: 5px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft));
+  color: var(--text);
+  padding: 0 42px 0 12px;
   font: inherit;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
+  line-height: 1;
   white-space: nowrap;
+  text-align: center;
+  appearance: none;
   cursor: pointer;
 }
 
@@ -2992,6 +2999,11 @@ td:last-child {
 }
 
 .tenant-details-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--blue);
   font-size: 16px;
   line-height: 1;
   letter-spacing: 0;
