@@ -13,6 +13,7 @@ export type BusinessProperty = {
   name: string;
   address: string;
   city: string;
+  occupancyTrackingStartDate?: string;
   landlordName?: string;
   subletAllowed?: boolean;
   notes?: string;
@@ -539,6 +540,7 @@ function propertyConfig(): TableConfig {
       name: row.name || "",
       address: row.address || "",
       city: row.city || "",
+      occupancyTrackingStartDate: row.occupancy_tracking_start_date || undefined,
       landlordName: row.landlord_name || "",
       subletAllowed: Boolean(row.sublet_allowed),
       notes: row.notes || ""
@@ -549,6 +551,7 @@ function propertyConfig(): TableConfig {
       name: row.name || "",
       address: row.address || null,
       city: row.city || null,
+      occupancy_tracking_start_date: row.occupancyTrackingStartDate || null,
       landlord_name: row.landlordName || null,
       sublet_allowed: Boolean(row.subletAllowed),
       notes: row.notes || null

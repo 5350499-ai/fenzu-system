@@ -31,7 +31,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, paymentAccountingDate } from "@/lib/profit";
-import { calculateOccupancySummary } from "@/lib/room-occupancy";
+import { calculateOccupancySummary, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -97,14 +97,15 @@ export default function PropertyProfitsPage() {
   }, [monthlyYear]);
   const customRange = useMemo(() => getDateRange("custom", appliedCustomStart, appliedCustomEnd), [appliedCustomEnd, appliedCustomStart]);
   const range = monthlyMode === "overview" ? allTimeRange : monthlyMode === "year" ? yearRange : customRange;
-  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, rooms, tenants, contracts, yearRange, customRange), [contracts, customRange, monthlyMode, rooms, selectedPropertyId, tenants, yearRange]);
+  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, properties, tenants, contracts, yearRange, customRange), [contracts, customRange, monthlyMode, properties, selectedPropertyId, tenants, yearRange]);
   const occupancySummary = useMemo(() => calculateOccupancySummary(
+    selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId),
     selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId),
     selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId),
     contracts,
     occupancyRange,
     todayDate()
-  ), [contracts, occupancyRange, rooms, selectedPropertyId, tenants]);
+  ), [contracts, occupancyRange, properties, rooms, selectedPropertyId, tenants]);
   const stats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range).sort((a, b) => a.netProfit - b.netProfit),
     [deposits, expenses, payments, properties, range, rooms, tenants]
@@ -128,7 +129,7 @@ export default function PropertyProfitsPage() {
   const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(monthlyRows.length / pageSize));
   const displayedMonthlyRows = monthlyMode === "overview" ? monthlyRows.slice(historyPage * pageSize, (historyPage + 1) * pageSize) : monthlyRows;
-  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(rooms, tenants, contracts, occupancyRange, selectedPropertyId), [contracts, occupancyRange, rooms, selectedPropertyId, tenants]);
+  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, occupancyRange, selectedPropertyId), [contracts, occupancyRange, properties, rooms, selectedPropertyId, tenants]);
 
   function selectMonthlyMode(mode: "overview" | "year" | "custom") {
     setMonthlyMode(mode);
@@ -292,7 +293,7 @@ function OccupancyDetails({
 }
 
 function formatRate(rate: number | null) {
-  if (rate == null) return "暂无数据";
+  if (rate == null || !Number.isFinite(rate)) return "暂无数据";
   const rounded = Math.round(rate * 100) / 100;
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}%`;
 }
@@ -300,7 +301,7 @@ function formatRate(rate: number | null) {
 function getOccupancyRange(
   mode: "overview" | "year" | "custom",
   selectedPropertyId: string,
-  rooms: BusinessRoom[],
+  properties: BusinessProperty[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
   yearRange: { start: string; end: string },
@@ -308,18 +309,14 @@ function getOccupancyRange(
 ) {
   if (mode === "year") return yearRange;
   if (mode === "custom") return customRange;
-  const propertyRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
-  const propertyTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
-  const dates = [
-    ...propertyRooms.map((room) => room.createdAt || ""),
-    ...propertyTenants.map((tenant) => tenant.moveInDate || ""),
-    ...contracts.filter((contract) => selectedPropertyId === "all" || contract.propertyId === selectedPropertyId).map((contract) => contract.startDate || "")
-  ].filter(isDateString).sort();
+  const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
+  const dates = scopedProperties.map((property) => resolvePropertyOccupancyStart(property, tenants, contracts)).filter(isDateString).sort();
   const end = todayDate();
   return { start: dates[0] && dates[0] <= end ? dates[0] : end, end };
 }
 
 function buildMonthlyOccupancyRows(
+  properties: BusinessProperty[],
   rooms: BusinessRoom[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
@@ -328,18 +325,19 @@ function buildMonthlyOccupancyRows(
 ) {
   if (!dateRange.start || !dateRange.end || dateRange.start > dateRange.end) return [];
   const rows: Array<{ month: string; monthLabel: string; rentedDays: number; availableDays: number; rate: number | null }> = [];
-  const start = new Date(`${dateRange.start}T00:00:00`);
-  const end = new Date(`${dateRange.end}T00:00:00`);
-  for (const cursor = new Date(start.getFullYear(), start.getMonth(), 1); cursor <= end; cursor.setMonth(cursor.getMonth() + 1)) {
-    const year = cursor.getFullYear();
-    const monthNumber = cursor.getMonth() + 1;
+  const start = new Date(`${dateRange.start}T00:00:00Z`);
+  const end = new Date(`${dateRange.end}T00:00:00Z`);
+  for (const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)); cursor <= end; cursor.setUTCMonth(cursor.getUTCMonth() + 1)) {
+    const year = cursor.getUTCFullYear();
+    const monthNumber = cursor.getUTCMonth() + 1;
     const month = `${year}-${String(monthNumber).padStart(2, "0")}`;
-    const monthLastDay = new Date(year, monthNumber, 0).getDate();
+    const monthLastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
     const monthStart = month === dateRange.start.slice(0, 7) ? dateRange.start : `${month}-01`;
     const monthEnd = month === dateRange.end.slice(0, 7) ? dateRange.end : `${month}-${String(monthLastDay).padStart(2, "0")}`;
     const scopedRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
     const scopedTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
-    const summary = calculateOccupancySummary(scopedRooms, scopedTenants, contracts, { start: monthStart, end: monthEnd }, todayDate());
+    const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
+    const summary = calculateOccupancySummary(scopedProperties, scopedRooms, scopedTenants, contracts, { start: monthStart, end: monthEnd }, todayDate());
     rows.push({ month, monthLabel: `${year}年${monthNumber}月`, rentedDays: summary.rentedDays, availableDays: summary.availableDays, rate: summary.rate });
   }
   return rows.reverse();

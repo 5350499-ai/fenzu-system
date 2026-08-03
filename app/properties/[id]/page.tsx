@@ -33,6 +33,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
+import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
 import { Archive, ChevronDown, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -167,7 +168,8 @@ export default function PropertyDetailPage() {
 
   function openPropertyEditor() {
     if (!access.can("properties", "edit")) return;
-    setPropertyForm(property || emptyProperty());
+    const current = property || emptyProperty();
+    setPropertyForm({ ...current, occupancyTrackingStartDate: current.occupancyTrackingStartDate || resolvePropertyOccupancyStart(current, scopedTenants, scopedContracts) || undefined });
     setPropertyEditorOpen(true);
   }
 
@@ -175,7 +177,13 @@ export default function PropertyDetailPage() {
     event.preventDefault();
     if (!propertyForm.name.trim() || !access.can("properties", "edit")) return;
     setPropertySaving(true);
-    const next = properties.map((item) => item.id === propertyId ? propertyForm : item);
+    const occupancyStart = propertyForm.occupancyTrackingStartDate || "";
+    if (occupancyStart && (!isValidOccupancyDate(occupancyStart) || occupancyStart > new Date().toISOString().slice(0, 10))) {
+      window.alert("出租率统计起始日不能晚于今天，且必须是完整日期。");
+      setPropertySaving(false);
+      return;
+    }
+    const next = properties.map((item) => item.id === propertyId ? { ...propertyForm, occupancyTrackingStartDate: occupancyStart || undefined } : item);
     try {
       await saveBusinessData(propertyKey, next);
       setProperties(next);
@@ -269,6 +277,7 @@ export default function PropertyDetailPage() {
           <DetailField className="wide" label="完整地址" value={property.address || "-"} />
           <DetailField className="wide" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
           <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
+          <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts) || "尚无入住记录"} />
         </div> : null}
         <div className="property-management-actions">
           {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}
@@ -436,6 +445,7 @@ export default function PropertyDetailPage() {
             <Text label="城市" value={propertyForm.city} onChange={(city) => setPropertyForm((current) => ({ ...current, city }))} />
             <Text label="房东姓名" value={propertyForm.landlordName || ""} onChange={(landlordName) => setPropertyForm((current) => ({ ...current, landlordName }))} />
             <div className="field"><label>是否允许分租</label><select value={propertyForm.subletAllowed ? "yes" : "no"} onChange={(event) => setPropertyForm((current) => ({ ...current, subletAllowed: event.target.value === "yes" }))}><option value="yes">允许</option><option value="no">不允许</option></select></div>
+            <div className="field"><label>出租率统计起始日</label><input type="date" max={new Date().toISOString().slice(0, 10)} value={propertyForm.occupancyTrackingStartDate || ""} onChange={(event) => setPropertyForm((current) => ({ ...current, occupancyTrackingStartDate: event.target.value || undefined }))} /><span className="muted">{property?.occupancyTrackingStartDate ? "已保存的房源起算日。" : resolvePropertyOccupancyStart(property || emptyProperty(), scopedTenants, scopedContracts) ? "系统默认：从本房源首次入住月份的1号开始计算。可根据实际开始出租日期修改；该房源全部房间统一使用此日期。" : "尚无入住记录，可手动设置开始日期。"}</span></div>
             <Note value={cleanArchiveNote(propertyForm.notes)} onChange={(notes) => setPropertyForm((current) => ({ ...current, notes }))} />
             <div className="modal-actions"><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}>取消</button><button className="btn primary" disabled={propertySaving} type="submit">保存</button></div>
           </form>
@@ -616,7 +626,7 @@ function Note({ value, onChange }: { value?: string; onChange: (value: string) =
 }
 
 function emptyProperty(): BusinessProperty {
-  return { id: "", name: "", address: "", city: "", landlordName: "", subletAllowed: true, notes: "" };
+  return { id: "", name: "", address: "", city: "", landlordName: "", subletAllowed: true, notes: "", occupancyTrackingStartDate: undefined };
 }
 
 function markArchived(notes?: string) {
