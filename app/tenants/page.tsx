@@ -48,7 +48,7 @@ import { buildRentPaymentEditPayload, idSuffix, validateRentPaymentDates } from 
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { updateTenantCurrentAssignment } from "@/lib/tenant-room-move";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
-import { buildTenantTimeline, calculateTenantPaymentPerformance, PaymentDelayTrendPoint } from "@/lib/tenant-timeline";
+import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1208,18 +1208,11 @@ function TenantDetail({
             <span>完成下一次完整自然月房租收款后，系统将开始生成迟交趋势和付款统计。</span>
             {performance.excludedCount ? <span>另有{performance.excludedCount}条历史记录因首月、非完整月份或日期不足，未纳入统计。</span> : null}
           </div>
-        ) : (
-          <>
-            {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
-            {performance.periods.length === 1 ? <div className="muted tenant-performance-note">当前只有1个有效付款周期，暂不绘制趋势图。</div> : <>
-              <span className="muted tenant-performance-note">月度付款图表见下方。</span>
-            </>}
-          </>
-        )}
+        ) : null}
+        {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
       </section>
 
       <section className="tenant-timeline-section">
-        <div className="detail-section-title">年度付款表现</div>
         <TenantMonthlyPaymentPanel tenant={tenant} payments={payments} events={timeline} performance={performance} today={localToday()} />
       </section>
 
@@ -1275,46 +1268,6 @@ function TenantDetail({
       </div>
     </div>
   );
-}
-
-function PaymentDelayTrendChart({ points }: { points: PaymentDelayTrendPoint[] }) {
-  const [selectedId, setSelectedId] = useState<string | null>(points[points.length - 1]?.id || null);
-  const selected = points.find((point) => point.id === selectedId) || null;
-  const width = Math.max(320, points.length * 64);
-  const height = 190;
-  const padding = { top: 22, right: 18, bottom: 48, left: 34 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const maxDays = Math.max(10, ...points.map((point) => point.delay.days));
-  const x = (index: number) => padding.left + (points.length === 1 ? plotWidth / 2 : (plotWidth * index) / (points.length - 1));
-  const y = (days: number) => padding.top + plotHeight - (plotHeight * days) / maxDays;
-  const tone = (days: number) => days >= 10 ? "#dc2626" : days > 0 ? "#d39a00" : "#1f9d72";
-  const line = points.map((point, index) => `${x(index)},${y(point.delay.days)}`).join(" ");
-  return <div className="tenant-trend-wrap">
-    <div className="tenant-trend-heading"><strong>迟交趋势</strong><span>纵轴：迟交天数 · 横轴：付款周期</span></div>
-    <div className="tenant-trend-scroll">
-      <svg className="tenant-trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="迟交天数趋势图">
-        <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="var(--border)" />
-        <line x1={padding.left} x2={padding.left} y1={padding.top} y2={y(0)} stroke="var(--border)" />
-        <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">0</text>
-        <text x={padding.left - 8} y={y(maxDays) + 4} textAnchor="end" fill="var(--muted)" fontSize="10">{maxDays}</text>
-        <polyline points={line} fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {points.map((point, index) => <g key={point.id}>
-          <circle cx={x(index)} cy={y(point.delay.days)} r="8" fill="transparent" onClick={() => setSelectedId(point.id)} />
-          <circle cx={x(index)} cy={y(point.delay.days)} r="5" fill={tone(point.delay.days)} stroke="var(--surface)" strokeWidth="2" />
-          <text x={x(index)} y={height - 24} textAnchor="middle" fill="var(--muted)" fontSize="10">{point.label}</text>
-        </g>)}
-      </svg>
-    </div>
-    {selected ? <div className="tenant-trend-detail">
-      <strong>{selected.label}</strong>
-      <span>应收日期：{selected.delay.dueDate || "未确定"}</span>
-      <span>实收日期：{selected.delay.paymentDate || "未确定"}</span>
-      <span>{selected.delay.days > 0 ? `迟交：${selected.delay.days}天` : "按时付款"}</span>
-      <span>本次房租：{euro(selected.payment.amountDue)}</span>
-      <span>覆盖：{selected.payment.coverageStartDate || "-"} 至 {selected.payment.coverageEndDate || "-"}</span>
-    </div> : null}
-  </div>;
 }
 
 function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {

@@ -3111,8 +3111,7 @@ td:last-child {
 
 .tenant-performance-empty,
 .tenant-performance-summary,
-.tenant-current-overdue,
-.tenant-trend-wrap {
+.tenant-current-overdue {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -3126,8 +3125,7 @@ td:last-child {
 }
 
 .tenant-performance-empty span,
-.tenant-performance-summary,
-.tenant-trend-heading span {
+.tenant-performance-summary {
   color: var(--muted);
   font-size: 12px;
 }
@@ -3186,49 +3184,6 @@ td:last-child {
 .tenant-current-overdue.red {
   border-color: color-mix(in srgb, var(--red) 45%, var(--border));
   color: var(--red);
-}
-
-.tenant-trend-wrap {
-  display: grid;
-  gap: 8px;
-}
-
-.tenant-trend-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tenant-trend-scroll {
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-
-.tenant-trend-chart {
-  display: block;
-  width: 100%;
-  min-width: 320px;
-  height: 190px;
-}
-
-.tenant-trend-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.tenant-trend-detail strong {
-  color: var(--text);
-}
-
-.tenant-trend-more {
-  justify-self: start;
 }
 
 .tenant-horizontal-timeline {
@@ -3373,10 +3328,6 @@ td:last-child {
   border-radius: 10px;
   background: var(--surface);
   padding: 9px 10px;
-}
-
-.tenant-performance-note {
-  font-size: 12px;
 }
 
 .tenant-timeline-list {
