@@ -208,7 +208,7 @@ export default function SettingsPage() {
             <p className="muted">先做备份和导出；恢复功能后续再加。</p>
           </div>
         </div>
-        <div className="settings-actions" hidden>
+        {false && <div className="settings-actions">
           {access.canSensitive("canManageSettings") ? <button className="btn primary" disabled={loading || working} onClick={backupNow} type="button">
             <HardDriveDownload size={17} /> 立即备份
           </button> : null}
@@ -218,7 +218,7 @@ export default function SettingsPage() {
           {access.canSensitive("canExportData") ? <button className="btn" disabled={loading || working} onClick={exportCsv} type="button">
             <Download size={17} /> 导出CSV
           </button> : null}
-        </div>
+        </div>}
         <div className="detail-grid">
           <div className="detail-field"><span>最近备份时间</span><strong>{lastBackupAt ? formatDateTime(lastBackupAt) : "暂无备份"}</strong></div>
           <div className="detail-field"><span>导出内容</span><strong>房源、房间、租客、收租、支出、合同、A/B归属、合伙结算</strong></div>
