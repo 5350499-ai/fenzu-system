@@ -43,6 +43,11 @@ export default function PartnerSettlementSnapshotPage({ params }: { params: Prom
     });
   }, [params]);
 
+  useEffect(() => {
+    if (!data) return;
+    document.querySelectorAll<HTMLDetailsElement>(".settlement-snapshot-page details.snapshot-section:not(.technical-info)").forEach((element) => { element.open = true; });
+  }, [data]);
+
   async function reverse() {
     if (!data || !reason.trim()) return;
     const batch = data.batch;
