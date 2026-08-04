@@ -15,7 +15,7 @@ import {
 import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName } from "@/lib/data-export";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, validateDataExportIntegrity, verifyDataExportChecksum } from "@/lib/data-export";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -32,7 +32,7 @@ const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts:
 const countLabels: Record<string, string> = {
   properties: "房源", rooms: "房间", tenants: "租客", contracts: "合同", rentPayments: "收款",
   expenses: "支出", deposits: "押金", tasks: "待办", viewingAppointments: "看房预约",
-  partners: "合伙人", partnerShares: "比例方案", settlementBatches: "结算快照", accounts: "账号", auditLogs: "操作日志"
+  partners: "合伙人", partnerShares: "比例方案", settlementBatches: "结算批次", settlementSnapshots: "结算快照"
 };
 
 export default function DataCenterPage() {
@@ -52,6 +52,8 @@ export default function DataCenterPage() {
   const [error, setError] = useState("");
   const [exportSheetOpen, setExportSheetOpen] = useState(false);
   const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
+  const [backupCreating, setBackupCreating] = useState(false);
+  const [backupNotice, setBackupNotice] = useState("");
 
   useEffect(() => {
     if (!access.ready) return;
@@ -75,7 +77,7 @@ export default function DataCenterPage() {
           nextPartners = partnerData.partners;
           nextShares = partnerData.shares;
           nextHistory = partnerData.nameHistory || [];
-        } catch { /* Optional for accounts without settlement access. */ }
+        } catch { /* The export remains limited to the current account's readable data. */ }
         const session = await getValidSupabaseSession();
         const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
         const [settlementResponse, accountResponse, auditResponse] = await Promise.all([
@@ -114,14 +116,14 @@ export default function DataCenterPage() {
     properties: data.properties.length, rooms: data.rooms.length, tenants: data.tenants.length, contracts: data.contracts.length,
     rentPayments: data.rentPayments.length, expenses: data.expenses.length, deposits: data.deposits.length,
     tasks: tasks.length, viewingAppointments: viewingAppointments.length, partners: partners.length,
-    partnerShares: partnerShares.length, settlementBatches: settlementBatches.length, accounts: accounts.length, auditLogs: auditLogs.length
-  }), [data, tasks, viewingAppointments, partners, partnerShares, settlementBatches, accounts, auditLogs]);
+    partnerShares: partnerShares.length, settlementBatches: settlementBatches.length, settlementSnapshots: settlementSnapshots.length
+  }), [data, tasks, viewingAppointments, partners, partnerShares, settlementBatches, settlementSnapshots]);
 
   const exportData = useMemo<Record<string, unknown>>(() => ({
     properties: data.properties, rooms: data.rooms, tenants: data.tenants, contracts: data.contracts,
     rentPayments: data.rentPayments, expenses: data.expenses, deposits: data.deposits, tasks, viewingAppointments,
-    partners, partnerShares, partnerNameHistory: nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs,
-    settings: { legacyPartnerRatios: partnerRatios }
+    partners, partnerShares, partnerNameHistory: nameHistory, propertyHistory: [], settlementBatches, settlementSnapshots,
+    accounts, auditLogs, settings: { legacyPartnerRatios: partnerRatios }
   }), [data, tasks, viewingAppointments, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
 
   function downloadExport(fileName: string, content: string, type: string) {
@@ -131,11 +133,27 @@ export default function DataCenterPage() {
     link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
   }
 
-  function createBackup() {
+  async function createBackup() {
     if (!access.canSensitive("canExportData")) return;
-    if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或 Storage 文件。")) return;
+    if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或其他文件。")) {
+      setBackupNotice("已取消导出");
+      return;
+    }
+    setBackupCreating(true); setBackupNotice("");
     const now = new Date();
-    downloadExport(dataExportFileName(now), JSON.stringify(createDataExportPayload(exportData, now.toISOString()), null, 2), "application/json;charset=utf-8");
+    try {
+      const payload = await createDataExportPayload(exportData, now.toISOString(), {
+        backupType: "local", exportedBy: access.userId || null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+      });
+      const reparsed = JSON.parse(JSON.stringify(payload));
+      const integrity = validateDataExportIntegrity(reparsed);
+      if (!integrity.valid) throw new Error(`备份自检失败：${integrity.errors[0]}`);
+      if (!await verifyDataExportChecksum(reparsed)) throw new Error("备份校验失败，请稍后重试。");
+      downloadExport(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
+      setBackupNotice("备份创建成功");
+    } catch (backupError) {
+      setBackupNotice(backupError instanceof Error ? backupError.message : "备份创建失败，请稍后重试。");
+    } finally { setBackupCreating(false); }
   }
 
   function exportTable(format: "excel" | "csv") {
@@ -152,46 +170,22 @@ export default function DataCenterPage() {
         <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
         <CountSummary counts={counts} loading={loading} />
         <p className="data-center-note"><ShieldCheck size={16} /> 创建备份会下载一份本地 JSON 文件，不会写入云端 Storage。</p>
-        <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={createBackup}><HardDriveDownload size={17} /> 创建备份</PrimaryButton>
+        <PrimaryButton type="button" disabled={loading || backupCreating || !access.canSensitive("canExportData")} onClick={() => void createBackup()}>
+          {backupCreating ? "正在创建备份…" : "创建备份"}
+        </PrimaryButton>
+        {backupNotice ? <p className={backupNotice.includes("成功") || backupNotice.includes("取消") ? "success-text" : "danger-text"} role="status">{backupNotice}</p> : null}
         {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
       </SectionCard>
-
-      <SectionCard className="data-center-card">
-        <DataCardHeader icon={<History size={20} />} title="恢复备份" description="暂未开放。后续恢复前会自动创建当前数据备份。" />
-        <SecondaryButton type="button" disabled>恢复备份</SecondaryButton>
-      </SectionCard>
-
-      <SectionCard className="data-center-card">
-        <DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" />
-        <p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的完整业务数据。</p>
-        <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton>
-      </SectionCard>
-
+      <SectionCard className="data-center-card"><DataCardHeader icon={<History size={20} />} title="恢复备份" description="暂未开放。后续恢复前会自动创建当前数据备份。" /><SecondaryButton type="button" disabled>恢复备份</SecondaryButton></SectionCard>
+      <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
       <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
     </div>
-
-    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={() => setExportSheetOpen(false)}>
-      <section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}>
-        <div className="data-center-sheet-handle" aria-hidden="true" />
-        <h2 id="export-sheet-title">请选择导出格式</h2>
-        <button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button>
-        <button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button>
-        <SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton>
-      </section>
-    </div> : null}
+    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={() => setExportSheetOpen(false)}><section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}><div className="data-center-sheet-handle" aria-hidden="true" /><h2 id="export-sheet-title">请选择导出格式</h2><button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button><button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button><SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton></section></div> : null}
     {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setSubscriptionDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
   </AppLayout>;
 }
 
-function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
-  return <div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><h2 className="panel-title">{title}</h2><p className="data-center-muted">{description}</p></div></div>;
-}
-
-function CountSummary({ counts, loading }: { counts: Record<string, number>; loading: boolean }) {
-  return <div className="data-center-counts"><strong>预计导出内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>;
-}
-
-function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) {
-  return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>;
-}
+function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><h2 className="panel-title">{title}</h2><p className="data-center-muted">{description}</p></div></div>; }
+function CountSummary({ counts, loading }: { counts: Record<string, number>; loading: boolean }) { return <div className="data-center-counts"><strong>预计备份内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>; }
+function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) { return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>; }
