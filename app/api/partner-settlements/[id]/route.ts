@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
+function settlementErrorResponse(error: unknown) {
+  if (error instanceof AccountApiError && error.status === 401) {
+    return NextResponse.json({ error: "登录已失效，请重新登录。", code: "unauthorized" }, { status: 401 });
+  }
+  if (error instanceof AccountApiError && error.status === 403) {
+    return NextResponse.json({ error: "当前账号没有查看或撤销合伙结算的权限。", code: "forbidden" }, { status: 403 });
+  }
+  return apiErrorResponse(error);
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireActiveAccount(request, true);
@@ -21,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return apiErrorResponse(error);
+    return settlementErrorResponse(error);
   }
 }
 
@@ -40,6 +50,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ]);
     return NextResponse.json({ batch, partners: partners.data || [], segments: segments.data || [], transfers: transfers.data || [] });
   } catch (error) {
-    return apiErrorResponse(error);
+    return settlementErrorResponse(error);
   }
 }

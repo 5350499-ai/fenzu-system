@@ -2051,6 +2051,23 @@ a {
   text-align: right;
 }
 
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auth-expired-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.settlement-controls .button-row {
+  margin-top: 12px;
+}
+
 .settlement-detail-extra {
   display: grid;
   gap: 4px;

@@ -13,10 +13,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [returnTo, setReturnTo] = useState("/");
 
   useEffect(() => {
-    if (access.authenticated && access.isServerVerified) router.replace("/");
-  }, [access.authenticated, access.isServerVerified, router]);
+    const requested = new URLSearchParams(window.location.search).get("returnTo") || "/";
+    if (requested.startsWith("/") && !requested.startsWith("//")) setReturnTo(requested);
+  }, []);
+
+  useEffect(() => {
+    if (access.authenticated && access.isServerVerified) router.replace(returnTo);
+  }, [access.authenticated, access.isServerVerified, returnTo, router]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,7 +59,7 @@ export default function LoginPage() {
         setError(verified.invalidReason || "登录状态验证失败，请重新登录。");
         return;
       }
-      router.replace("/");
+      router.replace(returnTo);
     } catch {
       setError("登录服务暂时不可用，请稍后重试。");
     } finally {

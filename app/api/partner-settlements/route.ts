@@ -11,6 +11,16 @@ function isVoidError(message: string) {
   return new AccountApiError("结算操作失败，请稍后重试。", 500, "settlement_transaction_failed");
 }
 
+function settlementErrorResponse(error: unknown) {
+  if (error instanceof AccountApiError && error.status === 401) {
+    return NextResponse.json({ error: "登录已失效，请重新登录。", code: "unauthorized" }, { status: 401 });
+  }
+  if (error instanceof AccountApiError && error.status === 403) {
+    return NextResponse.json({ error: "当前账号没有查看或确认合伙结算的权限。", code: "forbidden" }, { status: 403 });
+  }
+  return apiErrorResponse(error);
+}
+
 async function loadInputs(ownerId: string) {
   const admin = getSupabaseAdmin();
   const [propertiesResult, partnersResult, sharesResult, paymentsResult, expensesResult] = await Promise.all([
@@ -50,7 +60,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ batches: batches || [] });
   } catch (error) {
-    return apiErrorResponse(error);
+    return settlementErrorResponse(error);
   }
 }
 
@@ -91,6 +101,6 @@ export async function POST(request: Request) {
     if (error) throw isVoidError(error.message);
     return NextResponse.json({ ok: true, batchId });
   } catch (error) {
-    return apiErrorResponse(error);
+    return settlementErrorResponse(error);
   }
 }
