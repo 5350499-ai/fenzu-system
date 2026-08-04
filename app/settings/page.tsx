@@ -223,6 +223,9 @@ export default function SettingsPage() {
           <div className="detail-field"><span>最近备份时间</span><strong>{lastBackupAt ? formatDateTime(lastBackupAt) : "暂无备份"}</strong></div>
           <div className="detail-field"><span>导出内容</span><strong>房源、房间、租客、收租、支出、合同、A/B归属、合伙结算</strong></div>
         </div>
+        <div className="settings-actions data-center-settings-entry">
+          <Link className="btn primary" href="/data-center">打开数据管理</Link>
+        </div>
       </section>
 
       <section className="card panel">

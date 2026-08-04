@@ -6255,6 +6255,185 @@ td:last-child {
   }
 }
 
+/* Data Center: six stable modules with a compact, mobile-first presentation. */
+.data-center-page {
+  display: grid;
+  gap: 16px;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+.data-center-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.data-center-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.data-center-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.data-center-card-header .panel-title,
+.data-center-card-header p {
+  overflow-wrap: anywhere;
+}
+
+.data-center-icon,
+.data-center-dialog-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--accent);
+  background: var(--surface-soft);
+}
+
+.data-center-muted {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.data-center-counts,
+.data-center-import-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.data-center-counts > strong,
+.data-center-import-summary > strong {
+  grid-column: 1 / -1;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.data-center-counts > span,
+.data-center-import-summary > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.data-center-counts b,
+.data-center-import-summary b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.data-center-counts em,
+.data-center-import-summary em {
+  color: var(--text);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-center-note,
+.data-center-reserved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.data-center-reserved {
+  min-height: 56px;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.data-center-hidden-input { display: none; }
+.data-center-error,
+.data-center-alert--danger { color: var(--danger); }
+.data-center-error { margin: 0; font-size: 13px; }
+
+.data-center-alert {
+  padding: 12px 14px;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.data-center-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.data-center-vip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #7a4b00;
+  background: #f4d27a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.data-center-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.data-center-dialog {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 390px);
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
+
+.data-center-dialog h2 { margin: 0; font-size: 18px; }
+.data-center-dialog ul { display: grid; gap: 7px; margin: 0; padding-left: 20px; color: var(--text); }
+.data-center-dialog .btn { width: 100%; }
+
+@media (max-width: 640px) {
+  .data-center-grid { grid-template-columns: minmax(0, 1fr); }
+  .data-center-card { padding: 16px; }
+  .data-center-card .btn { width: 100%; }
+}
+
 /* V1 UI foundation: shared visual language for existing screens. */
 :root {
   --ui-radius-sm: 8px;
