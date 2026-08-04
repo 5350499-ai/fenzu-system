@@ -23,7 +23,7 @@ export type AccountProfileRow = {
 };
 
 export class AccountApiError extends Error {
-  constructor(message: string, public readonly status = 400) {
+  constructor(message: string, public readonly status = 400, public readonly code?: string) {
     super(message);
   }
 }
@@ -42,7 +42,7 @@ export type AccountRequestContext = {
 
 export function apiErrorResponse(error: unknown) {
   if (error instanceof AccountApiError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
   }
 
   const message = error instanceof Error ? error.message : "服务暂时不可用，请稍后重试。";

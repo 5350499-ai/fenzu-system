@@ -8,6 +8,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function lifecycleError(error: { message?: string }, fallback: string) {
   console.error("[partners] share lifecycle RPC failed", error);
   const message = error.message || "";
+  if (message.includes("permission denied") || message.includes("42501")) return new AccountApiError(fallback, 500, "permission_denied");
+  if (message.includes("range lower bound") || message.includes("overlap") || message.includes("100 percent")) return new AccountApiError(fallback, 409, "share_plan_conflict");
+  if (message.includes("transaction") || message.includes("deadlock")) return new AccountApiError(fallback, 500, "transaction_failed");
   if (message.includes("Only future share plans")) return new AccountApiError("只能操作尚未生效的未来计划", 400);
   if (message.includes("does not exist")) return new AccountApiError("未来计划不存在或已被处理", 404);
   if (message.includes("Property does not belong")) return new AccountApiError("房源不存在或无权访问", 403);
