@@ -3,6 +3,8 @@ export const BACKUP_FORMAT_VERSION = 1 as const;
 export const DATA_EXPORT_VERSION = BACKUP_FORMAT_VERSION;
 export const APP_VERSION = "0.1.0" as const;
 export const SCHEMA_VERSION = "20260804150000" as const;
+export const GENERATED_BY = "Fenzu System" as const;
+export const SOFTWARE_EDITION = "Community" as const;
 
 const DESCRIPTION = "分租房管理系统官方备份文件，仅支持官方恢复功能，请勿手工修改。";
 const SENSITIVE_EXPORT_KEY = /password|password_hash|access[_-]?token|refresh[_-]?token|session|secret|service[_-]?role|api[_-]?key|authorization|cookie|private[_-]?key/i;
@@ -25,12 +27,11 @@ export type BackupSummary = {
   partnersCount: number;
   settlementsCount: number;
   settlementSnapshotsCount: number;
+  totalRecords: number;
+  backupSizeBytes: number;
 };
 
-export type DataExportPayload = {
-  format: typeof DATA_EXPORT_FORMAT;
-  version: typeof DATA_EXPORT_VERSION;
-  description: string;
+export type BackupMetadata = {
   backupFormatVersion: typeof BACKUP_FORMAT_VERSION;
   appVersion: string;
   schemaVersion: string;
@@ -40,6 +41,15 @@ export type DataExportPayload = {
   exportedBy: string | null;
   timezone: string;
   checksum: string;
+  description: string;
+  generatedBy: typeof GENERATED_BY;
+  softwareEdition: typeof SOFTWARE_EDITION;
+  platform: "Web" | "iOS" | "Android" | "Windows" | "macOS";
+  exportReason: "Manual" | "AutoCloud" | "BeforeRestore" | "BeforeUpgrade";
+};
+
+export type DataExportPayload = {
+  metadata: BackupMetadata;
   summary: BackupSummary;
   data: Record<string, unknown>;
 };
@@ -64,21 +74,16 @@ function count(data: Record<string, unknown>, key: string): number {
   return Array.isArray(data[key]) ? data[key].length : 0;
 }
 
-export function buildBackupSummary(data: Record<string, unknown>): BackupSummary {
-  return {
-    propertiesCount: count(data, "properties"),
-    roomsCount: count(data, "rooms"),
-    tenantsCount: count(data, "tenants"),
-    contractsCount: count(data, "contracts"),
-    rentPaymentsCount: count(data, "rentPayments"),
-    expensesCount: count(data, "expenses"),
-    depositsCount: count(data, "deposits"),
-    appointmentsCount: count(data, "viewingAppointments"),
-    todosCount: count(data, "tasks"),
-    partnersCount: count(data, "partners"),
-    settlementsCount: count(data, "settlementBatches"),
-    settlementSnapshotsCount: count(data, "settlementSnapshots")
-  };
+export function buildBackupSummary(data: Record<string, unknown>, backupSizeBytes = 0): BackupSummary {
+  const summary = {
+    propertiesCount: count(data, "properties"), roomsCount: count(data, "rooms"), tenantsCount: count(data, "tenants"),
+    contractsCount: count(data, "contracts"), rentPaymentsCount: count(data, "rentPayments"), expensesCount: count(data, "expenses"),
+    depositsCount: count(data, "deposits"), appointmentsCount: count(data, "viewingAppointments"), todosCount: count(data, "tasks"),
+    partnersCount: count(data, "partners"), settlementsCount: count(data, "settlementBatches"), settlementSnapshotsCount: count(data, "settlementSnapshots"),
+    totalRecords: 0, backupSizeBytes
+  } satisfies BackupSummary;
+  summary.totalRecords = Object.entries(data).reduce((total, [, value]) => total + (Array.isArray(value) ? value.length : 0), 0);
+  return summary;
 }
 
 function sortKeys(value: unknown): unknown {
@@ -91,44 +96,56 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));
 }
 
+function utf8Bytes(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
 async function sha256(value: string): Promise<string> {
   if (typeof crypto === "undefined" || !crypto.subtle) throw new Error("当前环境不支持备份校验。");
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function checksumInput(payload: Omit<DataExportPayload, "checksum">): string {
-  return canonicalJson({ ...payload, checksum: "" });
+function checksumInput(payload: DataExportPayload): string {
+  return canonicalJson({ ...payload, metadata: { ...payload.metadata, checksum: "" } });
+}
+
+function jsonForSize(payload: DataExportPayload): string {
+  return JSON.stringify(payload, null, 2);
+}
+
+function normalizedMetadata(options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] }, exportedAt: string): Omit<BackupMetadata, "checksum"> {
+  return {
+    backupFormatVersion: BACKUP_FORMAT_VERSION, appVersion: APP_VERSION, schemaVersion: SCHEMA_VERSION,
+    backupId: crypto.randomUUID(), backupType: options.backupType || "local", exportedAt,
+    exportedBy: options.exportedBy || null, timezone: options.timezone || "UTC", description: DESCRIPTION,
+    generatedBy: GENERATED_BY, softwareEdition: SOFTWARE_EDITION, platform: options.platform || "Web",
+    exportReason: options.exportReason || "Manual"
+  };
 }
 
 export async function createDataExportPayload(
   data: Record<string, unknown>,
   exportedAt = new Date().toISOString(),
-  options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string } = {}
+  options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
 ): Promise<DataExportPayload> {
   const cleanData = stripSensitiveExportData(data) as Record<string, unknown>;
-  const payloadWithoutChecksum = {
-    format: DATA_EXPORT_FORMAT,
-    version: DATA_EXPORT_VERSION,
-    description: DESCRIPTION,
-    backupFormatVersion: BACKUP_FORMAT_VERSION,
-    appVersion: APP_VERSION,
-    schemaVersion: SCHEMA_VERSION,
-    backupId: crypto.randomUUID(),
-    backupType: options.backupType || "local",
-    exportedAt,
-    exportedBy: options.exportedBy || null,
-    timezone: options.timezone || "UTC",
-    summary: buildBackupSummary(cleanData),
-    data: cleanData
-  } satisfies Omit<DataExportPayload, "checksum">;
-  return { ...payloadWithoutChecksum, checksum: await sha256(checksumInput(payloadWithoutChecksum)) };
+  const metadata = normalizedMetadata(options, exportedAt);
+  let payload: DataExportPayload = { metadata: { ...metadata, checksum: "0".repeat(64) }, summary: buildBackupSummary(cleanData), data: cleanData };
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    payload = { ...payload, summary: buildBackupSummary(cleanData, utf8Bytes(jsonForSize(payload))) };
+    payload = { ...payload, metadata: { ...payload.metadata, checksum: await sha256(checksumInput(payload)) } };
+  }
+  return payload;
 }
 
 export async function verifyDataExportChecksum(payload: DataExportPayload): Promise<boolean> {
-  const { checksum, ...withoutChecksum } = payload;
-  return Boolean(checksum) && checksum === await sha256(checksumInput(withoutChecksum));
+  return Boolean(payload.metadata?.checksum) && payload.metadata.checksum === await sha256(checksumInput(payload));
+}
+
+export function dataExportFileName(date = new Date()): string {
+  const utcSeconds = date.toISOString().replace(/\.\d{3}Z$/, "").replace(/:/g, "-");
+  return `分租管理数据-${utcSeconds}.json`;
 }
 
 function records(data: Record<string, unknown>, key: string): Record<string, unknown>[] {
@@ -145,7 +162,6 @@ function addMissingReferenceErrors(errors: string[], data: Record<string, unknow
 
 export function validateDataExportIntegrity(payload: DataExportPayload): BackupIntegrityResult {
   const errors: string[] = [];
-  if (!isDataExportPayload(payload)) errors.push("备份元信息不完整或格式不受支持。");
   const data = payload.data;
   for (const key of REQUIRED_COLLECTIONS) if (!(key in data)) errors.push(`缺少业务模块：${key}`);
   for (const key of REQUIRED_COLLECTIONS) {
@@ -177,71 +193,45 @@ export function validateDataExportIntegrity(payload: DataExportPayload): BackupI
   addMissingReferenceErrors(errors, data, "partnerShares", "propertyId", "properties");
   addMissingReferenceErrors(errors, data, "partnerNameHistory", "partnerId", "partners");
   addMissingReferenceErrors(errors, data, "settlementBatches", "propertyId", "properties");
-  const summary = buildBackupSummary(data);
-  for (const [key, value] of Object.entries(summary)) {
-    const collection = key.replace(/Count$/, "");
-    const actual = key === "appointmentsCount" ? count(data, "viewingAppointments")
-      : key === "todosCount" ? count(data, "tasks")
-        : key === "settlementsCount" ? count(data, "settlementBatches")
-          : key === "settlementSnapshotsCount" ? count(data, "settlementSnapshots") : count(data, collection);
-    if (value !== actual) errors.push(`Summary 数量不一致：${key}`);
+  const expected = buildBackupSummary(data);
+  if (!isRecord(payload.summary)) errors.push("Summary 格式错误。");
+  else for (const key of Object.keys(expected) as Array<keyof BackupSummary>) {
+    if (key !== "backupSizeBytes" && payload.summary[key] !== expected[key]) errors.push(`Summary 数量不一致：${key}`);
   }
+  if (payload.summary.backupSizeBytes !== utf8Bytes(jsonForSize(payload))) errors.push("Summary 文件大小不一致：backupSizeBytes");
   return { valid: errors.length === 0, errors };
 }
 
-export function dataExportFileName(date = new Date()): string {
-  const utcSeconds = date.toISOString().replace(/\.\d{3}Z$/, "").replace(/:/g, "-");
-  return `分租管理数据-${utcSeconds}.json`;
+export function isDataExportPayload(value: unknown): value is DataExportPayload {
+  if (!isRecord(value) || !isRecord(value.metadata) || !isRecord(value.summary) || !isRecord(value.data)) return false;
+  const metadata = value.metadata as Partial<BackupMetadata>;
+  return metadata.backupFormatVersion === BACKUP_FORMAT_VERSION && typeof metadata.appVersion === "string"
+    && typeof metadata.schemaVersion === "string" && typeof metadata.backupId === "string"
+    && (metadata.backupType === "local" || metadata.backupType === "cloud") && typeof metadata.exportedAt === "string"
+    && (typeof metadata.exportedBy === "string" || metadata.exportedBy === null) && typeof metadata.timezone === "string"
+    && typeof metadata.checksum === "string" && metadata.generatedBy === GENERATED_BY
+    && metadata.softwareEdition === SOFTWARE_EDITION && typeof metadata.description === "string"
+    && typeof metadata.platform === "string" && typeof metadata.exportReason === "string";
 }
 
-export function isDataExportPayload(value: unknown): value is DataExportPayload {
-  if (!isRecord(value)) return false;
-  const payload = value as Partial<DataExportPayload>;
-  return payload.format === DATA_EXPORT_FORMAT
-    && payload.version === DATA_EXPORT_VERSION
-    && payload.backupFormatVersion === BACKUP_FORMAT_VERSION
-    && typeof payload.description === "string"
-    && typeof payload.appVersion === "string"
-    && typeof payload.schemaVersion === "string"
-    && typeof payload.backupId === "string"
-    && (payload.backupType === "local" || payload.backupType === "cloud")
-    && typeof payload.exportedAt === "string"
-    && (typeof payload.exportedBy === "string" || payload.exportedBy === null)
-    && typeof payload.timezone === "string"
-    && typeof payload.checksum === "string"
-    && isRecord(payload.summary)
-    && isRecord(payload.data);
+export async function dryRunRestore(payload: unknown): Promise<BackupIntegrityResult> {
+  if (!isDataExportPayload(payload)) return { valid: false, errors: ["此备份文件与当前软件版本不兼容，暂时无法恢复。"] };
+  if (payload.metadata.backupFormatVersion !== BACKUP_FORMAT_VERSION || payload.metadata.schemaVersion !== SCHEMA_VERSION) return { valid: false, errors: ["此备份文件与当前软件版本不兼容，暂时无法恢复。"] };
+  const integrity = validateDataExportIntegrity(payload);
+  if (!integrity.valid) return integrity;
+  if (!await verifyDataExportChecksum(payload)) return { valid: false, errors: ["备份校验失败，请重新生成备份。"] };
+  return { valid: true, errors: [] };
 }
 
 type ExportTableRow = Array<string | number | boolean>;
-
-function exportCell(value: unknown): string {
-  if (value == null) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
+function exportCell(value: unknown): string { if (value == null) return ""; if (typeof value === "object") return JSON.stringify(value); return String(value); }
 function exportSections(data: Record<string, unknown>): Array<{ title: string; rows: ExportTableRow[] }> {
   return Object.entries(data).map(([title, value]) => {
-    if (Array.isArray(value)) {
-      const records = value.filter((item): item is Record<string, unknown> => isRecord(item));
-      const keys = Array.from(new Set(records.flatMap((item) => Object.keys(item))));
-      return { title, rows: [keys, ...records.map((item) => keys.map((key) => exportCell(item[key])))] };
-    }
+    if (Array.isArray(value)) { const rows = value.filter(isRecord); const keys = Array.from(new Set(rows.flatMap((item) => Object.keys(item)))); return { title, rows: [keys, ...rows.map((item) => keys.map((key) => exportCell(item[key])))] }; }
     if (value && typeof value === "object") return { title, rows: [["key", "value"], ...Object.entries(value).map(([key, nested]) => [key, exportCell(nested)])] };
     return { title, rows: [["value"], [exportCell(value)]] };
   });
 }
-
-export function buildCsvDataExport(data: Record<string, unknown>): string {
-  return exportSections(data).map(({ title, rows }) => [[title], ...rows].map((row) => row.map((cell) => `"${exportCell(cell).replace(/"/g, '""')}"`).join(",")).join("\n")).join("\n\n");
-}
-
-function escapeExportHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[character] || character));
-}
-
-export function buildExcelDataExport(data: Record<string, unknown>): string {
-  const worksheets = exportSections(data).map(({ title, rows }) => `<h2>${escapeExportHtml(title)}</h2><table border="1"><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeExportHtml(exportCell(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table>`).join("<br />");
-  return `<!doctype html><html><head><meta charset="utf-8" /></head><body>${worksheets}</body></html>`;
-}
+export function buildCsvDataExport(data: Record<string, unknown>): string { return exportSections(data).map(({ title, rows }) => [[title], ...rows].map((row) => row.map((cell) => `"${exportCell(cell).replace(/"/g, '""')}"`).join(",")).join("\n")).join("\n\n"); }
+function escapeExportHtml(value: string): string { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[character] || character)); }
+export function buildExcelDataExport(data: Record<string, unknown>): string { const worksheets = exportSections(data).map(({ title, rows }) => `<h2>${escapeExportHtml(title)}</h2><table border="1"><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeExportHtml(exportCell(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table>`).join("<br />"); return `<!doctype html><html><head><meta charset="utf-8" /></head><body>${worksheets}</body></html>`; }

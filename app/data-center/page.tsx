@@ -15,7 +15,7 @@ import {
 import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, validateDataExportIntegrity, verifyDataExportChecksum } from "@/lib/data-export";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore } from "@/lib/data-export";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -146,9 +146,8 @@ export default function DataCenterPage() {
         backupType: "local", exportedBy: access.userId || null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
       });
       const reparsed = JSON.parse(JSON.stringify(payload));
-      const integrity = validateDataExportIntegrity(reparsed);
-      if (!integrity.valid) throw new Error(`备份自检失败：${integrity.errors[0]}`);
-      if (!await verifyDataExportChecksum(reparsed)) throw new Error("备份校验失败，请稍后重试。");
+      const dryRun = await dryRunRestore(reparsed);
+      if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
       downloadExport(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
       setBackupNotice("备份创建成功");
     } catch (backupError) {
