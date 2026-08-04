@@ -19,15 +19,27 @@ export default function ResetPasswordPage() {
     let mounted = true;
     async function prepare() {
       if (!supabase) { setInvalid(true); return; }
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!mounted || (event !== "PASSWORD_RECOVERY" && event !== "SIGNED_IN")) return;
+        setReady(Boolean(session));
+        setInvalid(!session);
+      });
       const code = new URLSearchParams(window.location.search).get("code");
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) { if (mounted) setInvalid(true); return; }
+        if (exchangeError) { if (mounted) setInvalid(true); authListener.subscription.unsubscribe(); return; }
         window.history.replaceState({}, document.title, "/reset-password");
       }
-      await new Promise((resolve) => window.setTimeout(resolve, 150));
+      // supabase-js consumes hash recovery tokens when detectSessionInUrl is
+      // enabled. Give that event a short window before treating the link as
+      // invalid, without ever rendering or persisting the token.
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
       const { data } = await supabase.auth.getSession();
-      if (mounted) { setReady(Boolean(data.session)); setInvalid(!data.session); }
+      if (mounted) {
+        setReady(Boolean(data.session));
+        setInvalid(!data.session);
+      }
+      authListener.subscription.unsubscribe();
     }
     void prepare();
     return () => { mounted = false; };

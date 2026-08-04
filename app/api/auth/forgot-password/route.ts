@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { isInternalAuthEmail } from "@/lib/password-security";
 import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-admin";
+import { recoveryRedirectUrl } from "@/lib/auth-redirect";
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 15 * 60 * 1000;
@@ -10,22 +11,6 @@ const MAX_ATTEMPTS = 3;
 function rateLimitKey(request: Request, email: string) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return createHash("sha256").update(`${ip}|${email}`).digest("hex");
-}
-
-function isAllowedHost(host: string) {
-  const normalized = host.toLowerCase().split(":")[0];
-  return normalized === "fenzu-system.vercel.app"
-    || normalized === "localhost"
-    || normalized === "127.0.0.1"
-    || (normalized.endsWith(".vercel.app") && normalized.startsWith("fenzu-system-"));
-}
-
-function recoveryRedirect(request: Request) {
-  const url = new URL(request.url);
-  const host = request.headers.get("x-forwarded-host") || url.host;
-  if (!isAllowedHost(host)) return "https://fenzu-system.vercel.app/reset-password";
-  const protocol = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
-  return `${protocol}://${host}/reset-password`;
 }
 
 export async function POST(request: Request) {
@@ -53,7 +38,7 @@ export async function POST(request: Request) {
       .eq("auth_email", email)
       .maybeSingle();
     if (identity && !identity.is_internal_email && !isInternalAuthEmail(identity.auth_email)) {
-      const { error } = await getSupabasePublicServerClient().auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirect(request) });
+      const { error } = await getSupabasePublicServerClient().auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirectUrl(request) });
       if (error) console.error("[auth] password recovery request failed", error.message);
     }
   } catch (error) {
