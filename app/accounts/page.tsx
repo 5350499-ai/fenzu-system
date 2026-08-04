@@ -20,6 +20,8 @@ type AccountItem = {
   lastLoginAt: string | null;
   lastActivityAt: string | null;
   latestActionAt: string | null;
+  email: string | null;
+  emailBound: boolean;
   modulePermissions: ModulePermission[];
   sensitivePermissions: SensitivePermissions;
 };
@@ -28,6 +30,7 @@ type EditorState = {
   id: string | null;
   username: string;
   displayName: string;
+  email: string;
   password: string;
   passwordConfirmation: string;
   status: "active" | "disabled";
@@ -43,6 +46,7 @@ function blankEditor(): EditorState {
     id: null,
     username: "",
     displayName: "",
+    email: "",
     password: "",
     passwordConfirmation: "",
     status: "active",
@@ -128,6 +132,7 @@ export default function AccountsPage() {
       id: account.id,
       username: account.username,
       displayName: account.displayName,
+      email: account.email || "",
       password: "",
       passwordConfirmation: "",
       status: account.status,
@@ -162,6 +167,7 @@ export default function AccountsPage() {
       const body = {
         username: editor.username,
         displayName: editor.displayName,
+        email: editor.email,
         password: editor.password,
         passwordConfirmation: editor.passwordConfirmation,
         status: editor.status,
@@ -183,9 +189,9 @@ export default function AccountsPage() {
     }
   }
 
-  async function accountSecurity(action: "reset_password" | "disable" | "enable" | "force_sign_out") {
+  async function accountSecurity(action: "reset_password" | "reset_email" | "disable" | "enable" | "force_sign_out") {
     if (!editor.id) return;
-    const message = action === "disable" ? "确定停用此账号吗？该账号会立即无法继续使用。" : action === "force_sign_out" ? "确定强制该账号退出全部设备吗？" : action === "reset_password" ? "确定重置该账号密码吗？旧会话会被撤销。" : "确定重新启用此账号吗？";
+    const message = action === "disable" ? "确定停用此账号吗？该账号会立即无法继续使用。" : action === "force_sign_out" ? "确定强制该账号退出全部设备吗？" : action === "reset_password" ? "确定设置新的临时密码吗？旧会话会被撤销。" : action === "reset_email" ? "确定向该账号绑定邮箱发送重置密码邮件吗？" : "确定重新启用此账号吗？";
     if (!window.confirm(message)) return;
     setSaving(true);
     try {
@@ -275,7 +281,7 @@ export default function AccountsPage() {
         <div className="account-list">
           {accounts.map((account) => (
             <button className={`account-row ${editor.id === account.id ? "selected" : ""}`} type="button" key={account.id} onClick={() => startEdit(account)}>
-              <span><strong>{account.displayName}</strong><small>{account.username}</small></span>
+              <span><strong>{account.displayName}</strong><small>{account.username}</small><small className={account.emailBound ? "success-text" : "danger-text"}>{account.emailBound ? account.email : "未绑定可接收邮件邮箱"}</small></span>
               <span><b>{account.accountType === "owner" ? "主管理员" : "自定义账号"}</b><small>{account.propertyAccessMode === "all" ? "全部房源" : `指定${account.propertyIds.length}套`}</small></span>
               <span className={`badge ${account.status === "active" ? "success" : "danger"}`}>{account.status === "active" ? "已启用" : "已停用"}</span>
               <small>{account.lastLoginAt ? `登录 ${formatTime(account.lastLoginAt)}` : "尚未登录"}{account.latestActionAt ? ` · 最近操作 ${formatTime(account.latestActionAt)}` : ""}</small>
@@ -322,6 +328,7 @@ export default function AccountsPage() {
             <details className="account-section" open><summary>基本资料</summary><div className="form-grid">
               <div className="field"><label>登录账号</label><input value={editor.username} onChange={(event) => setEditor({ ...editor, username: event.target.value })} placeholder="例如 zhangsan" /></div>
               <div className="field"><label>显示名称</label><input value={editor.displayName} onChange={(event) => setEditor({ ...editor, displayName: event.target.value })} placeholder="例如 张三" /></div>
+              <div className="field"><label>{editor.id ? "绑定邮箱（历史账号可暂时留空）" : "邮箱（必填）"}</label><input type="email" autoComplete="email" value={editor.email} onChange={(event) => setEditor({ ...editor, email: event.target.value })} placeholder="name@example.com" />{editor.id && !editor.email ? <small className="danger-text">建议绑定真实邮箱，否则无法邮件找回密码。</small> : null}</div>
               {!editor.id ? <><div className="field"><label>初始密码</label><input type="password" value={editor.password} onChange={(event) => setEditor({ ...editor, password: event.target.value })} /></div><div className="field"><label>确认密码</label><input type="password" value={editor.passwordConfirmation} onChange={(event) => setEditor({ ...editor, passwordConfirmation: event.target.value })} /></div></> : null}
               {!editor.id ? <div className="field"><label>账号状态</label><div className="account-choice-row"><label className="checkbox-line"><input type="radio" name="account-status" checked={editor.status === "active"} onChange={() => setEditor({ ...editor, status: "active" })} /> 启用</label><label className="checkbox-line"><input type="radio" name="account-status" checked={editor.status === "disabled"} onChange={() => setEditor({ ...editor, status: "disabled" })} /> 停用</label></div></div> : null}
               <label className="checkbox-line"><input type="checkbox" checked={editor.mustChangePassword} onChange={(event) => setEditor({ ...editor, mustChangePassword: event.target.checked })} /> 首次登录后要求修改密码</label>
@@ -335,7 +342,7 @@ export default function AccountsPage() {
 
             <details className="account-section"><summary>敏感权限</summary><div className="sensitive-permission-grid">{SENSITIVE_PERMISSIONS.map((item) => <label className="checkbox-line" key={item.key}><input type="checkbox" checked={editor.sensitivePermissions[item.key]} disabled={item.key === "canManageAccounts"} onChange={(event) => setEditor({ ...editor, sensitivePermissions: { ...editor.sensitivePermissions, [item.key]: event.target.checked } })} /> {item.label}</label>)}</div></details>
 
-            {editor.id ? <details className="account-section"><summary>账号安全</summary><div className="form-grid"><div className="field"><label>新密码</label><input type="password" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} /></div><div className="field"><label>确认新密码</label><input type="password" value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value)} /></div></div><div className="settings-actions"><button className="btn" type="button" disabled={saving} onClick={() => accountSecurity("reset_password")}><KeyRound size={16} /> 重置密码</button><button className="btn" type="button" disabled={saving} onClick={() => accountSecurity("force_sign_out")}><RotateCcw size={16} /> 强制退出</button>{activeAccount?.status === "active" ? <button className="btn danger" type="button" disabled={saving} onClick={() => accountSecurity("disable")}><UserRoundX size={16} /> 停用账号</button> : <button className="btn primary" type="button" disabled={saving} onClick={() => accountSecurity("enable")}><UserRoundCheck size={16} /> 重新启用</button>}</div></details> : null}
+            {editor.id ? <details className="account-section"><summary>账号安全</summary><div className="form-grid"><div className="field"><label>新临时密码</label><input type="password" autoComplete="new-password" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} /></div><div className="field"><label>确认临时密码</label><input type="password" autoComplete="new-password" value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value)} /></div></div><p className="muted">没有绑定邮箱时，请直接设置临时密码并勾选首次登录后修改。</p><div className="settings-actions"><button className="btn" type="button" disabled={saving} onClick={() => accountSecurity("reset_password")}><KeyRound size={16} /> 设置临时密码</button>{activeAccount?.emailBound ? <button className="btn primary" type="button" disabled={saving} onClick={() => accountSecurity("reset_email")}><KeyRound size={16} /> 发送重置邮件</button> : null}<button className="btn" type="button" disabled={saving} onClick={() => accountSecurity("force_sign_out")}><RotateCcw size={16} /> 强制退出</button>{activeAccount?.status === "active" ? <button className="btn danger" type="button" disabled={saving} onClick={() => accountSecurity("disable")}><UserRoundX size={16} /> 停用账号</button> : <button className="btn primary" type="button" disabled={saving} onClick={() => accountSecurity("enable")}><UserRoundCheck size={16} /> 重新启用</button>}</div></details> : null}
 
             <div className="account-save-bar"><button className="btn primary" type="button" disabled={saving} onClick={saveAccount}><Save size={17} /> {saving ? "保存中..." : editor.id ? "保存账号与权限" : "创建自定义账号"}</button>{notice ? <p className={notice.includes("失败") || notice.includes("错误") ? "danger-text" : "success-text"}>{notice}</p> : null}</div>
           </>

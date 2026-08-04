@@ -9,3 +9,14 @@ export function passwordValidationMessage(password: unknown, confirmation?: unkn
 export function isInternalAuthEmail(value: unknown) {
   return typeof value === "string" && value.trim().toLowerCase().endsWith("@accounts.fenzu.invalid");
 }
+
+export function isDeliverableAccountEmail(value: unknown) {
+  if (typeof value !== "string") return false;
+  const email = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+  if (isInternalAuthEmail(email)) return false;
+  const domain = email.split("@")[1] || "";
+  if (domain === "localhost" || domain.endsWith(".localhost") || domain === "invalid" || domain.endsWith(".invalid")) return false;
+  if (["example.com", "example.test", "test.com", "test.test"].includes(domain)) return false;
+  return true;
+}

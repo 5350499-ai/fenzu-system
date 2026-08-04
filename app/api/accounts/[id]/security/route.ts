@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, revokeAllAppSessions, writeAuditLog } from "@/lib/server/account-auth";
 import { validatePassword } from "@/lib/server/account-management";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-admin";
+import { recoveryRedirectUrl } from "@/lib/auth-redirect";
 
-const OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
-
-async function getCustomTarget(id: string) {
-  if (id === OWNER_ID) throw new AccountApiError("主管理员账号不可执行此操作。", 403);
+async function getTarget(id: string) {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("user_profiles")
-    .select("auth_user_id,display_name,username,account_type,status")
+    .select("auth_user_id,display_name,username,account_type,status,workspace_owner_id")
     .eq("auth_user_id", id)
     .maybeSingle();
-  const account = data as { auth_user_id: string; display_name: string; username: string; account_type: string; status: string } | null;
-  if (error || !account || account.account_type !== "custom") throw new AccountApiError("未找到可管理的自定义账号。", 404);
+  const account = data as { auth_user_id: string; display_name: string; username: string; account_type: string; status: string; workspace_owner_id: string } | null;
+  if (error || !account) throw new AccountApiError("未找到可管理的账号。", 404);
   return account;
 }
 
@@ -23,15 +21,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const context = await requireActiveAccount(request, true);
     const body = await parseJson(request) as { action?: string; password?: unknown; passwordConfirmation?: unknown };
     const { id } = await params;
-    const target = await getCustomTarget(id);
+    const target = await getTarget(id);
+    if (target.workspace_owner_id !== context.profile.workspace_owner_id) throw new AccountApiError("无权操作该账号。", 403);
     const admin = getSupabaseAdmin();
 
     if (body.action === "reset_password") {
+      if (target.account_type !== "custom") throw new AccountApiError("不能通过此入口重置主管理员密码。", 403);
       const password = validatePassword(body.password, body.passwordConfirmation);
       const { error } = await admin.auth.admin.updateUserById(id, { password });
       if (error) throw new AccountApiError("重置密码失败，请稍后重试。", 500);
       await revokeAllAppSessions(id, context.userId, "password_reset");
       await writeAuditLog(context, { actionType: "password_reset", moduleKey: "accounts", entityType: "user_profile", entityId: id, description: `为账号 ${target.display_name} 重置密码` });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "reset_email") {
+      if (target.account_type !== "custom") throw new AccountApiError("不能通过此入口发送主管理员重置邮件。", 403);
+      const { data: identity, error: identityError } = await admin.from("account_auth_identities").select("auth_email,is_internal_email").eq("auth_user_id", id).maybeSingle();
+      if (identityError) throw new AccountApiError("邮箱读取失败，请稍后重试。", 500);
+      if (!identity?.auth_email || identity.is_internal_email) throw new AccountApiError("该账号未绑定邮箱，请管理员直接设置临时密码。", 400);
+      const { error } = await getSupabasePublicServerClient().auth.resetPasswordForEmail(identity.auth_email, { redirectTo: recoveryRedirectUrl(request) });
+      if (error) throw new AccountApiError("重置邮件发送失败，请稍后重试。", 502);
+      await writeAuditLog(context, { actionType: "password_reset_email_sent", moduleKey: "accounts", entityType: "user_profile", entityId: id, description: `向账号 ${target.display_name} 发送密码重置邮件` });
       return NextResponse.json({ ok: true });
     }
 

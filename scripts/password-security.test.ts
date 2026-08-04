@@ -1,5 +1,5 @@
 // @ts-expect-error Node's strip-types test runner resolves explicit TS imports.
-import { isInternalAuthEmail, passwordValidationMessage } from "../lib/password-security.ts";
+import { isDeliverableAccountEmail, isInternalAuthEmail, passwordValidationMessage } from "../lib/password-security.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -14,4 +14,8 @@ test("password policy requires length, letters, and numbers", () => {
 test("internal Custom auth emails are not treated as deliverable addresses", () => {
   assert.equal(isInternalAuthEmail("account-test@accounts.fenzu.invalid"), true);
   assert.equal(isInternalAuthEmail("owner@example.com"), false);
+  assert.equal(isDeliverableAccountEmail("person@company.com"), true);
+  assert.equal(isDeliverableAccountEmail("account-test@accounts.fenzu.invalid"), false);
+  assert.equal(isDeliverableAccountEmail("user@localhost"), false);
+  assert.equal(isDeliverableAccountEmail("user@example.test"), false);
 });

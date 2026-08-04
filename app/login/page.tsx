@@ -76,7 +76,7 @@ export default function LoginPage() {
             <Building2 size={22} />
           </div>
           <div>
-            <div className="brand-title">西班牙分租房管理系统</div>
+            <div className="brand-title">分租房管理系统</div>
             <div className="brand-subtitle">V1 分租管理优先</div>
           </div>
         </div>

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "crypto";
 import {
   ACCOUNT_MODULES,
   emptyModulePermissions,
@@ -12,7 +11,7 @@ import {
 } from "@/lib/account-permissions";
 import { AccountApiError, type AccountRequestContext, type AccountProfileRow, revokeAllAppSessions, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { passwordValidationMessage } from "@/lib/password-security";
+import { isDeliverableAccountEmail, passwordValidationMessage } from "@/lib/password-security";
 
 const OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
 
@@ -22,6 +21,7 @@ type RawSensitivePermissions = Partial<SensitivePermissions>;
 export type AccountConfigurationInput = {
   username?: string;
   displayName?: string;
+  email?: unknown;
   mustChangePassword?: boolean;
   propertyAccessMode?: PropertyAccessMode;
   propertyIds?: string[];
@@ -41,6 +41,12 @@ export function validatePassword(value: unknown, confirmation?: unknown) {
   if (validation) throw new AccountApiError(validation);
   if (confirmation !== undefined && password !== confirmation) throw new AccountApiError("两次输入的密码不一致。");
   return password;
+}
+
+export function normalizeAccountEmail(value: unknown) {
+  const email = requireText(value, "邮箱").toLowerCase();
+  if (!isDeliverableAccountEmail(email)) throw new AccountApiError("请输入真实、可接收邮件的邮箱地址，不能使用内部或测试邮箱。", 400);
+  return email;
 }
 
 export function normalizePermissions(input?: RawModulePermission[]) {
@@ -144,6 +150,15 @@ async function usernameAvailable(username: string, exceptUserId?: string) {
   return !data?.length;
 }
 
+async function emailAvailable(email: string, exceptUserId?: string) {
+  const admin = getSupabaseAdmin();
+  let query = admin.from("account_auth_identities").select("auth_user_id").eq("auth_email", email).limit(1);
+  if (exceptUserId) query = query.neq("auth_user_id", exceptUserId);
+  const { data, error } = await query;
+  if (error) throw new AccountApiError("邮箱检查失败，请稍后重试。", 500);
+  return !data?.length;
+}
+
 async function savePermissionRows(userId: string, permissions: ModulePermission[]) {
   const admin = getSupabaseAdmin();
   const rows = permissions.map((item) => ({
@@ -183,18 +198,19 @@ async function savePropertyAccess(userId: string, ownerId: string, mode: Propert
 export async function createCustomAccount(context: AccountRequestContext, input: AccountConfigurationInput & { password: unknown; passwordConfirmation: unknown; status?: string }) {
   const username = normalizeLoginIdentifier(requireText(input.username, "登录账号"));
   const displayName = requireText(input.displayName, "显示名称");
+  const email = normalizeAccountEmail(input.email);
   const password = validatePassword(input.password, input.passwordConfirmation);
   if (!(await usernameAvailable(username))) throw new AccountApiError("登录账号已存在，请使用其他账号。", 409);
+  if (!(await emailAvailable(email))) throw new AccountApiError("该邮箱已绑定其他账号，请使用其他邮箱。", 409);
 
   const mode: PropertyAccessMode = input.propertyAccessMode === "all" ? "all" : "selected";
   const permissions = normalizePermissions(input.modulePermissions);
   const sensitivePermissions = normalizeSensitivePermissions(input.sensitivePermissions);
   const status = input.status === "disabled" ? "disabled" : "active";
-  const internalEmail = `account-${randomUUID()}@accounts.fenzu.invalid`;
   const admin = getSupabaseAdmin();
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: internalEmail,
+    email,
     password,
     email_confirm: true,
     ban_duration: status === "disabled" ? "876000h" : undefined,
@@ -223,8 +239,8 @@ export async function createCustomAccount(context: AccountRequestContext, input:
     const { error: identityError } = await admin.from("account_auth_identities").insert({
       auth_user_id: targetId,
       normalized_username: username,
-      auth_email: internalEmail,
-      is_internal_email: true
+      auth_email: email,
+      is_internal_email: false
     });
     if (identityError) throw identityError;
 
@@ -237,7 +253,7 @@ export async function createCustomAccount(context: AccountRequestContext, input:
       moduleKey: "accounts",
       entityType: "user_profile",
       entityId: targetId,
-      afterData: { username, displayName, status, propertyAccessMode: mode, propertyIds, permissions, sensitivePermissions, mustChangePassword: Boolean(input.mustChangePassword) },
+      afterData: { username, displayName, email, status, propertyAccessMode: mode, propertyIds, permissions, sensitivePermissions, mustChangePassword: Boolean(input.mustChangePassword) },
       description: `创建自定义账号：${displayName}`
     });
 
@@ -270,6 +286,18 @@ export async function updateCustomAccount(context: AccountRequestContext, target
     }
   }
   if (input.displayName !== undefined) update.display_name = requireText(input.displayName, "显示名称");
+  if (input.email !== undefined && String(input.email).trim()) {
+    const email = normalizeAccountEmail(input.email);
+    const { data: identity, error: identityError } = await admin.from("account_auth_identities").select("auth_email").eq("auth_user_id", targetId).maybeSingle();
+    if (identityError) throw new AccountApiError("邮箱读取失败，请稍后重试。", 500);
+    if (String(identity?.auth_email || "").toLowerCase() !== email) {
+      if (!(await emailAvailable(email, targetId))) throw new AccountApiError("该邮箱已绑定其他账号，请使用其他邮箱。", 409);
+      const { error: authError } = await admin.auth.admin.updateUserById(targetId, { email, email_confirm: true });
+      if (authError) throw new AccountApiError("保存邮箱失败，请稍后重试。", 500);
+      const { error: updateIdentityError } = await admin.from("account_auth_identities").update({ auth_email: email, is_internal_email: false }).eq("auth_user_id", targetId);
+      if (updateIdentityError) throw new AccountApiError("保存邮箱失败，请稍后重试。", 500);
+    }
+  }
   if (input.mustChangePassword !== undefined) update.must_change_password = Boolean(input.mustChangePassword);
   const mode: PropertyAccessMode = input.propertyAccessMode === "all" ? "all" : input.propertyAccessMode === "selected" ? "selected" : before.property_access_mode;
   if (input.propertyAccessMode !== undefined) update.property_access_mode = mode;
