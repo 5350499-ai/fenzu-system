@@ -65,8 +65,6 @@ export default function PartnerSettlementSnapshotPage({ params }: { params: Prom
   if (!data) return <AppLayout title="结算快照"><section className="card panel"><p className="muted">加载中…</p></section></AppLayout>;
 
   const batch = data.batch;
-  const incomeDetails = Array.isArray(batch.income_details_snapshot) ? batch.income_details_snapshot : [];
-  const expenseDetails = Array.isArray(batch.expense_details_snapshot) ? batch.expense_details_snapshot : [];
   const propertyName = batch.property_name_snapshot || "房源名称未保存";
   const confirmedBy = batch.confirmed_by_display_name_snapshot || "确认账号名称未保存";
 
@@ -79,11 +77,7 @@ export default function PartnerSettlementSnapshotPage({ params }: { params: Prom
 
       <section className="snapshot-section"><h3>比例分段</h3>{data.segments.map((segment, index) => <article className="snapshot-segment" key={segment.id}><h4>比例分段 {index + 1}</h4><strong>{segment.segment_start} 至 {segment.segment_end}</strong><div className="snapshot-share-list">{segmentShares(segment.shares_snapshot, data.partners).map((share: any, shareIndex: number) => <span key={`${share.name}-${shareIndex}`}>{share.name}：{share.percentage}%{share.legacyCode ? <small className="muted">（兼容归属代码：{share.legacyCode}）</small> : null}</span>)}</div><div className="snapshot-segment-amounts"><span>收入 {euro(Number(segment.total_income))}</span><span>支出 {euro(Number(segment.total_expense))}</span><span>净利润 {euro(Number(segment.net_profit))}</span></div></article>)}</section>
 
-      <section className="snapshot-section"><h3>合伙人结算明细（{data.partners.length}人）</h3><div className="settlement-grid">{data.partners.map((partner) => <article className="settlement-card" key={partner.id}><div className="profit-card-head"><div><strong>{partner.partner_display_name_snapshot}</strong>{partner.legacy_code_snapshot ? <small className="muted">兼容归属代码：{partner.legacy_code_snapshot}</small> : null}</div><span className="status-badge">结算快照</span></div><div className="profit-card-metrics"><span>代收 <b>{euro(Number(partner.actual_collected))}</b></span><span>垫付 <b>{euro(Number(partner.actual_paid))}</b></span><span>实际留存 <b>{euro(Number(partner.actual_retained))}</b></span><span>应得利润 <b>{euro(Number(partner.profit_entitlement))}</b></span><span>结算余额 <b>{euro(Number(partner.settlement_balance))}</b></span></div><p className={Number(partner.settlement_balance) > 0 ? "danger-text" : Number(partner.settlement_balance) < 0 ? "profit" : "muted"}>{Number(partner.settlement_balance) > 0 ? "应付" : Number(partner.settlement_balance) < 0 ? "应收" : "已平衡"}</p></article>)}</div></section>
-
       <section className="snapshot-section"><h3>最终转账建议</h3>{data.transfers.length ? data.transfers.map((transfer) => <p key={transfer.id}>{transfer.from_name_snapshot} 转给 {transfer.to_name_snapshot}：{euro(Number(transfer.amount))} {transfer.currency || "EUR"}</p>) : <p className="muted">本次无需相互转账</p>}</section>
-      <section className="snapshot-section"><h3>收入归属明细</h3>{incomeDetails.length ? incomeDetails.map((item: any, index: number) => <p key={item.paymentId || index}>{item.date} · {item.partnerName} · {item.incomeItem || "收入"} · {euro(Number(item.amount))}</p>) : <p className="muted">该快照确认时未保存逐笔收入明细。</p>}</section>
-      <section className="snapshot-section"><h3>支出归属明细</h3>{expenseDetails.length ? expenseDetails.map((item: any, index: number) => <p key={item.expenseId || index}>{item.date} · {item.partnerName} · {item.category || "支出"} · {euro(Number(item.amount))}</p>) : <p className="muted">该快照确认时未保存逐笔支出明细。</p>}</section>
 
       {batch.status === "confirmed" && access.isOwner ? <section className="snapshot-reversal"><h3>撤销结算</h3><p className="muted">撤销后原快照仍永久保留，并记录撤销原因。</p><div className="field"><label>撤销原因（必填）</label><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="请填写撤销原因" /></div><button className="btn danger" type="button" disabled={!reason.trim()} onClick={() => void reverse()}>撤销结算</button></section> : null}
       {message ? <p className="success-text">{message}</p> : null}
