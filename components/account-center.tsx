@@ -16,18 +16,24 @@ export function AccountCenter() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   async function logout() {
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
-    if (data.session) {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${data.session.access_token}` }
-      }).catch(() => undefined);
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+      if (data.session) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` }
+        }).catch(() => undefined);
+      }
+      clearAccountAccessSnapshot();
+      await supabase?.auth.signOut({ scope: "local" }).catch(() => undefined);
+    } finally {
+      router.replace("/login");
     }
-    clearAccountAccessSnapshot();
-    await supabase?.auth.signOut({ scope: "local" });
-    router.replace("/login");
   }
 
   async function changePassword(event: React.FormEvent<HTMLFormElement>) {
@@ -120,7 +126,7 @@ export function AccountCenter() {
               </form>
             </details>
             <div className="modal-actions">
-              <button className="btn danger" type="button" onClick={logout}><LogOut size={16} /> 退出登录</button>
+              <button className="btn danger" type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><LogOut size={16} /> {loggingOut ? "正在退出…" : "退出登录"}</button>
             </div>
           </section>
         </div>
@@ -147,6 +153,7 @@ function PasswordField({
       <label>{label}</label>
       <input
         type={show ? "text" : "password"}
+        name={current ? "current-password" : label.includes("确认") ? "new-password-confirmation" : "new-password"}
         autoComplete={current ? "current-password" : "new-password"}
         value={value}
         onChange={(event) => onChange(event.target.value)}

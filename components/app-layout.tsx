@@ -70,6 +70,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
   const pathname = usePathname();
   const router = useRouter();
   const [theme, setTheme] = useState("light");
+  const [loggingOut, setLoggingOut] = useState(false);
   const permissionRedirectRef = useRef("");
   const access = useAccountAccess();
   const routeModule = moduleForPath(pathname);
@@ -123,16 +124,21 @@ export function AppLayout({ children, title, description }: { children: React.Re
   }
 
   async function logout() {
-    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
-    if (data.session) {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${data.session.access_token}` }
-      }).catch(() => undefined);
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+      if (data.session) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` }
+        }).catch(() => undefined);
+      }
+      clearAccountAccessSnapshot();
+      await supabase?.auth.signOut({ scope: "local" }).catch(() => undefined);
+    } finally {
+      router.replace("/login");
     }
-    clearAccountAccessSnapshot();
-    await supabase?.auth.signOut({ scope: "local" });
-    router.replace("/login");
   }
 
   const isAuthTransition = !access.authenticated && ["initializing", "restoring_snapshot", "refreshing"].includes(access.authState);

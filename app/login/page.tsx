@@ -43,7 +43,7 @@ export default function LoginPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(payload.error || "账号或密码错误。");
+        setError("账号或密码错误。");
         return;
       }
       clearAccountAccessSnapshot();
@@ -80,16 +80,16 @@ export default function LoginPage() {
             <div className="brand-subtitle">V1 分租管理优先</div>
           </div>
         </div>
-        <form className="grid" onSubmit={submit}>
+        <form className="grid" onSubmit={submit} autoComplete="on">
           <div className="field">
             <label>登录账号或邮箱</label>
-            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="请输入登录账号或邮箱" />
+            <input name="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="请输入登录账号或邮箱" />
           </div>
           <div className="field">
             <label>密码</label>
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
+            <input name="password" value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
           </div>
-          <button className="btn primary" type="submit">
+          <button className="btn primary" type="submit" disabled={loading} aria-busy={loading}>
           {loading ? "登录中..." : "登录系统"}
           </button>
           <Link className="login-forgot-link" href="/forgot-password">忘记密码？</Link>
