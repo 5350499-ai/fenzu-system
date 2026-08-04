@@ -12,6 +12,7 @@ import {
 } from "@/lib/account-permissions";
 import { AccountApiError, type AccountRequestContext, type AccountProfileRow, revokeAllAppSessions, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { passwordValidationMessage } from "@/lib/password-security";
 
 const OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
 
@@ -36,7 +37,8 @@ export function requireText(value: unknown, label: string) {
 
 export function validatePassword(value: unknown, confirmation?: unknown) {
   const password = requireText(value, "密码");
-  if (password.length < 8) throw new AccountApiError("密码至少需要8位。");
+  const validation = passwordValidationMessage(password, confirmation);
+  if (validation) throw new AccountApiError(validation);
   if (confirmation !== undefined && password !== confirmation) throw new AccountApiError("两次输入的密码不一致。");
   return password;
 }

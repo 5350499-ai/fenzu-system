@@ -267,6 +267,7 @@ function moduleForPath(pathname: string): AccountModuleKey | null {
   if (pathname.startsWith("/archive")) return "archive";
   if (pathname.startsWith("/tasks")) return "tasks";
   if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/partners")) return "settings";
   if (pathname.startsWith("/accounts")) return "accounts";
   if (pathname.startsWith("/audit-logs")) return "audit_logs";
   return null;
