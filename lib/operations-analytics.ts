@@ -16,6 +16,9 @@ import {
   strictCurrentRentalTenant,
   todayString
 } from "./rent-coverage";
+import { compareOperationsRooms } from "./room-status-sort";
+
+export { compareOperationsRooms } from "./room-status-sort";
 
 export type OperationsScope = {
   properties: BusinessProperty[];
@@ -162,7 +165,7 @@ export function buildOperationsRooms(scope: OperationsScope, today = todayString
         vacancyStart: vacancy.start
       };
     })
-    .sort((left, right) => Number(right.statusLabel === "空置") - Number(left.statusLabel === "空置") || left.room.roomNumber.localeCompare(right.room.roomNumber));
+    .sort(compareOperationsRooms);
 }
 
 export function calculateOperationsContractFlow(
