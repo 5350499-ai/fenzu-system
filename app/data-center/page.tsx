@@ -125,7 +125,8 @@ export default function DataCenterPage() {
   }), [data, tasks, viewingAppointments, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
 
   function downloadExport(fileName: string, content: string, type: string) {
-    const blob = new Blob(["\uFEFF", content], { type });
+    const needsUtf8Bom = type.startsWith("text/csv") || type.includes("ms-excel");
+    const blob = new Blob([needsUtf8Bom ? "\uFEFF" : "", content], { type });
     const url = URL.createObjectURL(blob); const link = document.createElement("a");
     link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
   }
