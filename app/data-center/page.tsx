@@ -3,18 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { SectionCard, PrimaryButton, SecondaryButton } from "@/components/ui";
-import {
-  ArchiveRestore,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Cloud,
-  Database,
-  FileArchive,
-  History,
-  Paperclip,
-  ShieldCheck,
-  Upload
-} from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Cloud, Crown, History, ShieldCheck, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BusinessContract,
@@ -59,7 +48,6 @@ type ExportPayload = {
   format: "fenzu-system-json";
   version: 1;
   exportedAt: string;
-  attachmentsIncluded: false;
   data: Record<string, unknown>;
 };
 
@@ -95,7 +83,7 @@ export default function DataCenterPage() {
   const [error, setError] = useState("");
   const [importError, setImportError] = useState("");
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
-  const [vipDialog, setVipDialog] = useState<"backup" | "restore" | null>(null);
+  const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -181,7 +169,6 @@ export default function DataCenterPage() {
     format: "fenzu-system-json",
     version: 1,
     exportedAt: new Date().toISOString(),
-    attachmentsIncluded: false,
     data: {
       properties: data.properties,
       rooms: data.rooms,
@@ -236,7 +223,7 @@ export default function DataCenterPage() {
         {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
         <div className="data-center-grid">
           <SectionCard className="data-center-card">
-            <DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="导出可迁移的业务 JSON，不包含任何 Storage 文件。" />
+            <DataCardHeader icon={<ArrowDownToLine size={20} />} title="业务数据导出" description="包括房源、房间、租客、合同、收支、押金、合伙结算、账号设置等全部业务数据（不包含图片、PDF、合同附件等文件）。" />
             <CountSummary counts={counts} loading={loading} />
             <p className="data-center-note"><ShieldCheck size={16} /> 导出前会显示统计并要求确认。</p>
             <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={exportJson}><ArrowDownToLine size={17} /> 导出 JSON</PrimaryButton>
@@ -244,7 +231,7 @@ export default function DataCenterPage() {
           </SectionCard>
 
           <SectionCard className="data-center-card">
-            <DataCardHeader icon={<ArrowUpFromLine size={20} />} title="数据导入" description="仅接受本软件导出的 JSON，先解析预览再进入后续导入流程。" />
+            <DataCardHeader icon={<ArrowUpFromLine size={20} />} title="业务数据导入" description="仅接受本软件导出的 JSON，先解析预览再进入后续导入流程。" />
             <input ref={importInputRef} className="data-center-hidden-input" type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void previewImport(file); event.currentTarget.value = ""; }} />
             <SecondaryButton type="button" onClick={() => importInputRef.current?.click()}><Upload size={17} /> 选择 JSON 文件</SecondaryButton>
             {importPreview ? <ImportSummary preview={importPreview} /> : <p className="data-center-muted">选择文件后会显示准备导入的记录数量，不会自动写入现有数据。</p>}
@@ -252,14 +239,11 @@ export default function DataCenterPage() {
             {importPreview ? <button className="btn" type="button" disabled title="第一阶段仅提供安全解析预览">导入执行接口预留</button> : null}
           </SectionCard>
 
-          <AttachmentCard title="附件导出" icon={<FileArchive size={20} />} action={<SecondaryButton type="button" disabled><ArrowDownToLine size={17} /> 导出 attachments.zip</SecondaryButton>} description="附件与业务 JSON 分离，后续将以 attachments.zip 形式导出图片、PDF和合同文件。" />
-          <AttachmentCard title="附件导入" icon={<Paperclip size={20} />} action={<SecondaryButton type="button" disabled><ArrowUpFromLine size={17} /> 导入 attachments.zip</SecondaryButton>} description="附件导入只恢复 Storage 文件，不会恢复或覆盖业务数据库记录。" />
-
-          <VipCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setVipDialog("backup")} />
-          <VipCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setVipDialog("restore")} />
+          <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
+          <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
         </div>
       </div>
-      {vipDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setVipDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Cloud size={22} /></div><h2>升级 VIP 后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多附件空间</li><li>更多高级功能</li></ul><p className="data-center-muted">{vipDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setVipDialog(null)}>知道了</SecondaryButton></section></div> : null}
+      {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setSubscriptionDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li><li>持续更新的订阅功能</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
     </AppLayout>
   );
 }
@@ -276,10 +260,6 @@ function ImportSummary({ preview }: { preview: ImportPreview }) {
   return <div className="data-center-import-summary"><strong>准备导入：{preview.fileName}</strong>{Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{preview.counts[key] ?? 0}</em></span>)}</div>;
 }
 
-function AttachmentCard({ title, icon, description, action }: { title: string; icon: React.ReactNode; description: string; action: React.ReactNode }) {
-  return <SectionCard className="data-center-card"><DataCardHeader icon={icon} title={title} description={description} /><div className="data-center-reserved"><Database size={18} /><span>接口预留</span></div>{action}</SectionCard>;
-}
-
-function VipCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) {
-  return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-vip">VIP</span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解 VIP 功能</SecondaryButton></SectionCard>;
+function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) {
+  return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解订阅功能</SecondaryButton></SectionCard>;
 }

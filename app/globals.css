@@ -6362,14 +6362,6 @@ td:last-child {
   line-height: 1.45;
 }
 
-.data-center-reserved {
-  min-height: 56px;
-  justify-content: center;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  background: var(--surface-soft);
-}
-
 .data-center-hidden-input { display: none; }
 .data-center-error,
 .data-center-alert--danger { color: var(--danger); }
@@ -6390,10 +6382,12 @@ td:last-child {
   gap: 8px;
 }
 
-.data-center-vip {
+.data-center-subscription-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 22px;
+  min-width: 22px;
   padding: 2px 8px;
   border-radius: 999px;
   color: #7a4b00;
@@ -6401,6 +6395,17 @@ td:last-child {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .04em;
+}
+
+.attachment-management-actions .settings-actions {
+  margin-top: 4px;
+}
+
+.attachment-management-reserved {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
 }
 
 .data-center-dialog-backdrop {

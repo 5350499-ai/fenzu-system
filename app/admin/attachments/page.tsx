@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { AttachmentCandidate, AttachmentSummary } from "@/lib/server/attachment-management";
+import { ArrowDownToLine, ArrowUpFromLine, FileArchive } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function formatBytes(value: number) {
@@ -70,6 +71,14 @@ export default function AttachmentManagementPage() {
           <Stat label="图片" value={`${summary.supabase.byType.image.count} 个 · ${formatBytes(summary.supabase.byType.image.bytes)}`} /><Stat label="PDF" value={`${summary.supabase.byType.pdf.count} 个 · ${formatBytes(summary.supabase.byType.pdf.bytes)}`} /><Stat label="其他文件" value={`${summary.supabase.byType.other.count} 个 · ${formatBytes(summary.supabase.byType.other.bytes)}`} />
           <Stat label="在租租客关联附件" value={`${summary.supabase.inRent.count} 个 · ${formatBytes(summary.supabase.inRent.bytes)}`} /><Stat label="已退租租客关联附件" value={`${summary.supabase.movedOut.count} 个 · ${formatBytes(summary.supabase.movedOut.bytes)}`} /><Stat label="Google Drive 历史附件" value={`${summary.googleDriveCount} 个（不计入 Supabase 容量）`} />
         </div>
+      </section>
+      <section className="card panel attachment-management-actions">
+        <div className="panel-header"><div><h2 className="panel-title">附件导入与导出</h2><p className="muted">所有图片、PDF、合同及其它 Storage 文件统一从这里管理，业务 JSON 不包含这些文件。</p></div></div>
+        <div className="settings-actions">
+          <button className="btn" type="button" disabled><ArrowDownToLine size={17} /> 导出 attachments.zip</button>
+          <button className="btn" type="button" disabled><ArrowUpFromLine size={17} /> 导入 attachments.zip</button>
+        </div>
+        <p className="muted attachment-management-reserved"><FileArchive size={16} /> 当前保留操作入口，具体 ZIP 接口将在附件功能阶段接入。</p>
       </section>
       <CandidateList title="退租超过 3 个月的候选" data={summary.candidates.over3Months} />
       <CandidateList title="退租超过 6 个月的候选" data={summary.candidates.over6Months} />
