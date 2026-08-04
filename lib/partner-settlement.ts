@@ -1,5 +1,19 @@
 import type { BusinessExpense, BusinessRentPayment } from "./business-data";
 import type { Partner, PartnerPropertyShare } from "./partners";
+// Keep settlement accounting aligned with lib/profit.ts: rent payments use amount_paid and payment_date, with rent_month as legacy fallback.
+function rentIncomeForPayment(payment: BusinessRentPayment) {
+  return Number(payment.amountPaid || 0);
+}
+
+function paymentAccountingDate(payment: BusinessRentPayment) {
+  return payment.paymentDate || (payment.rentMonth ? payment.rentMonth + "-01" : "");
+}
+
+function isMonthInRange(month: string | null | undefined, range: SettlementRange) {
+  if (!month) return false;
+  const date = month.length === 7 ? `${month}-01` : month;
+  return validDate(date) && date >= range.startDate && date <= range.endDate;
+}
 
 export type SettlementRange = { startDate: string; endDate: string };
 export type SettlementSegment = {
@@ -30,6 +44,12 @@ export type SettlementResult = {
   transfers: SettlementTransfer[];
   unknownAttributions: string[];
   invalidRange: boolean;
+  coverageComplete: boolean;
+  uncoveredRanges: Array<{ propertyId: string; startDate: string; endDate: string }>;
+  baseIncomeTotal: number;
+  baseExpenseTotal: number;
+  segmentIncomeTotal: number;
+  segmentExpenseTotal: number;
 };
 
 export type SettlementBatchPeriod = {
@@ -38,6 +58,15 @@ export type SettlementBatchPeriod = {
   periodEnd: string;
   status: "confirmed" | "reversed";
 };
+
+export function compareSettlementHistory(
+  a: { status: "confirmed" | "reversed"; periodEnd: string; confirmedAt: string; reversedAt?: string | null },
+  b: { status: "confirmed" | "reversed"; periodEnd: string; confirmedAt: string; reversedAt?: string | null }
+) {
+  if (a.status !== b.status) return a.status === "confirmed" ? -1 : 1;
+  if (a.status === "confirmed") return b.periodEnd.localeCompare(a.periodEnd) || b.confirmedAt.localeCompare(a.confirmedAt);
+  return String(b.reversedAt || "").localeCompare(String(a.reversedAt || "")) || b.periodEnd.localeCompare(a.periodEnd);
+}
 
 export function hasSettlementOverlap(
   candidate: { propertyId: string; periodStart: string; periodEnd: string },
@@ -105,7 +134,19 @@ function buildSegments(propertyId: string, range: SettlementRange, shares: Partn
   return boundaries.map((startDate) => {
     const next = nextPlanDate(shares, propertyId, startDate, range.endDate);
     return { startDate, endDate: next ? addDays(next, -1) : range.endDate, shares: planForDate(shares, propertyId, startDate) };
-  }).filter((segment) => segment.startDate <= segment.endDate && segment.shares.length > 0);
+  }).filter((segment) => segment.startDate <= segment.endDate);
+}
+
+function mergeRanges(ranges: Array<{ propertyId: string; startDate: string; endDate: string }>) {
+  return ranges.sort((a, b) => a.propertyId.localeCompare(b.propertyId) || a.startDate.localeCompare(b.startDate)).reduce<typeof ranges>((merged, range) => {
+    const previous = merged[merged.length - 1];
+    if (previous && previous.propertyId === range.propertyId && addDays(previous.endDate, 1) >= range.startDate) {
+      previous.endDate = previous.endDate > range.endDate ? previous.endDate : range.endDate;
+    } else {
+      merged.push({ ...range });
+    }
+    return merged;
+  }, []);
 }
 
 export function buildSettlement(
@@ -122,13 +163,15 @@ export function buildSettlement(
   const segments: SettlementSegment[] = [];
   const stats = new Map<string, SettlementPartnerStat>();
   const unknownAttributions: string[] = [];
+  const uncoveredRanges: Array<{ propertyId: string; startDate: string; endDate: string }> = [];
   partners.forEach((partner) => stats.set(partner.id, { partnerId: partner.id, displayName: partner.displayName, legacyCode: partner.legacyCode, collected: 0, advanced: 0, actualRetained: 0, profitEntitlement: 0, balance: 0 }));
-  if (invalidRange) return { totalIncome: 0, totalExpense: 0, netProfit: 0, segments, partners: [...stats.values()], transfers: [], unknownAttributions, invalidRange };
+  if (invalidRange) return { totalIncome: 0, totalExpense: 0, netProfit: 0, segments, partners: [...stats.values()], transfers: [], unknownAttributions, invalidRange, coverageComplete: false, uncoveredRanges, baseIncomeTotal: 0, baseExpenseTotal: 0, segmentIncomeTotal: 0, segmentExpenseTotal: 0 };
 
   for (const scopedPropertyId of propertyIds) {
     for (const segment of buildSegments(scopedPropertyId, range, shares)) {
+      if (!segment.shares.length) uncoveredRanges.push({ propertyId: scopedPropertyId, startDate: segment.startDate, endDate: segment.endDate });
       const segmentPayments = payments.filter((payment) => payment.propertyId === scopedPropertyId && inRange(paymentAccountingDate(payment), { startDate: segment.startDate, endDate: segment.endDate }) && !isVoided(payment.notes));
-      const segmentExpenses = expenses.filter((expense) => expense.propertyId === scopedPropertyId && inRange(expense.paymentDate || `${expense.expenseMonth}-01`, { startDate: segment.startDate, endDate: segment.endDate }) && !isVoided(expense.notes));
+      const segmentExpenses = expenses.filter((expense) => expense.propertyId === scopedPropertyId && inRange(expense.expenseMonth ? `${expense.expenseMonth}-01` : "", { startDate: segment.startDate, endDate: segment.endDate }) && !isVoided(expense.notes));
       const income = roundMoney(segmentPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment), 0));
       const expense = roundMoney(segmentExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0));
       const netProfit = roundMoney(income - expense);
@@ -151,19 +194,18 @@ export function buildSettlement(
       });
     }
   }
-  const totalIncome = roundMoney(segments.reduce((sum, segment) => sum + segment.income, 0));
-  const totalExpense = roundMoney(segments.reduce((sum, segment) => sum + segment.expense, 0));
+  const mergedUncoveredRanges = mergeRanges(uncoveredRanges);
+  const baseIncomeTotal = roundMoney(propertyIds.reduce((sum, scopedPropertyId) => sum + payments.filter((payment) => payment.propertyId === scopedPropertyId && inRange(paymentAccountingDate(payment), range) && !isVoided(payment.notes)).reduce((subtotal, payment) => subtotal + rentIncomeForPayment(payment), 0), 0));
+  const baseExpenseTotal = roundMoney(propertyIds.reduce((sum, scopedPropertyId) => sum + expenses.filter((expense) => expense.propertyId === scopedPropertyId && isMonthInRange(expense.expenseMonth, range) && !isVoided(expense.notes)).reduce((subtotal, expense) => subtotal + Number(expense.amount || 0), 0), 0));
+  const segmentIncomeTotal = roundMoney(segments.reduce((sum, segment) => sum + segment.income, 0));
+  const segmentExpenseTotal = roundMoney(segments.reduce((sum, segment) => sum + segment.expense, 0));
+  const coverageComplete = mergedUncoveredRanges.length === 0 && Math.abs(segmentIncomeTotal - baseIncomeTotal) < 0.01 && Math.abs(segmentExpenseTotal - baseExpenseTotal) < 0.01;
+  const totalIncome = coverageComplete ? segmentIncomeTotal : 0;
+  const totalExpense = coverageComplete ? segmentExpenseTotal : 0;
   const netProfit = roundMoney(totalIncome - totalExpense);
   const resultPartners = [...stats.values()].map((stat) => ({ ...stat, actualRetained: roundMoney(stat.collected - stat.advanced), balance: roundMoney(stat.collected - stat.advanced - stat.profitEntitlement) }));
-  return { totalIncome, totalExpense, netProfit, segments, partners: resultPartners, transfers: buildTransfers(resultPartners), unknownAttributions: [...new Set(unknownAttributions)], invalidRange };
-}
-
-function paymentAccountingDate(payment: BusinessRentPayment) {
-  return payment.paymentDate || `${payment.rentMonth}-01`;
-}
-
-function rentIncomeForPayment(payment: BusinessRentPayment) {
-  return Number(payment.amountPaid || 0);
+  const visibleSegments = coverageComplete ? segments : [];
+  return { totalIncome, totalExpense, netProfit, segments: visibleSegments, partners: resultPartners, transfers: coverageComplete ? buildTransfers(resultPartners) : [], unknownAttributions: [...new Set(unknownAttributions)], invalidRange, coverageComplete, uncoveredRanges: mergedUncoveredRanges, baseIncomeTotal, baseExpenseTotal, segmentIncomeTotal, segmentExpenseTotal };
 }
 
 export function buildTransfers(partners: SettlementPartnerStat[]): SettlementTransfer[] {

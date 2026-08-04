@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
+import { compareSettlementHistory } from "@/lib/partner-settlement";
 import { useEffect, useMemo, useState } from "react";
 
 type Batch = {
@@ -88,7 +89,7 @@ export default function PartnerSettlementHistoryPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const filtered = useMemo(() => batches.filter((batch) => (propertyId === "all" || batch.property_id === propertyId) && (status === "all" || batch.status === status) && (!startDate || batch.period_end >= startDate) && (!endDate || batch.period_start <= endDate)), [batches, endDate, propertyId, startDate, status]);
+  const filtered = useMemo(() => batches.filter((batch) => (propertyId === "all" || batch.property_id === propertyId) && (status === "all" || batch.status === status) && (!startDate || batch.period_end >= startDate) && (!endDate || batch.period_start <= endDate)).sort((a, b) => compareSettlementHistory({ status: a.status, periodEnd: a.period_end, confirmedAt: a.confirmed_at, reversedAt: a.reversed_at }, { status: b.status, periodEnd: b.period_end, confirmedAt: b.confirmed_at, reversedAt: b.reversed_at })), [batches, endDate, propertyId, startDate, status]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
 

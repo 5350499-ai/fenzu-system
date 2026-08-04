@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { buildSettlement, isVoided } from "@/lib/partner-settlement";
-import { paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
+import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import type { BusinessExpense, BusinessRentPayment } from "@/lib/business-data";
 import type { Partner, PartnerPropertyShare } from "@/lib/partners";
 
@@ -82,9 +82,14 @@ export async function POST(request: Request) {
     const propertyId = String(body.propertyId || "");
     const startDate = String(body.startDate || "");
     const endDate = String(body.endDate || "");
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(endDate) || startDate > endDate) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
     if (!propertyId || propertyId === "all") throw new AccountApiError("确认结算时必须选择一套房源。", 400, "property_required");
     const inputs = await loadInputs(context.profile.workspace_owner_id);
     const settlement = buildSettlement(propertyId, { startDate, endDate }, inputs.properties, inputs.partners, inputs.shares, inputs.payments, inputs.expenses);
+    if (!settlement.coverageComplete) {
+      const ranges = settlement.uncoveredRanges.map((range) => `${range.startDate} 至 ${range.endDate}`).join("、");
+      throw new AccountApiError(`所选结算期间存在未配置利润比例的日期：${ranges || `${startDate} 至 ${endDate}`}。请先调整该房源首个比例方案起始日。`, 409, "share_coverage_incomplete");
+    }
     if (settlement.invalidRange) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
     if (settlement.unknownAttributions.length) throw new AccountApiError("存在无法识别归属的历史账目，暂不能确认结算。", 409, "unknown_attribution");
     const shareSegments = new Map<string, Array<{ startDate: string; endDate: string; percentage: number }>>();
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
       .filter((payment) => payment.propertyId === propertyId && inRange(paymentAccountingDate(payment), startDate, endDate) && !isVoided(payment.notes))
       .map((payment) => ({ date: paymentAccountingDate(payment), paymentId: payment.id, tenantId: payment.tenantId, incomeItem: payment.incomeItem, partnerName: displayPartner(payment.receivedBy, inputs.partners), amount: rentIncomeForPayment(payment) }));
     const expenseDetails = inputs.expenses
-      .filter((expense) => expense.propertyId === propertyId && inRange(expense.paymentDate || `${expense.expenseMonth}-01`, startDate, endDate) && !isVoided(expense.notes))
+      .filter((expense) => expense.propertyId === propertyId && isMonthInRange(expense.expenseMonth, { start: startDate, end: endDate, label: "" }) && !isVoided(expense.notes))
       .map((expense) => ({ date: expense.paymentDate || `${expense.expenseMonth}-01`, expenseId: expense.id, category: expense.category, partnerName: displayPartner(expense.paidBy, inputs.partners), amount: Number(expense.amount || 0) }));
     const { data: batchId, error } = await getSupabaseAdmin().rpc("confirm_partner_settlement", {
       p_workspace_owner_id: context.profile.workspace_owner_id,

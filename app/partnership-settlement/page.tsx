@@ -8,7 +8,7 @@ import { buildSettlement, SettlementResult } from "@/lib/partner-settlement";
 import { PartnerWorkspaceData } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
-import { paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
+import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import { useEffect, useMemo, useState } from "react";
 
 type RangeMode = "previous" | "threeMonths" | "custom";
@@ -114,7 +114,9 @@ export default function PartnershipSettlementPage() {
   if (loadState === "error") return <AppLayout title="合伙结算"><section className="card panel"><h2 className="panel-title">结算数据加载失败</h2><p className="error-text">{loadMessage || "请稍后重试。"}</p><button className="btn" type="button" onClick={() => window.location.reload()}>重新加载</button></section></AppLayout>;
 
   const result = settlement;
-  const canConfirm = Boolean(result && access.isOwner && !overlap && !exactBatch && !result.invalidRange && !result.unknownAttributions.length && !busy);
+  const coverageBlocked = Boolean(result && !result.coverageComplete);
+  const canConfirm = Boolean(result && access.isOwner && !coverageBlocked && !overlap && !exactBatch && !result.invalidRange && !result.unknownAttributions.length && !busy);
+  if (coverageBlocked && result) return <AppLayout title="合伙结算"><section className="card panel"><h2 className="panel-title">无法开始结算</h2><div className="warning-text">所选结算期间存在未配置利润比例的日期：{result.uncoveredRanges.map((range) => `${range.startDate} 至 ${range.endDate}`).join("、") || `${activeRange.startDate} 至 ${activeRange.endDate}`}。请先调整该房源首个比例方案起始日。</div><a className="btn compact" href="/partners">进入合伙人管理</a></section></AppLayout>;
   return <AppLayout title="合伙结算" description="按房源、比例生效区间和真实收支归属生成动态合伙结算。">
     <section className="card panel settlement-controls">
       <div className="panel-header"><div><h2 className="panel-title">结算范围</h2><p className="muted">先选择单套房源和日期，再点击“开始试算”。</p></div><a className="btn compact" href="/partner-settlements">结算历史</a></div>
@@ -146,5 +148,5 @@ function CompactDetailList({ title, rows }: { title: string; rows: Array<{ id: s
 function displayPartner(value: string | undefined, partners: PartnerWorkspaceData["partners"]) { const partner = partners.find((item) => item.id === value || item.displayName === value || (item.legacyCode || "").toUpperCase() === (value || "").toUpperCase()); return partner?.displayName || value || "未分配"; }
 function isVoided(notes?: string) { return Boolean(notes?.includes("[已作废]") || notes?.toLowerCase().includes("[void]")); }
 function inRange(value: string | null | undefined, range: { startDate: string; endDate: string }) { return Boolean(value && value >= range.startDate && value <= range.endDate); }
-function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return { startDate: formatDate(new Date(year, month - 2, 1)), endDate: formatDate(new Date(year, month, 0)) }; return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
+function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return { startDate: formatDate(new Date(year, month - 2, 1)), endDate: formatDate(today) }; return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
 function formatDate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
