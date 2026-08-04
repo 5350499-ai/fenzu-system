@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { getCurrentPropertySharePlan, getPartners, getPropertyPartnerShares, type PartnerPropertyShare, type PartnerWorkspaceData, validatePartnerPercentages } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { SectionCard } from "@/components/ui";
 import { CalendarClock, Edit3, Plus, Save, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -168,7 +169,7 @@ export default function PartnersPage() {
 
   return (
     <AppLayout title="合伙人管理" description="管理合伙人姓名、状态及各房源利润比例。">
-      <section className="card panel partner-management-panel">
+      <SectionCard className="partner-management-panel">
         <div className="panel-header partner-panel-header"><div><h2 className="panel-title">工作区合伙人</h2><p className="muted">支持1—10位启用合伙人；新增合伙人默认不参与任何房源。</p></div><button className="btn primary" disabled={working || activePartners.length >= 10} onClick={() => setShowAddForm((current) => !current)} type="button"><Plus size={16} />{showAddForm ? "取消新增" : "新增合伙人"}</button></div>
         {loading ? <p className="muted">正在加载…</p> : <>
           <div className="partner-list">
@@ -194,9 +195,9 @@ export default function PartnersPage() {
           </div>
           {showAddForm ? <div className="partner-add-row"><input autoFocus placeholder="新合伙人名称" value={newName} onChange={(event) => setNewName(event.target.value)} /><button className="btn primary" disabled={working || !newName.trim() || activePartners.length >= 10} onClick={() => void addPartner()} type="button"><Plus size={16} />确认新增</button></div> : null}
         </>}
-      </section>
+      </SectionCard>
 
-      <section className="card panel partner-management-panel">
+      <SectionCard className="partner-management-panel">
         <div className="panel-header"><div><h2 className="panel-title">房源利润比例</h2><p className="muted">先选择参与者，再填写比例。新计划默认从下月1日生效；同一天保存会替换未生效计划。</p></div></div>
         <div className="field"><label htmlFor="partner-property">选择房源</label><select id="partner-property" value={selectedPropertyId} onChange={(event) => { setSelectedPropertyId(event.target.value); resetPlanEditor(); }}>{(data?.properties || []).map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></div>
         {selectedPropertyId ? <>
@@ -204,7 +205,7 @@ export default function PartnersPage() {
           <div className="partner-plan-list"><h3>未来计划</h3>{futurePlans.length ? futurePlans.map(([date, shares]) => <div className="partner-future-plan" key={date}><p><CalendarClock size={15} /> {date}：{shares.map((share) => `${data?.partners.find((partner) => partner.id === share.partnerId)?.displayName || "未知"} ${share.percentage}%`).join(" · ")}</p><div className="partner-plan-actions"><button className="btn compact" disabled={working} onClick={() => editFuturePlan(date, shares)} type="button"><Edit3 size={14} />编辑</button><button className="btn compact danger" disabled={working} onClick={() => void cancelFuturePlan(selectedPropertyId, date)} type="button"><X size={14} />取消未来计划</button></div></div>) : <p className="muted">暂无未来比例计划</p>}</div>
           <div className="partner-plan-editor"><h3>{editingPlanDate ? `编辑${editingPlanDate}未来计划` : "新建未来比例计划"}</h3><div className="partner-participant-grid">{activePartners.map((partner) => <label className="partner-participant" key={partner.id}><input type="checkbox" checked={selectedPartnerIds.includes(partner.id)} onChange={(event) => setSelectedPartnerIds((current) => event.target.checked ? [...current, partner.id] : current.filter((id) => id !== partner.id))} /><span>{partner.displayName}</span></label>)}</div><p className="muted partner-form-help">未勾选的合伙人不会写入该房源方案；新增合伙人默认不参与。选中的0%等同暂不参与分配。</p><div className="partner-share-grid">{activePartners.filter((partner) => selectedPartnerIds.includes(partner.id)).map((partner) => <div className="field" key={partner.id}><label>{partner.displayName}比例</label><div className="partner-percent-input"><input type="number" min="0" max="100" step="0.01" value={draftPercentages[partner.id] ?? "0"} onChange={(event) => setDraftPercentages((current) => ({ ...current, [partner.id]: event.target.value }))} /><span>%</span></div></div>)}</div><div className={`partner-total ${totals.valid && selectedPartnerIds.length > 0 ? "valid" : "invalid"}`}>当前合计：{totals.total.toFixed(2)}% {selectedPartnerIds.length < 1 ? "（至少选择1位参与者）" : totals.valid ? "" : "（必须等于100%）"}</div><div className="partner-share-save"><div className="field"><label htmlFor="share-effective-from">生效日期</label><input id="share-effective-from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} /></div><div className="partner-editor-actions">{editingPlanDate ? <button className="btn" disabled={working} onClick={resetPlanEditor} type="button">取消编辑</button> : null}<button className="btn primary" disabled={working || selectedPartnerIds.length < 1 || !totals.valid} onClick={() => void saveSharePlan()} type="button"><Save size={16} />保存比例计划</button></div></div></div>
         </> : <p className="muted">暂无可配置房源。</p>}
-      </section>
+      </SectionCard>
       {message ? <p className="partner-feedback" role="status">{message}</p> : null}
     </AppLayout>
   );
