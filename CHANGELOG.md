@@ -565,9 +565,3 @@
 - Added read-only tenant-list payment performance labels by reusing the existing tenant payment performance calculation and memoizing the tenant-id map.
 - Condensed the tenant detail payment summary into a single-line inline layout with rate-based color emphasis and an explicit no-record state.
 - No database, migration, RLS, API, payment algorithm, or real business data changes.
-
-## 2026-08-04 - Partner settlement snapshot review (Preview)
-
-- Added collapsible settlement-history cards and immutable snapshot detail sections, including owner-only reversal without physical deletion.
-- Added additive partner name history and owner-controlled first share-plan start-date adjustment.
-- New confirmations can persist property/account and income/expense detail snapshots; existing snapshots remain unchanged and explicitly report unavailable line-item data.
