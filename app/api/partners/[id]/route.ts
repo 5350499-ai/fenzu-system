@@ -9,6 +9,16 @@ function cleanName(value: unknown) {
   return name;
 }
 
+function lifecycleError(error: { message?: string }, fallback: string) {
+  console.error("[partners] partner lifecycle RPC failed", error);
+  const message = error.message || "";
+  if (message.includes("effective or historical")) return new AccountApiError("已有当前或历史比例方案，只能停用", 400);
+  if (message.includes("Legacy partners")) return new AccountApiError("历史A/B合伙人只能停用，不能删除", 400);
+  if (message.includes("Account-linked")) return new AccountApiError("已绑定账号的合伙人不能删除", 400);
+  if (message.includes("at least one active")) return new AccountApiError("至少保留1位启用合伙人", 400);
+  return new AccountApiError(fallback, 400);
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireActiveAccount(request, true);
@@ -30,7 +40,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         p_partner_id: id,
         p_cancel_future_plans: body.cancelFuturePlans === true
       });
-      if (error) throw new AccountApiError(error.message, 400);
+      if (error) throw lifecycleError(error, "停用合伙人失败，请稍后重试");
       await writeAuditLog(context, { actionType: "deactivate_partner", moduleKey: "settings", entityType: "partner", entityId: id, beforeData: partner, afterData: { isActive: false, cancelFuturePlans: body.cancelFuturePlans === true }, description: "停用合伙人" });
       return NextResponse.json({ ok: true });
     }
@@ -70,7 +80,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { data: partner, error: readError } = await admin.from("partners").select("id,legacy_code,is_active,linked_account_id").eq("id", id).eq("workspace_owner_id", ownerId).maybeSingle();
     if (readError || !partner) throw new AccountApiError("合伙人不存在", 404);
     const { error } = await admin.rpc("delete_partner_with_future_cleanup", { p_workspace_owner_id: ownerId, p_partner_id: id });
-    if (error) throw new AccountApiError(error.message, 400);
+    if (error) throw lifecycleError(error, "删除合伙人失败，请稍后重试");
     await writeAuditLog(context, { actionType: "delete_partner", moduleKey: "settings", entityType: "partner", entityId: id, beforeData: partner, description: "删除无业务关联的合伙人" });
     return NextResponse.json({ ok: true });
   } catch (error) {

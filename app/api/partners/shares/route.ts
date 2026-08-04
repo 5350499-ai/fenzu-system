@@ -5,6 +5,15 @@ import { validatePartnerPlanRows } from "@/lib/partners";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function lifecycleError(error: { message?: string }, fallback: string) {
+  console.error("[partners] share lifecycle RPC failed", error);
+  const message = error.message || "";
+  if (message.includes("Only future share plans")) return new AccountApiError("只能操作尚未生效的未来计划", 400);
+  if (message.includes("does not exist")) return new AccountApiError("未来计划不存在或已被处理", 404);
+  if (message.includes("Property does not belong")) return new AccountApiError("房源不存在或无权访问", 403);
+  return new AccountApiError(fallback, 400);
+}
+
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request, true);
@@ -27,7 +36,7 @@ export async function POST(request: Request) {
     const { data: partners, error: partnersError } = await admin.from("partners").select("id,is_active,workspace_owner_id").eq("workspace_owner_id", ownerId).in("id", rows.map((row) => row.partnerId));
     if (partnersError || !partners || partners.length !== rows.length || partners.some((partner) => !partner.is_active)) throw new AccountApiError("比例只能配置给当前启用合伙人", 400);
     const { error } = await admin.rpc("replace_partner_property_share_plan", { p_workspace_owner_id: ownerId, p_property_id: propertyId, p_effective_from: effectiveFrom, p_rows: rows });
-    if (error) throw new Error(error.message);
+    if (error) throw lifecycleError(error, "比例计划保存失败，请稍后重试");
     await writeAuditLog(context, { actionType: "create_partner_share_plan", moduleKey: "settings", entityType: "property", entityId: propertyId, afterData: { effectiveFrom, percentages: rows }, description: "保存房源合伙比例计划" });
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -47,7 +56,7 @@ export async function DELETE(request: Request) {
       p_property_id: propertyId,
       p_effective_from: effectiveFrom
     });
-    if (error) throw new AccountApiError(error.message, 400);
+    if (error) throw lifecycleError(error, "未来计划取消失败，请稍后重试");
     await writeAuditLog(context, { actionType: "cancel_partner_share_plan", moduleKey: "settings", entityType: "property", entityId: propertyId, afterData: { effectiveFrom }, description: "取消未来房源合伙比例计划" });
     return NextResponse.json({ ok: true });
   } catch (error) {

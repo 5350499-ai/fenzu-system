@@ -130,7 +130,11 @@ export default function PartnersPage() {
   }
 
   async function cancelFuturePlan(propertyId: string, date: string) {
-    if (!window.confirm(`确认取消${date}生效的未来比例计划吗？当前已生效方案会继续延续。`)) return;
+    const propertyName = data?.properties.find((property) => property.id === propertyId)?.name || "当前房源";
+    const plan = futurePlans.find(([planDate]) => planDate === date)?.[1] || [];
+    const planText = plan.map((share) => `${data?.partners.find((partner) => partner.id === share.partnerId)?.displayName || "未知"}${share.percentage}%`).join("、");
+    const currentText = currentPlan.map((share) => `${data?.partners.find((partner) => partner.id === share.partnerId)?.displayName || "未知"}${share.percentage}%`).join("、") || "暂无当前方案";
+    if (!window.confirm(`房源：${propertyName}\n生效日期：${date}\n当前计划：${planText}\n取消后沿用：${currentText}\n\n取消未来计划会取消该生效日的整套分红方案，当前已生效方案将继续沿用。若只想移除某位合伙人，请编辑未来计划后取消勾选该合伙人。\n\n确认取消吗？`)) return;
     setWorking(true); setMessage("");
     try { await request("/api/partners/shares", { method: "DELETE", body: JSON.stringify({ propertyId, effectiveFrom: date }) }); resetPlanEditor(); await reload(); setMessage("未来比例计划已取消"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "取消失败"); }
