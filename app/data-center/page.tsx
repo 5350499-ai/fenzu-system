@@ -27,11 +27,14 @@ import {
   propertyKey,
   rentPaymentKey,
   roomKey,
-  tenantKey
+  tenantKey,
+  taskKey,
+  viewingAppointmentKey
 } from "@/lib/business-data";
 import { getPartners, type PartnerNameHistory, type PartnerPropertyShare, type Partner } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { createDataExportPayload, dataExportFileName, isDataExportPayload } from "@/lib/data-export";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -44,15 +47,11 @@ type CoreData = {
 };
 
 type ImportPreview = { counts: Record<string, number>; fileName: string };
-type ExportPayload = {
-  format: "fenzu-system-json";
-  version: 1;
-  exportedAt: string;
-  data: Record<string, unknown>;
-};
-
+type ExportRow = Record<string, unknown> & { id: string };
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
 const countLabels: Record<string, string> = {
+  viewingAppointments: "看房预约",
+  tasks: "待办",
   properties: "房源",
   rooms: "房间",
   tenants: "租客",
@@ -74,6 +73,8 @@ export default function DataCenterPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partnerShares, setPartnerShares] = useState<PartnerPropertyShare[]>([]);
   const [nameHistory, setNameHistory] = useState<PartnerNameHistory[]>([]);
+  const [viewingAppointments, setViewingAppointments] = useState<unknown[]>([]);
+  const [tasks, setTasks] = useState<unknown[]>([]);
   const [settlementBatches, setSettlementBatches] = useState<unknown[]>([]);
   const [settlementSnapshots, setSettlementSnapshots] = useState<unknown[]>([]);
   const [accounts, setAccounts] = useState<unknown[]>([]);
@@ -99,6 +100,8 @@ export default function DataCenterPage() {
         const rentPayments = access.can("rent_payments", "view") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(properties, rooms, tenants)) : [];
         const expenses = access.can("expenses", "view") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(properties)) : [];
         const deposits = access.can("deposits", "view") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : [];
+        const viewingAppointments = access.can("properties", "view") ? await loadBusinessData<ExportRow>(viewingAppointmentKey, []) : [];
+        const tasks = access.can("tasks", "view") ? await loadBusinessData<ExportRow>(taskKey, []) : [];
         let nextPartners: Partner[] = [];
         let nextShares: PartnerPropertyShare[] = [];
         let nextHistory: PartnerNameHistory[] = [];
@@ -131,6 +134,8 @@ export default function DataCenterPage() {
           : [];
         if (!cancelled) {
           setData({ properties, rooms, tenants, contracts, rentPayments, expenses, deposits });
+          setViewingAppointments(viewingAppointments);
+          setTasks(tasks);
           setPartners(nextPartners);
           setPartnerShares(nextShares);
           setNameHistory(nextHistory);
@@ -158,18 +163,16 @@ export default function DataCenterPage() {
     rentPayments: data.rentPayments.length,
     expenses: data.expenses.length,
     deposits: data.deposits.length,
+    viewingAppointments: viewingAppointments.length,
+    tasks: tasks.length,
     partners: partners.length,
     partnerShares: partnerShares.length,
     settlementBatches: settlementBatches.length,
     accounts: accounts.length,
     auditLogs: auditLogs.length
-  }), [data, partners, partnerShares, settlementBatches, accounts, auditLogs]);
+  }), [data, viewingAppointments, tasks, partners, partnerShares, settlementBatches, accounts, auditLogs]);
 
-  const exportPayload = useMemo<ExportPayload>(() => ({
-    format: "fenzu-system-json",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    data: {
+  const exportData = useMemo<Record<string, unknown>>(() => ({
       properties: data.properties,
       rooms: data.rooms,
       tenants: data.tenants,
@@ -177,6 +180,8 @@ export default function DataCenterPage() {
       rentPayments: data.rentPayments,
       expenses: data.expenses,
       deposits: data.deposits,
+      viewingAppointments,
+      tasks,
       partners,
       partnerShares,
       partnerNameHistory: nameHistory,
@@ -185,18 +190,17 @@ export default function DataCenterPage() {
       accounts,
       auditLogs,
       settings: { legacyPartnerRatios: partnerRatios }
-    }
-  }), [data, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
+  }), [data, viewingAppointments, tasks, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
 
   function exportJson() {
     if (!access.canSensitive("canExportData")) return;
     if (!window.confirm("确认导出以上业务数据吗？导出文件不包含图片、PDF、合同附件或 Storage 文件。")) return;
-    const payload = { ...exportPayload, exportedAt: new Date().toISOString() };
+    const payload = createDataExportPayload(exportData);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `分租管理数据-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    link.download = dataExportFileName();
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -205,8 +209,8 @@ export default function DataCenterPage() {
     setImportError("");
     setImportPreview(null);
     try {
-      const parsed = JSON.parse(await file.text()) as Partial<ExportPayload>;
-      if (parsed.format !== "fenzu-system-json" || parsed.version !== 1 || !parsed.data || typeof parsed.data !== "object") {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      if (!isDataExportPayload(parsed)) {
         throw new Error("这不是本软件导出的 JSON 文件。 ");
       }
       const source = parsed.data as Record<string, unknown>;
