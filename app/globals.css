@@ -6215,3 +6215,42 @@ td:last-child {
 /* Settlement history is a summary list; the full immutable statement lives on the detail route. */
 .settlement-history-card-body{display:grid;gap:10px;padding:14px 14px 13px}.settlement-history-property{font-size:1rem;line-height:1.35;overflow-wrap:anywhere}.settlement-history-period{color:var(--muted-text,#94a3b8);font-variant-numeric:tabular-nums}.settlement-history-summary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0;font-variant-numeric:tabular-nums}.settlement-history-summary-metrics span{min-width:0;white-space:nowrap}.settlement-history-summary-metrics b{font-weight:700}.settlement-history-allocation,.settlement-history-transfers{display:grid;gap:6px;border-top:1px solid rgba(148,163,184,.16);padding-top:9px}.settlement-history-allocation-title,.settlement-history-transfers>strong{font-size:.82rem;color:var(--muted-text,#94a3b8)}.settlement-history-partner{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:9px;align-items:baseline;font-variant-numeric:tabular-nums}.settlement-history-partner>strong{min-width:0;overflow-wrap:anywhere}.settlement-history-partner>span:last-child{white-space:nowrap;text-align:right}.settlement-history-transfers span{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.settlement-history-reversal{display:grid;gap:4px;color:var(--muted-text,#94a3b8);font-size:.84rem}.settlement-history-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid rgba(148,163,184,.16);padding-top:10px}.settlement-history-card-footer .btn{white-space:nowrap}.settlement-history-card>summary{display:none}.settlement-history-card-actions{display:none}
 @media(max-width:640px){.settlement-history-card-body{padding:13px 12px}.settlement-history-summary-metrics{gap:5px;font-size:.78rem}.settlement-history-summary-metrics span{white-space:nowrap}.settlement-history-partner{grid-template-columns:minmax(0,1fr) auto auto;gap:5px;font-size:.88rem}.settlement-history-card-footer{padding-top:9px}.settlement-history-card-footer .btn{font-size:.84rem}}
+.login-forgot-link {
+  color: var(--accent, #2563eb);
+  font-size: 0.9rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.password-security-page,
+.password-security-panel {
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+
+.account-security-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.account-security-summary span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted, #6b7280);
+  font-size: 0.82rem;
+}
+
+.account-security-summary strong {
+  overflow-wrap: anywhere;
+  color: var(--text, inherit);
+  font-size: 0.94rem;
+}
+
+@media (max-width: 640px) {
+  .account-security-summary {
+    grid-template-columns: 1fr;
+  }
+}

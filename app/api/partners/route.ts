@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, parseJson, requireActiveAccount, writeAuditLog, AccountApiError } from "@/lib/server/account-auth";
+import { apiErrorResponse, parseJson, requireActiveAccount, requireSensitivePermission, writeAuditLog, AccountApiError } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 function cleanName(value: unknown) {
@@ -12,6 +12,7 @@ function cleanName(value: unknown) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
+    if (context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;
     const [partnersResult, sharesResult, propertiesResult, historyResult] = await Promise.all([

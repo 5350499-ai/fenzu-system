@@ -226,6 +226,11 @@ export default function SettingsPage() {
       </section>
 
       <section className="card panel">
+        <div className="panel-header"><div><h2 className="panel-title">账号安全</h2><p className="muted">查看当前账号邮箱状态并修改自己的密码。</p></div></div>
+        <Link className="btn primary" href="/settings/security">打开账号安全</Link>
+      </section>
+
+      <section className="card panel">
         <h2 className="panel-title">后续设置项</h2>
         <div className="settings-list">
           {access.isOwner ? <Link className="settings-list-link settings-action-row" href="/partners"><span>合伙人管理</span><span aria-hidden="true">→</span></Link> : <span>合伙人管理（仅Owner）</span>}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
+import Link from "next/link";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 
@@ -89,8 +90,9 @@ export default function LoginPage() {
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
           </div>
           <button className="btn primary" type="submit">
-            {loading ? "登录中..." : "登录系统"}
+          {loading ? "登录中..." : "登录系统"}
           </button>
+          <Link className="login-forgot-link" href="/forgot-password">忘记密码？</Link>
           {error ? <p className="danger-text">{error}</p> : null}
           <p className="muted">请输入登录账号或邮箱与密码。未登录用户不能访问系统页面。</p>
         </form>
