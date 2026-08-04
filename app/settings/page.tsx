@@ -150,7 +150,7 @@ export default function SettingsPage() {
         .from(backupBucket)
         .upload(path, new Blob([payload], { type: "application/json" }), { upsert: true, contentType: "application/json" });
       if (error) {
-        throw new Error("备份存储未初始化，请先执行 system-backups Storage SQL。");
+        throw new Error("自动云备份尚未启用，本地备份仍可正常使用。");
       }
       window.localStorage.setItem("last-system-backup-at", exportedAt);
       setLastBackupAt(exportedAt);
@@ -208,7 +208,7 @@ export default function SettingsPage() {
             <p className="muted">先做备份和导出；恢复功能后续再加。</p>
           </div>
         </div>
-        <div className="settings-actions">
+        <div className="settings-actions" hidden>
           {access.canSensitive("canManageSettings") ? <button className="btn primary" disabled={loading || working} onClick={backupNow} type="button">
             <HardDriveDownload size={17} /> 立即备份
           </button> : null}

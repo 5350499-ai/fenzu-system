@@ -3,38 +3,19 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { SectionCard, PrimaryButton, SecondaryButton } from "@/components/ui";
-import { ArrowDownToLine, ArrowUpFromLine, Cloud, Crown, History, ShieldCheck, Upload } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDownToLine, Cloud, Crown, FileSpreadsheet, FileText, HardDriveDownload, History, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  BusinessContract,
-  BusinessDeposit,
-  BusinessExpense,
-  BusinessProperty,
-  BusinessRentPayment,
-  BusinessRoom,
-  BusinessTenant,
-  contractKey,
-  depositKey,
-  expenseKey,
-  getInitialContracts,
-  getInitialDeposits,
-  getInitialExpenses,
-  getInitialProperties,
-  getInitialRentPayments,
-  getInitialRooms,
-  getInitialTenants,
-  loadBusinessData,
-  propertyKey,
-  rentPaymentKey,
-  roomKey,
-  tenantKey,
-  taskKey,
-  viewingAppointmentKey
+  BusinessContract, BusinessDeposit, BusinessExpense, BusinessProperty, BusinessRentPayment,
+  BusinessRoom, BusinessTenant, contractKey, depositKey, expenseKey, getInitialContracts,
+  getInitialDeposits, getInitialExpenses, getInitialProperties, getInitialRentPayments,
+  getInitialRooms, getInitialTenants, loadBusinessData, propertyKey, rentPaymentKey, roomKey,
+  taskKey, tenantKey, viewingAppointmentKey
 } from "@/lib/business-data";
-import { getPartners, type PartnerNameHistory, type PartnerPropertyShare, type Partner } from "@/lib/partners";
+import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { createDataExportPayload, dataExportFileName, isDataExportPayload } from "@/lib/data-export";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName } from "@/lib/data-export";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -45,36 +26,23 @@ type CoreData = {
   expenses: BusinessExpense[];
   deposits: BusinessDeposit[];
 };
-
-type ImportPreview = { counts: Record<string, number>; fileName: string };
 type ExportRow = Record<string, unknown> & { id: string };
+
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
 const countLabels: Record<string, string> = {
-  viewingAppointments: "看房预约",
-  tasks: "待办",
-  properties: "房源",
-  rooms: "房间",
-  tenants: "租客",
-  contracts: "合同",
-  rentPayments: "收款",
-  expenses: "支出",
-  deposits: "押金",
-  partners: "合伙人",
-  partnerShares: "比例方案",
-  settlementBatches: "结算快照",
-  accounts: "账号",
-  auditLogs: "操作日志"
+  properties: "房源", rooms: "房间", tenants: "租客", contracts: "合同", rentPayments: "收款",
+  expenses: "支出", deposits: "押金", tasks: "待办", viewingAppointments: "看房预约",
+  partners: "合伙人", partnerShares: "比例方案", settlementBatches: "结算快照", accounts: "账号", auditLogs: "操作日志"
 };
 
 export default function DataCenterPage() {
   const access = useAccountAccess();
-  const importInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<CoreData>(emptyData);
+  const [tasks, setTasks] = useState<ExportRow[]>([]);
+  const [viewingAppointments, setViewingAppointments] = useState<ExportRow[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partnerShares, setPartnerShares] = useState<PartnerPropertyShare[]>([]);
   const [nameHistory, setNameHistory] = useState<PartnerNameHistory[]>([]);
-  const [viewingAppointments, setViewingAppointments] = useState<unknown[]>([]);
-  const [tasks, setTasks] = useState<unknown[]>([]);
   const [settlementBatches, setSettlementBatches] = useState<unknown[]>([]);
   const [settlementSnapshots, setSettlementSnapshots] = useState<unknown[]>([]);
   const [accounts, setAccounts] = useState<unknown[]>([]);
@@ -82,8 +50,7 @@ export default function DataCenterPage() {
   const [partnerRatios, setPartnerRatios] = useState<PartnerRatios>({ A: 50, B: 50 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [importError, setImportError] = useState("");
-  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [exportSheetOpen, setExportSheetOpen] = useState(false);
   const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
 
   useEffect(() => {
@@ -100,19 +67,15 @@ export default function DataCenterPage() {
         const rentPayments = access.can("rent_payments", "view") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(properties, rooms, tenants)) : [];
         const expenses = access.can("expenses", "view") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(properties)) : [];
         const deposits = access.can("deposits", "view") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : [];
-        const viewingAppointments = access.can("properties", "view") ? await loadBusinessData<ExportRow>(viewingAppointmentKey, []) : [];
-        const tasks = access.can("tasks", "view") ? await loadBusinessData<ExportRow>(taskKey, []) : [];
-        let nextPartners: Partner[] = [];
-        let nextShares: PartnerPropertyShare[] = [];
-        let nextHistory: PartnerNameHistory[] = [];
+        const appointments = access.can("properties", "view") ? await loadBusinessData<ExportRow>(viewingAppointmentKey, []) : [];
+        const taskRows = access.can("tasks", "view") ? await loadBusinessData<ExportRow>(taskKey, []) : [];
+        let nextPartners: Partner[] = [], nextShares: PartnerPropertyShare[] = [], nextHistory: PartnerNameHistory[] = [];
         try {
           const partnerData = await getPartners();
           nextPartners = partnerData.partners;
           nextShares = partnerData.shares;
           nextHistory = partnerData.nameHistory || [];
-        } catch {
-          // Partner data is optional for accounts without the settlement view permission.
-        }
+        } catch { /* Optional for accounts without settlement access. */ }
         const session = await getValidSupabaseSession();
         const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
         const [settlementResponse, accountResponse, auditResponse] = await Promise.all([
@@ -123,133 +86,101 @@ export default function DataCenterPage() {
         const settlementBody = settlementResponse?.ok ? await settlementResponse.json() : {};
         const accountBody = accountResponse?.ok ? await accountResponse.json() : {};
         const auditBody = auditResponse?.ok ? await auditResponse.json() : {};
-        const nextBatches = Array.isArray(settlementBody.batches) ? settlementBody.batches : [];
-        const nextSnapshots = access.canSensitive("canViewPartnershipSettlement")
-          ? (await Promise.all(nextBatches.map(async (batch: unknown) => {
-            const id = typeof batch === "object" && batch && "id" in batch ? String((batch as { id?: unknown }).id || "") : "";
-            if (!id || !session?.access_token) return null;
-            const response = await fetch(`/api/partner-settlements?id=${encodeURIComponent(id)}`, { headers: authHeaders, cache: "no-store" });
+        const batches = Array.isArray(settlementBody.batches) ? settlementBody.batches : [];
+        const snapshots = access.canSensitive("canViewPartnershipSettlement")
+          ? (await Promise.all(batches.map(async (batch: { id?: string }) => {
+            if (!batch.id || !session?.access_token) return null;
+            const response = await fetch(`/api/partner-settlements?id=${encodeURIComponent(batch.id)}`, { headers: authHeaders, cache: "no-store" });
             return response.ok ? response.json() : null;
           }))).filter(Boolean)
           : [];
         if (!cancelled) {
           setData({ properties, rooms, tenants, contracts, rentPayments, expenses, deposits });
-          setViewingAppointments(viewingAppointments);
-          setTasks(tasks);
-          setPartners(nextPartners);
-          setPartnerShares(nextShares);
-          setNameHistory(nextHistory);
-          setSettlementBatches(nextBatches);
-          setSettlementSnapshots(nextSnapshots);
+          setTasks(taskRows); setViewingAppointments(appointments); setPartners(nextPartners); setPartnerShares(nextShares);
+          setNameHistory(nextHistory); setSettlementBatches(batches); setSettlementSnapshots(snapshots);
           setAccounts(Array.isArray(accountBody.accounts) ? accountBody.accounts : []);
           setAuditLogs(Array.isArray(auditBody.logs) ? auditBody.logs : []);
           setPartnerRatios(loadPartnerRatios());
         }
       } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "数据加载失败，请稍后重试。 ");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "数据加载失败，请稍后重试。");
+      } finally { if (!cancelled) setLoading(false); }
     }
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [access.ready, access.isOwner, access.can, access.canSensitive]);
 
   const counts = useMemo<Record<string, number>>(() => ({
-    properties: data.properties.length,
-    rooms: data.rooms.length,
-    tenants: data.tenants.length,
-    contracts: data.contracts.length,
-    rentPayments: data.rentPayments.length,
-    expenses: data.expenses.length,
-    deposits: data.deposits.length,
-    viewingAppointments: viewingAppointments.length,
-    tasks: tasks.length,
-    partners: partners.length,
-    partnerShares: partnerShares.length,
-    settlementBatches: settlementBatches.length,
-    accounts: accounts.length,
-    auditLogs: auditLogs.length
-  }), [data, viewingAppointments, tasks, partners, partnerShares, settlementBatches, accounts, auditLogs]);
+    properties: data.properties.length, rooms: data.rooms.length, tenants: data.tenants.length, contracts: data.contracts.length,
+    rentPayments: data.rentPayments.length, expenses: data.expenses.length, deposits: data.deposits.length,
+    tasks: tasks.length, viewingAppointments: viewingAppointments.length, partners: partners.length,
+    partnerShares: partnerShares.length, settlementBatches: settlementBatches.length, accounts: accounts.length, auditLogs: auditLogs.length
+  }), [data, tasks, viewingAppointments, partners, partnerShares, settlementBatches, accounts, auditLogs]);
 
   const exportData = useMemo<Record<string, unknown>>(() => ({
-      properties: data.properties,
-      rooms: data.rooms,
-      tenants: data.tenants,
-      contracts: data.contracts,
-      rentPayments: data.rentPayments,
-      expenses: data.expenses,
-      deposits: data.deposits,
-      viewingAppointments,
-      tasks,
-      partners,
-      partnerShares,
-      partnerNameHistory: nameHistory,
-      settlementBatches,
-      settlementSnapshots,
-      accounts,
-      auditLogs,
-      settings: { legacyPartnerRatios: partnerRatios }
-  }), [data, viewingAppointments, tasks, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
+    properties: data.properties, rooms: data.rooms, tenants: data.tenants, contracts: data.contracts,
+    rentPayments: data.rentPayments, expenses: data.expenses, deposits: data.deposits, tasks, viewingAppointments,
+    partners, partnerShares, partnerNameHistory: nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs,
+    settings: { legacyPartnerRatios: partnerRatios }
+  }), [data, tasks, viewingAppointments, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
 
-  function exportJson() {
+  function downloadExport(fileName: string, content: string, type: string) {
+    const blob = new Blob(["\uFEFF", content], { type });
+    const url = URL.createObjectURL(blob); const link = document.createElement("a");
+    link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
+  }
+
+  function createBackup() {
     if (!access.canSensitive("canExportData")) return;
-    if (!window.confirm("确认导出以上业务数据吗？导出文件不包含图片、PDF、合同附件或 Storage 文件。")) return;
-    const payload = createDataExportPayload(exportData);
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = dataExportFileName();
-    link.click();
-    URL.revokeObjectURL(url);
+    if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或 Storage 文件。")) return;
+    const now = new Date();
+    downloadExport(dataExportFileName(now), JSON.stringify(createDataExportPayload(exportData, now.toISOString()), null, 2), "application/json;charset=utf-8");
   }
 
-  async function previewImport(file: File) {
-    setImportError("");
-    setImportPreview(null);
-    try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      if (!isDataExportPayload(parsed)) {
-        throw new Error("这不是本软件导出的 JSON 文件。 ");
-      }
-      const source = parsed.data as Record<string, unknown>;
-      const nextCounts = Object.fromEntries(Object.keys(countLabels).map((key) => [key, Array.isArray(source[key]) ? source[key].length : 0]));
-      setImportPreview({ counts: nextCounts, fileName: file.name });
-    } catch (parseError) {
-      setImportError(parseError instanceof Error ? parseError.message : "JSON 文件解析失败，请选择本软件导出的文件。 ");
-    }
+  function exportTable(format: "excel" | "csv") {
+    const now = new Date(); const stamp = now.toISOString().replace(/[:.]/g, "-");
+    if (format === "excel") downloadExport(`分租管理数据-${stamp}.xls`, buildExcelDataExport(exportData), "application/vnd.ms-excel;charset=utf-8");
+    else downloadExport(`分租管理数据-${stamp}.csv`, buildCsvDataExport(exportData), "text/csv;charset=utf-8");
+    setExportSheetOpen(false);
   }
 
-  return (
-    <AppLayout title="数据管理" description="统一管理业务数据导出、导入和后续云端能力。">
-      <div className="data-center-page">
-        {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
-        <div className="data-center-grid">
-          <SectionCard className="data-center-card">
-            <DataCardHeader icon={<ArrowDownToLine size={20} />} title="业务数据导出" description="包括房源、房间、租客、合同、收支、押金、合伙结算、账号设置等全部业务数据（不包含图片、PDF、合同附件等文件）。" />
-            <CountSummary counts={counts} loading={loading} />
-            <p className="data-center-note"><ShieldCheck size={16} /> 导出前会显示统计并要求确认。</p>
-            <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={exportJson}><ArrowDownToLine size={17} /> 导出 JSON</PrimaryButton>
-            {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
-          </SectionCard>
+  return <AppLayout title="数据管理" description="备份业务数据、导出报表并查看后续云端能力。">
+    <div className="data-center-page">
+      {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
+      <SectionCard className="data-center-card">
+        <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
+        <CountSummary counts={counts} loading={loading} />
+        <p className="data-center-note"><ShieldCheck size={16} /> 创建备份会下载一份本地 JSON 文件，不会写入云端 Storage。</p>
+        <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={createBackup}><HardDriveDownload size={17} /> 创建备份</PrimaryButton>
+        {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
+      </SectionCard>
 
-          <SectionCard className="data-center-card">
-            <DataCardHeader icon={<ArrowUpFromLine size={20} />} title="业务数据导入" description="仅接受本软件导出的 JSON，先解析预览再进入后续导入流程。" />
-            <input ref={importInputRef} className="data-center-hidden-input" type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void previewImport(file); event.currentTarget.value = ""; }} />
-            <SecondaryButton type="button" onClick={() => importInputRef.current?.click()}><Upload size={17} /> 选择 JSON 文件</SecondaryButton>
-            {importPreview ? <ImportSummary preview={importPreview} /> : <p className="data-center-muted">选择文件后会显示准备导入的记录数量，不会自动写入现有数据。</p>}
-            {importError ? <p className="data-center-error" role="alert">{importError}</p> : null}
-            {importPreview ? <button className="btn" type="button" disabled title="第一阶段仅提供安全解析预览">导入执行接口预留</button> : null}
-          </SectionCard>
+      <SectionCard className="data-center-card">
+        <DataCardHeader icon={<History size={20} />} title="恢复备份" description="暂未开放。后续恢复前会自动创建当前数据备份。" />
+        <SecondaryButton type="button" disabled>恢复备份</SecondaryButton>
+      </SectionCard>
 
-          <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
-          <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
-        </div>
-      </div>
-      {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setSubscriptionDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li><li>持续更新的订阅功能</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
-    </AppLayout>
-  );
+      <SectionCard className="data-center-card">
+        <DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" />
+        <p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的完整业务数据。</p>
+        <PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton>
+      </SectionCard>
+
+      <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
+      <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
+    </div>
+
+    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={() => setExportSheetOpen(false)}>
+      <section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}>
+        <div className="data-center-sheet-handle" aria-hidden="true" />
+        <h2 id="export-sheet-title">请选择导出格式</h2>
+        <button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button>
+        <button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button>
+        <SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton>
+      </section>
+    </div> : null}
+    {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setSubscriptionDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
+  </AppLayout>;
 }
 
 function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
@@ -260,10 +191,6 @@ function CountSummary({ counts, loading }: { counts: Record<string, number>; loa
   return <div className="data-center-counts"><strong>预计导出内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>;
 }
 
-function ImportSummary({ preview }: { preview: ImportPreview }) {
-  return <div className="data-center-import-summary"><strong>准备导入：{preview.fileName}</strong>{Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{preview.counts[key] ?? 0}</em></span>)}</div>;
-}
-
 function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) {
-  return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解订阅功能</SecondaryButton></SectionCard>;
+  return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>;
 }

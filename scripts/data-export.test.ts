@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error test runner imports the TypeScript module directly.
-import { createDataExportPayload, dataExportFileName, isDataExportPayload } from "../lib/data-export.ts";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, isDataExportPayload } from "../lib/data-export.ts";
 
 test("export payload is readable JSON and strips sensitive nested fields", () => {
   const payload = createDataExportPayload({
@@ -21,4 +21,15 @@ test("export payload is readable JSON and strips sensitive nested fields", () =>
 test("invalid export shapes are rejected", () => {
   assert.equal(isDataExportPayload({ format: "fenzu-system-json", version: 1, data: {} }), false);
   assert.equal(isDataExportPayload({ format: "other", version: 1, exportedAt: "now", data: {} }), false);
+});
+
+test("CSV and Excel exports include every business collection", () => {
+  const data = { properties: [{ id: "p1" }], rooms: [{ id: "r1" }], tenants: [{ id: "t1" }], contracts: [{ id: "c1" }], rentPayments: [{ id: "rp1" }], expenses: [{ id: "e1" }], deposits: [{ id: "d1" }], tasks: [{ id: "task1" }], viewingAppointments: [{ id: "view1" }], partners: [{ id: "partner1" }], partnerShares: [{ id: "share1" }], settlementSnapshots: [{ id: "snapshot1" }] };
+  const csv = buildCsvDataExport(data);
+  const excel = buildExcelDataExport(data);
+  for (const key of Object.keys(data)) {
+    assert.equal(csv.includes(`"${key}"`), true);
+    assert.equal(excel.includes(`<h2>${key}</h2>`), true);
+  }
+  assert.match(excel, /<meta charset="utf-8"/);
 });
