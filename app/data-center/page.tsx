@@ -129,14 +129,26 @@ export default function DataCenterPage() {
   function downloadExport(fileName: string, content: string, type: string) {
     const needsUtf8Bom = type.startsWith("text/csv") || type.includes("ms-excel");
     const blob = new Blob([needsUtf8Bom ? "\uFEFF" : "", content], { type });
-    const url = URL.createObjectURL(blob); const link = document.createElement("a");
-    link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    // Safari/iOS does not expose a reliable save/cancel event. Revoke later so
+    // the native download handoff has time to consume the Blob URL.
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      link.remove();
+    }, 1500);
   }
 
   async function createBackup() {
     if (!access.canSensitive("canExportData")) return;
     if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或其他文件。")) {
-      setBackupNotice("已取消导出");
+      setBackupNotice("已取消备份");
       return;
     }
     setBackupCreating(true); setBackupNotice("");
@@ -150,8 +162,8 @@ export default function DataCenterPage() {
       if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
       downloadExport(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
       setBackupNotice("备份创建成功");
-    } catch (backupError) {
-      setBackupNotice(backupError instanceof Error ? backupError.message : "备份创建失败，请稍后重试。");
+    } catch {
+      setBackupNotice("备份失败，请稍后重试");
     } finally { setBackupCreating(false); }
   }
 
