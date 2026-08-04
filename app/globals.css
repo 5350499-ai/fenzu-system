@@ -6550,6 +6550,95 @@ input[type="radio"] {
   }
 }
 
+/* Mobile overflow fixes: account center and list search controls. */
+.account-center-backdrop {
+  overflow-y: auto;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+.account-center-card {
+  width: min(560px, 100%);
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.account-center-card > *,
+.account-center-card .form-grid,
+.account-center-card .account-section,
+.account-center-card .modal-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.account-center-card .form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.account-center-card .modal-actions {
+  width: 100%;
+}
+
+.account-center-card .btn,
+.account-center-card input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.list-controls .search-box {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  flex: 1 1 100%;
+}
+
+.list-controls .search-box input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .account-center-backdrop {
+    align-items: end;
+  }
+
+  .account-center-card {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    overflow-x: hidden;
+    padding: 14px;
+    border-radius: 18px 18px 14px 14px;
+  }
+
+  .account-center-card .panel-header {
+    gap: 8px;
+  }
+
+  .account-center-card .panel-header > div {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .account-center-card .panel-header .icon-btn {
+    flex: 0 0 auto;
+  }
+
+  .account-center-card .account-section > :not(summary) {
+    margin-right: 10px;
+    margin-left: 10px;
+  }
+
+  .account-center-card .modal-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-center-card .modal-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 /* V1 UI phase 2: page-specific polish for the highest-use workflows. */
 
 /* Rooms: make each room an identifiable, thumb-friendly row rather than a dense table. */
