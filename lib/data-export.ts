@@ -5,6 +5,8 @@ export const APP_VERSION = "0.1.0" as const;
 export const SCHEMA_VERSION = "20260804150000" as const;
 export const GENERATED_BY = "Fenzu System" as const;
 export const SOFTWARE_EDITION = "Community" as const;
+export const APPLICATION_NAME = "咱家分租" as const;
+export const APPLICATION_ID = "zanjia-rental" as const;
 
 const DESCRIPTION = "分租房管理系统官方备份文件，仅支持官方恢复功能，请勿手工修改。";
 const SENSITIVE_EXPORT_KEY = /password|password_hash|access[_-]?token|refresh[_-]?token|session|secret|service[_-]?role|api[_-]?key|authorization|cookie|private[_-]?key/i;
@@ -29,6 +31,7 @@ export type BackupSummary = {
   settlementSnapshotsCount: number;
   totalRecords: number;
   backupSizeBytes: number;
+  backupSizeHuman: string;
 };
 
 export type BackupMetadata = {
@@ -46,6 +49,10 @@ export type BackupMetadata = {
   softwareEdition: typeof SOFTWARE_EDITION;
   platform: "Web" | "iOS" | "Android" | "Windows" | "macOS";
   exportReason: "Manual" | "AutoCloud" | "BeforeRestore" | "BeforeUpgrade";
+  exportDurationMs: number;
+  recordCount: number;
+  applicationName: typeof APPLICATION_NAME;
+  applicationId: typeof APPLICATION_ID;
 };
 
 export type DataExportPayload = {
@@ -80,7 +87,7 @@ export function buildBackupSummary(data: Record<string, unknown>, backupSizeByte
     contractsCount: count(data, "contracts"), rentPaymentsCount: count(data, "rentPayments"), expensesCount: count(data, "expenses"),
     depositsCount: count(data, "deposits"), appointmentsCount: count(data, "viewingAppointments"), todosCount: count(data, "tasks"),
     partnersCount: count(data, "partners"), settlementsCount: count(data, "settlementBatches"), settlementSnapshotsCount: count(data, "settlementSnapshots"),
-    totalRecords: 0, backupSizeBytes
+    totalRecords: 0, backupSizeBytes, backupSizeHuman: formatBackupSize(backupSizeBytes)
   } satisfies BackupSummary;
   summary.totalRecords = Object.entries(data).reduce((total, [, value]) => total + (Array.isArray(value) ? value.length : 0), 0);
   return summary;
@@ -98,6 +105,12 @@ function canonicalJson(value: unknown): string {
 
 function utf8Bytes(value: string): number {
   return new TextEncoder().encode(value).byteLength;
+}
+
+export function formatBackupSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function sha256(value: string): Promise<string> {
@@ -120,7 +133,8 @@ function normalizedMetadata(options: { backupType?: "local" | "cloud"; exportedB
     backupId: crypto.randomUUID(), backupType: options.backupType || "local", exportedAt,
     exportedBy: options.exportedBy || null, timezone: options.timezone || "UTC", description: DESCRIPTION,
     generatedBy: GENERATED_BY, softwareEdition: SOFTWARE_EDITION, platform: options.platform || "Web",
-    exportReason: options.exportReason || "Manual"
+    exportReason: options.exportReason || "Manual", exportDurationMs: 0, recordCount: 0,
+    applicationName: APPLICATION_NAME, applicationId: APPLICATION_ID
   };
 }
 
@@ -129,11 +143,23 @@ export async function createDataExportPayload(
   exportedAt = new Date().toISOString(),
   options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
 ): Promise<DataExportPayload> {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const cleanData = stripSensitiveExportData(data) as Record<string, unknown>;
   const metadata = normalizedMetadata(options, exportedAt);
-  let payload: DataExportPayload = { metadata: { ...metadata, checksum: "0".repeat(64) }, summary: buildBackupSummary(cleanData), data: cleanData };
+  const recordCount = buildBackupSummary(cleanData).totalRecords;
+  const elapsed = () => Math.max(0, Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt));
+  let payload: DataExportPayload = { metadata: { ...metadata, checksum: "0".repeat(64), recordCount }, summary: buildBackupSummary(cleanData), data: cleanData };
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    payload = { ...payload, summary: buildBackupSummary(cleanData, utf8Bytes(jsonForSize(payload))) };
+    const backupSizeBytes = utf8Bytes(jsonForSize(payload));
+    payload = { ...payload, summary: buildBackupSummary(cleanData, backupSizeBytes) };
+    payload = { ...payload, summary: { ...payload.summary, backupSizeHuman: formatBackupSize(backupSizeBytes) } };
+    payload = { ...payload, metadata: { ...payload.metadata, exportDurationMs: elapsed() } };
+    payload = { ...payload, metadata: { ...payload.metadata, checksum: await sha256(checksumInput(payload)) } };
+  }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const finalSizeBytes = utf8Bytes(jsonForSize(payload));
+    payload = { ...payload, summary: { ...payload.summary, backupSizeBytes: finalSizeBytes, backupSizeHuman: formatBackupSize(finalSizeBytes) } };
+    payload = { ...payload, metadata: { ...payload.metadata, exportDurationMs: elapsed() } };
     payload = { ...payload, metadata: { ...payload.metadata, checksum: await sha256(checksumInput(payload)) } };
   }
   return payload;
@@ -144,8 +170,8 @@ export async function verifyDataExportChecksum(payload: DataExportPayload): Prom
 }
 
 export function dataExportFileName(date = new Date()): string {
-  const utcSeconds = date.toISOString().replace(/\.\d{3}Z$/, "").replace(/:/g, "-");
-  return `分租管理数据-${utcSeconds}.json`;
+  const part = (value: number) => String(value).padStart(2, "0");
+  return `zanjia-rental-backup-${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}-${part(date.getHours())}-${part(date.getMinutes())}.json`;
 }
 
 function records(data: Record<string, unknown>, key: string): Record<string, unknown>[] {
@@ -196,9 +222,12 @@ export function validateDataExportIntegrity(payload: DataExportPayload): BackupI
   const expected = buildBackupSummary(data);
   if (!isRecord(payload.summary)) errors.push("Summary 格式错误。");
   else for (const key of Object.keys(expected) as Array<keyof BackupSummary>) {
-    if (key !== "backupSizeBytes" && payload.summary[key] !== expected[key]) errors.push(`Summary 数量不一致：${key}`);
+    if (key !== "backupSizeBytes" && key !== "backupSizeHuman" && payload.summary[key] !== expected[key]) errors.push(`Summary 数量不一致：${key}`);
   }
-  if (payload.summary.backupSizeBytes !== utf8Bytes(jsonForSize(payload))) errors.push("Summary 文件大小不一致：backupSizeBytes");
+  const actualSizeBytes = utf8Bytes(jsonForSize(payload));
+  if (payload.summary.backupSizeBytes !== actualSizeBytes) errors.push("Summary 文件大小不一致：backupSizeBytes");
+  if (payload.summary.backupSizeHuman !== formatBackupSize(actualSizeBytes)) errors.push("Summary 文件大小不一致：backupSizeHuman");
+  if (payload.metadata.recordCount !== expected.totalRecords || payload.metadata.recordCount !== payload.summary.totalRecords) errors.push("Metadata 数据条数不一致：recordCount");
   return { valid: errors.length === 0, errors };
 }
 
@@ -211,7 +240,10 @@ export function isDataExportPayload(value: unknown): value is DataExportPayload 
     && (typeof metadata.exportedBy === "string" || metadata.exportedBy === null) && typeof metadata.timezone === "string"
     && typeof metadata.checksum === "string" && metadata.generatedBy === GENERATED_BY
     && metadata.softwareEdition === SOFTWARE_EDITION && typeof metadata.description === "string"
-    && typeof metadata.platform === "string" && typeof metadata.exportReason === "string";
+    && typeof metadata.platform === "string" && typeof metadata.exportReason === "string"
+    && typeof metadata.exportDurationMs === "number" && Number.isFinite(metadata.exportDurationMs)
+    && typeof metadata.recordCount === "number" && Number.isInteger(metadata.recordCount)
+    && metadata.applicationName === APPLICATION_NAME && metadata.applicationId === APPLICATION_ID;
 }
 
 export async function dryRunRestore(payload: unknown): Promise<BackupIntegrityResult> {

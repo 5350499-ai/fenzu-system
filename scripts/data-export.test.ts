@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error test runner imports the TypeScript module directly.
-import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore, isDataExportPayload, validateDataExportIntegrity, verifyDataExportChecksum } from "../lib/data-export.ts";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore, formatBackupSize, isDataExportPayload, validateDataExportIntegrity, verifyDataExportChecksum } from "../lib/data-export.ts";
 
 const completeData = {
   properties: [{ id: "p1" }],
@@ -38,15 +38,20 @@ test("official backup metadata, checksum, summary and sensitive filtering are va
   assert.equal(payload.metadata.softwareEdition, "Community");
   assert.equal(payload.metadata.platform, "Web");
   assert.equal(payload.metadata.exportReason, "Manual");
+  assert.equal(payload.metadata.applicationName, "咱家分租");
+  assert.equal(payload.metadata.applicationId, "zanjia-rental");
+  assert.equal(Number.isInteger(payload.metadata.exportDurationMs), true);
+  assert.equal(payload.metadata.recordCount, payload.summary.totalRecords);
   assert.equal(payload.summary.propertiesCount, 1);
   assert.equal(payload.summary.totalRecords, 2);
   assert.equal(payload.summary.backupSizeBytes, new TextEncoder().encode(JSON.stringify(payload, null, 2)).byteLength);
+  assert.equal(payload.summary.backupSizeHuman, formatBackupSize(payload.summary.backupSizeBytes));
   assert.equal(await verifyDataExportChecksum(payload), true);
   const parsed = JSON.parse(JSON.stringify(payload, null, 2));
   assert.equal(parsed.data.properties.length, 1);
   assert.deepEqual(parsed.data.auditLogs[0].before_data, { safe: true, nested: {} });
   assert.equal(JSON.stringify(parsed).includes("hidden"), false);
-  assert.match(dataExportFileName(new Date("2026-08-04T10:20:30.000Z")), /2026-08-04T10-20-30\.json$/);
+  assert.match(dataExportFileName(new Date(2026, 7, 4, 22, 35, 30)), /^zanjia-rental-backup-2026-08-04-22-35\.json$/);
 });
 
 test("integrity validation detects duplicate ids and broken references", async () => {
