@@ -157,7 +157,7 @@ export default function PartnersPage() {
   return (
     <AppLayout title="合伙人管理" description="管理合伙人姓名、状态及各房源利润比例。">
       <section className="card panel partner-management-panel">
-        <div className="panel-header partner-panel-header"><div><h2 className="panel-title">工作区合伙人</h2><p className="muted">支持1—5位启用合伙人；新增合伙人默认不参与任何房源。</p></div><button className="btn primary" disabled={working || activePartners.length >= 5} onClick={() => setShowAddForm((current) => !current)} type="button"><Plus size={16} />{showAddForm ? "取消新增" : "新增合伙人"}</button></div>
+        <div className="panel-header partner-panel-header"><div><h2 className="panel-title">工作区合伙人</h2><p className="muted">支持1—10位启用合伙人；新增合伙人默认不参与任何房源。</p></div><button className="btn primary" disabled={working || activePartners.length >= 10} onClick={() => setShowAddForm((current) => !current)} type="button"><Plus size={16} />{showAddForm ? "取消新增" : "新增合伙人"}</button></div>
         {loading ? <p className="muted">正在加载…</p> : <>
           <div className="partner-list">
             {(data?.partners || []).map((partner) => {
@@ -179,7 +179,7 @@ export default function PartnersPage() {
               </div>;
             })}
           </div>
-          {showAddForm ? <div className="partner-add-row"><input autoFocus placeholder="新合伙人名称" value={newName} onChange={(event) => setNewName(event.target.value)} /><button className="btn primary" disabled={working || !newName.trim() || activePartners.length >= 5} onClick={() => void addPartner()} type="button"><Plus size={16} />确认新增</button></div> : null}
+          {showAddForm ? <div className="partner-add-row"><input autoFocus placeholder="新合伙人名称" value={newName} onChange={(event) => setNewName(event.target.value)} /><button className="btn primary" disabled={working || !newName.trim() || activePartners.length >= 10} onClick={() => void addPartner()} type="button"><Plus size={16} />确认新增</button></div> : null}
         </>}
       </section>
 

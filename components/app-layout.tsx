@@ -260,6 +260,7 @@ function moduleForPath(pathname: string): AccountModuleKey | null {
   if (pathname.startsWith("/expenses")) return "expenses";
   if (pathname.startsWith("/deposits")) return "deposits";
   if (pathname.startsWith("/partnership-settlement")) return "partnership_settlement";
+  if (pathname.startsWith("/partner-settlements")) return "partnership_settlement";
   if (pathname.startsWith("/reminders")) return "reminders";
   if (pathname.startsWith("/property-profits")) return "profits";
   if (pathname.startsWith("/analytics")) return "analytics";

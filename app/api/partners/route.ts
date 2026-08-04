@@ -11,7 +11,7 @@ function cleanName(value: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const context = await requireActiveAccount(request, true);
+    const context = await requireActiveAccount(request);
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;
     const [partnersResult, sharesResult, propertiesResult] = await Promise.all([
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const workspaceOwnerId = context.profile.workspace_owner_id;
     const { count, error: countError } = await admin.from("partners").select("id", { count: "exact", head: true }).eq("workspace_owner_id", workspaceOwnerId).eq("is_active", true);
     if (countError) throw new Error("检查合伙人数失败");
-    if ((count || 0) >= 5) throw new AccountApiError("启用合伙人最多5位", 400);
+    if ((count || 0) >= 10) throw new AccountApiError("启用合伙人最多10位", 400);
     const { data, error } = await admin.from("partners").insert({
       workspace_owner_id: workspaceOwnerId,
       display_name: displayName,

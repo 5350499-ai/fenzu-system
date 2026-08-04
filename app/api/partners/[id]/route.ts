@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (isActive && !partner.is_active) {
         const { count, error } = await admin.from("partners").select("id", { count: "exact", head: true }).eq("workspace_owner_id", ownerId).eq("is_active", true);
         if (error) throw new Error("检查合伙人数失败");
-        if ((count || 0) >= 5) throw new AccountApiError("启用合伙人最多5位", 400);
+        if ((count || 0) >= 10) throw new AccountApiError("启用合伙人最多10位", 400);
       }
       update.is_active = isActive;
     }

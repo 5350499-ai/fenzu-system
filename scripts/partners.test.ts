@@ -5,11 +5,11 @@ import { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, v
 
 const partner = (id: string, legacyCode: string | null) => ({ id, legacyCode });
 
-test("active partner count is 1 through 5 only", () => {
+test("active partner count is 1 through 10 only", () => {
   assert.equal(validateActivePartnerCount(1), true);
-  assert.equal(validateActivePartnerCount(5), true);
+  assert.equal(validateActivePartnerCount(10), true);
   assert.equal(validateActivePartnerCount(0), false);
-  assert.equal(validateActivePartnerCount(6), false);
+  assert.equal(validateActivePartnerCount(11), false);
 });
 
 test("percentage plans accept 100, 70+5+25 and zero percent", () => {

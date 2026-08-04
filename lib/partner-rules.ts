@@ -17,7 +17,7 @@ export function validatePartnerPlanRows(rows: Array<{ partnerId: string; percent
 }
 
 export function validateActivePartnerCount(count: number) {
-  return Number.isInteger(count) && count >= 1 && count <= 5;
+  return Number.isInteger(count) && count >= 1 && count <= 10;
 }
 
 export function hasOverlappingShareIntervals(intervals: Array<{ effectiveFrom: string; effectiveTo?: string | null }>) {
