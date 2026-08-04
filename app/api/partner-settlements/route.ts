@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { buildSettlement } from "@/lib/partner-settlement";
+import { buildSettlement, isVoided } from "@/lib/partner-settlement";
+import { paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import type { BusinessExpense, BusinessRentPayment } from "@/lib/business-data";
 import type { Partner, PartnerPropertyShare } from "@/lib/partners";
 
@@ -19,6 +20,16 @@ function settlementErrorResponse(error: unknown) {
     return NextResponse.json({ error: "当前账号没有查看或确认合伙结算的权限。", code: "forbidden" }, { status: 403 });
   }
   return apiErrorResponse(error);
+}
+
+function inRange(value: string | undefined, startDate: string, endDate: string) {
+  return Boolean(value && value >= startDate && value <= endDate);
+}
+
+function displayPartner(value: string | undefined, partners: Partner[]) {
+  const normalized = value || "";
+  const upper = normalized.trim().toUpperCase();
+  return partners.find((partner) => partner.id === normalized || partner.displayName === normalized || (partner.legacyCode || "").toUpperCase() === upper)?.displayName || normalized || "未分配";
 }
 
 async function loadInputs(ownerId: string) {
@@ -84,6 +95,13 @@ export async function POST(request: Request) {
     }));
     const partnerRows = settlement.partners.map((partner) => ({ partnerId: partner.partnerId, displayName: partner.displayName, legacyCode: partner.legacyCode, collected: partner.collected, advanced: partner.advanced, actualRetained: partner.actualRetained, profitEntitlement: partner.profitEntitlement, balance: partner.balance, shareSegments: shareSegments.get(partner.partnerId) || [] }));
     const transfers = settlement.transfers.map((transfer) => ({ ...transfer, fromName: settlement.partners.find((partner) => partner.partnerId === transfer.fromPartnerId)?.displayName || "", toName: settlement.partners.find((partner) => partner.partnerId === transfer.toPartnerId)?.displayName || "" }));
+    const propertyName = inputs.properties.find((property) => property.id === propertyId)?.name || propertyId;
+    const incomeDetails = inputs.payments
+      .filter((payment) => payment.propertyId === propertyId && inRange(paymentAccountingDate(payment), startDate, endDate) && !isVoided(payment.notes))
+      .map((payment) => ({ date: paymentAccountingDate(payment), paymentId: payment.id, tenantId: payment.tenantId, incomeItem: payment.incomeItem, partnerName: displayPartner(payment.receivedBy, inputs.partners), amount: rentIncomeForPayment(payment) }));
+    const expenseDetails = inputs.expenses
+      .filter((expense) => expense.propertyId === propertyId && inRange(expense.paymentDate || `${expense.expenseMonth}-01`, startDate, endDate) && !isVoided(expense.notes))
+      .map((expense) => ({ date: expense.paymentDate || `${expense.expenseMonth}-01`, expenseId: expense.id, category: expense.category, partnerName: displayPartner(expense.paidBy, inputs.partners), amount: Number(expense.amount || 0) }));
     const { data: batchId, error } = await getSupabaseAdmin().rpc("confirm_partner_settlement", {
       p_workspace_owner_id: context.profile.workspace_owner_id,
       p_property_id: propertyId,
@@ -96,7 +114,11 @@ export async function POST(request: Request) {
       p_partners: partnerRows,
       p_segments: settlement.segments,
       p_transfers: transfers,
-      p_note: body.note ? String(body.note).trim().slice(0, 500) : null
+      p_note: body.note ? String(body.note).trim().slice(0, 500) : null,
+      p_property_name_snapshot: propertyName,
+      p_confirmed_by_display_name_snapshot: context.profile.display_name || "Owner",
+      p_income_details: incomeDetails,
+      p_expense_details: expenseDetails
     });
     if (error) throw isVoidError(error.message);
     return NextResponse.json({ ok: true, batchId });

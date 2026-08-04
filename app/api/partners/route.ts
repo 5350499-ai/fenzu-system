@@ -14,10 +14,11 @@ export async function GET(request: Request) {
     const context = await requireActiveAccount(request);
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;
-    const [partnersResult, sharesResult, propertiesResult] = await Promise.all([
+    const [partnersResult, sharesResult, propertiesResult, historyResult] = await Promise.all([
       admin.from("partners").select("id,workspace_owner_id,legacy_code,display_name,color_key,sort_order,is_active,linked_account_id").eq("workspace_owner_id", workspaceOwnerId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
       admin.from("partner_property_shares").select("id,workspace_owner_id,property_id,partner_id,percentage,effective_from,effective_to").eq("workspace_owner_id", workspaceOwnerId).order("effective_from", { ascending: false }),
-      admin.from("properties").select("id,name,address,city").eq("user_id", workspaceOwnerId).order("name", { ascending: true })
+      admin.from("properties").select("id,name,address,city").eq("user_id", workspaceOwnerId).order("name", { ascending: true }),
+      admin.from("partner_name_history").select("id,partner_id,old_display_name,new_display_name,changed_at,changed_by_account_id").eq("workspace_owner_id", workspaceOwnerId).order("changed_at", { ascending: false })
     ]);
     if (partnersResult.error || sharesResult.error || propertiesResult.error) throw new Error("加载合伙人资料失败");
     const shares = (sharesResult.data || []) as Array<Record<string, unknown>>;
@@ -53,7 +54,8 @@ export async function GET(request: Request) {
         effectiveFrom: share.effective_from,
         effectiveTo: share.effective_to
       })),
-      properties: (propertiesResult.data || []).map((property) => ({ id: property.id, name: property.name, address: property.address, city: property.city }))
+      properties: (propertiesResult.data || []).map((property) => ({ id: property.id, name: property.name, address: property.address, city: property.city })),
+      nameHistory: (historyResult.data || []).map((item) => ({ id: item.id, partnerId: item.partner_id, oldDisplayName: item.old_display_name, newDisplayName: item.new_display_name, changedAt: item.changed_at, changedByAccountId: item.changed_by_account_id }))
     });
   } catch (error) {
     return apiErrorResponse(error);

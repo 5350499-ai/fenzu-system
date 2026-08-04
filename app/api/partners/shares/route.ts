@@ -66,3 +66,19 @@ export async function DELETE(request: Request) {
     return apiErrorResponse(error);
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const context = await requireActiveAccount(request, true);
+    const body = await parseJson(request) as Record<string, unknown>;
+    const propertyId = String(body.propertyId || "");
+    const effectiveFrom = String(body.effectiveFrom || "");
+    if (!propertyId || !DATE_RE.test(effectiveFrom)) throw new AccountApiError("璇疯緭鍏ユ柊鐨勭涓€涓瘮渚嬭捣濮嬫棩", 400);
+    const { error } = await getSupabaseAdmin().rpc("adjust_first_partner_share_start_date", { p_workspace_owner_id: context.profile.workspace_owner_id, p_property_id: propertyId, p_new_effective_from: effectiveFrom, p_changed_by_account_id: context.userId });
+    if (error) throw lifecycleError(error, "璋冩暣棣栦釜姣斾緥鏂规澶辫触锛岃绋嶅悗閲嶈瘯");
+    await writeAuditLog(context, { actionType: "adjust_first_partner_share_start_date", moduleKey: "settings", entityType: "property", entityId: propertyId, afterData: { effectiveFrom }, description: "璋冩暣鎴挎簮棣栦釜鍒╂鼎姣斾緥璧峰鏃ユ湡" });
+    return NextResponse.json({ ok: true, effectiveFrom });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}

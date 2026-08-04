@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const update: Record<string, unknown> = {};
-    if (body.displayName !== undefined) update.display_name = cleanName(body.displayName);
+    const nextDisplayName = body.displayName !== undefined ? cleanName(body.displayName) : undefined;
     if (body.sortOrder !== undefined) {
       const sortOrder = Number(body.sortOrder);
       if (!Number.isFinite(sortOrder)) throw new AccountApiError("排序必须是数字", 400);
@@ -61,7 +61,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       update.is_active = isActive;
     }
-    if (!Object.keys(update).length) return NextResponse.json({ ok: true });
+    if (nextDisplayName !== undefined && nextDisplayName !== partner.display_name) {
+      const { error: renameError } = await admin.rpc("rename_partner_with_history", { p_workspace_owner_id: ownerId, p_partner_id: id, p_new_display_name: nextDisplayName, p_changed_by_account_id: context.userId });
+      if (renameError) throw new Error(renameError.message);
+    }
+    if (!Object.keys(update).length) {
+      if (nextDisplayName !== undefined && nextDisplayName !== partner.display_name) await writeAuditLog(context, { actionType: "rename_partner", moduleKey: "settings", entityType: "partner", entityId: id, beforeData: { displayName: partner.display_name }, afterData: { displayName: nextDisplayName }, description: "修改合伙人名称" });
+      return NextResponse.json({ ok: true });
+    }
     const { error } = await admin.from("partners").update(update).eq("id", id).eq("workspace_owner_id", ownerId);
     if (error) throw new Error(error.message);
     await writeAuditLog(context, { actionType: "update_partner", moduleKey: "settings", entityType: "partner", entityId: id, beforeData: partner, afterData: update, description: "修改动态合伙人" });

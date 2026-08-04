@@ -26,11 +26,13 @@ export type PartnerPropertyShare = {
 };
 
 export type PartnerProperty = { id: string; name: string; address: string | null; city: string | null };
+export type PartnerNameHistory = { id: string; partnerId: string; oldDisplayName: string; newDisplayName: string; changedAt: string; changedByAccountId: string | null };
 
 export type PartnerWorkspaceData = {
   partners: Partner[];
   shares: PartnerPropertyShare[];
   properties: PartnerProperty[];
+  nameHistory?: PartnerNameHistory[];
 };
 
 export function getCurrentPropertySharePlan(shares: PartnerPropertyShare[], propertyId: string, today = new Date().toISOString().slice(0, 10)) {
