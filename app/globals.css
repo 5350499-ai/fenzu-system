@@ -6549,3 +6549,383 @@ input[type="radio"] {
     border-radius: 18px;
   }
 }
+
+/* V1 UI phase 2: page-specific polish for the highest-use workflows. */
+
+/* Rooms: make each room an identifiable, thumb-friendly row rather than a dense table. */
+.room-compact-list {
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.room-compact-list .finance-list-item {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+}
+
+.room-compact-list .finance-list-item:has(.room-detail-panel) {
+  border-color: color-mix(in srgb, var(--blue) 35%, var(--border));
+  background: var(--surface);
+}
+
+.room-finance-line {
+  min-height: 54px;
+  padding: 8px 10px;
+  gap: 8px;
+  background: transparent;
+}
+
+.room-finance-line .room-property-name,
+.room-finance-line .room-display-name {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.room-finance-line .room-property-name {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.room-finance-line .room-display-name {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.room-finance-line > strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.room-detail-panel {
+  margin: 0;
+  border-top: 1px solid var(--border);
+  padding: 14px;
+  background: var(--surface);
+}
+
+.room-current-tenants {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.room-history-toggle {
+  justify-content: space-between;
+  min-height: 42px;
+  margin-top: 10px;
+  border-radius: var(--ui-radius-md);
+  padding-inline: 12px;
+  letter-spacing: 0;
+}
+
+.room-history-toggle-action {
+  color: var(--blue);
+  font-size: 13px;
+}
+
+.room-history-content {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* Tenants: keep the summary calm and make the detail sections visually scannable. */
+.tenant-compact-list {
+  gap: 8px;
+}
+
+.tenant-card-expanded {
+  margin: 0 0 10px;
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.tenant-detail-panel {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+}
+
+.tenant-detail-panel .detail-grid {
+  gap: 10px;
+}
+
+.tenant-detail-panel .detail-field {
+  min-height: 48px;
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+  padding: 10px 12px;
+}
+
+.tenant-amount-grid {
+  gap: 8px;
+}
+
+.tenant-details-toggle-row {
+  margin-top: 2px;
+}
+
+.tenant-details-toggle {
+  min-height: 42px;
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+}
+
+.tenant-performance-section,
+.tenant-timeline-section,
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.tenant-performance-summary {
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+}
+
+.tenant-detail-actions {
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.tenant-detail-action-button {
+  min-height: 42px;
+  border-radius: var(--ui-radius-md);
+}
+
+/* Settlement: establish a clear financial hierarchy and a deliberate action zone. */
+.settlement-controls,
+.settlement-history-panel {
+  display: grid;
+  gap: var(--ui-space-3);
+}
+
+.settlement-controls .filter-grid {
+  gap: 10px;
+}
+
+.compact-report-card {
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-lg);
+  background: var(--surface-soft);
+}
+
+.compact-report-metric {
+  min-height: 86px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.compact-report-metric span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.compact-report-metric strong {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  font-size: clamp(20px, 4vw, 28px);
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-history-row {
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.settlement-history-row strong,
+.settlement-history-row span {
+  overflow-wrap: anywhere;
+}
+
+.settlement-card {
+  border-radius: var(--ui-radius-md);
+  background: var(--surface);
+}
+
+.settlement-result {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.settlement-result h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settlement-result p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(17px, 4vw, 22px);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Analytics: make metric groups read like a dashboard, not a sequence of loose tiles. */
+.operations-metric-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-lg);
+  background: var(--surface);
+}
+
+.operations-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.operations-section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.operations-section-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.operations-metric-grid {
+  gap: 8px;
+}
+
+.operations-metric {
+  min-height: 78px;
+  border-radius: var(--ui-radius-md);
+  padding: 11px 12px;
+}
+
+.operations-metric strong {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.operations-room-row,
+.operations-property-card {
+  border-radius: var(--ui-radius-md);
+  padding: 12px;
+}
+
+.operations-room-head strong,
+.operations-property-head strong {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Settings: grouped rows with consistent touch targets, closer to a system settings screen. */
+.settings-list {
+  display: grid;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md);
+  background: var(--surface-soft);
+}
+
+.settings-list-link,
+.settings-list > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.settings-list > :last-child {
+  border-bottom: 0;
+}
+
+.settings-list-link:hover {
+  background: var(--surface-hover);
+}
+
+@media (max-width: 640px) {
+  .room-finance-line {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "property room status"
+      "property rent expiry";
+    align-items: center;
+    min-height: 68px;
+    padding: 9px 10px;
+  }
+
+  .room-finance-line > :nth-child(1) { grid-area: property; align-self: stretch; display: flex; align-items: center; }
+  .room-finance-line > :nth-child(2) { grid-area: room; }
+  .room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
+  .room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
+  .room-finance-line > :nth-child(5) { display: none; }
+  .room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
+
+  .room-finance-line .room-property-name { font-size: 10px; }
+  .room-finance-line .room-display-name { font-size: 13px; }
+
+  .tenant-detail-actions-row {
+    gap: 6px;
+  }
+
+  .tenant-detail-action-button {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  .compact-report-card {
+    padding: 8px;
+  }
+
+  .compact-report-metric {
+    min-height: 78px;
+    padding: 10px;
+  }
+
+  .compact-report-metric strong {
+    font-size: 20px;
+  }
+
+  .operations-metric-group {
+    padding: 12px;
+  }
+
+  .operations-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operations-metric {
+    min-height: 72px;
+    padding: 10px;
+  }
+
+  .operations-metric strong {
+    font-size: 16px;
+  }
+}
