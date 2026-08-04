@@ -3,18 +3,53 @@
 import { AppLayout } from "@/components/app-layout";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
-import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Batch = { id: string; property_id: string; period_start: string; period_end: string; status: "confirmed" | "reversed"; total_income: number; total_expense: number; net_profit: number; confirmed_at: string };
+type Batch = {
+  id: string;
+  property_id: string;
+  period_start: string;
+  period_end: string;
+  status: "confirmed" | "reversed";
+  total_income: number;
+  total_expense: number;
+  net_profit: number;
+  confirmed_at: string;
+  reversed_at?: string | null;
+  reversal_reason?: string | null;
+};
+
+type Snapshot = {
+  batch: Batch;
+  partners: Array<any>;
+  segments: Array<any>;
+  transfers: Array<any>;
+};
+
 type PageState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 
-function shareLines(value: unknown, partners: any[]) {
-  if (!Array.isArray(value)) return ["比例信息未保存"];
-  return value.map((share: any, index: number) => {
-    const partnerId = share.partnerId || share.partner_id;
-    const partner = partners.find((item) => item.partner_id === partnerId);
-    return `${share.displayName || share.display_name || partner?.partner_display_name_snapshot || `合伙人${index + 1}`} ${Number(share.percentage || 0)}%`;
-  });
+function money(value: unknown) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? euro(amount) : "未保存";
+}
+
+function shareSummary(partner: any, segments: Array<any>) {
+  const values = Array.isArray(partner.share_segments_snapshot) ? partner.share_segments_snapshot : [];
+  if (segments.length > 1 || values.length > 1) return `参与${Math.max(segments.length, values.length)}个比例分段`;
+  const percentage = Number(values[0]?.percentage);
+  return Number.isFinite(percentage) ? `${percentage}%` : "比例未保存";
+}
+
+function balanceSummary(value: unknown) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return { label: "金额未保存", value: "" };
+  if (amount > 0) return { label: "应付", value: money(Math.abs(amount)) };
+  if (amount < 0) return { label: "应收", value: money(Math.abs(amount)) };
+  return { label: "已平衡", value: "" };
+}
+
+function AuthExpiredState() {
+  return <AppLayout title="登录已失效"><section className="card panel auth-expired-state"><h2 className="panel-title">登录已失效</h2><p className="muted">请重新登录后继续查看结算历史。</p><a className="btn primary" href={`/login?returnTo=${encodeURIComponent("/partner-settlements")}`}>重新登录</a></section></AppLayout>;
 }
 
 export default function PartnerSettlementHistoryPage() {
@@ -36,13 +71,18 @@ export default function PartnerSettlementHistoryPage() {
         const session = await getValidSupabaseSession();
         if (!session) { setState("unauthorized"); return; }
         const headers = { Authorization: `Bearer ${session.access_token}` };
-        const [historyResponse, partnersResponse] = await Promise.all([fetch("/api/partner-settlements", { headers, cache: "no-store" }), fetch("/api/partners", { headers, cache: "no-store" })]);
+        const [historyResponse, partnersResponse] = await Promise.all([
+          fetch("/api/partner-settlements", { headers, cache: "no-store" }),
+          fetch("/api/partners", { headers, cache: "no-store" }),
+        ]);
         const history = await historyResponse.json().catch(() => ({}));
         const partnerPayload = await partnersResponse.json().catch(() => ({}));
         if (!historyResponse.ok) { setState(historyResponse.status === 401 ? "unauthorized" : historyResponse.status === 403 ? "forbidden" : "error"); setMessage(history.error || "结算历史加载失败，请稍后重试"); return; }
         if (!partnersResponse.ok) { setState(partnersResponse.status === 401 ? "unauthorized" : partnersResponse.status === 403 ? "forbidden" : "error"); setMessage(partnerPayload.error || "房源加载失败，请稍后重试"); return; }
         if (!cancelled) { setBatches(history.batches || []); setProperties(partnerPayload.properties || []); setState("ready"); }
-      } catch (error) { if (!cancelled) { setState("error"); setMessage(error instanceof Error ? error.message : "结算历史加载失败，请稍后重试"); } }
+      } catch (error) {
+        if (!cancelled) { setState("error"); setMessage(error instanceof Error ? error.message : "结算历史加载失败，请稍后重试"); }
+      }
     }
     void load();
     return () => { cancelled = true; };
@@ -66,35 +106,39 @@ export default function PartnerSettlementHistoryPage() {
 }
 
 function SettlementHistoryCard({ batch, propertyName }: { batch: Batch; propertyName: string }) {
-  const [open, setOpen] = useState(false);
-  const [snapshot, setSnapshot] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  async function toggle(event: SyntheticEvent<HTMLDetailsElement>) {
-    const nextOpen = event.currentTarget.open;
-    setOpen(nextOpen);
-    if (!nextOpen || snapshot || loading) return;
-    setLoading(true);
-    try {
-      const session = await getValidSupabaseSession();
-      if (!session) throw new Error("登录已失效，请重新登录");
-      const response = await fetch(`/api/partner-settlements/${batch.id}`, { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "快照加载失败");
-      setSnapshot(payload);
-    } catch (error) {
-      setSnapshot({ error: error instanceof Error ? error.message : "快照加载失败" });
-    } finally {
-      setLoading(false);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSnapshot() {
+      try {
+        const session = await getValidSupabaseSession();
+        if (!session) throw new Error("登录已失效，请重新登录");
+        const response = await fetch(`/api/partner-settlements/${batch.id}`, { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "摘要加载失败");
+        if (!cancelled) setSnapshot(payload);
+      } catch (loadError) {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "摘要加载失败");
+      }
     }
-  }
-  return <details className="settlement-history-card" onToggle={toggle}><summary><span className="settlement-history-summary-main"><strong>{propertyName}</strong><span>{batch.period_start} 至 {batch.period_end}</span></span><span className="settlement-history-summary-metrics"><span>收入 {euro(Number(batch.total_income))}</span><span>支出 {euro(Number(batch.total_expense))}</span><strong className={Number(batch.net_profit) < 0 ? "danger-text" : "profit"}>净利润 {euro(Number(batch.net_profit))}</strong></span><span className={`status-badge ${batch.status === "confirmed" ? "success" : "muted-badge"}`}>{batch.status === "confirmed" ? "已结算" : "已撤销"}</span><span className="settlement-history-expand">{open ? "收起完整快照" : "展开完整快照"}</span></summary><div className="settlement-history-card-actions"><a className="btn compact primary" href={`/partner-settlements/${batch.id}`}>打开快照详情</a>{loading ? <p className="muted">正在读取保存的快照…</p> : null}{snapshot?.error ? <p className="error-text">{snapshot.error}</p> : null}{snapshot && !snapshot.error ? <InlineSnapshot snapshot={snapshot} /> : null}</div></details>;
-}
+    void loadSnapshot();
+    return () => { cancelled = true; };
+  }, [batch.id]);
 
-function InlineSnapshot({ snapshot }: { snapshot: any }) {
-  const batch = snapshot.batch;
-  const income = Array.isArray(batch.income_details_snapshot) ? batch.income_details_snapshot : [];
-  const expense = Array.isArray(batch.expense_details_snapshot) ? batch.expense_details_snapshot : [];
-  return <div className="snapshot-inline"><p className="muted">确认时间：{new Date(batch.confirmed_at).toLocaleString("zh-CN")} · 确认人：{batch.confirmed_by_display_name_snapshot || "确认账号名称未保存"}</p><p>汇总：收入 {euro(Number(batch.total_income))} · 支出 {euro(Number(batch.total_expense))} · 净利润 {euro(Number(batch.net_profit))}</p><h4>比例分段</h4>{snapshot.segments.map((segment: any, index: number) => <article className="snapshot-segment" key={segment.id}><strong>比例分段 {index + 1}：{segment.segment_start} 至 {segment.segment_end}</strong><div className="snapshot-share-list">{shareLines(segment.shares_snapshot, snapshot.partners).map((line, shareIndex) => <span key={`${line}-${shareIndex}`}>{line}</span>)}</div><p>收入 {euro(Number(segment.total_income))} · 支出 {euro(Number(segment.total_expense))} · 净利润 {euro(Number(segment.net_profit))}</p></article>)}<h4>合伙人结算明细</h4><div className="settlement-grid">{snapshot.partners.map((partner: any) => <article className="settlement-card" key={partner.id}><strong>{partner.partner_display_name_snapshot}</strong><div className="profit-card-metrics"><span>代收 <b>{euro(Number(partner.actual_collected))}</b></span><span>垫付 <b>{euro(Number(partner.actual_paid))}</b></span><span>实际留存 <b>{euro(Number(partner.actual_retained))}</b></span><span>应得利润 <b>{euro(Number(partner.profit_entitlement))}</b></span><span>结算余额 <b>{euro(Number(partner.settlement_balance))}</b></span></div><p className={Number(partner.settlement_balance) > 0 ? "danger-text" : Number(partner.settlement_balance) < 0 ? "profit" : "muted"}>{Number(partner.settlement_balance) > 0 ? "应付" : Number(partner.settlement_balance) < 0 ? "应收" : "已平衡"}</p></article>)}</div><h4>最终转账建议</h4>{snapshot.transfers.length ? snapshot.transfers.map((transfer: any) => <p key={transfer.id}>{transfer.from_name_snapshot} 转给 {transfer.to_name_snapshot}：{euro(Number(transfer.amount))}</p>) : <p className="muted">本次无需相互转账</p>}<h4>收支逐笔明细</h4>{income.length || expense.length ? <>{income.map((item: any, index: number) => <p key={item.paymentId || index}>收入 · {item.date} · {item.partnerName} · {euro(Number(item.amount))}</p>)}{expense.map((item: any, index: number) => <p key={item.expenseId || index}>支出 · {item.date} · {item.partnerName} · {euro(Number(item.amount))}</p>)}</> : <p className="muted">该快照确认时未保存逐笔收入明细或支出明细。</p>}</div>;
+  const partners = snapshot?.partners || [];
+  const segments = snapshot?.segments || [];
+  const transfers = snapshot?.transfers || [];
+  return <article className="settlement-history-card">
+    <div className="settlement-history-card-body">
+      <strong className="settlement-history-property">{propertyName}</strong>
+      <span className="settlement-history-period">{batch.period_start} 至 {batch.period_end}</span>
+      <div className="settlement-history-summary-metrics"><span>收入 <b>{money(batch.total_income)}</b></span><span>支出 <b>{money(batch.total_expense)}</b></span><span className={Number(batch.net_profit) < 0 ? "danger-text" : "profit"}>净利润 <b>{money(batch.net_profit)}</b></span></div>
+      <div className="settlement-history-allocation"><div className="settlement-history-allocation-title">{segments.length > 1 ? `比例方案：${segments.length}段` : "合伙人分配"}</div>{error ? <p className="muted">摘要暂不可用：{error}</p> : !snapshot ? <p className="muted">正在读取已保存摘要…</p> : partners.length ? partners.map((partner: any) => { const balance = balanceSummary(partner.settlement_balance); return <div className="settlement-history-partner" key={partner.id}><strong>{partner.partner_display_name_snapshot || "合伙人名称未保存"}</strong><span>{shareSummary(partner, segments)}</span><span className={balance.label === "应收" ? "profit" : balance.label === "应付" ? "danger-text" : "muted"}>{balance.label}{balance.value ? ` ${balance.value}` : ""}</span></div>; }) : <p className="muted">该快照未保存合伙人摘要。</p>}</div>
+      <div className="settlement-history-transfers"><strong>最终转账</strong>{!snapshot ? null : transfers.length ? transfers.map((transfer: any) => <span key={transfer.id}>{transfer.from_name_snapshot} 转给 {transfer.to_name_snapshot} {money(transfer.amount)}</span>) : <span className="muted">本次无需相互转账</span>}</div>
+      {batch.status === "reversed" ? <div className="settlement-history-reversal"><span className="status-badge muted-badge">已撤销</span>{batch.reversed_at ? <span>撤销于：{new Date(batch.reversed_at).toLocaleString("zh-CN")}</span> : null}{batch.reversal_reason ? <span>{batch.reversal_reason}</span> : null}</div> : null}
+      <div className="settlement-history-card-footer"><span className={`status-badge ${batch.status === "confirmed" ? "success" : "muted-badge"}`}>{batch.status === "confirmed" ? "已结算" : "已撤销"}</span><a className="btn compact primary" href={`/partner-settlements/${batch.id}`}>打开完整快照</a></div>
+    </div>
+  </article>;
 }
-
-function AuthExpiredState() { return <AppLayout title="登录已失效"><section className="card panel auth-expired-state"><h2 className="panel-title">登录已失效</h2><p className="muted">请重新登录后继续查看结算历史。</p><a className="btn primary" href={`/login?returnTo=${encodeURIComponent("/partner-settlements")}`}>重新登录</a></section></AppLayout>; }
