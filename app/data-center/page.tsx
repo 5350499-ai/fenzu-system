@@ -99,6 +99,7 @@ export default function DataCenterPage() {
   const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
   const [restoreStep, setRestoreStep] = useState<RestoreStep>("preview");
   const [restoreError, setRestoreError] = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   useEffect(() => installBackupRuntimeTrace(), []);
 
@@ -177,7 +178,7 @@ export default function DataCenterPage() {
   }
 
   async function createBackup() {
-    if (!access.canSensitive("canExportData") || backupRunRef.current) return;
+    if (!access.ready || !access.canSensitive("canExportData") || backupRunRef.current) return;
     if (["preparing", "generating", "validating", "handoff"].includes(backupStatus)) return;
     backupRunRef.current = true;
     traceBackupRuntimeEvent("EXPORT_START");
@@ -215,9 +216,12 @@ export default function DataCenterPage() {
       setBackupStatus("complete");
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
       traceBackupRuntimeEvent("DOWNLOAD_START");
-      await navigator.share({
-        files: [file]
-      });
+      try {
+        await navigator.share({ files: [file] });
+      } catch {
+        setBackupStatus("complete");
+        setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
+      }
     } catch {
       traceBackupRuntimeEvent("EXPORT_ERROR");
       setBackupStatus("error");
@@ -261,6 +265,11 @@ export default function DataCenterPage() {
       setRestoreError("请选择 .json 备份文件。");
       return;
     }
+    if (!access.ready) {
+      setRestoreError("账号信息仍在加载，请稍后重试。");
+      return;
+    }
+    setRestoreLoading(true);
     try {
       const parsed: unknown = JSON.parse(await file.text());
       if (!isDataExportPayload(parsed)) {
@@ -276,6 +285,8 @@ export default function DataCenterPage() {
       setRestorePreview({ fileName: file.name, fileSize: file.size, payload: parsed, currentData });
     } catch (previewError) {
       setRestoreError(previewError instanceof Error ? previewError.message : "备份文件无法读取，请重新选择。");
+    } finally {
+      setRestoreLoading(false);
     }
   }
 
@@ -286,7 +297,7 @@ export default function DataCenterPage() {
         <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
         <CountSummary counts={counts} loading={loading} loaded={dataLoaded} />
         <p className="data-center-note"><ShieldCheck size={16} /> 创建备份会下载一份本地 JSON 文件，不会写入云端 Storage。</p>
-        <PrimaryButton type="button" disabled={loading || backupCreating || backupStatus === "preparing" || backupStatus === "generating" || backupStatus === "validating" || backupStatus === "handoff" || !access.canSensitive("canExportData")} onClick={() => void createBackup()}>
+        <PrimaryButton type="button" disabled={!access.ready || loading || backupCreating || backupStatus === "preparing" || backupStatus === "generating" || backupStatus === "validating" || backupStatus === "handoff" || !access.canSensitive("canExportData")} onClick={() => void createBackup()}>
           {backupButtonLabel}
         </PrimaryButton>
         <p className={`data-center-backup-status ${backupStatus === "error" ? "data-center-backup-status--error" : backupStatus === "ready" || backupStatus === "complete" ? "data-center-backup-status--success" : ""}`} role="status" aria-live="polite">{backupStatusMessage}</p>
@@ -294,9 +305,10 @@ export default function DataCenterPage() {
       </SectionCard>
       <SectionCard className="data-center-card">
         <DataCardHeader icon={<History size={20} />} title="恢复备份" description="选择官方 JSON 备份文件，先查看恢复内容预览。当前不会修改任何数据。" />
-        <input ref={restoreInputRef} style={{ display: "none" }} type="file" accept=".json,application/json" onChange={(event) => void previewRestoreFile(event.target.files?.[0])} />
-        <SecondaryButton type="button" onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
+        <input ref={restoreInputRef} style={{ display: "none" }} type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; void previewRestoreFile(file); }} />
+        <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
+        {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
         {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} onNext={() => setRestoreStep("confirm")} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
       </SectionCard>
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
