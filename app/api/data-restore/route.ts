@@ -147,19 +147,32 @@ function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: stri
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request, true);
-    const body = await parseJson(request) as { payload?: unknown };
+    const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string };
+    if (body.action === "prepare_before_restore") {
+      const admin = getSupabaseAdmin();
+      const currentData = await loadServerBackupData(admin, context.profile.workspace_owner_id);
+      const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
+      const now = new Date();
+      const part = (value: number) => String(value).padStart(2, "0");
+      const stamp = `${now.getUTCFullYear()}-${part(now.getUTCMonth() + 1)}-${part(now.getUTCDate())}-${part(now.getUTCHours())}-${part(now.getUTCMinutes())}-${part(now.getUTCSeconds())}-${String(now.getUTCMilliseconds()).padStart(3, "0")}`;
+      const fileName = `BeforeRestore-${stamp}-${beforeRestore.metadata.backupId}.json`;
+      const backupPath = `${context.profile.workspace_owner_id}/before-restore/${fileName}`;
+      const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json", upsert: false });
+      if (upload.error) {
+        console.error("BeforeRestore upload failed", { workspaceOwnerId: context.profile.workspace_owner_id, bucket: BACKUP_BUCKET, objectPath: backupPath, serviceRole: true, rls: "bypassed_by_service_role", code: upload.error.name || "storage_upload_failed", message: upload.error.message });
+        return NextResponse.json({ error: "恢复前备份生成失败，未修改任何数据。请稍后重试。", code: "before_restore_upload_failed" }, { status: 503 });
+      }
+      return NextResponse.json({ ok: true, beforeRestore: { fileName, storagePath: backupPath, payload: beforeRestore } });
+    }
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
     const integrity = await dryRunRestore(body.payload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     const admin = getSupabaseAdmin();
-    const currentData = await loadServerBackupData(admin, context.profile.workspace_owner_id);
-    const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
-    const backupPath = `${context.profile.workspace_owner_id}/before-restore-${beforeRestore.metadata.backupId}.json`;
-    const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json", upsert: false });
-    if (upload.error) {
-      console.error("BeforeRestore upload failed", { workspaceOwnerId: context.profile.workspace_owner_id, bucket: BACKUP_BUCKET, objectPath: backupPath, serviceRole: true, rls: "bypassed_by_service_role", code: upload.error.name || "storage_upload_failed", message: upload.error.message });
-      return NextResponse.json({ error: "BeforeRestore 上传失败，未修改任何数据。请稍后重试。", code: "before_restore_upload_failed" }, { status: 503 });
-    }
+    const backupPath = body.beforeRestoreBackupPath || "";
+    const expectedPrefix = `${context.profile.workspace_owner_id}/before-restore/`;
+    if (!backupPath.startsWith(expectedPrefix) || !backupPath.endsWith(".json")) return NextResponse.json({ error: "请先完成恢复前备份。", code: "before_restore_required" }, { status: 409 });
+    const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
+    if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
     const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
