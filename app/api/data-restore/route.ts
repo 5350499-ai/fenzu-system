@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { emptyModulePermissions } from "@/lib/account-permissions";
 import { apiErrorResponse, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
+import { clientSensitivePermissions } from "@/lib/server/account-management";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   createDataExportPayload,
@@ -58,9 +60,87 @@ async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, 
   const partnerByBatch = group((partnerSnapshots.data || []) as Array<Record<string, unknown>>);
   const segmentByBatch = group((segmentSnapshots.data || []) as Array<Record<string, unknown>>);
   const transferByBatch = group((transferSnapshots.data || []) as Array<Record<string, unknown>>);
+  const [profilesResult, permissionsResult, sensitiveResult, accessResult, identitiesResult, auditResult] = await Promise.all([
+    admin.from("user_profiles").select("auth_user_id,username,display_name,account_type,status,property_access_mode,must_change_password,last_login_at,last_activity_at,disabled_at").eq("workspace_owner_id", ownerId).order("created_at", { ascending: true }),
+    admin.from("user_permissions").select("user_id,module_key,can_view,can_create,can_edit,can_archive,can_delete"),
+    admin.from("user_sensitive_permissions").select("*"),
+    admin.from("user_property_access").select("user_id,property_id"),
+    admin.from("account_auth_identities").select("auth_user_id,auth_email,is_internal_email"),
+    admin.from("audit_logs").select("id,log_category,action,actor_user_id,actor_username,target_table,target_record_id,success,error_message,created_at,metadata").eq("success", true).order("created_at", { ascending: false }).limit(1000)
+  ]);
+  if (profilesResult.error || permissionsResult.error || sensitiveResult.error || accessResult.error || identitiesResult.error || auditResult.error) {
+    throw new Error("无法读取恢复前账号与操作日志数据");
+  }
+  const profiles = (profilesResult.data || []) as Array<Record<string, unknown>>;
+  const userIds = new Set(profiles.map((profile) => String(profile.auth_user_id)));
+  const permissions = (permissionsResult.data || []) as Array<Record<string, unknown>>;
+  const sensitiveByUser = new Map((sensitiveResult.data || []).map((row) => [String(row.user_id), row as Record<string, boolean>]));
+  const accessByUser = new Map<string, string[]>();
+  (accessResult.data || []).forEach((row) => {
+    const userId = String(row.user_id);
+    if (!userIds.has(userId)) return;
+    accessByUser.set(userId, [...(accessByUser.get(userId) || []), String(row.property_id)]);
+  });
+  const identityByUser = new Map((identitiesResult.data || []).map((row) => [String(row.auth_user_id), row as { auth_email?: string; is_internal_email?: boolean }]));
+  const latestAction = new Map<string, string>();
+  const auditLogs = (auditResult.data || []).filter((row) => !row.actor_user_id || userIds.has(String(row.actor_user_id))).map((row) => toExportRows([row])[0]);
+  auditLogs.forEach((row) => {
+    const actorId = text(row.actorUserId);
+    if (actorId && !latestAction.has(actorId)) latestAction.set(actorId, text(row.createdAt));
+  });
+  const accounts = profiles.map((profile) => {
+    const userId = String(profile.auth_user_id);
+    const permissionRows = new Map(permissions.filter((row) => String(row.user_id) === userId).map((row) => [String(row.module_key), row]));
+    const identity = identityByUser.get(userId);
+    return {
+      id: userId,
+      username: profile.username,
+      displayName: profile.display_name,
+      accountType: profile.account_type,
+      status: profile.status,
+      propertyAccessMode: profile.property_access_mode,
+      propertyIds: accessByUser.get(userId) || [],
+      mustChangePassword: profile.must_change_password,
+      lastLoginAt: profile.last_login_at,
+      lastActivityAt: profile.last_activity_at,
+      latestActionAt: latestAction.get(userId) || null,
+      email: identity?.is_internal_email ? null : identity?.auth_email || null,
+      emailBound: Boolean(identity && !identity.is_internal_email),
+      disabledAt: profile.disabled_at,
+      modulePermissions: emptyModulePermissions().map((base) => {
+        const row = permissionRows.get(base.moduleKey);
+        return { moduleKey: base.moduleKey, canView: Boolean(row?.can_view), canCreate: Boolean(row?.can_create), canEdit: Boolean(row?.can_edit), canArchive: Boolean(row?.can_archive), canDelete: Boolean(row?.can_delete) };
+      }),
+      sensitivePermissions: clientSensitivePermissions(sensitiveByUser.get(userId) || null)
+    };
+  });
   return {
     properties: toExportRows(properties), rooms: toExportRows(rooms), tenants: toExportRows(tenants), contracts: toExportRows(contracts), rentPayments: toExportRows(rentPayments), expenses: toExportRows(expenses), deposits: toExportRows(deposits), viewingAppointments: toExportRows(viewingAppointments), tasks: toExportRows(tasks), partners: toExportRows(partners), partnerShares: toExportRows(partnerShares), partnerNameHistory: toExportRows(partnerNameHistory), propertyHistory: [],
-    settlementBatches, settlementSnapshots: settlementBatches.map((batch) => ({ batch, partners: partnerByBatch.get(String(batch.id)) || [], segments: segmentByBatch.get(String(batch.id)) || [], transfers: transferByBatch.get(String(batch.id)) || [] })), accounts: [], auditLogs: [], settings: {}
+    settlementBatches: toExportRows(settlementBatches), settlementSnapshots: settlementBatches.map((batch) => ({ batch: toExportRows([batch])[0], partners: toExportRows(partnerByBatch.get(String(batch.id)) || []), segments: toExportRows(segmentByBatch.get(String(batch.id)) || []), transfers: toExportRows(transferByBatch.get(String(batch.id)) || []) })), accounts, auditLogs, settings: { legacyPartnerRatios: { A: 50, B: 50 } }
+  };
+}
+
+function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | null) {
+  const source = (error && typeof error === "object" ? error : dryRun || {}) as Record<string, unknown>;
+  const message = text(source.message || source.error, "Restore transaction failed");
+  const details = nullableText(source.details);
+  const hint = nullableText(source.hint);
+  const code = text(source.code || source.errorCode, "restore_dry_run_failed");
+  const haystack = `${code} ${message} ${details || ""}`.toLowerCase();
+  const failureStage = text(source.failureStage) || (haystack.includes("foreign key") || code === "23503" ? "外键校验" : haystack.includes("unique") || code === "23505" ? "唯一键校验" : haystack.includes("json") ? "JSON格式校验" : "restore_transaction");
+  return {
+    error: "Restore Dry Run 失败",
+    code,
+    message,
+    details,
+    hint,
+    sqlState: code,
+    context: nullableText(source.context),
+    table: nullableText(source.table),
+    column: nullableText(source.column),
+    constraint: nullableText(source.constraint),
+    recordId: nullableText(source.recordId),
+    failureStage
   };
 }
 
@@ -176,8 +256,15 @@ export async function POST(request: Request) {
     const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
-      console.error("Restore Dry Run RPC failed", { workspaceOwnerId: context.profile.workspace_owner_id, function: "restore_workspace_backup_dry_run", rpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code } : null, dryRunError: dryRun?.error ? { error: dryRun.error, errorCode: dryRun.errorCode } : null });
-      return NextResponse.json({ error: "Restore Dry Run 失败，数据库变更已自动回滚。", code: "restore_dry_run_failed", report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
+      const diagnostic = restoreDiagnostic(error, (dryRun || null) as Record<string, unknown> | null);
+      console.error("Restore Dry Run RPC failed", {
+        rpcName: "restore_workspace_backup_dry_run",
+        workspaceOwnerId: context.profile.workspace_owner_id,
+        ...diagnostic,
+        rawRpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code } : null,
+        rawDryRun: dryRun || null
+      });
+      return NextResponse.json({ ...diagnostic, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
     }
     return NextResponse.json({ ok: true, dryRun: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: dryRun.delete || { success: true }, import: dryRun.import || { success: true }, fieldValidation: dryRun.fieldValidation || { success: true }, consistencyValidation: dryRun.consistencyValidation || { success: true }, transactionRolledBack: true, databaseUnchanged: true } });
   } catch (error) {
