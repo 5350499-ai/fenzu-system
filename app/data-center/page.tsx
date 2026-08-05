@@ -17,6 +17,7 @@ import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore } from "@/lib/data-export";
 import { downloadFile } from "@/lib/download-adapter";
+import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -58,6 +59,8 @@ export default function DataCenterPage() {
   const [backupNotice, setBackupNotice] = useState("");
   const [backupStatus, setBackupStatus] = useState<BackupStatus>("preparing");
   const backupRunRef = useRef(false);
+
+  useEffect(() => installBackupRuntimeTrace(), []);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -147,45 +150,59 @@ export default function DataCenterPage() {
     if (!access.canSensitive("canExportData") || backupRunRef.current) return;
     if (["preparing", "generating", "validating", "handoff"].includes(backupStatus)) return;
     backupRunRef.current = true;
+    traceBackupRuntimeEvent("EXPORT_START");
     if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或其他文件。")) {
       setBackupStatus("ready");
       setBackupNotice("已取消备份");
+      traceBackupRuntimeEvent("EXPORT_CANCELLED");
       backupRunRef.current = false;
       return;
     }
     setBackupCreating(true); setBackupStatus("generating"); setBackupNotice("正在生成备份…");
     const now = new Date();
     try {
+      traceBackupRuntimeEvent("CREATE_PAYLOAD");
       const payload = await createDataExportPayload(exportData, now.toISOString(), {
         backupType: "local", exportedBy: access.userId || null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
       });
+      traceBackupRuntimeEvent("JSON_CREATED");
       setBackupStatus("validating");
       setBackupNotice("正在校验…");
       const reparsed = JSON.parse(JSON.stringify(payload));
+      traceBackupRuntimeEvent("CHECKSUM_OK");
+      traceBackupRuntimeEvent("DRY_RUN_START");
       const dryRun = await dryRunRestore(reparsed);
       if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
+      traceBackupRuntimeEvent("DRY_RUN_OK");
       const file = buildExportFile(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
+      traceBackupRuntimeEvent("FILE_CREATED", { size: file.size });
       setBackupCreating(false);
       setBackupStatus("handoff");
       setBackupNotice("正在调用系统保存…");
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       setBackupStatus("complete");
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
+      traceBackupRuntimeEvent("DOWNLOAD_START");
       void downloadFile(file, { title: "咱家分租备份", fallbackOnShareError: false }).then((result) => {
+        traceBackupRuntimeEvent("DOWNLOAD_RETURN", { method: result.method, shareCancelled: result.shareCancelled });
         if (result.shareCancelled) {
           setBackupStatus("ready");
           setBackupNotice("已取消");
         }
       }).catch(() => {
+        traceBackupRuntimeEvent("DOWNLOAD_REJECT");
         setBackupStatus("error");
         setBackupNotice("文件生成失败，请稍后重试。");
       });
     } catch {
+      traceBackupRuntimeEvent("EXPORT_ERROR");
       setBackupStatus("error");
       setBackupNotice("文件生成失败，请稍后重试。");
     } finally {
+      traceBackupRuntimeEvent("FINALLY_ENTER");
       backupRunRef.current = false;
       setBackupCreating(false);
+      traceBackupRuntimeEvent("FINALLY_EXIT");
     }
   }
 
