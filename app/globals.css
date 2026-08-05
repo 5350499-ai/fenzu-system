@@ -6569,6 +6569,13 @@ td:last-child {
   font-size: 13px;
 }
 
+.data-center-restore-table { display: table; }
+.data-center-restore-table thead { display: table-header-group; }
+.data-center-restore-table tbody { display: table-row-group; }
+.data-center-restore-table tr { display: table-row; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.data-center-restore-table th,
+.data-center-restore-table td { display: table-cell; }
+
 .data-center-restore-table th,
 .data-center-restore-table td {
   padding: 10px 8px;

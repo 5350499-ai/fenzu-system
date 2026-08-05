@@ -92,6 +92,7 @@ export default function DataCenterPage() {
   const [exportSheetOpen, setExportSheetOpen] = useState(false);
   const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
   const [backupCreating, setBackupCreating] = useState(false);
+  const [backupRetryFile, setBackupRetryFile] = useState<File | null>(null);
   const [backupNotice, setBackupNotice] = useState("点击创建备份后开始读取数据");
   const [backupStatus, setBackupStatus] = useState<BackupStatus>("ready");
   const backupRunRef = useRef(false);
@@ -194,6 +195,7 @@ export default function DataCenterPage() {
       return;
     }
     setBackupCreating(true); setBackupStatus("preparing"); setBackupNotice("正在读取数据，请稍候…");
+    setBackupRetryFile(null);
     const now = new Date();
     try {
       const exportDataForBackup = await loadExportData();
@@ -231,12 +233,15 @@ export default function DataCenterPage() {
         }
         if (canShareFile) {
           await navigator.share({ files: [file] });
+          setBackupRetryFile(null);
         } else {
           await downloadFile(file, { preferShare: false });
+          setBackupRetryFile(file);
         }
         setBackupStatus("complete");
         setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
       } catch {
+        setBackupRetryFile(file);
         setBackupStatus("complete");
         setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
       }
@@ -249,6 +254,23 @@ export default function DataCenterPage() {
       backupRunRef.current = false;
       setBackupCreating(false);
       traceBackupRuntimeEvent("FINALLY_EXIT");
+    }
+  }
+
+  async function retryBackupDownload() {
+    if (!backupRetryFile || backupCreating) return;
+    setBackupCreating(true);
+    setBackupStatus("handoff");
+    setBackupNotice("正在重新下载 Backup…");
+    try {
+      await downloadFile(backupRetryFile, { preferShare: false });
+      setBackupStatus("complete");
+      setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
+    } catch {
+      setBackupStatus("complete");
+      setBackupNotice("备份文件已生成，请重新点击下载 Backup。");
+    } finally {
+      setBackupCreating(false);
     }
   }
 
@@ -319,6 +341,7 @@ export default function DataCenterPage() {
           {backupButtonLabel}
         </PrimaryButton>
         <p className={`data-center-backup-status ${backupStatus === "error" ? "data-center-backup-status--error" : backupStatus === "ready" || backupStatus === "complete" ? "data-center-backup-status--success" : ""}`} role="status" aria-live="polite">{backupStatusMessage}</p>
+        {backupRetryFile ? <SecondaryButton type="button" disabled={backupCreating} onClick={() => void retryBackupDownload()}>重新下载 Backup</SecondaryButton> : null}
         {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
       </SectionCard>
       <SectionCard className="data-center-card">
