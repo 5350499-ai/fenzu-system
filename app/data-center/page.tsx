@@ -418,9 +418,15 @@ function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { prev
   const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
   const [restoreReport, setRestoreReport] = useState<RestoreDryRunReport | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (step === "confirm") {
+      requestAnimationFrame(() => confirmationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }, [step]);
 
   if (step === "confirm") {
-    return <div className="data-center-restore-preview">
+    return <div ref={confirmationRef} className="data-center-restore-preview">
       <div className="data-center-restore-warning" role="alert">
         <strong>⚠ 即将恢复备份</strong>
         <p>恢复将覆盖当前所有业务数据。</p>
@@ -439,10 +445,10 @@ function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { prev
       </p>
       {restoreActionError ? <p className="data-center-alert data-center-alert--warning" role="status">{restoreActionError}</p> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
-      {restoreReport ? <div className="data-center-restore-report" role="status"><strong>Restore Report</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
+      {restoreReport ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
       <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        <PrimaryButton type="button" disabled={!confirmed || restoring || Boolean(restoreReport)} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); setRestoreReport(null); try { const report = await onRestore(payload); setRestoreReport(report); setRestoreActionSuccess("Restore Dry Run 成功，真实恢复预计可以安全执行，本次未修改任何数据。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore Dry Run 失败，数据库变更已自动回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在演习…" : restoreReport ? "演习已完成" : "开始 Restore Dry Run"}</PrimaryButton>
+        <PrimaryButton type="button" disabled={!confirmed || restoring || Boolean(restoreReport)} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); setRestoreReport(null); try { const report = await onRestore(payload); setRestoreReport(report); setRestoreActionSuccess("Restore Dry Run 成功，真实恢复预计可以安全执行，本次未修改任何数据。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore Dry Run 失败，数据库变更已自动回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在演习…" : restoreReport ? "演习已完成" : "开始恢复模拟（Dry Run）"}</PrimaryButton>
       </div>
     </div>;
   }

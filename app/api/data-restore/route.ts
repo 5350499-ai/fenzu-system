@@ -155,9 +155,9 @@ export async function POST(request: Request) {
     const currentData = await loadServerBackupData(admin, context.profile.workspace_owner_id);
     const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
     const backupPath = `${context.profile.workspace_owner_id}/before-restore-${beforeRestore.metadata.backupId}.json`;
-    const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json;charset=utf-8", upsert: false });
+    const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json", upsert: false });
     if (upload.error) {
-      console.error("BeforeRestore upload failed", { code: upload.error.name || "storage_upload_failed", message: upload.error.message });
+      console.error("BeforeRestore upload failed", { workspaceOwnerId: context.profile.workspace_owner_id, bucket: BACKUP_BUCKET, objectPath: backupPath, serviceRole: true, rls: "bypassed_by_service_role", code: upload.error.name || "storage_upload_failed", message: upload.error.message });
       return NextResponse.json({ error: "BeforeRestore 上传失败，未修改任何数据。请稍后重试。", code: "before_restore_upload_failed" }, { status: 503 });
     }
     const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
