@@ -103,9 +103,11 @@ export default function DataCenterPage() {
 
   useEffect(() => installBackupRuntimeTrace(), []);
 
-  async function loadExportData() {
-    setLoading(true);
-    setError("");
+  async function loadExportData(updatePageState = true) {
+    if (updatePageState) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const properties = access.can("properties", "view") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
       const rooms = access.can("rooms", "view") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(properties)) : [];
@@ -150,13 +152,15 @@ export default function DataCenterPage() {
         partnerNameHistory: nextHistory, propertyHistory: [], settlementBatches: batches, settlementSnapshots: snapshots,
         accounts: nextAccounts, auditLogs: nextAuditLogs, settings: { legacyPartnerRatios: nextPartnerRatios }
       };
-      setData(nextData); setTasks(taskRows); setViewingAppointments(appointments); setPartners(nextPartners); setPartnerShares(nextShares);
-      setNameHistory(nextHistory); setSettlementBatches(batches); setSettlementSnapshots(snapshots); setAccounts(nextAccounts); setAuditLogs(nextAuditLogs);
-      setPartnerRatios(nextPartnerRatios);
-      setDataLoaded(true);
+      if (updatePageState) {
+        setData(nextData); setTasks(taskRows); setViewingAppointments(appointments); setPartners(nextPartners); setPartnerShares(nextShares);
+        setNameHistory(nextHistory); setSettlementBatches(batches); setSettlementSnapshots(snapshots); setAccounts(nextAccounts); setAuditLogs(nextAuditLogs);
+        setPartnerRatios(nextPartnerRatios);
+        setDataLoaded(true);
+      }
       return nextExportData;
     } finally {
-      setLoading(false);
+      if (updatePageState) setLoading(false);
     }
   }
 
@@ -217,10 +221,24 @@ export default function DataCenterPage() {
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
       traceBackupRuntimeEvent("DOWNLOAD_START");
       try {
-        await navigator.share({ files: [file] });
+        let canShareFile = false;
+        try {
+          canShareFile = typeof navigator.canShare === "function"
+            && typeof navigator.share === "function"
+            && navigator.canShare({ files: [file] });
+        } catch {
+          canShareFile = false;
+        }
+        if (canShareFile) {
+          await navigator.share({ files: [file] });
+        } else {
+          await downloadFile(file, { preferShare: false });
+        }
+        setBackupStatus("complete");
+        setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
       } catch {
         setBackupStatus("complete");
-        setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
+        setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
       }
     } catch {
       traceBackupRuntimeEvent("EXPORT_ERROR");
@@ -281,7 +299,7 @@ export default function DataCenterPage() {
       const integrity = validateDataExportIntegrity(parsed);
       if (!integrity.valid) throw new Error(integrity.errors[0] || "备份文件校验失败，请选择完整文件。");
       if (!await verifyDataExportChecksum(parsed)) throw new Error("备份校验失败，文件可能已损坏。");
-      const currentData = await loadExportData();
+      const currentData = await loadExportData(false);
       setRestorePreview({ fileName: file.name, fileSize: file.size, payload: parsed, currentData });
     } catch (previewError) {
       setRestoreError(previewError instanceof Error ? previewError.message : "备份文件无法读取，请重新选择。");
