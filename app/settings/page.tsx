@@ -28,8 +28,6 @@ import {
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { rentIncomeForPayment } from "@/lib/profit";
-import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
-import { Download, HardDriveDownload } from "lucide-react";
 import { downloadFile } from "@/lib/download-adapter";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -58,13 +56,11 @@ export default function SettingsPage() {
     deposits: []
   });
   const [lastBackupAt, setLastBackupAt] = useState("");
-  const [partnerRatios, setPartnerRatios] = useState<PartnerRatios>({ A: 50, B: 50 });
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
     if (!access.ready) return;
-    setPartnerRatios(loadPartnerRatios());
     async function load() {
       const properties = access.can("properties", "view")
         ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties())
@@ -98,18 +94,6 @@ export default function SettingsPage() {
   }, [access.ready]);
 
   const settlement = useMemo(() => buildSettlementRows(data), [data]);
-
-  function saveRatios() {
-    const a = Number(partnerRatios.A || 0);
-    const b = Number(partnerRatios.B || 0);
-    if (a < 0 || b < 0 || Math.round(a + b) !== 100) {
-      window.alert("A/B比例合计必须等于100%。");
-      return;
-    }
-    savePartnerRatios({ A: a, B: b });
-    setPartnerRatios({ A: a, B: b });
-    window.alert("合伙人比例已保存。");
-  }
 
   async function loadLastBackupTime() {
     if (!isSupabaseConfigured || !supabase) {
@@ -174,7 +158,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <AppLayout title="设置" description="数据备份、导出和系统参数。">
+    <AppLayout title="设置" description="系统设置与 Backup &amp; Restore。">
       <section className="card panel">
         <div className="panel-header"><div><h2 className="panel-title">合伙人管理</h2><p className="muted">管理合伙人姓名、状态及各房源利润比例。</p></div></div>
         <Link className="btn primary" href="/partners">打开合伙人管理</Link>
@@ -188,24 +172,13 @@ export default function SettingsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">数据安全</h2>
-            <p className="muted">先做备份和导出；恢复功能后续再加。</p>
+            <h2 className="panel-title">Backup &amp; Restore（备份与恢复）</h2>
+            <p className="muted">管理业务数据备份、恢复入口和报表导出。</p>
           </div>
         </div>
-        {false && <div className="settings-actions">
-          {access.canSensitive("canManageSettings") ? <button className="btn primary" disabled={loading || working} onClick={backupNow} type="button">
-            <HardDriveDownload size={17} /> 立即备份
-          </button> : null}
-          {access.canSensitive("canExportData") ? <button className="btn" disabled={loading || working} onClick={exportExcel} type="button">
-            <Download size={17} /> 导出Excel
-          </button> : null}
-          {access.canSensitive("canExportData") ? <button className="btn" disabled={loading || working} onClick={exportCsv} type="button">
-            <Download size={17} /> 导出CSV
-          </button> : null}
-        </div>}
         <div className="detail-grid">
           <div className="detail-field"><span>最近备份时间</span><strong>{lastBackupAt ? formatDateTime(lastBackupAt) : "暂无备份"}</strong></div>
-          <div className="detail-field"><span>导出内容</span><strong>房源、房间、租客、收租、支出、合同、A/B归属、合伙结算</strong></div>
+          <div className="detail-field"><span>业务数据</span><strong>房源、房间、租客、收租、支出、合同、合伙结算</strong></div>
         </div>
         <div className="settings-actions data-center-settings-entry">
           <Link className="btn primary" href="/data-center">打开备份与恢复（Backup &amp; Restore）</Link>
@@ -218,12 +191,11 @@ export default function SettingsPage() {
       </section>
 
       <section className="card panel">
-        <h2 className="panel-title">后续设置项</h2>
+        <h2 className="panel-title">基础设置</h2>
         <div className="settings-list">
           <span>默认货币</span>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>
-          <span>数据恢复</span>
         </div>
       </section>
     </AppLayout>
