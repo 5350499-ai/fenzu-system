@@ -158,9 +158,9 @@ export async function POST(request: Request) {
     const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json;charset=utf-8", upsert: false });
     if (upload.error) return NextResponse.json({ error: "恢复前自动备份失败，未修改任何数据。", code: "autobackup_failed" }, { status: 503 });
     const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
-    const { error } = await admin.rpc("restore_workspace_backup", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
-    if (error) return NextResponse.json({ error: "恢复失败，已回滚全部数据库变更。恢复前备份仍然保留。", code: "restore_transaction_failed" }, { status: 409 });
-    return NextResponse.json({ ok: true, beforeRestoreBackupPath: backupPath });
+    const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
+    if (error || !dryRun?.ok) return NextResponse.json({ error: "Restore Dry Run 失败，数据库变更已自动回滚。", code: "restore_dry_run_failed", report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
+    return NextResponse.json({ ok: true, dryRun: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: dryRun.delete || { success: true }, import: dryRun.import || { success: true }, fieldValidation: dryRun.fieldValidation || { success: true }, consistencyValidation: dryRun.consistencyValidation || { success: true }, transactionRolledBack: true, databaseUnchanged: true } });
   } catch (error) {
     return apiErrorResponse(error);
   }

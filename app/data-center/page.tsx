@@ -349,7 +349,10 @@ export default function DataCenterPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ payload })
     });
-    const result = await response.json().catch(() => null) as { error?: string } | null;
+    const result = await response.json().catch(() => null) as { error?: string; report?: RestoreDryRunReport } | null;
+    if (!response.ok) throw new Error(result?.error || "Restore Dry Run 失败，数据库变更已自动回滚。");
+    if (!result?.report) throw new Error("Restore Dry Run 未返回完整检查报告。");
+    return result.report;
     if (!response.ok) throw new Error(result?.error || "恢复失败，数据库变更已回滚。");
   }
 
@@ -387,7 +390,18 @@ function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; t
 function CountSummary({ counts, loading, loaded }: { counts: Record<string, number>; loading: boolean; loaded: boolean }) { return <div className="data-center-counts"><strong>预计备份内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : !loaded ? <span className="data-center-muted">点击创建备份后读取数据</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>; }
 function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) { return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>; }
 
-function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onRestore: (payload: DataExportPayload) => Promise<void>; onBack: () => void }) {
+type RestoreDryRunReport = {
+  beforeRestore: { success: boolean };
+  upload: { success: boolean };
+  delete: { success: boolean };
+  import: { success: boolean };
+  fieldValidation: { success: boolean };
+  consistencyValidation: { success: boolean };
+  transactionRolledBack: boolean;
+  databaseUnchanged: boolean;
+};
+
+function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onRestore: (payload: DataExportPayload) => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const keys = Object.keys(payload.data);
@@ -402,6 +416,7 @@ function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { prev
   const [confirmed, setConfirmed] = useState(false);
   const [restoreActionError, setRestoreActionError] = useState("");
   const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
+  const [restoreReport, setRestoreReport] = useState<RestoreDryRunReport | null>(null);
   const [restoring, setRestoring] = useState(false);
 
   if (step === "confirm") {
@@ -424,9 +439,10 @@ function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { prev
       </p>
       {restoreActionError ? <p className="data-center-alert data-center-alert--warning" role="status">{restoreActionError}</p> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
+      {restoreReport ? <div className="data-center-restore-report" role="status"><strong>Restore Report</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
       <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        <PrimaryButton type="button" disabled={!confirmed || restoring} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); try { await onRestore(payload); setRestoreActionSuccess("恢复完成，数据库已通过校验并提交事务。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复失败，数据库变更已回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在恢复…" : "开始恢复"}</PrimaryButton>
+        <PrimaryButton type="button" disabled={!confirmed || restoring || Boolean(restoreReport)} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); setRestoreReport(null); try { const report = await onRestore(payload); setRestoreReport(report); setRestoreActionSuccess("Restore Dry Run 成功，真实恢复预计可以安全执行，本次未修改任何数据。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore Dry Run 失败，数据库变更已自动回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在演习…" : restoreReport ? "演习已完成" : "开始 Restore Dry Run"}</PrimaryButton>
       </div>
     </div>;
   }
