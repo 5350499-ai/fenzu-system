@@ -2,6 +2,7 @@
 
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
 import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "./attachment-file-limits";
+import { downloadFile } from "./download-adapter";
 
 export type StoredFile = {
   id: string;
@@ -126,23 +127,14 @@ export async function openStoredFile(file: StoredFile) {
 export async function downloadStoredFile(file: StoredFile) {
   if (file.storageProvider === "google_drive") {
     const blob = await getGoogleDriveBlob(file, "download");
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = file.fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    await downloadFile(new File([blob], file.fileName, { type: file.fileType || blob.type || "application/octet-stream" }), { title: file.fileName });
     return;
   }
   const url = await getSignedUrl(file, "download");
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("无法下载附件，请稍后重试。");
+  const blob = await response.blob();
+  await downloadFile(new File([blob], file.fileName, { type: file.fileType || blob.type || "application/octet-stream" }), { title: file.fileName });
 }
 
 export async function deleteStoredFile(file: StoredFile) {

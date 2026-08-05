@@ -30,6 +30,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { loadPartnerRatios, PartnerRatios, savePartnerRatios } from "@/lib/partner-settings";
 import { Download, HardDriveDownload } from "lucide-react";
+import { downloadFile } from "@/lib/download-adapter";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -136,7 +137,9 @@ export default function SettingsPage() {
       const exportedAt = new Date().toISOString();
       const payload = JSON.stringify({ exportedAt, version: 1, data, settlement }, null, 2);
       if (!isSupabaseConfigured || !supabase) {
-        downloadBlob(`分租管理备份-${stamp(exportedAt)}.json`, payload, "application/json;charset=utf-8");
+        const file = new File([payload], `分租管理备份-${stamp(exportedAt)}.json`, { type: "application/json;charset=utf-8" });
+        setWorking(false);
+        void downloadFile(file, { title: "咱家分租备份" });
         window.localStorage.setItem("last-system-backup-at", exportedAt);
         setLastBackupAt(exportedAt);
         return;
@@ -163,11 +166,11 @@ export default function SettingsPage() {
   }
 
   function exportCsv() {
-    downloadBlob(`分租管理数据-${stamp(new Date().toISOString())}.csv`, buildCsvExport(data, settlement), "text/csv;charset=utf-8");
+    void downloadFile(new File(["\uFEFF", buildCsvExport(data, settlement)], `分租管理数据-${stamp(new Date().toISOString())}.csv`, { type: "text/csv;charset=utf-8" }), { title: "咱家分租 CSV 导出" });
   }
 
   function exportExcel() {
-    downloadBlob(`分租管理数据-${stamp(new Date().toISOString())}.xls`, buildExcelExport(data, settlement), "application/vnd.ms-excel;charset=utf-8");
+    void downloadFile(new File(["\uFEFF", buildExcelExport(data, settlement)], `分租管理数据-${stamp(new Date().toISOString())}.xls`, { type: "application/vnd.ms-excel;charset=utf-8" }), { title: "咱家分租 Excel 导出" });
   }
 
   return (
@@ -285,16 +288,6 @@ function csvSection(title: string, headers: string[], rows: Array<Array<string |
 function csvCell(value: string | number | boolean) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, "\"\"")}"`;
-}
-
-function downloadBlob(fileName: string, content: string, type: string) {
-  const blob = new Blob(["\uFEFF", content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function stamp(value: string) {

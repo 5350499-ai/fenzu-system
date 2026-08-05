@@ -16,6 +16,7 @@ import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropert
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore } from "@/lib/data-export";
+import { downloadFile } from "@/lib/download-adapter";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -126,23 +127,9 @@ export default function DataCenterPage() {
     accounts, auditLogs, settings: { legacyPartnerRatios: partnerRatios }
   }), [data, tasks, viewingAppointments, partners, partnerShares, nameHistory, settlementBatches, settlementSnapshots, accounts, auditLogs, partnerRatios]);
 
-  function downloadExport(fileName: string, content: string, type: string) {
+  function buildExportFile(fileName: string, content: string, type: string) {
     const needsUtf8Bom = type.startsWith("text/csv") || type.includes("ms-excel");
-    const blob = new Blob([needsUtf8Bom ? "\uFEFF" : "", content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.rel = "noopener";
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    // Safari/iOS does not expose a reliable save/cancel event. Revoke later so
-    // the native download handoff has time to consume the Blob URL.
-    window.setTimeout(() => {
-      URL.revokeObjectURL(url);
-      link.remove();
-    }, 1500);
+    return new File([needsUtf8Bom ? "\uFEFF" : "", content], fileName, { type });
   }
 
   async function createBackup() {
@@ -160,8 +147,12 @@ export default function DataCenterPage() {
       const reparsed = JSON.parse(JSON.stringify(payload));
       const dryRun = await dryRunRestore(reparsed);
       if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
-      downloadExport(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
-      setBackupNotice("备份创建成功");
+      const file = buildExportFile(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
+      setBackupCreating(false);
+      setBackupNotice("文件已生成，请在系统菜单中选择保存位置。");
+      void downloadFile(file, { title: "咱家分租备份" }).then((result) => {
+        if (result.method === "download") setBackupNotice("文件已生成，浏览器正在处理下载。");
+      }).catch(() => setBackupNotice("文件生成失败，请稍后重试"));
     } catch {
       setBackupNotice("备份失败，请稍后重试");
     } finally { setBackupCreating(false); }
@@ -169,8 +160,8 @@ export default function DataCenterPage() {
 
   function exportTable(format: "excel" | "csv") {
     const now = new Date(); const stamp = now.toISOString().replace(/[:.]/g, "-");
-    if (format === "excel") downloadExport(`分租管理数据-${stamp}.xls`, buildExcelDataExport(exportData), "application/vnd.ms-excel;charset=utf-8");
-    else downloadExport(`分租管理数据-${stamp}.csv`, buildCsvDataExport(exportData), "text/csv;charset=utf-8");
+    if (format === "excel") void downloadFile(buildExportFile(`分租管理数据-${stamp}.xls`, buildExcelDataExport(exportData), "application/vnd.ms-excel;charset=utf-8"), { title: "咱家分租 Excel 导出" });
+    else void downloadFile(buildExportFile(`分租管理数据-${stamp}.csv`, buildCsvDataExport(exportData), "text/csv;charset=utf-8"), { title: "咱家分租 CSV 导出" });
     setExportSheetOpen(false);
   }
 
