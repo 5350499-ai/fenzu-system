@@ -176,27 +176,8 @@ export default function SettingsPage() {
   return (
     <AppLayout title="设置" description="数据备份、导出和系统参数。">
       <section className="card panel">
-        <div className="panel-header">
-          <div>
-            <h2 className="panel-title">合伙人设置</h2>
-            <p className="muted">当前先支持 A/B，合计必须为 100%。旧版结算比例，仅供当前A/B结算页面使用。新的房源合伙比例请进入“合伙人管理”。</p>
-          </div>
-        </div>
-        <div className="filter-grid">
-          <div className="field">
-            <label>A比例</label>
-            <input type="number" min="0" max="100" value={partnerRatios.A} onChange={(event) => setPartnerRatios((current) => ({ ...current, A: Number(event.target.value || 0) }))} />
-          </div>
-          <div className="field">
-            <label>B比例</label>
-            <input type="number" min="0" max="100" value={partnerRatios.B} onChange={(event) => setPartnerRatios((current) => ({ ...current, B: Number(event.target.value || 0) }))} />
-          </div>
-          <div className="field">
-            <label>合计</label>
-            <input readOnly value={`${Number(partnerRatios.A || 0) + Number(partnerRatios.B || 0)}%`} />
-          </div>
-          {access.canSensitive("canManageSettings") ? <button className="btn primary" onClick={saveRatios} type="button">保存比例</button> : null}
-        </div>
+        <div className="panel-header"><div><h2 className="panel-title">合伙人管理</h2><p className="muted">管理合伙人姓名、状态及各房源利润比例。</p></div></div>
+        <Link className="btn primary" href="/partners">打开合伙人管理</Link>
       </section>
 
       {access.canSensitive("canManageSettings") ? <section className="card panel">
@@ -227,7 +208,7 @@ export default function SettingsPage() {
           <div className="detail-field"><span>导出内容</span><strong>房源、房间、租客、收租、支出、合同、A/B归属、合伙结算</strong></div>
         </div>
         <div className="settings-actions data-center-settings-entry">
-          <Link className="btn primary" href="/data-center">打开数据管理</Link>
+          <Link className="btn primary" href="/data-center">打开备份与恢复（Backup &amp; Restore）</Link>
         </div>
       </section>
 
@@ -239,7 +220,6 @@ export default function SettingsPage() {
       <section className="card panel">
         <h2 className="panel-title">后续设置项</h2>
         <div className="settings-list">
-          {access.isOwner ? <Link className="settings-list-link settings-action-row" href="/partners"><span>合伙人管理</span><span aria-hidden="true">→</span></Link> : <span>合伙人管理（仅Owner）</span>}
           <span>默认货币</span>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>
