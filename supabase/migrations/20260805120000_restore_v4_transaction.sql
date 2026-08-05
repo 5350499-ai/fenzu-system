@@ -184,6 +184,31 @@ begin
     raise exception 'Restore validation failed: restored record counts do not match the Backup V1 payload' using errcode = '23514';
   end if;
 
+  -- Field-level validation before commit. Timestamp audit fields are excluded
+  -- from the JSON comparison because PostgreSQL and JSON use different ISO
+  -- renderings; business fields, IDs, amounts, dates, statuses and FKs remain
+  -- compared exactly.
+  if
+    exists (select 1 from jsonb_array_elements(coalesce(p_data->'properties','[]'::jsonb)) x where not exists (select 1 from public.properties r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'rooms','[]'::jsonb)) x where not exists (select 1 from public.rooms r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'tenants','[]'::jsonb)) x where not exists (select 1 from public.tenants r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'contracts','[]'::jsonb)) x where not exists (select 1 from public.contracts r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'rentPayments','[]'::jsonb)) x where not exists (select 1 from public.rent_payments r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'expenses','[]'::jsonb)) x where not exists (select 1 from public.expenses r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'deposits','[]'::jsonb)) x where not exists (select 1 from public.deposits r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'viewingAppointments','[]'::jsonb)) x where not exists (select 1 from public.viewing_appointments r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'tasks','[]'::jsonb)) x where not exists (select 1 from public.tasks r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'partners','[]'::jsonb)) x where not exists (select 1 from public.partners r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'partnerShares','[]'::jsonb)) x where not exists (select 1 from public.partner_property_shares r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at'-'updated_at')=(x-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'partnerNameHistory','[]'::jsonb)) x where not exists (select 1 from public.partner_name_history r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at')=(x-'created_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'settlementBatches','[]'::jsonb)) x where not exists (select 1 from public.partner_settlement_batches r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'period_range'-'created_at'-'updated_at')=(x-'period_range'-'created_at'-'updated_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'settlementPartnerSnapshots','[]'::jsonb)) x where not exists (select 1 from public.partner_settlement_partner_snapshots r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at')=(x-'created_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'settlementSegmentSnapshots','[]'::jsonb)) x where not exists (select 1 from public.partner_settlement_segment_snapshots r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at')=(x-'created_at')))
+    or exists (select 1 from jsonb_array_elements(coalesce(p_data->'settlementTransferSnapshots','[]'::jsonb)) x where not exists (select 1 from public.partner_settlement_transfer_snapshots r where r.id=(x->>'id')::uuid and (to_jsonb(r)-'created_at')=(x-'created_at')))
+  then
+    raise exception 'Restore validation failed: restored fields do not match the Backup V1 payload' using errcode = '23514';
+  end if;
+
   insert into public.audit_logs (log_category,actor_user_id,action_type,module_key,entity_type,entity_id,after_data,description)
   values ('business',p_actor_account_id,'restore_workspace_backup','data_center','workspace',p_workspace_owner_id,jsonb_build_object('backupBoundary','Backup V1'),'Restore V4 completed');
 end;

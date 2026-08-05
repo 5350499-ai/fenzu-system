@@ -26,6 +26,44 @@ function numberValue(value: unknown, fallback = 0) { return typeof value === "nu
 function booleanValue(value: unknown, fallback = false) { return typeof value === "boolean" ? value : fallback; }
 function iso(value: unknown) { return text(value) || new Date().toISOString(); }
 
+function toCamelKey(key: string) { return key.replace(/_([a-z])/g, (_, character: string) => character.toUpperCase()); }
+function toExportRows(value: unknown) {
+  return rows(value).map((row) => Object.fromEntries(Object.entries(row).map(([key, item]) => [toCamelKey(key), item])));
+}
+
+async function readRows(admin: ReturnType<typeof getSupabaseAdmin>, table: string, ownerColumn: string, ownerId: string) {
+  const { data, error } = await admin.from(table).select("*").eq(ownerColumn, ownerId);
+  if (error) throw new Error(`无法读取恢复前备份数据：${table}`);
+  return data || [];
+}
+
+async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
+  const [properties, rooms, tenants, contracts, rentPayments, expenses, deposits, viewingAppointments, tasks, partners, partnerShares, partnerNameHistory, settlementBatches] = await Promise.all([
+    readRows(admin, "properties", "user_id", ownerId), readRows(admin, "rooms", "user_id", ownerId), readRows(admin, "tenants", "user_id", ownerId),
+    readRows(admin, "contracts", "user_id", ownerId), readRows(admin, "rent_payments", "user_id", ownerId), readRows(admin, "expenses", "user_id", ownerId),
+    readRows(admin, "deposits", "user_id", ownerId), readRows(admin, "viewing_appointments", "user_id", ownerId), readRows(admin, "tasks", "user_id", ownerId),
+    readRows(admin, "partners", "workspace_owner_id", ownerId), readRows(admin, "partner_property_shares", "workspace_owner_id", ownerId), readRows(admin, "partner_name_history", "workspace_owner_id", ownerId),
+    readRows(admin, "partner_settlement_batches", "workspace_owner_id", ownerId)
+  ]);
+  const batchIds = settlementBatches.map((batch) => String(batch.id));
+  const [partnerSnapshots, segmentSnapshots, transferSnapshots] = await Promise.all(batchIds.length ? [
+    admin.from("partner_settlement_partner_snapshots").select("*").in("settlement_batch_id", batchIds),
+    admin.from("partner_settlement_segment_snapshots").select("*").in("settlement_batch_id", batchIds),
+    admin.from("partner_settlement_transfer_snapshots").select("*").in("settlement_batch_id", batchIds)
+  ] : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }]);
+  if (partnerSnapshots.error || segmentSnapshots.error || transferSnapshots.error) throw new Error("无法读取恢复前结算快照数据");
+  const group = (items: Array<Record<string, unknown>>) => items.reduce((map, row) => {
+    const key = String(row.settlement_batch_id); const list = map.get(key) || []; list.push(row); map.set(key, list); return map;
+  }, new Map<string, Record<string, unknown>[]>());
+  const partnerByBatch = group((partnerSnapshots.data || []) as Array<Record<string, unknown>>);
+  const segmentByBatch = group((segmentSnapshots.data || []) as Array<Record<string, unknown>>);
+  const transferByBatch = group((transferSnapshots.data || []) as Array<Record<string, unknown>>);
+  return {
+    properties: toExportRows(properties), rooms: toExportRows(rooms), tenants: toExportRows(tenants), contracts: toExportRows(contracts), rentPayments: toExportRows(rentPayments), expenses: toExportRows(expenses), deposits: toExportRows(deposits), viewingAppointments: toExportRows(viewingAppointments), tasks: toExportRows(tasks), partners: toExportRows(partners), partnerShares: toExportRows(partnerShares), partnerNameHistory: toExportRows(partnerNameHistory), propertyHistory: [],
+    settlementBatches, settlementSnapshots: settlementBatches.map((batch) => ({ batch, partners: partnerByBatch.get(String(batch.id)) || [], segments: segmentByBatch.get(String(batch.id)) || [], transfers: transferByBatch.get(String(batch.id)) || [] })), accounts: [], auditLogs: [], settings: {}
+  };
+}
+
 function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: string) {
   const source = payload.data;
   const properties = rows(source.properties).map((row) => ({
@@ -109,13 +147,13 @@ function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: stri
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request, true);
-    const body = await parseJson(request) as { payload?: unknown; currentData?: Record<string, unknown> };
+    const body = await parseJson(request) as { payload?: unknown };
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
     const integrity = await dryRunRestore(body.payload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
-    if (!body.currentData || typeof body.currentData !== "object") return NextResponse.json({ error: "恢复前无法创建当前数据备份。", code: "autobackup_failed" }, { status: 409 });
     const admin = getSupabaseAdmin();
-    const beforeRestore = await createDataExportPayload(body.currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
+    const currentData = await loadServerBackupData(admin, context.profile.workspace_owner_id);
+    const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
     const backupPath = `${context.profile.workspace_owner_id}/before-restore-${beforeRestore.metadata.backupId}.json`;
     const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json;charset=utf-8", upsert: false });
     if (upload.error) return NextResponse.json({ error: "恢复前自动备份失败，未修改任何数据。", code: "autobackup_failed" }, { status: 503 });

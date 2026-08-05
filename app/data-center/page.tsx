@@ -341,13 +341,13 @@ export default function DataCenterPage() {
     }
   }
 
-  async function executeRestore(payload: DataExportPayload, currentData: Record<string, unknown>) {
+  async function executeRestore(payload: DataExportPayload) {
     const session = await getValidSupabaseSession();
     if (!session?.access_token) throw new Error("登录已失效，请重新登录后再恢复。");
     const response = await fetch("/api/data-restore", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ payload, currentData })
+      body: JSON.stringify({ payload })
     });
     const result = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(result?.error || "恢复失败，数据库变更已回滚。");
@@ -387,7 +387,7 @@ function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; t
 function CountSummary({ counts, loading, loaded }: { counts: Record<string, number>; loading: boolean; loaded: boolean }) { return <div className="data-center-counts"><strong>预计备份内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : !loaded ? <span className="data-center-muted">点击创建备份后读取数据</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>; }
 function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) { return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>; }
 
-function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onRestore: (payload: DataExportPayload, currentData: Record<string, unknown>) => Promise<void>; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onRestore: (payload: DataExportPayload) => Promise<void>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const keys = Object.keys(payload.data);
@@ -426,7 +426,7 @@ function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { prev
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
       <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        <PrimaryButton type="button" disabled={!confirmed || restoring} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); try { await onRestore(payload, currentData); setRestoreActionSuccess("恢复完成，数据库已通过校验并提交事务。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复失败，数据库变更已回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在恢复…" : "开始恢复"}</PrimaryButton>
+        <PrimaryButton type="button" disabled={!confirmed || restoring} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); try { await onRestore(payload); setRestoreActionSuccess("恢复完成，数据库已通过校验并提交事务。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复失败，数据库变更已回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在恢复…" : "开始恢复"}</PrimaryButton>
       </div>
     </div>;
   }
