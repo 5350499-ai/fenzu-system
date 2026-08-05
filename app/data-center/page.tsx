@@ -15,7 +15,19 @@ import {
 import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dryRunRestore } from "@/lib/data-export";
+import {
+  BACKUP_FORMAT_VERSION,
+  SCHEMA_VERSION,
+  buildCsvDataExport,
+  buildExcelDataExport,
+  createDataExportPayload,
+  dryRunRestore,
+  formatBackupSize,
+  isDataExportPayload,
+  validateDataExportIntegrity,
+  verifyDataExportChecksum,
+  type DataExportPayload
+} from "@/lib/data-export";
 import { downloadFile } from "@/lib/download-adapter";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 
@@ -30,6 +42,7 @@ type CoreData = {
 };
 type ExportRow = Record<string, unknown> & { id: string };
 type BackupStatus = "preparing" | "ready" | "generating" | "validating" | "handoff" | "complete" | "error";
+type RestorePreview = { fileName: string; fileSize: number; payload: DataExportPayload };
 
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
 const countLabels: Record<string, string> = {
@@ -59,6 +72,9 @@ export default function DataCenterPage() {
   const [backupNotice, setBackupNotice] = useState("");
   const [backupStatus, setBackupStatus] = useState<BackupStatus>("preparing");
   const backupRunRef = useRef(false);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [restoreError, setRestoreError] = useState("");
 
   useEffect(() => installBackupRuntimeTrace(), []);
 
@@ -224,6 +240,36 @@ export default function DataCenterPage() {
     setExportSheetOpen(false);
   }
 
+  async function previewRestoreFile(file: File | undefined) {
+    setRestorePreview(null);
+    setRestoreError("");
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setRestoreError("请选择 .json 备份文件。");
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!isDataExportPayload(parsed)) {
+        throw new Error("文件不是本软件导出的 Backup V1 文件，或缺少必要字段。");
+      }
+      if (parsed.metadata.backupFormatVersion !== BACKUP_FORMAT_VERSION || parsed.metadata.schemaVersion !== SCHEMA_VERSION) {
+        throw new Error("此备份文件与当前软件版本不兼容，暂时无法预览。");
+      }
+      const integrity = validateDataExportIntegrity(parsed);
+      if (!integrity.valid) throw new Error(integrity.errors[0] || "备份文件校验失败，请选择完整文件。");
+      if (!await verifyDataExportChecksum(parsed)) throw new Error("备份校验失败，文件可能已损坏。");
+      setRestorePreview({ fileName: file.name, fileSize: file.size, payload: parsed });
+    } catch (previewError) {
+      setRestoreError(previewError instanceof Error ? previewError.message : "备份文件无法读取，请重新选择。");
+    }
+  }
+
+  function restoreCount(payload: DataExportPayload, key: string) {
+    const value = payload.data[key];
+    return Array.isArray(value) ? value.length : 0;
+  }
+
   return <AppLayout title="Backup & Restore" description="备份与恢复业务数据、导出报表并查看后续云端能力。">
     <div className="data-center-page">
       {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
@@ -237,7 +283,13 @@ export default function DataCenterPage() {
         <p className={`data-center-backup-status ${backupStatus === "error" ? "data-center-backup-status--error" : backupStatus === "ready" || backupStatus === "complete" ? "data-center-backup-status--success" : ""}`} role="status" aria-live="polite">{backupStatusMessage}</p>
         {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
       </SectionCard>
-      <SectionCard className="data-center-card"><DataCardHeader icon={<History size={20} />} title="恢复备份" description="暂未开放。后续恢复前会自动创建当前数据备份。" /><SecondaryButton type="button" disabled>恢复备份</SecondaryButton></SectionCard>
+      <SectionCard className="data-center-card">
+        <DataCardHeader icon={<History size={20} />} title="恢复备份" description="选择官方 JSON 备份文件，先查看恢复内容预览。当前不会修改任何数据。" />
+        <input ref={restoreInputRef} style={{ display: "none" }} type="file" accept=".json,application/json" onChange={(event) => void previewRestoreFile(event.target.files?.[0])} />
+        <SecondaryButton type="button" onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
+        {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
+        {restorePreview ? <RestorePreviewCard preview={restorePreview} count={restoreCount} onBack={() => { setRestorePreview(null); setRestoreError(""); }} /> : null}
+      </SectionCard>
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
       <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
@@ -250,3 +302,28 @@ export default function DataCenterPage() {
 function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><h2 className="panel-title">{title}</h2><p className="data-center-muted">{description}</p></div></div>; }
 function CountSummary({ counts, loading }: { counts: Record<string, number>; loading: boolean }) { return <div className="data-center-counts"><strong>预计备份内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>; }
 function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) { return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>; }
+
+function RestorePreviewCard({ preview, count, onBack }: { preview: RestorePreview; count: (payload: DataExportPayload, key: string) => number; onBack: () => void }) {
+  const { payload } = preview;
+  const rows = [
+    ["房源", count(payload, "properties")], ["房间", count(payload, "rooms")], ["租客", count(payload, "tenants")],
+    ["合同", count(payload, "contracts")], ["收租", count(payload, "rentPayments")], ["支出", count(payload, "expenses")],
+    ["押金", count(payload, "deposits")], ["看房预约", count(payload, "viewingAppointments")], ["待办", count(payload, "tasks")],
+    ["合伙人", count(payload, "partners")], ["比例方案", count(payload, "partnerShares")], ["结算批次", count(payload, "settlementBatches")],
+    ["结算快照", count(payload, "settlementSnapshots")]
+  ];
+  return <div className="data-center-restore-preview">
+    <div className="panel-header"><div><h3 className="panel-title">恢复预览</h3><p className="data-center-muted">当前仅预览，不会写入数据库或修改现有数据。</p></div></div>
+    <div className="detail-grid">
+      <div className="detail-field"><span>备份时间</span><strong>{new Date(payload.metadata.exportedAt).toLocaleString("zh-CN")}</strong></div>
+      <div className="detail-field"><span>文件大小</span><strong>{formatBackupSize(preview.fileSize)}</strong></div>
+      <div className="detail-field"><span>备份文件</span><strong>{preview.fileName}</strong></div>
+      <div className="detail-field"><span>数据条数</span><strong>{payload.metadata.recordCount}</strong></div>
+    </div>
+    <div className="data-center-counts">{rows.map(([label, value]) => <span key={label}><b>{label}</b><em>{value}</em></span>)}</div>
+    <div className="settings-actions">
+      <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
+      <PrimaryButton type="button" disabled>下一步（暂未实现）</PrimaryButton>
+    </div>
+  </div>;
+}
