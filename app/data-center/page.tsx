@@ -183,16 +183,8 @@ export default function DataCenterPage() {
       setBackupStatus("complete");
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
       traceBackupRuntimeEvent("DOWNLOAD_START");
-      void downloadFile(file, { title: "咱家分租备份", fallbackOnShareError: false }).then((result) => {
-        traceBackupRuntimeEvent("DOWNLOAD_RETURN", { method: result.method, shareCancelled: result.shareCancelled });
-        if (result.shareCancelled) {
-          setBackupStatus("ready");
-          setBackupNotice("已取消");
-        }
-      }).catch(() => {
-        traceBackupRuntimeEvent("DOWNLOAD_REJECT");
-        setBackupStatus("error");
-        setBackupNotice("文件生成失败，请稍后重试。");
+      await navigator.share({
+        files: [file]
       });
     } catch {
       traceBackupRuntimeEvent("EXPORT_ERROR");
