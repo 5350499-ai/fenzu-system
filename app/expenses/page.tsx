@@ -32,7 +32,7 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -56,6 +56,7 @@ const emptyExpense: BusinessExpense = {
 
 export default function ExpensesPage() {
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -285,7 +286,7 @@ export default function ExpensesPage() {
               <article className="finance-list-item" key={expense.id}>
                 <button className="finance-line expense-finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
-                  <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy)}</span>
+                  <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy, partnerDirectory)}</span>
                   <span>{expense.category || "-"}</span>
                   <strong>{euro(expense.amount)}</strong>
                   <StatusBadge tone={isVoided(expense.notes) ? "red" : "green"}>{isVoided(expense.notes) ? "已作废" : "已支出"}</StatusBadge>
@@ -293,6 +294,7 @@ export default function ExpensesPage() {
                 {expanded ? (
                   <ExpenseDetail
                     expense={expense}
+                    partnerDirectory={partnerDirectory}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     files={filesByExpense[expense.id] || []}
@@ -354,6 +356,7 @@ export default function ExpensesPage() {
 
 function ExpenseDetail({
   expense,
+  partnerDirectory,
   propertyName,
   roomName,
   files,
@@ -375,6 +378,7 @@ function ExpenseDetail({
   canDeleteFiles
 }: {
   expense: BusinessExpense;
+  partnerDirectory: Record<string, string>;
   propertyName: string;
   roomName: string;
   files: ExpenseFile[];
@@ -402,7 +406,7 @@ function ExpenseDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
-        <DetailField label="付款归属" value={expense.paidBy || "A"} />
+        <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
       </div>
       {canViewFiles ? <div className={`attachment-panel expense-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>

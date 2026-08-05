@@ -44,7 +44,7 @@ import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
@@ -94,6 +94,7 @@ const emptyTenantPayment: BusinessRentPayment = {
 export default function TenantsPage() {
   const actualMoveOutDateEnabled = isActualMoveOutDateEnabled();
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -902,6 +903,7 @@ export default function TenantsPage() {
                     saving={saving}
                     tenant={tenant}
                     depositStatus={depositStatus}
+                    partnerDirectory={partnerDirectory}
                   />
                 ) : null}
                 </article> : null}
@@ -1119,7 +1121,8 @@ function TenantDetail({
   onPermanentDelete,
   onAddFile,
   onRestore,
-  depositStatus
+  depositStatus,
+  partnerDirectory
 }: {
   tenant: BusinessTenant;
   contract?: BusinessContract | null;
@@ -1153,6 +1156,7 @@ function TenantDetail({
   onAddFile: (context: { tenantId: string; contractId: string | null }, file: File) => Promise<void>;
   onRestore: () => void;
   depositStatus: string;
+  partnerDirectory: Record<string, string>;
 }) {
   const archived = isArchivedTenant(tenant);
   const movedOut = tenant.status.includes("已退租");
@@ -1273,7 +1277,7 @@ function TenantDetail({
                     <span>押金 {euro(deposit)}</span>
                   </div>
                   <div className="payment-history-right">
-                    <span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</b></span>
+                    <span><b className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</b></span>
                     <span>{rentPayment ? "房租" : payment.incomeItem || payment.incomeType || "收入"} {euro(rent)}</span>
                     <strong>实收 {euro(payment.amountPaid)}</strong>
                   </div>

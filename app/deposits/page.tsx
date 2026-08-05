@@ -19,7 +19,7 @@ import {
   saveBusinessData
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { isLinkedRentDeposit } from "@/lib/profit";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -45,6 +45,7 @@ const partnerOptions = ["A", "B"];
 
 export default function DepositsPage() {
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -150,7 +151,7 @@ export default function DepositsPage() {
                   <td>{deposit.transactionDate || "-"}</td>
                   <td>{room?.name || "-"}</td>
                   <td>{tenant?.name || "-"}</td>
-                  <td><PartnerTag deposit={deposit} /></td>
+                  <td><PartnerTag deposit={deposit} directory={partnerDirectory} /></td>
                   <td>{euro(deposit.amount)}</td>
                   <td><StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge></td>
                   <td>{depositTypeLabel(deposit.type)}</td>
@@ -168,7 +169,7 @@ export default function DepositsPage() {
             const expanded = expandedNoteId === deposit.id;
             return (
               <article className="mobile-record-card" key={deposit.id}>
-                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><PartnerTag deposit={deposit} /> · <StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
+                <div className="mobile-record-title"><strong>{tenant?.name || "-"}</strong><span><PartnerTag deposit={deposit} directory={partnerDirectory} /> · <StatusBadge tone={depositTone(deposit.status)}>{deposit.status}</StatusBadge> · {euro(deposit.amount)}</span></div>
                 <div className="mobile-record-fields">
                   <div className="mobile-record-field"><span>房间</span><strong>{room?.name || "-"}</strong></div>
                   <div className="mobile-record-field"><span>类型</span><strong>{depositTypeLabel(deposit.type)}</strong></div>
@@ -211,9 +212,9 @@ function DepositActions({ onEdit, onVoid, onDelete, saving, canEdit, canArchive,
   return <div className="top-actions">{canEdit ? <button className="btn" onClick={onEdit} type="button"><Edit3 size={15} /> 编辑</button> : null}{canArchive ? <button className="btn" disabled={saving} onClick={onVoid} type="button"><Ban size={15} /> 作废</button> : null}{canDelete ? <button className="btn danger" disabled={saving} onClick={onDelete} type="button"><Trash2 size={15} /> 永久删除</button> : null}</div>;
 }
 
-function PartnerTag({ deposit }: { deposit: BusinessDeposit }) {
+function PartnerTag({ deposit, directory }: { deposit: BusinessDeposit; directory: Record<string, string> }) {
   const partner = depositPartnerValue(deposit);
-  return <span className={`partner-tag ${partnerClass(partner)}`}>{partnerLabel(partner)}</span>;
+  return <span className={`partner-tag ${partnerClass(partner)}`}>{partnerLabel(partner, directory)}</span>;
 }
 
 function depositPartnerValue(deposit: BusinessDeposit) {

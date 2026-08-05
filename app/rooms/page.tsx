@@ -27,6 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
 import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
@@ -48,6 +49,7 @@ const emptyRoom: BusinessRoom = {
 
 export default function RoomsPage() {
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -245,6 +247,7 @@ export default function RoomsPage() {
                     allPayments={payments}
                     allDeposits={deposits}
                     allTenants={tenants}
+                    partnerDirectory={partnerDirectory}
                     payments={payments.filter((payment) => payment.roomId === room.id)}
                     deposits={deposits.filter((deposit) => deposit.roomId === room.id)}
                     historyExpanded={expandedRoomHistoryIds.has(room.id)}
@@ -314,6 +317,7 @@ function RoomDetail({
   allPayments,
   allDeposits,
   allTenants,
+  partnerDirectory,
   payments,
   deposits,
   historyExpanded,
@@ -341,6 +345,7 @@ function RoomDetail({
   allPayments: BusinessRentPayment[];
   allDeposits: BusinessDeposit[];
   allTenants: BusinessTenant[];
+  partnerDirectory: Record<string, string>;
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   historyExpanded: boolean;

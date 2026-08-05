@@ -29,7 +29,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -79,6 +79,7 @@ function defaultCoverageEnd(startDate: string) {
 
 export default function RentPaymentsPage() {
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -631,7 +632,7 @@ export default function RentPaymentsPage() {
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{payment.paymentDate || payment.rentMonth}</span>
-                  <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy)}</span>
+                  <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</span>
                   <span>{isRentPayment(payment) ? `${room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
                   <strong>{euro(paymentListAmount(payment))}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
@@ -639,6 +640,7 @@ export default function RentPaymentsPage() {
                 {expanded ? (
                   <PaymentDetail
                     payment={payment}
+                    partnerDirectory={partnerDirectory}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     tenantName={tenant?.name || payment.incomeItem || "未填写租客"}
@@ -794,6 +796,7 @@ function TapSelect({
 
 function PaymentDetail({
   payment,
+  partnerDirectory,
   propertyName,
   roomName,
   tenantName,
@@ -817,6 +820,7 @@ function PaymentDetail({
   canDeleteFiles
 }: {
   payment: BusinessRentPayment;
+  partnerDirectory: Record<string, string>;
   propertyName: string;
   roomName: string;
   tenantName: string;
@@ -857,7 +861,7 @@ function PaymentDetail({
         {isRentPayment(payment) ? <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
         <DetailField label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
-        <DetailField label="收款归属" value={payment.receivedBy || "A"} />
+        <DetailField label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
       </div>
       {canViewFiles ? <div className={`attachment-panel rent-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>

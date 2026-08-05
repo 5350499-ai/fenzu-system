@@ -162,7 +162,10 @@ export async function POST(request: Request) {
     }
     const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
-    if (error || !dryRun?.ok) return NextResponse.json({ error: "Restore Dry Run 失败，数据库变更已自动回滚。", code: "restore_dry_run_failed", report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
+    if (error || !dryRun?.ok) {
+      console.error("Restore Dry Run RPC failed", { workspaceOwnerId: context.profile.workspace_owner_id, function: "restore_workspace_backup_dry_run", rpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code } : null, dryRunError: dryRun?.error ? { error: dryRun.error, errorCode: dryRun.errorCode } : null });
+      return NextResponse.json({ error: "Restore Dry Run 失败，数据库变更已自动回滚。", code: "restore_dry_run_failed", report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
+    }
     return NextResponse.json({ ok: true, dryRun: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: dryRun.delete || { success: true }, import: dryRun.import || { success: true }, fieldValidation: dryRun.fieldValidation || { success: true }, consistencyValidation: dryRun.consistencyValidation || { success: true }, transactionRolledBack: true, databaseUnchanged: true } });
   } catch (error) {
     return apiErrorResponse(error);

@@ -32,6 +32,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
 import { Archive, ChevronDown, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
@@ -56,6 +57,7 @@ const ScopedModuleContext = createContext<AccountModuleKey>("properties");
 
 export default function PropertyDetailPage() {
   const access = useAccountAccess();
+  const partnerDirectory = usePartnerDirectory();
   const params = useParams<{ id: string }>();
   const propertyId = params.id;
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -376,7 +378,7 @@ export default function PropertyDetailPage() {
             <CardField label="项目" value={expense.category} />
             <CardField label="金额" value={euro(expense.amount)} />
             {expense.roomId ? <CardField label="房间" value={scopedRooms.find((room) => room.id === expense.roomId)?.name || ""} /> : null}
-            {expense.paidBy ? <CardField label="付款归属" value={expense.paidBy} /> : null}
+            {expense.paidBy ? <CardField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} /> : null}
           </CompactRecordCard>)}
         </ScopedCardList>
       ) : null}

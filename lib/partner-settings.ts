@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { getPartners, type PartnerWorkspaceData } from "./partners";
+
 export type PartnerRatios = {
   A: number;
   B: number;
@@ -26,11 +29,32 @@ export function savePartnerRatios(ratios: PartnerRatios) {
   window.localStorage.setItem(key, JSON.stringify(ratios));
 }
 
-export function partnerLabel(partner?: string) {
+export function partnerLabel(partner?: string, directory?: Record<string, string>) {
   const value = (partner || "A").trim();
   const code = value.toUpperCase();
+  if (directory?.[value]) return directory[value];
+  if (directory?.[code]) return directory[code];
   if (code === "A" || code === "B") return code;
   return value || "A";
+}
+
+export function usePartnerDirectory() {
+  const [directory, setDirectory] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    void getPartners().then((data: PartnerWorkspaceData) => {
+      if (!active) return;
+      const next: Record<string, string> = {};
+      for (const partner of data.partners) {
+        next[partner.id] = partner.displayName;
+        if (partner.legacyCode) next[partner.legacyCode] = partner.displayName;
+        if (partner.legacyCode) next[partner.legacyCode.toUpperCase()] = partner.displayName;
+      }
+      setDirectory(next);
+    }).catch(() => { /* Existing A/B fallback remains if directory loading fails. */ });
+    return () => { active = false; };
+  }, []);
+  return directory;
 }
 
 export function partnerClass(partner?: string) {

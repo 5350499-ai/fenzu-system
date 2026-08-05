@@ -2884,6 +2884,8 @@ td:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.25;
+  align-self: center;
 }
 
 .finance-line strong {
@@ -2903,6 +2905,7 @@ td:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .partner-a {
@@ -3821,13 +3824,13 @@ td:last-child {
   }
 
   .expense-finance-line {
-    grid-template-columns: 82px 44px minmax(64px, 1fr) 72px 64px;
+    grid-template-columns: 78px minmax(48px, 58px) minmax(64px, 1fr) 72px 64px;
     gap: 4px;
     font-size: 11px;
   }
 
   .expense-finance-line .partner-tag {
-    max-width: 44px;
+    max-width: 58px;
     padding-inline: 5px;
   }
 
