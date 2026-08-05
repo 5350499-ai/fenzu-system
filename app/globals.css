@@ -6525,6 +6525,37 @@ td:last-child {
   color: var(--orange);
 }
 
+.data-center-restore-warning {
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--red) 55%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--red) 10%, var(--surface-soft));
+  color: var(--red);
+}
+
+.data-center-restore-warning strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.data-center-restore-warning p { margin: 4px 0 0; line-height: 1.5; }
+
+.data-center-restore-confirmation {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.data-center-restore-confirmation label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.data-center-restore-confirmation input { margin-top: 4px; flex: 0 0 auto; }
+
 .data-center-restore-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);
