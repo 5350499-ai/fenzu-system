@@ -380,6 +380,22 @@ a {
   color: var(--red);
 }
 
+.data-center-backup-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.data-center-backup-status--success {
+  color: var(--green);
+}
+
+.data-center-backup-status--error {
+  color: var(--red);
+}
+
 .warning-text {
   color: var(--amber);
 }

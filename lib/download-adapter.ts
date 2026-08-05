@@ -10,6 +10,8 @@ export type DownloadResult = {
 export type DownloadOptions = {
   title?: string;
   preferShare?: boolean;
+  /** Keep exports single-shot when iOS rejects after handing off to native UI. */
+  fallbackOnShareError?: boolean;
 };
 
 function isSharePreferredEnvironment() {
@@ -35,6 +37,7 @@ function downloadWithAnchor(file: File) {
 
 export async function downloadFile(file: File, options: DownloadOptions = {}): Promise<DownloadResult> {
   const preferShare = options.preferShare ?? isSharePreferredEnvironment();
+  const fallbackOnShareError = options.fallbackOnShareError ?? true;
   const canUseShare = preferShare
     && typeof navigator !== "undefined"
     && typeof navigator.canShare === "function"
@@ -52,15 +55,16 @@ export async function downloadFile(file: File, options: DownloadOptions = {}): P
         return { method: "share", shareAttempted: true, shareCancelled: false };
       } catch (error) {
         shareCancelled = error instanceof DOMException && error.name === "AbortError";
-        downloadWithAnchor(file);
+        if (fallbackOnShareError) downloadWithAnchor(file);
         return {
-          method: "download",
+          method: fallbackOnShareError ? "download" : "share",
           shareAttempted: true,
           shareCancelled,
           fallbackReason: shareCancelled ? "cancelled" : "error"
         };
       }
     } catch {
+      // canShare() failed before the native handoff; a normal download is safe here.
       downloadWithAnchor(file);
       return { method: "download", shareAttempted: true, shareCancelled, fallbackReason: "error" };
     }

@@ -48,13 +48,25 @@ test("uses Web Share when the file is shareable", async () => {
   }
 });
 
-test("falls back to Blob download when Web Share is cancelled", async () => {
+test("does not create a second download when a single-shot Web Share is cancelled", async () => {
   const mocks = installBrowserMocks({ canShare: () => true, share: async () => { throw new DOMException("cancelled", "AbortError"); } });
   try {
-    const result = await downloadFile(new File(["{}"], "backup.json", { type: "application/json" }));
-    assert.equal(result.method, "download");
+    const result = await downloadFile(new File(["{}"], "backup.json", { type: "application/json" }), { fallbackOnShareError: false });
+    assert.equal(result.method, "share");
     assert.equal(result.shareCancelled, true);
     assert.equal(result.fallbackReason, "cancelled");
+    assert.equal(mocks.clicks(), 0);
+  } finally {
+    mocks.restore();
+  }
+});
+
+test("keeps the default Blob fallback for non-backup exports", async () => {
+  const mocks = installBrowserMocks({ canShare: () => true, share: async () => { throw new Error("share failed"); } });
+  try {
+    const result = await downloadFile(new File(["{}"], "report.csv", { type: "text/csv" }));
+    assert.equal(result.method, "download");
+    assert.equal(result.fallbackReason, "error");
     assert.equal(mocks.clicks(), 1);
   } finally {
     mocks.restore();

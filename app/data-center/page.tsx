@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { SectionCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { ArrowDownToLine, Cloud, Crown, FileSpreadsheet, FileText, HardDriveDownload, History, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BusinessContract, BusinessDeposit, BusinessExpense, BusinessProperty, BusinessRentPayment,
   BusinessRoom, BusinessTenant, contractKey, depositKey, expenseKey, getInitialContracts,
@@ -28,6 +28,7 @@ type CoreData = {
   deposits: BusinessDeposit[];
 };
 type ExportRow = Record<string, unknown> & { id: string };
+type BackupStatus = "preparing" | "ready" | "generating" | "validating" | "handoff" | "complete" | "error";
 
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
 const countLabels: Record<string, string> = {
@@ -55,12 +56,16 @@ export default function DataCenterPage() {
   const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
   const [backupCreating, setBackupCreating] = useState(false);
   const [backupNotice, setBackupNotice] = useState("");
+  const [backupStatus, setBackupStatus] = useState<BackupStatus>("preparing");
+  const backupRunRef = useRef(false);
 
   useEffect(() => {
     if (!access.ready) return;
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setBackupStatus("preparing");
+      setBackupNotice("正在检查数据，请稍候…");
       setError("");
       try {
         const properties = access.can("properties", "view") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
@@ -104,9 +109,15 @@ export default function DataCenterPage() {
           setAccounts(Array.isArray(accountBody.accounts) ? accountBody.accounts : []);
           setAuditLogs(Array.isArray(auditBody.logs) ? auditBody.logs : []);
           setPartnerRatios(loadPartnerRatios());
+          setBackupStatus("ready");
+          setBackupNotice("✓ 已准备完成，可以创建备份");
         }
       } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "数据加载失败，请稍后重试。");
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "数据加载失败，请稍后重试。");
+          setBackupStatus("error");
+          setBackupNotice("正在检查数据失败，请刷新页面重试。");
+        }
       } finally { if (!cancelled) setLoading(false); }
     }
     void load();
@@ -133,30 +144,64 @@ export default function DataCenterPage() {
   }
 
   async function createBackup() {
-    if (!access.canSensitive("canExportData")) return;
+    if (!access.canSensitive("canExportData") || backupRunRef.current) return;
+    if (["preparing", "generating", "validating", "handoff"].includes(backupStatus)) return;
+    backupRunRef.current = true;
     if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或其他文件。")) {
+      setBackupStatus("ready");
       setBackupNotice("已取消备份");
+      backupRunRef.current = false;
       return;
     }
-    setBackupCreating(true); setBackupNotice("");
+    setBackupCreating(true); setBackupStatus("generating"); setBackupNotice("正在生成备份…");
     const now = new Date();
     try {
       const payload = await createDataExportPayload(exportData, now.toISOString(), {
         backupType: "local", exportedBy: access.userId || null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
       });
+      setBackupStatus("validating");
+      setBackupNotice("正在校验…");
       const reparsed = JSON.parse(JSON.stringify(payload));
       const dryRun = await dryRunRestore(reparsed);
       if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
       const file = buildExportFile(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
       setBackupCreating(false);
-      setBackupNotice("文件已生成，请在系统菜单中选择保存位置。");
-      void downloadFile(file, { title: "咱家分租备份" }).then((result) => {
-        if (result.method === "download") setBackupNotice("文件已生成，浏览器正在处理下载。");
-      }).catch(() => setBackupNotice("文件生成失败，请稍后重试"));
+      setBackupStatus("handoff");
+      setBackupNotice("正在调用系统保存…");
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      setBackupStatus("complete");
+      setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
+      void downloadFile(file, { title: "咱家分租备份", fallbackOnShareError: false }).then((result) => {
+        if (result.shareCancelled) {
+          setBackupStatus("ready");
+          setBackupNotice("已取消");
+        }
+      }).catch(() => {
+        setBackupStatus("error");
+        setBackupNotice("文件生成失败，请稍后重试。");
+      });
     } catch {
-      setBackupNotice("备份失败，请稍后重试");
-    } finally { setBackupCreating(false); }
+      setBackupStatus("error");
+      setBackupNotice("文件生成失败，请稍后重试。");
+    } finally {
+      backupRunRef.current = false;
+      setBackupCreating(false);
+    }
   }
+
+  const backupStatusMessage = backupStatus === "preparing" ? "正在检查数据，请稍候…"
+    : backupStatus === "ready" ? (backupNotice || "✓ 已准备完成，可以创建备份")
+    : backupStatus === "generating" ? "正在生成备份…"
+    : backupStatus === "validating" ? "正在校验…"
+    : backupStatus === "handoff" ? "正在调用系统保存…"
+    : backupStatus === "complete" ? "✓ 文件已生成，请在系统菜单中选择保存位置。"
+    : (backupNotice || "文件生成失败，请稍后重试。");
+  const backupButtonLabel = backupStatus === "preparing" ? "正在准备备份…"
+    : backupStatus === "generating" ? "正在生成备份…"
+    : backupStatus === "validating" ? "正在校验…"
+    : backupStatus === "handoff" ? "正在调用系统保存…"
+    : backupStatus === "complete" ? "完成"
+    : "创建备份";
 
   function exportTable(format: "excel" | "csv") {
     const now = new Date(); const stamp = now.toISOString().replace(/[:.]/g, "-");
@@ -172,10 +217,10 @@ export default function DataCenterPage() {
         <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
         <CountSummary counts={counts} loading={loading} />
         <p className="data-center-note"><ShieldCheck size={16} /> 创建备份会下载一份本地 JSON 文件，不会写入云端 Storage。</p>
-        <PrimaryButton type="button" disabled={loading || backupCreating || !access.canSensitive("canExportData")} onClick={() => void createBackup()}>
-          {backupCreating ? "正在创建备份…" : "创建备份"}
+        <PrimaryButton type="button" disabled={loading || backupCreating || backupStatus === "preparing" || backupStatus === "generating" || backupStatus === "validating" || backupStatus === "handoff" || !access.canSensitive("canExportData")} onClick={() => void createBackup()}>
+          {backupButtonLabel}
         </PrimaryButton>
-        {backupNotice ? <p className={backupNotice.includes("成功") || backupNotice.includes("取消") ? "success-text" : "danger-text"} role="status">{backupNotice}</p> : null}
+        <p className={`data-center-backup-status ${backupStatus === "error" ? "data-center-backup-status--error" : backupStatus === "ready" || backupStatus === "complete" ? "data-center-backup-status--success" : ""}`} role="status" aria-live="polite">{backupStatusMessage}</p>
         {!access.canSensitive("canExportData") ? <p className="data-center-muted">当前账号没有数据导出权限。</p> : null}
       </SectionCard>
       <SectionCard className="data-center-card"><DataCardHeader icon={<History size={20} />} title="恢复备份" description="暂未开放。后续恢复前会自动创建当前数据备份。" /><SecondaryButton type="button" disabled>恢复备份</SecondaryButton></SectionCard>
