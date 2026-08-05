@@ -6505,10 +6505,63 @@ td:last-child {
 .data-center-sheet-option small { margin-left: 4px; color: var(--accent); font-weight: 700; }
 .data-center-sheet .btn { width: 100%; }
 
+.data-center-restore-result {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.data-center-restore-result--success {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+  background: color-mix(in srgb, var(--green) 10%, var(--surface-soft));
+  color: var(--green);
+}
+
+.data-center-restore-result--warning {
+  border-color: color-mix(in srgb, var(--orange) 45%, var(--border));
+  background: color-mix(in srgb, var(--orange) 10%, var(--surface-soft));
+  color: var(--orange);
+}
+
+.data-center-restore-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.data-center-restore-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.data-center-restore-table th,
+.data-center-restore-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-center-restore-table th:first-child { width: 37%; }
+.data-center-restore-table th:nth-child(2),
+.data-center-restore-table th:nth-child(3) { width: 21%; }
+.data-center-restore-table th:last-child { width: 21%; text-align: center; }
+.data-center-restore-table td:last-child { color: var(--text); text-align: center; font-size: 15px; }
+.data-center-restore-table tbody tr:last-child th,
+.data-center-restore-table tbody tr:last-child td { border-bottom: 0; }
+
 @media (max-width: 640px) {
   .data-center-grid { grid-template-columns: minmax(0, 1fr); }
   .data-center-card { padding: 16px; }
   .data-center-card .btn { width: 100%; }
+  .data-center-restore-table { font-size: 12px; }
+  .data-center-restore-table th,
+  .data-center-restore-table td { padding: 9px 6px; }
 }
 
 /* V1 UI foundation: shared visual language for existing screens. */
