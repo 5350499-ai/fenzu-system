@@ -15,7 +15,7 @@ import {
 import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dataExportFileName, dryRunRestore } from "@/lib/data-export";
+import { buildCsvDataExport, buildExcelDataExport, createDataExportPayload, dryRunRestore } from "@/lib/data-export";
 import { downloadFile } from "@/lib/download-adapter";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 
@@ -146,6 +146,11 @@ export default function DataCenterPage() {
     return new File([needsUtf8Bom ? "\uFEFF" : "", content], fileName, { type });
   }
 
+  function backupFileName(date: Date) {
+    const part = (value: number) => String(value).padStart(2, "0");
+    return `rental-backup-${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}-${part(date.getHours())}${part(date.getMinutes())}.json`;
+  }
+
   async function createBackup() {
     if (!access.canSensitive("canExportData") || backupRunRef.current) return;
     if (["preparing", "generating", "validating", "handoff"].includes(backupStatus)) return;
@@ -174,7 +179,7 @@ export default function DataCenterPage() {
       const dryRun = await dryRunRestore(reparsed);
       if (!dryRun.valid) throw new Error(`备份自检失败：${dryRun.errors[0]}`);
       traceBackupRuntimeEvent("DRY_RUN_OK");
-      const file = buildExportFile(dataExportFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
+      const file = buildExportFile(backupFileName(now), JSON.stringify(reparsed, null, 2), "application/json;charset=utf-8");
       traceBackupRuntimeEvent("FILE_CREATED", { size: file.size });
       setBackupCreating(false);
       setBackupStatus("handoff");
@@ -219,7 +224,7 @@ export default function DataCenterPage() {
     setExportSheetOpen(false);
   }
 
-  return <AppLayout title="数据管理" description="备份业务数据、导出报表并查看后续云端能力。">
+  return <AppLayout title="Backup & Restore" description="备份与恢复业务数据、导出报表并查看后续云端能力。">
     <div className="data-center-page">
       {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
       <SectionCard className="data-center-card">
