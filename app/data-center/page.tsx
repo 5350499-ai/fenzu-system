@@ -341,6 +341,18 @@ export default function DataCenterPage() {
     }
   }
 
+  async function executeRestore(payload: DataExportPayload, currentData: Record<string, unknown>) {
+    const session = await getValidSupabaseSession();
+    if (!session?.access_token) throw new Error("登录已失效，请重新登录后再恢复。");
+    const response = await fetch("/api/data-restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ payload, currentData })
+    });
+    const result = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) throw new Error(result?.error || "恢复失败，数据库变更已回滚。");
+  }
+
   return <AppLayout title="Backup & Restore" description="备份与恢复业务数据、导出报表并查看后续云端能力。">
     <div className="data-center-page">
       {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
@@ -360,7 +372,7 @@ export default function DataCenterPage() {
         <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-        {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} onNext={() => setRestoreStep("confirm")} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
+        {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
       </SectionCard>
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
@@ -375,7 +387,7 @@ function DataCardHeader({ icon, title, description }: { icon: React.ReactNode; t
 function CountSummary({ counts, loading, loaded }: { counts: Record<string, number>; loading: boolean; loaded: boolean }) { return <div className="data-center-counts"><strong>预计备份内容</strong>{loading ? <span className="data-center-muted">正在读取授权范围…</span> : !loaded ? <span className="data-center-muted">点击创建备份后读取数据</span> : Object.entries(countLabels).map(([key, label]) => <span key={key}><b>{label}</b><em>{counts[key] ?? 0}</em></span>)}</div>; }
 function SubscriptionCard({ title, icon, description, onOpen }: { title: string; icon: React.ReactNode; description: string; onOpen: () => void }) { return <SectionCard className="data-center-card"><div className="data-center-card-header"><div className="data-center-icon">{icon}</div><div><div className="data-center-title-row"><h2 className="panel-title">{title}</h2><span className="data-center-subscription-badge" aria-label="订阅功能"><Crown size={12} /></span></div><p className="data-center-muted">{description}</p></div></div><SecondaryButton type="button" onClick={onOpen}>了解功能</SecondaryButton></SectionCard>; }
 
-function RestorePreviewCard({ preview, step, onNext, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; onNext: () => void; onRestore: (payload: DataExportPayload, currentData: Record<string, unknown>) => Promise<void>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const keys = Object.keys(payload.data);
@@ -389,6 +401,8 @@ function RestorePreviewCard({ preview, step, onNext, onBack }: { preview: Restor
   const allMatch = differenceCount === 0;
   const [confirmed, setConfirmed] = useState(false);
   const [restoreActionError, setRestoreActionError] = useState("");
+  const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
+  const [restoring, setRestoring] = useState(false);
 
   if (step === "confirm") {
     return <div className="data-center-restore-preview">
@@ -398,7 +412,7 @@ function RestorePreviewCard({ preview, step, onNext, onBack }: { preview: Restor
         <p>恢复前系统将自动创建一份当前数据 Backup，以便需要时可以恢复回来。</p>
         <p>本次操作不可撤销。</p>
       </div>
-      <div className="panel-header"><div><h3 className="panel-title">最终确认</h3><p className="data-center-muted">当前仅为 Restore V3 确认预览，实际恢复功能尚未实现。</p></div></div>
+      <div className="panel-header"><div><h3 className="panel-title">最终确认</h3><p className="data-center-muted">恢复前会自动保存当前数据备份；恢复过程由数据库事务保护，失败将完整回滚。</p></div></div>
       <div className="detail-grid">
         <div className="detail-field"><span>Backup 文件名</span><strong>{preview.fileName}</strong></div>
         <div className="detail-field"><span>Backup 时间</span><strong>{new Date(payload.metadata.exportedAt).toLocaleString("zh-CN")}</strong></div>
@@ -409,9 +423,10 @@ function RestorePreviewCard({ preview, step, onNext, onBack }: { preview: Restor
         <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> 我已确认恢复来源正确，并理解恢复将覆盖当前数据。</label>
       </p>
       {restoreActionError ? <p className="data-center-alert data-center-alert--warning" role="status">{restoreActionError}</p> : null}
+      {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
       <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        <PrimaryButton type="button" disabled={!confirmed} onClick={() => setRestoreActionError("Restore V4 尚未实现，当前未修改任何数据。")}>开始恢复</PrimaryButton>
+        <PrimaryButton type="button" disabled={!confirmed || restoring} onClick={() => void (async () => { setRestoring(true); setRestoreActionError(""); setRestoreActionSuccess(""); try { await onRestore(payload, currentData); setRestoreActionSuccess("恢复完成，数据库已通过校验并提交事务。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复失败，数据库变更已回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在恢复…" : "开始恢复"}</PrimaryButton>
       </div>
     </div>;
   }
