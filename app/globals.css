@@ -6447,6 +6447,13 @@ td:last-child {
   font-size: 13px;
 }
 
+.data-center-error-details {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 .data-center-title-row {
   display: flex;
   align-items: center;

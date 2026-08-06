@@ -178,6 +178,7 @@ function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | nul
   return {
     error: "Restore Dry Run 失败",
     code,
+    stack: error instanceof Error ? error.stack || null : nullableText(source.stack),
     message,
     details,
     hint,
@@ -326,10 +327,10 @@ export async function POST(request: Request) {
         rpcName: "restore_workspace_backup_dry_run",
         workspaceOwnerId: context.profile.workspace_owner_id,
         ...diagnostic,
-        rawRpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code } : null,
+        rawRpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code, stack: error.stack } : null,
         rawDryRun: dryRun || null
       });
-      return NextResponse.json({ ...diagnostic, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
+      return NextResponse.json({ ...diagnostic, rawRpcError: error ? { name: error.name, message: error.message, details: error.details, hint: error.hint, code: error.code, stack: error.stack } : null, rawDryRun: dryRun || null, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true } }, { status: 409 });
     }
     return NextResponse.json({ ok: true, dryRun: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: dryRun.delete || { success: true }, import: dryRun.import || { success: true }, fieldValidation: dryRun.fieldValidation || { success: true }, consistencyValidation: dryRun.consistencyValidation || { success: true }, transactionRolledBack: true, databaseUnchanged: true } });
   } catch (error) {

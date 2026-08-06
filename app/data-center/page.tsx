@@ -46,7 +46,7 @@ type RestorePreview = { fileName: string; fileSize: number; payload: DataExportP
 type RestoreStep = "preview" | "confirm";
 type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
 type SaveFilePicker = (options: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<{ createWritable: () => Promise<{ write: (value: File) => Promise<void>; close: () => Promise<void> }> }>;
-type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown };
+type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; constraint?: string | null; recordId?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown; rawRpcError?: unknown; rawDryRun?: unknown };
 
 class BeforeRestoreClientError extends Error {
   diagnostic: BeforeRestoreDiagnostic;
@@ -73,6 +73,10 @@ function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
   if (diagnostic.objectPath) lines.push(`object path：${diagnostic.objectPath}`);
   if (diagnostic.workspaceId) lines.push(`workspace：${diagnostic.workspaceId}`);
   return lines.join("\n");
+}
+
+function restoreDryRunErrorText(result: Record<string, unknown>) {
+  return ["❌ Restore Dry Run 失败", JSON.stringify(result, null, 2)].join("\n");
 }
 
 const restoreLabels: Record<string, string> = {
@@ -461,11 +465,13 @@ export default function DataCenterPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ action: "dry_run", payload, beforeRestoreBackupPath })
     });
-    const result = await response.json().catch(() => null) as { error?: string; report?: RestoreDryRunReport } | null;
-    if (!response.ok) throw new Error(result?.error || "Restore Dry Run 失败，数据库变更已自动回滚。");
+    const result = await response.json().catch(() => null) as (Record<string, unknown> & { report?: RestoreDryRunReport }) | null;
+    if (!response.ok) {
+      const diagnosticResult: Record<string, unknown> = result ?? { error: "Restore Dry Run 失败" };
+      throw new Error(restoreDryRunErrorText(diagnosticResult));
+    }
     if (!result?.report) throw new Error("Restore Dry Run 未返回完整检查报告。");
     return result.report;
-    if (!response.ok) throw new Error(result?.error || "恢复失败，数据库变更已回滚。");
   }
 
   return <AppLayout title="Backup & Restore" description="备份与恢复业务数据、导出报表并查看后续云端能力。">
@@ -563,7 +569,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已生成</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
         {beforeRestoreError ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreError}</p> : null}
       </div>
-      {restoreActionError ? <p className="data-center-alert data-center-alert--warning" role="status">{restoreActionError}</p> : null}
+      {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
       {restoreReport ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
       <div className="settings-actions">
