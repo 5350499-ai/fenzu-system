@@ -438,10 +438,13 @@ export default function DataCenterPage() {
       } catch (error) {
         throw new BeforeRestoreClientError({ stage: "file_generation", code: "before_restore_file_generation_failed", message: error instanceof Error ? error.message : "分享文件生成失败" });
       }
-      setBeforeRestoreStatus("saving");
-      await saveBeforeRestoreFile(file);
       setBeforeRestorePackage(packageData);
       setBeforeRestoreStatus("ready");
+      // The server-side BeforeRestore is complete at this point. Browser sharing
+      // and saving are best-effort handoff actions and must not block Dry Run.
+      void saveBeforeRestoreFile(file).catch((error) => {
+        console.warn("BeforeRestore file handoff did not complete", error);
+      });
     } catch (error) {
       setBeforeRestoreStatus("error");
       const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "BeforeRestore 生成失败" };
