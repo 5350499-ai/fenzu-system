@@ -490,7 +490,7 @@ export default function DataCenterPage() {
       <SectionCard className="data-center-card">
         <DataCardHeader icon={<History size={20} />} title="恢复备份" description="选择官方 JSON 备份文件，先查看恢复内容预览。当前不会修改任何数据。" />
         <input ref={restoreInputRef} style={{ display: "none" }} type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; void previewRestoreFile(file); }} />
-        <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
+        {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton> : null}
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
       {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
@@ -583,7 +583,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       </p>
       <div className="data-center-before-restore" role="status">
         <strong>恢复前备份</strong>
-        <p>开始演习前，系统会由服务端生成一份当前数据备份，并请你选择保存位置。</p>
+        <p>恢复开始前，系统会自动生成一份当前数据 BeforeRestore 备份，并提示保存，以便需要时恢复当前状态。</p>
         {beforeRestoreStatus === "preparing" ? <p>正在生成恢复前备份…</p> : null}
         {beforeRestoreStatus === "saving" ? <p>正在调用系统保存，请选择保存位置…</p> : null}
         {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已生成</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
@@ -623,7 +623,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       <table className="data-center-restore-table">
         <thead><tr><th scope="col">项目</th><th scope="col">当前数据</th><th scope="col">备份数据</th><th scope="col">状态</th></tr></thead>
         <tbody>{rows.map((row) => {
-          const status = row.current === row.backup ? "✅" : row.current > row.backup ? "↑" : "↓";
+          const status = row.current === row.backup ? "✅" : row.backup > row.current ? "↑" : "↓";
           return <tr key={row.key}><th scope="row">{row.label}</th><td>{row.current}</td><td>{row.backup}</td><td aria-label={row.differs ? "存在差异" : "相同"}>{status}</td></tr>;
         })}</tbody>
       </table>
