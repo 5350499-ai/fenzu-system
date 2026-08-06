@@ -29,7 +29,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory, usePartnerOwnershipOptions } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -80,6 +80,7 @@ function defaultCoverageEnd(startDate: string) {
 export default function RentPaymentsPage() {
   const access = useAccountAccess();
   const partnerDirectory = usePartnerDirectory();
+  const partnerOptions = usePartnerOwnershipOptions();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -166,7 +167,7 @@ export default function RentPaymentsPage() {
         const latest = latestCoverageForTenant(renewTenant.id, loadedPayments);
         const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
         const receivedBy = latest?.receivedBy || "A";
-        const mode = ownershipChoice(receivedBy);
+        const mode = ownershipChoice(receivedBy, partnerOptions);
         setForm({
           ...emptyPayment,
           propertyId: renewTenant.propertyId,
@@ -304,7 +305,7 @@ export default function RentPaymentsPage() {
     setDepositAmount(defaultDeposit);
     setMonthlyRentStandard(defaultRent);
     if (form.incomeType === "续交房租" && latest?.receivedBy) {
-      const mode = ownershipChoice(latest.receivedBy);
+      const mode = ownershipChoice(latest.receivedBy, partnerOptions);
       setOwnershipMode(mode);
       setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latest.receivedBy) : "");
     }
@@ -651,7 +652,7 @@ export default function RentPaymentsPage() {
                     onRetryFiles={() => void refreshPaymentFiles([payment.id])}
                     onEdit={() => {
                       historicalOriginalRef.current = payment;
-                      const mode = ownershipChoice(payment.receivedBy);
+                      const mode = ownershipChoice(payment.receivedBy, partnerOptions);
                       const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)))?.amount;
                       const rentAmount = Number(payment.amountDue || 0);
                       setForm({ ...payment, amountDue: rentAmount });
@@ -711,7 +712,7 @@ export default function RentPaymentsPage() {
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
+              <OwnershipField options={partnerOptions} mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
                 setOwnershipMode(mode);
                 if (mode !== "自定义") setCustomReceivedBy("");
               }} onCustomNameChange={setCustomReceivedBy} />
@@ -958,8 +959,10 @@ function depositPaymentMarker(paymentId: string) {
   return `[收租押金:${paymentId}]`;
 }
 
-function ownershipChoice(value?: string) {
-  const normalized = (value || "A").trim().toUpperCase();
+function ownershipChoice(value?: string, options: Array<{ value: string }> = []) {
+  const raw = (value || "A").trim();
+  if (options.some((option) => option.value === raw)) return raw as "A" | "B" | "自定义";
+  const normalized = raw.toUpperCase();
   return normalized === "A" || normalized === "B" ? normalized : "自定义";
 }
 

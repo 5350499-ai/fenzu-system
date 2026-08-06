@@ -6,12 +6,14 @@ export function OwnershipField({
   label = "收款归属",
   mode,
   customName,
+  options,
   onModeChange,
   onCustomNameChange
 }: {
   label?: string;
   mode: OwnershipMode;
   customName: string;
+  options?: Array<{ value: string; label: string }>;
   onModeChange: (mode: OwnershipMode) => void;
   onCustomNameChange: (name: string) => void;
 }) {
@@ -23,8 +25,7 @@ export function OwnershipField({
           value={mode}
           onChange={(event) => onModeChange(event.target.value as OwnershipMode)}
         >
-          <option value="A">A</option>
-          <option value="B">B</option>
+          {(options?.length ? options : [{ value: "A", label: "A" }, { value: "B", label: "B" }]).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           <option value="自定义">自定义</option>
         </select>
       </div>

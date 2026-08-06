@@ -95,7 +95,6 @@ const restoreLabels: Record<string, string> = {
   settlementBatches: "结算批次",
   settlementSnapshots: "结算快照",
   accounts: "账号",
-  auditLogs: "操作日志",
   settings: "系统设置"
 };
 
@@ -464,7 +463,7 @@ type RestoreDryRunReport = {
 function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
-  const keys = Object.keys(payload.data);
+  const keys = Object.keys(payload.data).filter((key) => key !== "auditLogs");
   const countValue = (value: unknown) => Array.isArray(value) ? value.length : value && typeof value === "object" ? 1 : 0;
   const rows = keys.map((key) => {
     const current = countValue(currentData[key]);

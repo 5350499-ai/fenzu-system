@@ -32,14 +32,12 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
+import { partnerClass, partnerLabel, usePartnerDirectory, usePartnerOwnershipOptions } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
-const partnerOptions = ["A", "B"];
-
 const emptyExpense: BusinessExpense = {
   id: "",
   propertyId: "",
@@ -57,6 +55,7 @@ const emptyExpense: BusinessExpense = {
 export default function ExpensesPage() {
   const access = useAccountAccess();
   const partnerDirectory = usePartnerDirectory();
+  const partnerOptions = usePartnerOwnershipOptions();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -336,7 +335,7 @@ export default function ExpensesPage() {
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
+              <SearchableSelect label="付款归属" value={form.paidBy || "A"} options={(partnerOptions.length ? partnerOptions : [{ value: form.paidBy || "A", label: partnerLabel(form.paidBy, partnerDirectory) }])} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

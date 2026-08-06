@@ -57,6 +57,23 @@ export function usePartnerDirectory() {
   return directory;
 }
 
+export type PartnerOwnershipOption = { value: string; label: string };
+
+export function usePartnerOwnershipOptions() {
+  const [options, setOptions] = useState<PartnerOwnershipOption[]>([]);
+  useEffect(() => {
+    let active = true;
+    void getPartners().then((data: PartnerWorkspaceData) => {
+      if (!active) return;
+      setOptions(data.partners
+        .filter((partner) => partner.isActive)
+        .map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName })));
+    }).catch(() => { /* Existing A/B fallback remains if partner data is unavailable. */ });
+    return () => { active = false; };
+  }, []);
+  return options;
+}
+
 export function partnerClass(partner?: string) {
   const code = (partner || "A").trim().toUpperCase();
   if (code === "A") return "partner-a";
