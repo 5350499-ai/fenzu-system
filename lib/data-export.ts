@@ -81,6 +81,24 @@ function count(data: Record<string, unknown>, key: string): number {
   return Array.isArray(data[key]) ? data[key].length : 0;
 }
 
+function normalizeNullableUuidReferences(data: Record<string, unknown>): Record<string, unknown> {
+  const nullableUuidFields: Record<string, string[]> = {
+    rentPayments: ["propertyId", "roomId", "tenantId"]
+  };
+  return Object.fromEntries(Object.entries(data).map(([collection, value]) => {
+    const fields = nullableUuidFields[collection];
+    if (!fields || !Array.isArray(value)) return [collection, value];
+    return [collection, value.map((item) => {
+      if (!isRecord(item)) return item;
+      const normalized = { ...item };
+      fields.forEach((field) => {
+        if (normalized[field] === "") normalized[field] = null;
+      });
+      return normalized;
+    })];
+  }));
+}
+
 export function buildBackupSummary(data: Record<string, unknown>, backupSizeBytes = 0): BackupSummary {
   const summary = {
     propertiesCount: count(data, "properties"), roomsCount: count(data, "rooms"), tenantsCount: count(data, "tenants"),
@@ -144,7 +162,7 @@ export async function createDataExportPayload(
   options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
 ): Promise<DataExportPayload> {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const cleanData = stripSensitiveExportData(data) as Record<string, unknown>;
+  const cleanData = normalizeNullableUuidReferences(stripSensitiveExportData(data) as Record<string, unknown>);
   const metadata = normalizedMetadata(options, exportedAt);
   const recordCount = buildBackupSummary(cleanData).totalRecords;
   const elapsed = () => Math.max(0, Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt));

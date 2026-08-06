@@ -59,6 +59,7 @@ function rows(value: unknown) {
 
 function text(value: unknown, fallback = "") { return typeof value === "string" ? value : fallback; }
 function nullableText(value: unknown) { const result = text(value); return result || null; }
+function nullableUuid(value: unknown) { return nullableText(value); }
 function date(value: unknown) { return nullableText(value); }
 function monthDate(value: unknown) {
   const raw = nullableText(value);
@@ -219,7 +220,7 @@ function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: stri
     file_url: null, storage_path: null, notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
   }));
   const rentPayments = rows(source.rentPayments).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, tenant_id: text(row.tenantId), property_id: text(row.propertyId), room_id: text(row.roomId),
+    id: text(row.id), user_id: workspaceOwnerId, tenant_id: nullableUuid(row.tenantId), property_id: nullableUuid(row.propertyId), room_id: nullableUuid(row.roomId),
     rent_month: monthDate(row.rentMonth) || "1970-01-01", amount_due: numberValue(row.amountDue), amount_paid: numberValue(row.amountPaid), amount_unpaid: numberValue(row.amountUnpaid),
     payment_date: date(row.paymentDate), payment_method: nullableText(row.paymentMethod), is_overdue: booleanValue(row.isOverdue), notes: nullableText(row.notes),
     created_at: iso(row.createdAt), updated_at: iso(row.updatedAt), received_by: nullableText(row.receivedBy) || "A", paid_by: null,
