@@ -3716,6 +3716,10 @@ td:last-child {
   display: grid;
   gap: 4px;
   min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md, 12px);
+  background: color-mix(in srgb, var(--surface-soft) 74%, transparent);
 }
 
 .detail-field span {
@@ -3728,6 +3732,8 @@ td:last-child {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .detail-actions {
@@ -4347,6 +4353,10 @@ td:last-child {
   display: grid;
   gap: 4px;
   min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-md, 12px);
+  background: color-mix(in srgb, var(--surface-soft) 74%, transparent);
 }
 
 .property-detail-field strong {
@@ -4356,6 +4366,8 @@ td:last-child {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .property-detail-field.wide {
@@ -6285,8 +6297,30 @@ td:last-child {
 .settlement-snapshot-page details.snapshot-section:not(.technical-info) > summary::-webkit-details-marker { display: none; }
 
 /* Settlement history is a summary list; the full immutable statement lives on the detail route. */
-.settlement-history-card-body{display:grid;gap:10px;padding:14px 14px 13px}.settlement-history-property{font-size:1rem;line-height:1.35;overflow-wrap:anywhere}.settlement-history-period{color:var(--muted-text,#94a3b8);font-variant-numeric:tabular-nums}.settlement-history-summary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0;font-variant-numeric:tabular-nums}.settlement-history-summary-metrics span{min-width:0;white-space:nowrap}.settlement-history-summary-metrics b{font-weight:700}.settlement-history-allocation,.settlement-history-transfers{display:grid;gap:6px;border-top:1px solid rgba(148,163,184,.16);padding-top:9px}.settlement-history-allocation-title,.settlement-history-transfers>strong{font-size:.82rem;color:var(--muted-text,#94a3b8)}.settlement-history-partner{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:9px;align-items:baseline;font-variant-numeric:tabular-nums}.settlement-history-partner>strong{min-width:0;overflow-wrap:anywhere}.settlement-history-partner>span:last-child{white-space:nowrap;text-align:right}.settlement-history-transfers span{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.settlement-history-reversal{display:grid;gap:4px;color:var(--muted-text,#94a3b8);font-size:.84rem}.settlement-history-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid rgba(148,163,184,.16);padding-top:10px}.settlement-history-card-footer .btn{white-space:nowrap}.settlement-history-card>summary{display:none}.settlement-history-card-actions{display:none}
+.settlement-history-card-body{display:grid;gap:10px;padding:14px 14px 13px}.settlement-history-property{font-size:1rem;line-height:1.35;overflow-wrap:anywhere}.settlement-history-period{color:var(--muted-text,#94a3b8);font-variant-numeric:tabular-nums}.settlement-history-summary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}.settlement-history-money-item{display:grid;gap:5px;min-width:0;padding:9px;border:1px solid var(--border);border-radius:var(--ui-radius-md,12px);background:color-mix(in srgb,var(--surface-soft) 74%,transparent);font-variant-numeric:tabular-nums}.settlement-history-money-item>span{color:var(--muted);font-size:.76rem;font-weight:750}.settlement-history-money-item>strong{text-align:right}.settlement-history-allocation,.settlement-history-transfers{display:grid;gap:6px;border-top:1px solid rgba(148,163,184,.16);padding-top:9px}.settlement-history-allocation-title,.settlement-history-transfers>strong{font-size:.82rem;color:var(--muted-text,#94a3b8)}.settlement-history-partner{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:9px;align-items:baseline;font-variant-numeric:tabular-nums}.settlement-history-partner>strong{min-width:0;overflow-wrap:anywhere}.settlement-history-partner>span:last-child{white-space:nowrap;text-align:right}.settlement-history-transfers span{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.settlement-history-reversal{display:grid;gap:4px;color:var(--muted-text,#94a3b8);font-size:.84rem}.settlement-history-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid rgba(148,163,184,.16);padding-top:10px}.settlement-history-card-footer .btn{white-space:nowrap}.settlement-history-card>summary{display:none}.settlement-history-card-actions{display:none}
 @media(max-width:640px){.settlement-history-card-body{padding:13px 12px}.settlement-history-summary-metrics{gap:5px;font-size:.78rem}.settlement-history-summary-metrics span{white-space:nowrap}.settlement-history-partner{grid-template-columns:minmax(0,1fr) auto auto;gap:5px;font-size:.88rem}.settlement-history-card-footer{padding-top:9px}.settlement-history-card-footer .btn{font-size:.84rem}}
+
+/* UI Design Standard V1: reusable detail cards and right-aligned money values. */
+.ui-detail-card { display: grid; gap: var(--ui-space-3, 12px); }
+.ui-detail-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ui-space-3, 12px); }
+.ui-detail-card-heading h3 { margin: 0; font-size: 1rem; }
+.ui-detail-card-heading p { margin: 4px 0 0; color: var(--muted); font-size: .86rem; font-variant-numeric: tabular-nums; }
+.ui-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.ui-detail-item { display: grid; gap: 6px; min-width: 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--ui-radius-md, 12px); background: color-mix(in srgb, var(--surface-soft) 74%, transparent); }
+.ui-detail-item > span { color: var(--muted); font-size: .78rem; font-weight: 750; }
+.ui-detail-item > strong { min-width: 0; overflow-wrap: anywhere; font-size: 1rem; font-variant-numeric: tabular-nums; text-align: right; }
+.ui-detail-item-income > strong, .ui-money-value-income { color: var(--green); }
+.ui-detail-item-profit > strong, .ui-money-value-profit { color: var(--green); }
+.ui-detail-item-loss > strong, .ui-money-value-loss { color: var(--red); }
+.ui-money-value { display: inline-block; min-width: max-content; font-variant-numeric: tabular-nums; text-align: right; }
+.settlement-segment-card, .settlement-transfer-card { margin-top: 10px; }
+.settlement-share-list, .snapshot-share-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.settlement-share-list span, .snapshot-share-list span { padding: 6px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-soft); font-size: .86rem; font-variant-numeric: tabular-nums; }
+.snapshot-status-line { display: flex; align-items: center; }
+.snapshot-period { margin: 0 0 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.snapshot-share-list small { display: block; margin-top: 3px; font-size: .72rem; }
+.snapshot-transfer-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; margin: 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .ui-detail-grid { grid-template-columns: 1fr; } .ui-detail-item { padding: 10px; } .settlement-share-list span, .snapshot-share-list span { flex: 1 1 auto; } .snapshot-transfer-line .ui-money-value { margin-left: auto; } }
 .login-forgot-link {
   color: var(--accent, #2563eb);
   font-size: 0.9rem;

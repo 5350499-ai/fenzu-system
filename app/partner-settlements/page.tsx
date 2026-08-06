@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
 import { compareSettlementHistory } from "@/lib/partner-settlement";
+import { MoneyValue } from "@/components/ui";
 import { useEffect, useMemo, useState } from "react";
 
 type Batch = {
@@ -32,6 +33,11 @@ type PageState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 function money(value: unknown) {
   const amount = Number(value);
   return Number.isFinite(amount) ? euro(amount) : "未保存";
+}
+
+function historyMoney(value: unknown, tone: "income" | "expense" | "profit" | "loss") {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? <MoneyValue value={amount} tone={tone} /> : "未保存";
 }
 
 function shareSummary(partner: any, segments: Array<any>) {
@@ -135,11 +141,11 @@ function SettlementHistoryCard({ batch, propertyName }: { batch: Batch; property
     <div className="settlement-history-card-body">
       <strong className="settlement-history-property">{propertyName}</strong>
       <span className="settlement-history-period">{batch.period_start} 至 {batch.period_end}</span>
-      <div className="settlement-history-summary-metrics"><span>收入 <b>{money(batch.total_income)}</b></span><span>支出 <b>{money(batch.total_expense)}</b></span><span className={Number(batch.net_profit) < 0 ? "danger-text" : "profit"}>净利润 <b>{money(batch.net_profit)}</b></span></div>
+      <div className="settlement-history-summary-metrics"><div className="settlement-history-money-item"><span>收入</span><strong>{historyMoney(batch.total_income, "income")}</strong></div><div className="settlement-history-money-item"><span>支出</span><strong>{historyMoney(batch.total_expense, "expense")}</strong></div><div className="settlement-history-money-item"><span>净利润</span><strong>{historyMoney(batch.net_profit, Number(batch.net_profit) < 0 ? "loss" : "profit")}</strong></div></div>
       <div className="settlement-history-allocation"><div className="settlement-history-allocation-title">{segments.length > 1 ? `比例方案：${segments.length}段` : "合伙人分配"}</div>{error ? <p className="muted">摘要暂不可用：{error}</p> : !snapshot ? <p className="muted">正在读取已保存摘要…</p> : partners.length ? partners.map((partner: any) => { const balance = balanceSummary(partner.settlement_balance); return <div className="settlement-history-partner" key={partner.id}><strong>{partner.partner_display_name_snapshot || "合伙人名称未保存"}</strong><span>{shareSummary(partner, segments)}</span><span className={balance.label === "应收" ? "profit" : balance.label === "应付" ? "danger-text" : "muted"}>{balance.label}{balance.value ? ` ${balance.value}` : ""}</span></div>; }) : <p className="muted">该快照未保存合伙人摘要。</p>}</div>
       <div className="settlement-history-transfers"><strong>最终转账</strong>{!snapshot ? null : transfers.length ? transfers.map((transfer: any) => <span key={transfer.id}>{transfer.from_name_snapshot} 转给 {transfer.to_name_snapshot} {money(transfer.amount)}</span>) : <span className="muted">本次无需相互转账</span>}</div>
       {batch.status === "reversed" ? <div className="settlement-history-reversal"><span className="status-badge muted-badge">已撤销</span>{batch.reversed_at ? <span>撤销于：{new Date(batch.reversed_at).toLocaleString("zh-CN")}</span> : null}{batch.reversal_reason ? <span>{batch.reversal_reason}</span> : null}</div> : null}
-      <div className="settlement-history-card-footer"><span className={`status-badge ${batch.status === "confirmed" ? "success" : "muted-badge"}`}>{batch.status === "confirmed" ? "已结算" : "已撤销"}</span><a className="btn compact primary" href={`/partner-settlements/${batch.id}`}>打开完整快照</a></div>
+      <div className="settlement-history-card-footer"><span className={`status-badge ${batch.status === "confirmed" ? "success" : "muted-badge"}`}>{batch.status === "confirmed" ? "已结算" : "已撤销"}</span><a className="btn compact primary" href={`/partner-settlements/${batch.id}`}>查看结算</a></div>
     </div>
   </article>;
 }

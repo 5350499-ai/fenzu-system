@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { euro } from "@/lib/format";
 
 function cx(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
@@ -20,6 +21,22 @@ export function DangerButton({ className, children, ...props }: ButtonProps) {
 
 export function SectionCard({ className, children, ...props }: HTMLAttributes<HTMLElement>) {
   return <section className={cx("card panel ui-section-card", className)} {...props}>{children}</section>;
+}
+
+export function DetailCard({ title, subtitle, children, className }: { title: ReactNode; subtitle?: ReactNode; children: ReactNode; className?: string }) {
+  return <section className={cx("card panel ui-detail-card", className)}><div className="ui-detail-card-heading"><div><h3>{title}</h3>{subtitle ? <p>{subtitle}</p> : null}</div></div>{children}</section>;
+}
+
+export function DetailGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx("ui-detail-grid", className)}>{children}</div>;
+}
+
+export function DetailItem({ label, value, tone = "default", className }: { label: ReactNode; value: ReactNode; tone?: "default" | "income" | "expense" | "profit" | "loss"; className?: string }) {
+  return <div className={cx("ui-detail-item", `ui-detail-item-${tone}`, className)}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+export function MoneyValue({ value, tone = "default", className }: { value: number; tone?: "default" | "income" | "expense" | "profit" | "loss"; className?: string }) {
+  return <span className={cx("ui-money-value", `ui-money-value-${tone}`, className)}>{euro(value)}</span>;
 }
 
 export function PageHeader({ title, description, actions, className }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; className?: string }) {
