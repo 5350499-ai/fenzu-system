@@ -3,6 +3,7 @@ import { PwaRegister } from "./pwa-register";
 import { AccountAccessProvider } from "@/components/account-access";
 import { ClientErrorReporter } from "@/components/client-error-reporter";
 import { AttachmentUploadProgress } from "@/components/attachment-upload-progress";
+import { CacheRuntime } from "@/components/cache-runtime";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -46,7 +47,7 @@ export default function RootLayout({
         <PwaRegister />
         <ClientErrorReporter />
         <AttachmentUploadProgress />
-        <AccountAccessProvider>{children}</AccountAccessProvider>
+        <AccountAccessProvider><CacheRuntime />{children}</AccountAccessProvider>
       </body>
     </html>
   );

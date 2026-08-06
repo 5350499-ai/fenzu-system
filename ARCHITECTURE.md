@@ -278,6 +278,29 @@
 - New contract, rent-payment and expense attachments use a server-authorized, short-lived Supabase signed upload capability. Browser file bytes go directly to the existing private Storage buckets; the application server verifies the signed upload ticket, parent-record permission, bucket, object path, size and MIME before it writes an attachment index.
 - New rows are `storage_provider = 'supabase'` with a private Storage path. Existing `google_drive` rows remain readable through their controlled content route and are neither migrated nor changed by this upload-path switch.
 - HEIC/HEIF input is always converted in the browser to JPEG before upload. The final provider allowlist remains PDF, JPEG and PNG, with the existing 4MB application limit.
+
+## Global Cache V3（统一缓存架构）
+
+Global Cache V3 establishes one CacheManager boundary for browser business-data reads and writes. The intended flow is UI → CacheManager → business repository → Supabase; pages must not create their own cache or data-fetching policy.
+
+- Why one CacheManager: one place owns cache versioning, account isolation, TTL, invalidation, cross-tab events and diagnostics, so new modules do not drift into incompatible cache behavior.
+- Why two layers: memory cache makes in-app navigation fast, while IndexedDB survives browser restarts without placing business records in localStorage.
+- Why SWR: cached data can render first and server reconciliation runs in the background, avoiding a blank page while still converging on current data.
+- Why module invalidation: a mutation invalidates only its affected module and derived summaries instead of forcing every page to reload.
+- Restore, login, logout and account switching clear or isolate caches so stale data and one account's records cannot leak into another session.
+- Cache version invalidates old entries after structural changes; TTL marks stale entries for background refresh while retaining the last usable value.
+- Startup warmup and route prefetch are best-effort background work and never block the first screen.
+- BroadcastChannel/storage events notify other tabs of writes and invalidations.
+- Force Disable Cache and Cache Monitor remain development-only diagnostics; Production never exposes them.
+- Future attachments, repairs, bills, notifications and chat must use CacheManager rather than implementing a separate cache.
+
+## Roadmap
+
+Completed: Backup / Restore V4; dynamic partners; Production release.
+
+In progress: Global Cache V3.
+
+Planned: attachment export/import including file recovery; attachment cache strategy; PWA/offline capability if needed; further performance optimization.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

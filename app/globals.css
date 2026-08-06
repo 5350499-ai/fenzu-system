@@ -6327,6 +6327,45 @@ td:last-child {
   }
 }
 
+.cache-runtime-toggle {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 11px;
+  opacity: .82;
+}
+
+.cache-runtime-panel {
+  position: fixed;
+  right: 12px;
+  bottom: 50px;
+  z-index: 1000;
+  display: grid;
+  gap: 6px;
+  width: min(260px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+  font-size: 12px;
+}
+
+.cache-runtime-panel button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
 /* Data Center: six stable modules with a compact, mobile-first presentation. */
 .data-center-page {
   display: grid;

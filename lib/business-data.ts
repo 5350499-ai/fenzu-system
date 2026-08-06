@@ -1,5 +1,6 @@
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
 import { isActualMoveOutDateEnabled } from "./actual-move-out-feature";
+import { cacheManager } from "./cache/cache-manager";
 
 export type ContractAttachment = {
   name: string;
@@ -456,7 +457,7 @@ export function getInitialDeposits(..._args: unknown[]): BusinessDeposit[] {
   return isSupabaseConfigured ? [] : readStored<BusinessDeposit[]>(depositKey) || [];
 }
 
-export async function loadBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
+async function loadBusinessDataFromServer<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
   const config = tableConfigs[key];
   if (!isSupabaseConfigured || !supabase || !config) {
     return readStored<T[]>(key) || fallback;
@@ -478,7 +479,7 @@ export async function loadBusinessData<T extends AnyRecord>(key: string, fallbac
   return rows;
 }
 
-export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
+async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
   if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
     if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
     return value.map((row) => row.id).filter(Boolean);
@@ -528,6 +529,38 @@ export async function saveBusinessData<T extends AnyRecord>(key: string, value: 
   writeRemoteSnapshot(key, value);
   const payload = await response.clone().json().catch(() => null) as { rows?: Array<{ id?: string }> } | null;
   return (payload?.rows || []).map((row) => row.id || "").filter(Boolean);
+}
+
+async function getCacheScope() {
+  if (!isSupabaseConfigured) return "demo";
+  const session = await getValidSupabaseSession();
+  return session?.user?.id || "anonymous";
+}
+
+const CACHE_INVALIDATION: Record<string, string[]> = {
+  [expenseKey]: [expenseKey, "home-summary", "profits", "analytics"],
+  [rentPaymentKey]: [rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [depositKey]: [depositKey, "home-summary", "profits", "analytics"],
+  [propertyKey]: [propertyKey, roomKey, tenantKey, contractKey, rentPaymentKey, expenseKey, depositKey, "home-summary", "profits", "analytics"],
+  [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [contractKey]: [contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [viewingAppointmentKey]: [viewingAppointmentKey],
+  [taskKey]: [taskKey, "home-summary"]
+};
+
+export async function loadBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
+  const scope = await getCacheScope();
+  return cacheManager.get(key, { scope, loader: () => loadBusinessDataFromServer<T>(key, fallback) });
+}
+
+export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
+  const scope = await getCacheScope();
+  const result = await saveBusinessDataToServer(key, value, options);
+  await cacheManager.set(key, value, scope);
+  const invalidated = CACHE_INVALIDATION[key] || [key];
+  await cacheManager.invalidate(invalidated.filter((item) => item !== key), scope);
+  return result;
 }
 
 let accountSnapshot: { token: string; workspaceOwnerId: string } | null = null;

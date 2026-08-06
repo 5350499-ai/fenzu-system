@@ -1,4 +1,5 @@
 import { getValidSupabaseSession } from "./supabase";
+import { cacheManager } from "./cache/cache-manager";
 export { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages, validatePartnerPlanRows } from "./partner-rules";
 
 export type Partner = {
@@ -47,13 +48,24 @@ export function getPropertyPartnerShares(shares: PartnerPropertyShare[], propert
   return shares.filter((share) => share.propertyId === propertyId);
 }
 
-export async function getPartners(): Promise<PartnerWorkspaceData> {
+async function getPartnersFromServer(): Promise<PartnerWorkspaceData> {
   const session = await getValidSupabaseSession();
   if (!session?.access_token) throw new Error("登录已失效，请重新登录");
   const response = await fetch("/api/partners", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "加载合伙人资料失败");
   return body as PartnerWorkspaceData;
+}
+
+export async function getPartners(): Promise<PartnerWorkspaceData> {
+  const session = await getValidSupabaseSession();
+  if (!session?.user?.id) throw new Error("Session expired");
+  return cacheManager.get("partners", { scope: session.user.id, loader: getPartnersFromServer });
+}
+
+export async function invalidatePartnersCache() {
+  const session = await getValidSupabaseSession();
+  if (session?.user?.id) await cacheManager.invalidate(["partners"], session.user.id);
 }
 
 export async function getActivePartners(data?: PartnerWorkspaceData) {

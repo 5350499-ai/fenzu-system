@@ -30,6 +30,7 @@ import {
 import { downloadFile } from "@/lib/download-adapter";
 import { saveFileWithSystemFallback, UserCancelledFileHandoffError } from "@/lib/file-handoff";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
+import { cacheManager } from "@/lib/cache/cache-manager";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -530,7 +531,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
           setRestoreActionError(""); setRestoreActionSuccess("");
           if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; }
           setRestoring(true); setRestoreReport(null);
-          try { const report = await onRestore(payload, beforeRestorePackage.storagePath, "restore"); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${beforeRestorePackage?.fileName || "已生成的 BeforeRestore"}。建议检查收入、支出、租客和合同等关键数据。`); }
+          try { const report = await onRestore(payload, beforeRestorePackage.storagePath, "restore"); await cacheManager.clearAll(); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${beforeRestorePackage?.fileName || "已生成的 BeforeRestore"}。建议检查收入、支出、租客和合同等关键数据。`); }
           catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore 失败，数据库变更已自动回滚。"); }
           finally { setRestoring(false); }
         })()}>{restoring ? "正在恢复…" : "开始恢复（Restore）"}</DangerButton> : null}
