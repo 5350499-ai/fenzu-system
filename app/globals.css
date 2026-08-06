@@ -6337,6 +6337,29 @@ td:last-child {
 .partner-settlement-balance { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); padding-top: 9px; }
 .partner-settlement-balance span { color: var(--muted); font-size: .82rem; font-weight: 800; }
 .partner-settlement-balance strong { font-size: 1.14rem; font-variant-numeric: tabular-nums; text-align: right; }
+.settlement-transfer-card > p,
+.settlement-transfer-card .snapshot-transfer-line { display: grid; justify-items: center; gap: 4px; margin: 0; text-align: center; font-size: 0; font-variant-numeric: tabular-nums; }
+.settlement-transfer-card > p > strong,
+.settlement-transfer-card .snapshot-transfer-line > strong { color: var(--text); font-size: .92rem; font-weight: 800; }
+.settlement-transfer-card > p > strong + strong::before,
+.settlement-transfer-card .snapshot-transfer-line > strong + strong::before { content: "→"; color: var(--muted); display: inline-block; margin: 0 9px; }
+.settlement-transfer-card > p > .ui-money-value,
+.settlement-transfer-card .snapshot-transfer-line > .ui-money-value { grid-column: 1 / -1; font-size: 1.18rem; font-weight: 850; line-height: 1.2; }
+.settlement-transfer-card > p > .muted,
+.settlement-transfer-card .snapshot-transfer-line > .muted { font-size: .76rem; }
+.snapshot-transfer-line { display: grid; justify-items: center; gap: 4px; margin: 0; text-align: center; font-size: 0; }
+.snapshot-transfer-line > strong { color: var(--text); font-size: .92rem; font-weight: 800; }
+.snapshot-transfer-line > strong + strong::before { content: "→"; color: var(--muted); display: inline-block; margin: 0 9px; }
+.snapshot-transfer-line > .ui-money-value { grid-column: 1 / -1; font-size: 1.18rem; font-weight: 850; line-height: 1.2; }
+.snapshot-transfer-line > .muted { font-size: .76rem; }
+.ui-detail-card-heading h3, .settlement-card .profit-card-head strong, .panel-title { letter-spacing: -.01em; }
+.partner-settlement-card, .settlement-segment-card, .settlement-transfer-card { border-radius: var(--ui-radius-lg, 16px); }
+.partner-settlement-card { padding: var(--ui-space-4, 16px); }
+.partner-settlement-card .profit-card-head { min-height: 30px; }
+.partner-settlement-card .profit-card-head strong { font-size: 1.02rem; }
+.settlement-balance-badge .badge { min-height: 26px; padding: 4px 9px; border-radius: 999px; font-size: .76rem; line-height: 1; }
+.ui-money-value { font-weight: 750; letter-spacing: .01em; }
+.partner-settlement-balance strong, .settlement-transfer-card .ui-money-value { font-weight: 850; }
 @media (max-width: 390px) { .partner-settlement-card .profit-card-metrics { gap: 7px 9px; } .partner-settlement-card .profit-card-metrics label { font-size: .72rem; } .partner-settlement-card .profit-card-metrics b { font-size: .84rem; } }
 .login-forgot-link {
   color: var(--accent, #2563eb);
