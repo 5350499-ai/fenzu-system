@@ -2,7 +2,7 @@
 
 import { AppLayout, navGroups } from "@/components/app-layout";
 import Link from "next/link";
-import { ScrollText, ShieldCheck } from "lucide-react";
+import { Map, ScrollText, ShieldCheck } from "lucide-react";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 
@@ -42,6 +42,13 @@ export default function MorePage() {
             </>
           ) : null}
         </div>
+      </section>
+      <section className="card panel">
+        <div className="panel-header"><div><h2 className="panel-title">数据中心</h2><p className="muted">查看产品规划与后续方向。</p></div></div>
+        <Link className="shortcut-card roadmap-entry-card" href="/roadmap">
+          <span className="shortcut-icon blue"><Map size={20} /></span>
+          <span><strong>产品路线图（Roadmap）</strong><small>了解已完成、开发中和计划中的功能</small></span>
+        </Link>
       </section>
     </AppLayout>
   );

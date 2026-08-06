@@ -6366,6 +6366,40 @@ td:last-child {
   color: var(--text);
 }
 
+.compact-report-metric--link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .15s ease, transform .15s ease;
+}
+
+.compact-report-metric--link:hover,
+.compact-report-metric--link:focus-visible {
+  border-color: var(--accent, #72a7ff);
+  transform: translateY(-1px);
+}
+
+.roadmap-entry-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-decoration: none;
+}
+
+.roadmap-entry-card > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.roadmap-entry-card small { color: var(--muted); }
+.roadmap-groups { display: grid; gap: 14px; }
+.roadmap-intro { margin-bottom: 14px; }
+.roadmap-group .panel-header { align-items: center; }
+.roadmap-group .panel-title { display: inline-flex; align-items: center; gap: 7px; }
+.roadmap-count { min-width: 24px; padding: 2px 7px; border-radius: 999px; background: var(--surface-muted); color: var(--muted); text-align: center; font-size: 12px; }
+.roadmap-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.roadmap-list li { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); }
+
 /* Data Center: six stable modules with a compact, mobile-first presentation. */
 .data-center-page {
   display: grid;
