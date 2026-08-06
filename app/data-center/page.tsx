@@ -533,7 +533,6 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
   });
   const differenceCount = rows.filter((row) => row.differs).length;
   const allMatch = differenceCount === 0;
-  const [confirmed, setConfirmed] = useState(false);
   const [restoreActionError, setRestoreActionError] = useState("");
   const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
   const [restoreReport, setRestoreReport] = useState<RestoreDryRunReport | null>(null);
@@ -545,7 +544,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
     }
   }, [step]);
   useEffect(() => {
-    if (step !== "confirm" || !canRealRestore || !confirmed || !beforeRestoreConfirmed || !beforeRestorePackage || restoring || restoreReport) return;
+    if (step !== "confirm" || !canRealRestore || !beforeRestoreConfirmed || !beforeRestorePackage || restoring || restoreReport) return;
     let active = true;
     setRestoreActionError("");
     setRestoreActionSuccess("");
@@ -563,7 +562,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         if (active) setRestoring(false);
       });
     return () => { active = false; };
-  }, [beforeRestoreConfirmed, beforeRestorePackage, canRealRestore, confirmed, onRestore, payload, preview.fileName, restoreReport, restoring, step]);
+  }, [beforeRestoreConfirmed, beforeRestorePackage, canRealRestore, onRestore, payload, preview.fileName, restoreReport, restoring, step]);
 
   if (step === "confirm") {
     return <div ref={confirmationRef} className="data-center-restore-preview">
@@ -581,7 +580,6 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         <div className="detail-field"><span>数据状态</span><strong>{allMatch ? "全部一致" : "存在差异"}</strong></div>
       </div>
       <p className="data-center-restore-confirmation">
-        <label><input type="checkbox" disabled={!beforeRestorePackage || beforeRestoreStatus !== "ready"} checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> 我已确认恢复来源正确，并理解恢复将覆盖当前数据。</label>
       </p>
       <div className="data-center-before-restore" role="status">
         <strong>恢复前备份</strong>
@@ -598,8 +596,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
        {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>真实 Restore 报告</strong><p>BeforeRestore：成功</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>Restore V2 一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
        <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        <details className="data-center-advanced-restore"><summary>高级功能：Restore Dry Run</summary><PrimaryButton type="button" disabled={!beforeRestorePackage || !confirmed || !beforeRestoreConfirmed || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => { setRestoreActionError(""); setRestoreActionSuccess(""); if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; } setRestoring(true); setRestoreReport(null); try { const report = await onRestore(payload, beforeRestorePackage.storagePath); setRestoreReport(report); setRestoreActionSuccess("Restore Dry Run 成功，真实恢复预计可以安全执行，本次未修改任何数据。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore Dry Run 失败，数据库变更已自动回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在演习…" : restoreReport ? "演习已完成" : beforeRestoreStatus === "preparing" ? "正在生成恢复前备份…" : beforeRestoreStatus === "saving" ? "等待保存…" : beforeRestorePackage ? "开始恢复模拟（Dry Run）" : "请先完成恢复前备份"}</PrimaryButton></details>
-        {canRealRestore ? <DangerButton type="button" disabled={(beforeRestorePackage ? (!confirmed || !beforeRestoreConfirmed) : false) || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
+        {canRealRestore ? <DangerButton type="button" disabled={(beforeRestorePackage ? !beforeRestoreConfirmed : false) || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
           if (!window.confirm("确认开始真实 Restore？系统将覆盖当前 Backup V1 范围内的数据，并在失败时自动回滚。")) return;
           setRestoreActionError(""); setRestoreActionSuccess("");
           if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; }
