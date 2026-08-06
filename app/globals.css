@@ -6325,6 +6325,19 @@ td:last-child {
 .snapshot-share-list small { display: block; margin-top: 3px; font-size: .72rem; }
 .snapshot-transfer-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; margin: 0; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .detail-grid, .ui-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .detail-field, .ui-detail-item { padding: 9px 10px; gap: 7px; } .detail-field span, .ui-detail-item > span { font-size: .72rem; } .detail-field strong, .ui-detail-item > strong { font-size: .86rem; } .settlement-share-list span, .snapshot-share-list span { flex: 1 1 auto; } .snapshot-transfer-line .ui-money-value { margin-left: auto; } }
+
+/* Partner Settlement Card V1: dense two-column metrics with a prominent balance. */
+.partner-settlement-card .profit-card-head { align-items: center; }
+.partner-settlement-card .profit-card-head p { display: none; }
+.partner-settlement-card .profit-card-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.partner-settlement-card .profit-card-metrics span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.partner-settlement-card .profit-card-metrics label { color: var(--muted); font-size: .78rem; white-space: nowrap; }
+.partner-settlement-card .profit-card-metrics b { min-width: 0; color: var(--text); font-size: .92rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.settlement-balance-badge { transform: scale(.84); transform-origin: right center; }
+.partner-settlement-balance { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); padding-top: 9px; }
+.partner-settlement-balance span { color: var(--muted); font-size: .82rem; font-weight: 800; }
+.partner-settlement-balance strong { font-size: 1.14rem; font-variant-numeric: tabular-nums; text-align: right; }
+@media (max-width: 390px) { .partner-settlement-card .profit-card-metrics { gap: 7px 9px; } .partner-settlement-card .profit-card-metrics label { font-size: .72rem; } .partner-settlement-card .profit-card-metrics b { font-size: .84rem; } }
 .login-forgot-link {
   color: var(--accent, #2563eb);
   font-size: 0.9rem;
