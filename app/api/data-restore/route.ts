@@ -529,14 +529,31 @@ export async function POST(request: Request) {
       } catch (error) {
         restoreError = error;
       }
+      logRestoreStage(operationId, "RESTORE_RPC_RETURN", {
+        rpcName: "restore_workspace_backup",
+        hasError: Boolean(restoreError)
+      });
       if (!restoreError) logRestoreStage(operationId, "RESTORE_RPC_OK", { rpcName: "restore_workspace_backup" });
       if (restoreError) {
+        logRestoreStage(operationId, "GENERATE_REPORT_START", { mode, success: false });
         const diagnostic = { ...restoreDiagnostic(restoreError, null, mode), error: "Restore 失败" };
         console.error("Restore RPC failed", { rpcName: "restore_workspace_backup", workspaceOwnerId: context.profile.workspace_owner_id, ...diagnostic, rawRpcError: restoreError });
-        return NextResponse.json({ ...diagnostic, rawRpcError: restoreError, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode } }, { status: 409 });
+        const report = { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode };
+        logRestoreStage(operationId, "GENERATE_REPORT_DONE", { mode, success: false });
+        logRestoreStage(operationId, "BUILD_RESPONSE_START", { mode, status: 409 });
+        const responseBody = { ...diagnostic, rawRpcError: restoreError, report };
+        logRestoreStage(operationId, "BUILD_RESPONSE_DONE", { mode, status: 409 });
+        logRestoreStage(operationId, "API_RETURN", { mode, status: 409 });
+        return NextResponse.json(responseBody, { status: 409 });
       }
-      logRestoreStage(operationId, "RESTORE_RESPONSE", { mode });
-      return NextResponse.json({ ok: true, restore: true, beforeRestore: { fileName: freshBeforeRestore.fileName, storagePath: freshBeforeRestore.storagePath }, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode } });
+      logRestoreStage(operationId, "GENERATE_REPORT_START", { mode, success: true });
+      const report = { beforeRestore: { success: true }, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode };
+      logRestoreStage(operationId, "GENERATE_REPORT_DONE", { mode, success: true });
+      logRestoreStage(operationId, "BUILD_RESPONSE_START", { mode, status: 200 });
+      const responseBody = { ok: true, restore: true, beforeRestore: { fileName: freshBeforeRestore.fileName, storagePath: freshBeforeRestore.storagePath }, beforeRestoreBackupPath: backupPath, report };
+      logRestoreStage(operationId, "BUILD_RESPONSE_DONE", { mode, status: 200 });
+      logRestoreStage(operationId, "API_RETURN", { mode, status: 200 });
+      return NextResponse.json(responseBody);
     }
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {

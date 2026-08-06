@@ -549,27 +549,6 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
     const timer = window.setTimeout(() => setRestoreSlow(true), 15000);
     return () => window.clearTimeout(timer);
   }, [restoring]);
-  useEffect(() => {
-    if (step !== "confirm" || !canRealRestore || !beforeRestoreConfirmed || !beforeRestorePackage || restoring || restoreReport) return;
-    let active = true;
-    setRestoreActionError("");
-    setRestoreActionSuccess("");
-    setRestoring(true);
-    void onRestore(payload, beforeRestorePackage.storagePath, "restore")
-      .then((report) => {
-        if (!active) return;
-        setRestoreReport(report);
-        setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${beforeRestorePackage.fileName}。建议检查收入、支出、租客和合同等关键数据。`);
-      })
-      .catch((error) => {
-        if (active) setRestoreActionError(error instanceof Error ? error.message : "Restore 失败，数据库变更已自动回滚。");
-      })
-      .finally(() => {
-        if (active) setRestoring(false);
-      });
-    return () => { active = false; };
-  }, [beforeRestoreConfirmed, beforeRestorePackage, canRealRestore, onRestore, payload, preview.fileName, restoreReport, restoring, step]);
-
   if (step === "confirm") {
     return <div ref={confirmationRef} className="data-center-restore-preview">
       <div className="data-center-restore-warning" role="alert">
