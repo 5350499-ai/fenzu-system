@@ -224,13 +224,6 @@ export default function DataCenterPage() {
     if (["preparing", "generating", "validating", "handoff"].includes(backupStatus)) return;
     backupRunRef.current = true;
     traceBackupRuntimeEvent("EXPORT_START");
-    if (!window.confirm("确认创建本地备份吗？备份文件不包含图片、PDF、合同附件或其他文件。")) {
-      setBackupStatus("ready");
-      setBackupNotice("已取消备份");
-      traceBackupRuntimeEvent("EXPORT_CANCELLED");
-      backupRunRef.current = false;
-      return;
-    }
     setBackupCreating(true); setBackupStatus("preparing"); setBackupNotice("正在读取数据，请稍候…");
     setBackupRetryFile(null);
     const now = new Date();
@@ -265,6 +258,7 @@ export default function DataCenterPage() {
       setBackupStatus("complete");
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
       traceBackupRuntimeEvent("DOWNLOAD_START");
+      let handoffMethod: "share" | "download" = "download";
       try {
         let canShareFile = false;
         try {
@@ -275,6 +269,7 @@ export default function DataCenterPage() {
           canShareFile = false;
         }
         if (canShareFile) {
+          handoffMethod = "share";
           await navigator.share({ files: [file] });
           setBackupRetryFile(file);
         } else {
@@ -282,13 +277,19 @@ export default function DataCenterPage() {
           setBackupRetryFile(file);
         }
         setBackupStatus("complete");
-        setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
-      } catch {
+        setBackupNotice(`备份已创建：${file.name}`);
+      } catch (error) {
+        const isShareCanceled = error instanceof DOMException && error.name === "AbortError";
         setBackupRetryFile(file);
-        setBackupStatus("complete");
-        setBackupNotice("✓ 备份文件已生成，如未保存，请重新点击创建备份。");
+        if (isShareCanceled && handoffMethod === "share") {
+          setBackupStatus("complete");
+          setBackupNotice(`用户取消保存，备份文件已生成：${file.name}`);
+        } else {
+          setBackupStatus("error");
+          setBackupNotice(error instanceof Error ? `备份失败：${error.message}` : "备份失败，请稍后重试。");
+        }
       }
-    } catch {
+    } catch (error) {
       traceBackupRuntimeEvent("EXPORT_ERROR");
       setBackupStatus("error");
       setBackupNotice("文件生成失败，请稍后重试。");
@@ -333,7 +334,7 @@ export default function DataCenterPage() {
     : backupStatus === "generating" ? "正在生成备份…"
     : backupStatus === "validating" ? "正在校验…"
     : backupStatus === "handoff" ? "正在调用系统保存…"
-    : backupStatus === "complete" ? "✓ 文件已生成，请在系统菜单中选择保存位置。"
+    : backupStatus === "complete" ? (backupNotice || "备份已创建。")
     : (backupNotice || "文件生成失败，请稍后重试。");
   const backupButtonLabel = backupStatus === "preparing" ? "正在准备备份…"
     : backupStatus === "generating" ? "正在生成备份…"
