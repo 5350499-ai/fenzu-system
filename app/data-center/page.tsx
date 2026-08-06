@@ -597,7 +597,6 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
        <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
         {canRealRestore ? <DangerButton type="button" disabled={(beforeRestorePackage ? !beforeRestoreConfirmed : false) || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
-          if (!window.confirm("确认开始真实 Restore？系统将覆盖当前 Backup V1 范围内的数据，并在失败时自动回滚。")) return;
           setRestoreActionError(""); setRestoreActionSuccess("");
           if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; }
           setRestoring(true); setRestoreReport(null);
