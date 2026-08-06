@@ -82,21 +82,16 @@ function count(data: Record<string, unknown>, key: string): number {
 }
 
 function normalizeNullableUuidReferences(data: Record<string, unknown>): Record<string, unknown> {
-  const nullableUuidFields: Record<string, string[]> = {
-    rentPayments: ["propertyId", "roomId", "tenantId"]
+  const isUuidReferenceKey = (key: string) => key !== "id" && (key.endsWith("Id") || key.endsWith("_id"));
+  const normalize = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(normalize);
+    if (!isRecord(value)) return value;
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => {
+      if (isUuidReferenceKey(key) && (nested === "" || nested === "null" || nested === "undefined")) return [key, null];
+      return [key, normalize(nested)];
+    }));
   };
-  return Object.fromEntries(Object.entries(data).map(([collection, value]) => {
-    const fields = nullableUuidFields[collection];
-    if (!fields || !Array.isArray(value)) return [collection, value];
-    return [collection, value.map((item) => {
-      if (!isRecord(item)) return item;
-      const normalized = { ...item };
-      fields.forEach((field) => {
-        if (normalized[field] === "") normalized[field] = null;
-      });
-      return normalized;
-    })];
-  }));
+  return normalize(data) as Record<string, unknown>;
 }
 
 export function buildBackupSummary(data: Record<string, unknown>, backupSizeBytes = 0): BackupSummary {

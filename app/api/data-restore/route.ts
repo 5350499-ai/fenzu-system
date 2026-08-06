@@ -59,7 +59,12 @@ function rows(value: unknown) {
 
 function text(value: unknown, fallback = "") { return typeof value === "string" ? value : fallback; }
 function nullableText(value: unknown) { const result = text(value); return result || null; }
-function nullableUuid(value: unknown) { return nullableText(value); }
+function nullableUuid(value: unknown) {
+  const result = nullableText(value);
+  if (!result) return null;
+  const normalized = result.toLowerCase();
+  return normalized === "null" || normalized === "undefined" ? null : result;
+}
 function date(value: unknown) { return nullableText(value); }
 function monthDate(value: unknown) {
   const raw = nullableText(value);
@@ -197,79 +202,112 @@ function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: stri
   const source = payload.data;
   const properties = rows(source.properties).map((row) => ({
     id: text(row.id), user_id: workspaceOwnerId, name: text(row.name), address: text(row.address), city: text(row.city),
-    landlord_name: text(row.landlordName), property_type: null, sublet_allowed: booleanValue(row.subletAllowed), notes: nullableText(row.notes),
-    occupancy_tracking_start_date: date(row.occupancyTrackingStartDate), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    landlord_name: nullableText(row.landlord_name ?? row.landlordName), property_type: nullableText(row.property_type ?? row.propertyType), sublet_allowed: booleanValue(row.sublet_allowed ?? row.subletAllowed), notes: nullableText(row.notes),
+    occupancy_tracking_start_date: date(row.occupancy_tracking_start_date ?? row.occupancyTrackingStartDate), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const rooms = rows(source.rooms).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, property_id: text(row.propertyId), name: text(row.name), room_number: text(row.roomNumber),
-    monthly_rent: numberValue(row.monthlyRent), deposit_amount: numberValue(row.depositAmount), status: text(row.status, "vacant"),
-    area: null, has_window: false, has_private_bathroom: false, furniture: null, notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), name: text(row.name), room_number: nullableText(row.room_number ?? row.roomNumber),
+    monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount), status: text(row.status, "vacant"),
+    area: row.area == null ? null : numberValue(row.area), has_window: booleanValue(row.has_window ?? row.hasWindow), has_private_bathroom: booleanValue(row.has_private_bathroom ?? row.hasPrivateBathroom), furniture: nullableText(row.furniture), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const tenants = rows(source.tenants).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, property_id: text(row.propertyId), room_id: text(row.roomId), name: text(row.name),
-    phone: nullableText(row.phone), email: null, wechat: nullableText(row.wechat), whatsapp: null, passport_number: null, nie_number: null,
-    nationality: null, source: nullableText(row.source), move_in_date: date(row.moveInDate), expected_move_out_date: null,
-    actual_move_out_date: date(row.actualMoveOutDate), monthly_rent: numberValue(row.monthlyRent), deposit_amount: numberValue(row.depositAmount),
-    key_count: 0, payment_day: row.paymentDay == null ? 20 : numberValue(row.paymentDay, 20), status: text(row.status, "active"), notes: nullableText(row.notes),
-    created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId), name: text(row.name),
+    phone: nullableText(row.phone), email: nullableText(row.email), wechat: nullableText(row.wechat), whatsapp: nullableText(row.whatsapp), passport_number: nullableText(row.passport_number ?? row.passportNumber), nie_number: nullableText(row.nie_number ?? row.nieNumber),
+    nationality: nullableText(row.nationality), source: nullableText(row.source), move_in_date: date(row.move_in_date ?? row.moveInDate), expected_move_out_date: date(row.expected_move_out_date ?? row.expectedMoveOutDate),
+    actual_move_out_date: date(row.actual_move_out_date ?? row.actualMoveOutDate), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount),
+    key_count: row.key_count == null && row.keyCount == null ? 0 : numberValue(row.key_count ?? row.keyCount), payment_day: row.payment_day == null && row.paymentDay == null ? 20 : numberValue(row.payment_day ?? row.paymentDay, 20), status: text(row.status, "active"), notes: nullableText(row.notes),
+    created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const contracts = rows(source.contracts).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, contract_type: "tenant_contract", property_id: text(row.propertyId), room_id: nullableText(row.roomId),
-    tenant_id: nullableText(row.tenantId), landlord_id: null, monthly_rent: numberValue(row.monthlyRent), deposit_amount: numberValue(row.depositAmount),
-    start_date: date(row.startDate), end_date: date(row.endDate), is_signed: false, is_active: text(row.status) !== "ended", status: text(row.status, "active"),
-    file_url: null, storage_path: null, notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, contract_type: text(row.contract_type ?? row.contractType, "tenant_contract"), property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId),
+    tenant_id: nullableUuid(row.tenant_id ?? row.tenantId), landlord_id: nullableUuid(row.landlord_id ?? row.landlordId), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount),
+    start_date: date(row.start_date ?? row.startDate), end_date: date(row.end_date ?? row.endDate), is_signed: booleanValue(row.is_signed ?? row.isSigned), is_active: row.is_active == null && row.isActive == null ? text(row.status) !== "ended" : booleanValue(row.is_active ?? row.isActive), status: text(row.status, "active"),
+    file_url: nullableText(row.file_url ?? row.fileUrl), storage_path: nullableText(row.storage_path ?? row.storagePath), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const rentPayments = rows(source.rentPayments).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, tenant_id: nullableUuid(row.tenantId), property_id: nullableUuid(row.propertyId), room_id: nullableUuid(row.roomId),
-    rent_month: monthDate(row.rentMonth) || "1970-01-01", amount_due: numberValue(row.amountDue), amount_paid: numberValue(row.amountPaid), amount_unpaid: numberValue(row.amountUnpaid),
-    payment_date: date(row.paymentDate), payment_method: nullableText(row.paymentMethod), is_overdue: booleanValue(row.isOverdue), notes: nullableText(row.notes),
-    created_at: iso(row.createdAt), updated_at: iso(row.updatedAt), received_by: nullableText(row.receivedBy) || "A", paid_by: null,
-    payment_status: nullableText(row.paymentStatus) || (numberValue(row.amountPaid) > 0 ? "已收" : "未收"), income_type: nullableText(row.incomeType) || "房租收入",
-    income_item: nullableText(row.incomeItem), coverage_start_date: date(row.coverageStartDate), coverage_end_date: date(row.coverageEndDate)
+    id: text(row.id), user_id: workspaceOwnerId, tenant_id: nullableUuid(row.tenant_id ?? row.tenantId), property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId),
+    rent_month: monthDate(row.rent_month ?? row.rentMonth) || "1970-01-01", amount_due: numberValue(row.amount_due ?? row.amountDue), amount_paid: numberValue(row.amount_paid ?? row.amountPaid), amount_unpaid: numberValue(row.amount_unpaid ?? row.amountUnpaid),
+    payment_date: date(row.payment_date ?? row.paymentDate), payment_method: nullableText(row.payment_method ?? row.paymentMethod), is_overdue: booleanValue(row.is_overdue ?? row.isOverdue), notes: nullableText(row.notes),
+    created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt), received_by: nullableText(row.received_by ?? row.receivedBy) || "A", paid_by: nullableText(row.paid_by ?? row.paidBy),
+    payment_status: nullableText(row.payment_status ?? row.paymentStatus) || (numberValue(row.amount_paid ?? row.amountPaid) > 0 ? "已收" : "未收"), income_type: nullableText(row.income_type ?? row.incomeType) || "房租收入",
+    income_item: nullableText(row.income_item ?? row.incomeItem), coverage_start_date: date(row.coverage_start_date ?? row.coverageStartDate), coverage_end_date: date(row.coverage_end_date ?? row.coverageEndDate)
   }));
   const expenses = rows(source.expenses).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, property_id: text(row.propertyId), room_id: nullableText(row.roomId), expense_month: monthDate(row.expenseMonth) || "1970-01-01",
-    category: text(row.category, "其他"), amount: numberValue(row.amount), payment_date: date(row.paymentDate), payment_method: nullableText(row.paymentMethod),
-    paid_by: nullableText(row.paidBy) || "A", is_paid: booleanValue(row.isPaid), notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId), expense_month: monthDate(row.expense_month ?? row.expenseMonth) || "1970-01-01",
+    category: text(row.category, "其他"), amount: numberValue(row.amount), payment_date: date(row.payment_date ?? row.paymentDate), payment_method: nullableText(row.payment_method ?? row.paymentMethod),
+    paid_by: nullableText(row.paid_by ?? row.paidBy) || "A", is_paid: booleanValue(row.is_paid ?? row.isPaid), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const deposits = rows(source.deposits).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, tenant_id: text(row.tenantId), property_id: text(row.propertyId), room_id: text(row.roomId),
-    transaction_type: text(row.type, "收取"), amount: numberValue(row.amount), transaction_date: date(row.transactionDate), status: text(row.status, "已收"),
-    notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt), received_by: nullableText(row.receivedBy) || "A", paid_by: nullableText(row.paidBy) || "A"
+    id: text(row.id), user_id: workspaceOwnerId, tenant_id: nullableUuid(row.tenant_id ?? row.tenantId), property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId),
+    transaction_type: text(row.transaction_type ?? row.transactionType ?? row.type, "收取"), amount: numberValue(row.amount), transaction_date: date(row.transaction_date ?? row.transactionDate), status: text(row.status, "已收"),
+    notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt), received_by: nullableText(row.received_by ?? row.receivedBy) || "A", paid_by: nullableText(row.paid_by ?? row.paidBy) || "A"
   }));
   const viewingAppointments = rows(source.viewingAppointments).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, property_id: nullableText(row.propertyId), room_id: nullableText(row.roomId), appointment_date: text(row.appointmentDate),
-    appointment_time: text(row.appointmentTime), contact_name: nullableText(row.contactName), contact_whatsapp: nullableText(row.contactWhatsapp), contact_phone: nullableText(row.contactPhone),
-    status: text(row.status, "待看房"), notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId), appointment_date: text(row.appointment_date ?? row.appointmentDate),
+    appointment_time: text(row.appointment_time ?? row.appointmentTime), contact_name: nullableText(row.contact_name ?? row.contactName), contact_whatsapp: nullableText(row.contact_whatsapp ?? row.contactWhatsapp), contact_phone: nullableText(row.contact_phone ?? row.contactPhone),
+    status: text(row.status, "待看房"), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const tasks = rows(source.tasks).map((row) => ({
-    id: text(row.id), user_id: workspaceOwnerId, task_type: text(row.taskType, "manual"), title: text(row.title), description: nullableText(row.description), due_date: date(row.dueDate),
-    status: text(row.status, "待处理"), priority: text(row.priority, "普通"), property_id: nullableText(row.propertyId), room_id: nullableText(row.roomId), tenant_id: nullableText(row.tenantId),
-    contract_id: nullableText(row.contractId), rent_payment_id: nullableText(row.rentPaymentId), deposit_id: nullableText(row.depositId), completed_at: null, notes: nullableText(row.notes), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), user_id: workspaceOwnerId, task_type: text(row.task_type ?? row.taskType, "manual"), title: text(row.title), description: nullableText(row.description), due_date: date(row.due_date ?? row.dueDate),
+    status: text(row.status, "待处理"), priority: text(row.priority, "普通"), property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId), tenant_id: nullableUuid(row.tenant_id ?? row.tenantId),
+    contract_id: nullableUuid(row.contract_id ?? row.contractId), rent_payment_id: nullableUuid(row.rent_payment_id ?? row.rentPaymentId), deposit_id: nullableUuid(row.deposit_id ?? row.depositId), completed_at: date(row.completed_at ?? row.completedAt), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const partners = rows(source.partners).map((row) => ({
-    id: text(row.id), workspace_owner_id: workspaceOwnerId, legacy_code: nullableText(row.legacyCode), display_name: text(row.displayName), color_key: nullableText(row.colorKey),
-    sort_order: numberValue(row.sortOrder), is_active: booleanValue(row.isActive, true), linked_account_id: nullableText(row.linkedAccountId), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), workspace_owner_id: workspaceOwnerId, legacy_code: nullableText(row.legacy_code ?? row.legacyCode), display_name: text(row.display_name ?? row.displayName), color_key: nullableText(row.color_key ?? row.colorKey),
+    sort_order: numberValue(row.sort_order ?? row.sortOrder), is_active: booleanValue(row.is_active ?? row.isActive, true), linked_account_id: nullableUuid(row.linked_account_id ?? row.linkedAccountId), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const partnerShares = rows(source.partnerShares).map((row) => ({
-    id: text(row.id), workspace_owner_id: workspaceOwnerId, property_id: text(row.propertyId), partner_id: text(row.partnerId), percentage: numberValue(row.percentage),
-    effective_from: text(row.effectiveFrom), effective_to: date(row.effectiveTo), created_at: iso(row.createdAt), updated_at: iso(row.updatedAt)
+    id: text(row.id), workspace_owner_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), partner_id: nullableUuid(row.partner_id ?? row.partnerId), percentage: numberValue(row.percentage),
+    effective_from: date(row.effective_from ?? row.effectiveFrom), effective_to: date(row.effective_to ?? row.effectiveTo), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
   const partnerNameHistory = rows(source.partnerNameHistory).map((row) => ({
-    id: text(row.id), workspace_owner_id: workspaceOwnerId, partner_id: text(row.partnerId), old_display_name: text(row.oldDisplayName), new_display_name: text(row.newDisplayName),
-    changed_at: iso(row.changedAt), changed_by_account_id: nullableText(row.changedByAccountId), created_at: iso(row.createdAt)
+    id: text(row.id), workspace_owner_id: workspaceOwnerId, partner_id: nullableUuid(row.partner_id ?? row.partnerId), old_display_name: text(row.old_display_name ?? row.oldDisplayName), new_display_name: text(row.new_display_name ?? row.newDisplayName),
+    changed_at: iso(row.changed_at ?? row.changedAt), changed_by_account_id: nullableUuid(row.changed_by_account_id ?? row.changedByAccountId), created_at: iso(row.created_at ?? row.createdAt)
   }));
   const settlementBatches = rows(source.settlementBatches).map((row) => ({
-    id: text(row.id), workspace_owner_id: workspaceOwnerId, property_id: text(row.property_id || row.propertyId), period_start: text(row.period_start || row.periodStart), period_end: text(row.period_end || row.periodEnd),
+    id: text(row.id), workspace_owner_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), period_start: text(row.period_start || row.periodStart), period_end: text(row.period_end || row.periodEnd),
     status: text(row.status, "confirmed"), total_income: numberValue(row.total_income ?? row.totalIncome), total_expense: numberValue(row.total_expense ?? row.totalExpense), net_profit: numberValue(row.net_profit ?? row.netProfit),
-    currency: text(row.currency, "EUR"), confirmed_at: iso(row.confirmed_at || row.confirmedAt), confirmed_by_account_id: nullableText(row.confirmed_by_account_id || row.confirmedByAccountId),
-    reversed_at: date(row.reversed_at || row.reversedAt), reversed_by_account_id: nullableText(row.reversed_by_account_id || row.reversedByAccountId), reversal_reason: nullableText(row.reversal_reason || row.reversalReason), note: nullableText(row.note),
+    currency: text(row.currency, "EUR"), confirmed_at: iso(row.confirmed_at || row.confirmedAt), confirmed_by_account_id: nullableUuid(row.confirmed_by_account_id || row.confirmedByAccountId),
+    reversed_at: date(row.reversed_at || row.reversedAt), reversed_by_account_id: nullableUuid(row.reversed_by_account_id || row.reversedByAccountId), reversal_reason: nullableText(row.reversal_reason || row.reversalReason), note: nullableText(row.note),
     created_at: iso(row.created_at || row.createdAt), updated_at: iso(row.updated_at || row.updatedAt), property_name_snapshot: nullableText(row.property_name_snapshot || row.propertyNameSnapshot), confirmed_by_display_name_snapshot: nullableText(row.confirmed_by_display_name_snapshot || row.confirmedByDisplayNameSnapshot), income_details_snapshot: row.income_details_snapshot || row.incomeDetailsSnapshot || [], expense_details_snapshot: row.expense_details_snapshot || row.expenseDetailsSnapshot || []
   }));
   const snapshotRows = rows(source.settlementSnapshots);
-  const settlementPartnerSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.partners).map((row) => ({ ...row, settlement_batch_id: text((snapshot.batch as Record<string, unknown> | undefined)?.id) })));
-  const settlementSegmentSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.segments).map((row) => ({ ...row, settlement_batch_id: text((snapshot.batch as Record<string, unknown> | undefined)?.id) })));
-  const settlementTransferSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.transfers).map((row) => ({ ...row, settlement_batch_id: text((snapshot.batch as Record<string, unknown> | undefined)?.id) })));
+  const settlementPartnerSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.partners).map((row) => ({
+    id: text(row.id),
+    settlement_batch_id: nullableUuid(row.settlement_batch_id ?? row.settlementBatchId ?? (snapshot.batch as Record<string, unknown> | undefined)?.id),
+    partner_id: nullableUuid(row.partner_id ?? row.partnerId),
+    partner_display_name_snapshot: text(row.partner_display_name_snapshot ?? row.partnerDisplayNameSnapshot),
+    legacy_code_snapshot: nullableText(row.legacy_code_snapshot ?? row.legacyCodeSnapshot),
+    actual_collected: numberValue(row.actual_collected ?? row.actualCollected),
+    actual_paid: numberValue(row.actual_paid ?? row.actualPaid),
+    actual_retained: numberValue(row.actual_retained ?? row.actualRetained),
+    profit_entitlement: numberValue(row.profit_entitlement ?? row.profitEntitlement),
+    settlement_balance: numberValue(row.settlement_balance ?? row.settlementBalance),
+    share_segments_snapshot: row.share_segments_snapshot ?? row.shareSegmentsSnapshot ?? [],
+    created_at: iso(row.created_at ?? row.createdAt)
+  })));
+  const settlementSegmentSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.segments).map((row) => ({
+    id: text(row.id),
+    settlement_batch_id: nullableUuid(row.settlement_batch_id ?? row.settlementBatchId ?? (snapshot.batch as Record<string, unknown> | undefined)?.id),
+    segment_start: date(row.segment_start ?? row.segmentStart),
+    segment_end: date(row.segment_end ?? row.segmentEnd),
+    total_income: numberValue(row.total_income ?? row.totalIncome),
+    total_expense: numberValue(row.total_expense ?? row.totalExpense),
+    net_profit: numberValue(row.net_profit ?? row.netProfit),
+    shares_snapshot: row.shares_snapshot ?? row.sharesSnapshot ?? [],
+    created_at: iso(row.created_at ?? row.createdAt)
+  })));
+  const settlementTransferSnapshots = snapshotRows.flatMap((snapshot) => rows(snapshot.transfers).map((row) => ({
+    id: text(row.id),
+    settlement_batch_id: nullableUuid(row.settlement_batch_id ?? row.settlementBatchId ?? (snapshot.batch as Record<string, unknown> | undefined)?.id),
+    from_partner_id: nullableUuid(row.from_partner_id ?? row.fromPartnerId),
+    to_partner_id: nullableUuid(row.to_partner_id ?? row.toPartnerId),
+    from_name_snapshot: text(row.from_name_snapshot ?? row.fromNameSnapshot),
+    to_name_snapshot: text(row.to_name_snapshot ?? row.toNameSnapshot),
+    amount: numberValue(row.amount),
+    currency: text(row.currency, "EUR"),
+    created_at: iso(row.created_at ?? row.createdAt)
+  })));
   return { properties, rooms, tenants, contracts, rentPayments, expenses, deposits, viewingAppointments, tasks, partners, partnerShares, partnerNameHistory, settlementBatches, settlementPartnerSnapshots, settlementSegmentSnapshots, settlementTransferSnapshots };
 }
 
