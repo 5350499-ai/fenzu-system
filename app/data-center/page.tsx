@@ -283,7 +283,7 @@ export default function DataCenterPage() {
         setBackupRetryFile(file);
         if (isShareCanceled && handoffMethod === "share") {
           setBackupStatus("complete");
-          setBackupNotice(`用户取消保存，备份文件已生成：${file.name}`);
+          setBackupNotice("用户取消保存，备份文件已生成，可重新创建。");
         } else {
           setBackupStatus("error");
           setBackupNotice(error instanceof Error ? `备份失败：${error.message}` : "备份失败，请稍后重试。");
