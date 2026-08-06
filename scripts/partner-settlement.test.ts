@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's strip-types runner needs the explicit source extension.
-import { buildSettlement, buildTransfers, compareSettlementHistory, hasSettlementOverlap } from "../lib/partner-settlement.ts";
+import { buildSettlement, buildTransfers, compareSettlementHistory, countEffectiveSettlementBatches, hasSettlementOverlap } from "../lib/partner-settlement.ts";
 
 const partners = [
   { id: "a", workspaceOwnerId: "w", legacyCode: "A", displayName: "蓓蓓", colorKey: null, sortOrder: 1, isActive: true, linkedAccountId: null, propertyCount: 1, currentPropertyCount: 1, futurePropertyCount: 0 },
@@ -89,4 +89,15 @@ test("confirmed history sorts before reversed history", () => {
   ].sort(compareSettlementHistory);
   assert.equal(sorted[0].status, "confirmed");
   assert.equal(sorted[1].status, "reversed");
+});
+
+test("settlement count excludes reversed, deleted, and invalid batches", () => {
+  assert.equal(countEffectiveSettlementBatches([
+    { status: "confirmed" },
+    { status: "reversed" },
+    { status: "confirmed", deleted_at: "2026-08-01T00:00:00Z" },
+    { status: "deleted" },
+    { status: "pending" },
+  ]), 1);
+  assert.equal(countEffectiveSettlementBatches([{ status: "reversed" }, { status: "deleted" }]), 0);
 });

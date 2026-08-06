@@ -59,6 +59,11 @@ export type SettlementBatchPeriod = {
   status: "confirmed" | "reversed";
 };
 
+/** Counts only settlement batches that are still effective for the workspace. */
+export function countEffectiveSettlementBatches(batches: Array<{ status?: string | null; deleted_at?: string | null; deletedAt?: string | null }>) {
+  return batches.filter((batch) => batch.status === "confirmed" && !batch.deleted_at && !batch.deletedAt).length;
+}
+
 export function compareSettlementHistory(
   a: { status: "confirmed" | "reversed"; periodEnd: string; confirmedAt: string; reversedAt?: string | null },
   b: { status: "confirmed" | "reversed"; periodEnd: string; confirmedAt: string; reversedAt?: string | null }

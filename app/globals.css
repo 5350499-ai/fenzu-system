@@ -6378,6 +6378,30 @@ td:last-child {
   transform: translateY(-1px);
 }
 
+.settlement-count-value {
+  display: flex !important;
+  align-items: baseline;
+  gap: .3em;
+  white-space: nowrap;
+}
+
+.settlement-count-value b {
+  font: inherit;
+}
+
+.settlement-count-value small {
+  color: var(--muted);
+  font-size: .62em;
+  font-weight: 800;
+}
+
+.settlement-count-value em {
+  color: var(--muted);
+  font-size: .48em;
+  font-style: normal;
+  font-weight: 700;
+}
+
 .roadmap-entry-card {
   display: flex;
   align-items: center;
