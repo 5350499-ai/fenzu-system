@@ -46,6 +46,31 @@ type RestorePreview = { fileName: string; fileSize: number; payload: DataExportP
 type RestoreStep = "preview" | "confirm";
 type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
 type SaveFilePicker = (options: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<{ createWritable: () => Promise<{ write: (value: File) => Promise<void>; close: () => Promise<void> }> }>;
+type BeforeRestoreDiagnostic = { error?: string; code?: string; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown };
+
+class BeforeRestoreClientError extends Error {
+  diagnostic: BeforeRestoreDiagnostic;
+  constructor(diagnostic: BeforeRestoreDiagnostic) {
+    super(diagnostic.message || diagnostic.error || "BeforeRestore 生成失败");
+    this.name = "BeforeRestoreClientError";
+    this.diagnostic = diagnostic;
+  }
+}
+
+function beforeRestoreStageLabel(stage?: string) {
+  return ({ database_read: "数据库读取", json_generation: "JSON 生成", json_serialization: "JSON 序列化", storage_upload: "Storage 上传", response: "服务端返回", file_generation: "生成分享文件", navigator_share: "navigator.share 分享", file_system_access: "文件选择器保存", browser_download: "浏览器下载" } as Record<string, string>)[stage || ""] || stage || "未知步骤";
+}
+
+function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
+  const lines = [`❌ ${beforeRestoreStageLabel(diagnostic.stage)}失败`, diagnostic.message || diagnostic.error || "BeforeRestore 生成失败"];
+  if (diagnostic.code) lines.push(`错误代码：${diagnostic.code}`);
+  if (diagnostic.details) lines.push(`详情：${diagnostic.details}`);
+  if (diagnostic.hint) lines.push(`建议：${diagnostic.hint}`);
+  if (diagnostic.bucket) lines.push(`bucket：${diagnostic.bucket}`);
+  if (diagnostic.objectPath) lines.push(`object path：${diagnostic.objectPath}`);
+  if (diagnostic.workspaceId) lines.push(`workspace：${diagnostic.workspaceId}`);
+  return lines.join("\n");
+}
 
 const restoreLabels: Record<string, string> = {
   properties: "房源",
@@ -352,47 +377,65 @@ export default function DataCenterPage() {
   async function saveBeforeRestoreFile(file: File) {
     const canShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
     if (canShare) {
-      await navigator.share({ files: [file] });
+      try {
+        await navigator.share({ files: [file] });
+      } catch (error) {
+        throw new BeforeRestoreClientError({ stage: "navigator_share", code: "navigator_share_failed", message: error instanceof Error ? error.message : "系统分享失败" });
+      }
       return;
     }
     const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
     if (picker) {
-      const handle = await picker({ suggestedName: file.name, types: [{ description: "JSON 备份文件", accept: { "application/json": [".json"] } }] });
-      const writable = await handle.createWritable();
-      await writable.write(file);
-      await writable.close();
+      try {
+        const handle = await picker({ suggestedName: file.name, types: [{ description: "JSON 备份文件", accept: { "application/json": [".json"] } }] });
+        const writable = await handle.createWritable();
+        await writable.write(file);
+        await writable.close();
+      } catch (error) {
+        throw new BeforeRestoreClientError({ stage: "file_system_access", code: "file_system_access_failed", message: error instanceof Error ? error.message : "文件选择器保存失败" });
+      }
       return;
     }
-    const url = URL.createObjectURL(file);
+    try {
+      const url = URL.createObjectURL(file);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = file.name;
     anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      throw new BeforeRestoreClientError({ stage: "browser_download", code: "browser_download_failed", message: error instanceof Error ? error.message : "浏览器下载失败" });
+    }
   }
 
   async function prepareBeforeRestore() {
     setBeforeRestoreStatus("preparing");
     setBeforeRestoreError("");
-    const session = await getValidSupabaseSession();
     try {
+      const session = await getValidSupabaseSession();
       if (!session?.access_token) throw new Error("登录已失效，请重新登录后再继续。");
       const response = await fetch("/api/data-restore", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ action: "prepare_before_restore" })
       });
-      const result = await response.json().catch(() => null) as { error?: string; beforeRestore?: BeforeRestorePackage } | null;
-      if (!response.ok || !result?.beforeRestore) throw new Error(result?.error || "恢复前备份生成失败，请稍后重试。");
+      const result = await response.json().catch(() => null) as (BeforeRestoreDiagnostic & { beforeRestore?: BeforeRestorePackage }) | null;
+      if (!response.ok || !result?.beforeRestore) throw new BeforeRestoreClientError(result || { stage: "response", code: "before_restore_response_invalid", message: "服务端没有返回有效的 BeforeRestore 文件" });
       const packageData = result.beforeRestore;
-      const file = buildExportFile(packageData.fileName, JSON.stringify(packageData.payload, null, 2), "application/json");
+      let file: File;
+      try {
+        file = buildExportFile(packageData.fileName, JSON.stringify(packageData.payload, null, 2), "application/json");
+      } catch (error) {
+        throw new BeforeRestoreClientError({ stage: "file_generation", code: "before_restore_file_generation_failed", message: error instanceof Error ? error.message : "分享文件生成失败" });
+      }
       setBeforeRestoreStatus("saving");
       await saveBeforeRestoreFile(file);
       setBeforeRestorePackage(packageData);
       setBeforeRestoreStatus("ready");
     } catch (error) {
       setBeforeRestoreStatus("error");
-      setBeforeRestoreError(error instanceof Error ? error.message : "恢复前备份保存失败，请重试。");
+      const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "BeforeRestore 生成失败" };
+      setBeforeRestoreError(beforeRestoreErrorText(diagnostic));
       throw error;
     }
   }

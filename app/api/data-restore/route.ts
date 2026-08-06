@@ -12,6 +12,39 @@ import {
 
 const BACKUP_BUCKET = "system-backups";
 
+function beforeRestoreFailure(error: unknown, stage: string, context: {
+  bucket?: string;
+  objectPath?: string;
+  mimeType?: string;
+  workspaceId?: string;
+  ownerId?: string;
+  storageResponse?: unknown;
+  supabaseResponse?: unknown;
+}) {
+  const source = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
+  const message = text(source.message || source.error, error instanceof Error ? error.message : "BeforeRestore 生成失败");
+  return {
+    error: "BeforeRestore 生成失败",
+    code: text(source.code || source.name, "before_restore_failed"),
+    message,
+    details: nullableText(source.details),
+    hint: nullableText(source.hint),
+    stack: error instanceof Error ? error.stack || null : nullableText(source.stack),
+    stage,
+    bucket: context.bucket || null,
+    objectPath: context.objectPath || null,
+    mimeType: context.mimeType || "application/json",
+    workspaceId: context.workspaceId || null,
+    ownerId: context.ownerId || null,
+    storageResponse: context.storageResponse || null,
+    supabaseResponse: context.supabaseResponse || null
+  };
+}
+
+function logBeforeRestoreFailure(diagnostic: ReturnType<typeof beforeRestoreFailure>) {
+  console.error("BeforeRestore failed", diagnostic);
+}
+
 function rows(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
 }
@@ -229,20 +262,38 @@ export async function POST(request: Request) {
     const context = await requireActiveAccount(request, true);
     const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string };
     if (body.action === "prepare_before_restore") {
-      const admin = getSupabaseAdmin();
-      const currentData = await loadServerBackupData(admin, context.profile.workspace_owner_id);
-      const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
-      const now = new Date();
-      const part = (value: number) => String(value).padStart(2, "0");
-      const stamp = `${now.getUTCFullYear()}-${part(now.getUTCMonth() + 1)}-${part(now.getUTCDate())}-${part(now.getUTCHours())}-${part(now.getUTCMinutes())}-${part(now.getUTCSeconds())}-${String(now.getUTCMilliseconds()).padStart(3, "0")}`;
-      const fileName = `BeforeRestore-${stamp}-${beforeRestore.metadata.backupId}.json`;
-      const backupPath = `${context.profile.workspace_owner_id}/before-restore/${fileName}`;
-      const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(JSON.stringify(beforeRestore, null, 2), "utf8"), { contentType: "application/json", upsert: false });
-      if (upload.error) {
-        console.error("BeforeRestore upload failed", { workspaceOwnerId: context.profile.workspace_owner_id, bucket: BACKUP_BUCKET, objectPath: backupPath, serviceRole: true, rls: "bypassed_by_service_role", code: upload.error.name || "storage_upload_failed", message: upload.error.message });
-        return NextResponse.json({ error: "恢复前备份生成失败，未修改任何数据。请稍后重试。", code: "before_restore_upload_failed" }, { status: 503 });
+      const workspaceId = context.profile.workspace_owner_id;
+      const diagnosticContext = { workspaceId, ownerId: context.userId, bucket: BACKUP_BUCKET, mimeType: "application/json" };
+      let stage = "database_read";
+      let backupPath = "";
+      try {
+        stage = "database_read";
+        const admin = getSupabaseAdmin();
+        const currentData = await loadServerBackupData(admin, workspaceId);
+        stage = "json_generation";
+        const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), { backupType: "cloud", exportedBy: context.userId, exportReason: "BeforeRestore", timezone: "UTC" });
+        const now = new Date();
+        const part = (value: number) => String(value).padStart(2, "0");
+        const stamp = `${now.getUTCFullYear()}-${part(now.getUTCMonth() + 1)}-${part(now.getUTCDate())}-${part(now.getUTCHours())}-${part(now.getUTCMinutes())}-${part(now.getUTCSeconds())}-${String(now.getUTCMilliseconds()).padStart(3, "0")}`;
+        const fileName = `BeforeRestore-${stamp}-${beforeRestore.metadata.backupId}.json`;
+        backupPath = `${workspaceId}/before-restore/${fileName}`;
+        stage = "json_serialization";
+        const serialized = JSON.stringify(beforeRestore, null, 2);
+        if (!serialized) throw new Error("JSON 序列化返回空结果");
+        stage = "storage_upload";
+        const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(serialized, "utf8"), { contentType: "application/json", upsert: false });
+        if (upload.error) {
+          const diagnostic = beforeRestoreFailure(upload.error, stage, { ...diagnosticContext, objectPath: backupPath, storageResponse: upload.error, supabaseResponse: upload.error });
+          logBeforeRestoreFailure(diagnostic);
+          return NextResponse.json(diagnostic, { status: 503 });
+        }
+        stage = "response";
+        return NextResponse.json({ ok: true, beforeRestore: { fileName, storagePath: backupPath, payload: beforeRestore } });
+      } catch (error) {
+        const diagnostic = beforeRestoreFailure(error, stage, { ...diagnosticContext, objectPath: backupPath || undefined });
+        logBeforeRestoreFailure(diagnostic);
+        return NextResponse.json(diagnostic, { status: 500 });
       }
-      return NextResponse.json({ ok: true, beforeRestore: { fileName, storagePath: backupPath, payload: beforeRestore } });
     }
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
     const integrity = await dryRunRestore(body.payload);
