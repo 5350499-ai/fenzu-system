@@ -117,7 +117,7 @@ async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, 
   const sensitiveResult = { data: await readBeforeRestoreTable("user_sensitive_permissions", admin.from("user_sensitive_permissions").select("*")) };
   const accessResult = { data: await readBeforeRestoreTable("user_property_access", admin.from("user_property_access").select("user_id,property_id")) };
   const identitiesResult = { data: await readBeforeRestoreTable("account_auth_identities", admin.from("account_auth_identities").select("auth_user_id,auth_email,is_internal_email")) };
-  const auditResult = { data: await readBeforeRestoreTable("audit_logs", admin.from("audit_logs").select("id,log_category,action,actor_user_id,actor_username,target_table,target_record_id,success,error_message,created_at,metadata").eq("success", true).order("created_at", { ascending: false }).limit(1000)) };
+  const auditResult = { data: await readBeforeRestoreTable("audit_logs", admin.from("audit_logs").select("id,log_category,actor_user_id,actor_username,actor_display_name,action_type,module_key,entity_type,entity_id,before_data,after_data,description,success,created_at").eq("success", true).order("created_at", { ascending: false }).limit(1000)) };
   const profiles = (profilesResult.data || []) as Array<Record<string, unknown>>;
   const userIds = new Set(profiles.map((profile) => String(profile.auth_user_id)));
   const permissions = (permissionsResult.data || []) as Array<Record<string, unknown>>;

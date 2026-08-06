@@ -2935,6 +2935,32 @@ td:last-child {
   grid-template-columns: 108px 72px minmax(0, 1fr) 104px 88px;
 }
 
+.rent-finance-line {
+  grid-template-columns: 108px 72px minmax(0, 1fr) 104px 88px;
+}
+
+.rent-finance-line > *,
+.expense-finance-line > * {
+  min-width: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.rent-finance-line strong,
+.expense-finance-line strong {
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+.rent-finance-line .partner-tag,
+.expense-finance-line .partner-tag {
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 22px;
+}
+
 .expense-finance-line > :nth-child(2) {
   justify-self: center;
 }
