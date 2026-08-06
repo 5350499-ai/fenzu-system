@@ -26,11 +26,9 @@ export async function GET(request: Request) {
     let query = admin
       .from("audit_logs")
       .select("id,log_category,actor_user_id,actor_username,actor_display_name,action_type,module_key,entity_type,entity_id,before_data,after_data,description,success,created_at")
+      .eq("success", true)
       .order("created_at", { ascending: false })
-      .limit(200);
-    if (context.profile.account_type !== "owner") {
-      query = query.in("actor_user_id", workspaceUserIds.length ? workspaceUserIds : [context.userId]);
-    }
+      .limit(1000);
     if (actor) query = query.ilike("actor_username", `%${actor}%`);
     if (action) query = query.ilike("action_type", `%${action}%`);
     if (moduleKey) query = query.eq("module_key", moduleKey);
@@ -40,7 +38,9 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
     if (error) throw error;
-    return NextResponse.json({ logs: data || [] });
+    const workspaceUserIdSet = new Set(workspaceUserIds);
+    const logs = (data || []).filter((row) => !row.actor_user_id || workspaceUserIdSet.has(row.actor_user_id));
+    return NextResponse.json({ logs });
   } catch (error) {
     return apiErrorResponse(error);
   }

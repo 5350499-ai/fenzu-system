@@ -32,7 +32,8 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel, usePartnerDirectory, usePartnerOwnershipOptions } from "@/lib/partner-settings";
+import { getPartners, type PartnerWorkspaceData } from "@/lib/partners";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -54,8 +55,8 @@ const emptyExpense: BusinessExpense = {
 
 export default function ExpensesPage() {
   const access = useAccountAccess();
-  const partnerDirectory = usePartnerDirectory();
-  const partnerOptions = usePartnerOwnershipOptions();
+  const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
+  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -111,12 +112,22 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
+      const partnerData: PartnerWorkspaceData = await getPartners();
+      const nextDirectory: Record<string, string> = {};
+      for (const partner of partnerData.partners) {
+        nextDirectory[partner.id] = partner.displayName;
+        if (partner.legacyCode) nextDirectory[partner.legacyCode] = partner.displayName;
+        if (partner.legacyCode) nextDirectory[partner.legacyCode.toUpperCase()] = partner.displayName;
+      }
+      const nextOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setExpenses(loadedExpenses);
+      setPartnerDirectory(nextDirectory);
+      setPartnerOptions(nextOptions);
       await refreshExpenseFiles(loadedExpenses.map((expense) => expense.id));
       setLoaded(true);
     }
@@ -266,7 +277,7 @@ export default function ExpensesPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
-          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm(emptyExpense); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
+          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyExpense, paidBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">

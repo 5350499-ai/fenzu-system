@@ -29,7 +29,8 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { partnerClass, partnerLabel, usePartnerDirectory, usePartnerOwnershipOptions } from "@/lib/partner-settings";
+import { getPartners, type PartnerWorkspaceData } from "@/lib/partners";
+import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -79,8 +80,8 @@ function defaultCoverageEnd(startDate: string) {
 
 export default function RentPaymentsPage() {
   const access = useAccountAccess();
-  const partnerDirectory = usePartnerDirectory();
-  const partnerOptions = usePartnerOwnershipOptions();
+  const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
+  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -149,6 +150,14 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
+      const partnerData: PartnerWorkspaceData = await getPartners();
+      const nextDirectory: Record<string, string> = {};
+      for (const partner of partnerData.partners) {
+        nextDirectory[partner.id] = partner.displayName;
+        if (partner.legacyCode) nextDirectory[partner.legacyCode] = partner.displayName;
+        if (partner.legacyCode) nextDirectory[partner.legacyCode.toUpperCase()] = partner.displayName;
+      }
+      const nextOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -156,6 +165,8 @@ export default function RentPaymentsPage() {
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
+      setPartnerDirectory(nextDirectory);
+      setPartnerOptions(nextOptions);
       const repairedTenants = repairMissingTenantMonthlyRents(loadedTenants, loadedPayments);
       if (repairedTenants !== loadedTenants) await saveBusinessData(tenantKey, repairedTenants);
       setTenants(repairedTenants);
@@ -167,7 +178,7 @@ export default function RentPaymentsPage() {
         const latest = latestCoverageForTenant(renewTenant.id, loadedPayments);
         const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
         const receivedBy = latest?.receivedBy || "A";
-        const mode = ownershipChoice(receivedBy, partnerOptions);
+        const mode = ownershipChoice(receivedBy, nextOptions);
         setForm({
           ...emptyPayment,
           propertyId: renewTenant.propertyId,
@@ -610,7 +621,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate) }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode("A"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode((partnerOptions[0]?.value || "") as "A" | "B" | "自定义"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
