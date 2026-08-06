@@ -6619,6 +6619,27 @@ td:last-child {
 
 .data-center-restore-confirmation input { margin-top: 4px; flex: 0 0 auto; }
 
+.data-center-restore-confirmation--prominent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 48px;
+  margin: 16px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.data-center-restore-confirmation--prominent input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: 0 0 22px;
+}
+
 .data-center-restore-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);

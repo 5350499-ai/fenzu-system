@@ -384,13 +384,10 @@ export default function DataCenterPage() {
   }
 
   async function saveBeforeRestoreFile(file: File) {
-    let canShare = false;
-    try {
-      canShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
-    } catch {
-      canShare = false;
-    }
-    if (canShare) {
+    // Safari/PWA versions do not consistently implement canShare({ files }),
+    // so the actual share method is the capability check. Fall back only when
+    // the platform rejects the share call.
+    if (typeof navigator.share === "function") {
       try {
         await navigator.share({ files: [file] });
         return;
@@ -537,12 +534,21 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
   const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
   const [restoreReport, setRestoreReport] = useState<RestoreDryRunReport | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [restoreSlow, setRestoreSlow] = useState(false);
   const confirmationRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (step === "confirm") {
       requestAnimationFrame(() => confirmationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
   }, [step]);
+  useEffect(() => {
+    if (!restoring) {
+      setRestoreSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setRestoreSlow(true), 15000);
+    return () => window.clearTimeout(timer);
+  }, [restoring]);
   useEffect(() => {
     if (step !== "confirm" || !canRealRestore || !beforeRestoreConfirmed || !beforeRestorePackage || restoring || restoreReport) return;
     let active = true;
@@ -587,13 +593,14 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         {beforeRestoreStatus === "preparing" ? <p>正在生成恢复前备份…</p> : null}
         {beforeRestoreStatus === "saving" ? <p>正在调用系统保存，请选择保存位置…</p> : null}
         {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已生成</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
-        {beforeRestorePackage ? <label className="data-center-restore-confirmation"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /> 我已保存 BeforeRestore 文件，可以继续恢复</label> : null}
         {beforeRestoreError ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreError}</p> : null}
       </div>
       {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
+      {restoreSlow ? <p className="data-center-alert data-center-alert--warning" role="status">恢复仍在进行中，请稍候……</p> : null}
       {restoreReport && restoreReport.mode !== "restore" ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
        {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>真实 Restore 报告</strong><p>BeforeRestore：成功</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>Restore V2 一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
+      {beforeRestorePackage ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /><span>我已保存 BeforeRestore 文件，可以继续恢复</span></label> : null}
        <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
         {canRealRestore ? <DangerButton type="button" disabled={(beforeRestorePackage ? !beforeRestoreConfirmed : false) || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
