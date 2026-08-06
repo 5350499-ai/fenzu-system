@@ -7,6 +7,7 @@ export function OwnershipField({
   mode,
   customName,
   options,
+  optionsLoading = false,
   onModeChange,
   onCustomNameChange
 }: {
@@ -14,6 +15,7 @@ export function OwnershipField({
   mode: OwnershipMode;
   customName: string;
   options?: Array<{ value: string; label: string }>;
+  optionsLoading?: boolean;
   onModeChange: (mode: OwnershipMode) => void;
   onCustomNameChange: (name: string) => void;
 }) {
@@ -22,10 +24,13 @@ export function OwnershipField({
       <div className="field">
         <label>{label}</label>
         <select
+          disabled={optionsLoading}
           value={mode}
           onChange={(event) => onModeChange(event.target.value as OwnershipMode)}
         >
-          {(options?.length ? options : [{ value: "A", label: "A" }, { value: "B", label: "B" }]).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {optionsLoading ? <option value="">正在加载合伙人…</option> : null}
+          {!optionsLoading && options?.length ? options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>) : null}
+          {!optionsLoading && !options ? [{ value: "A", label: "A" }, { value: "B", label: "B" }].map((option) => <option key={option.value} value={option.value}>{option.label}</option>) : null}
           <option value="自定义">自定义</option>
         </select>
       </div>

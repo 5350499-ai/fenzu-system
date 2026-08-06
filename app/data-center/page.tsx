@@ -94,6 +94,7 @@ const restoreLabels: Record<string, string> = {
   propertyHistory: "房源历史",
   settlementBatches: "结算批次",
   settlementSnapshots: "结算快照",
+  auditLogs: "操作日志（仅审计，不参与一致性校验）",
   accounts: "账号",
   settings: "系统设置"
 };
@@ -463,12 +464,13 @@ type RestoreDryRunReport = {
 function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
-  const keys = Object.keys(payload.data).filter((key) => key !== "auditLogs");
+  const keys = Object.keys(payload.data);
   const countValue = (value: unknown) => Array.isArray(value) ? value.length : value && typeof value === "object" ? 1 : 0;
   const rows = keys.map((key) => {
     const current = countValue(currentData[key]);
     const backup = countValue(payload.data[key]);
-    return { key, label: restoreLabels[key] || "其他数据", current, backup, differs: current !== backup };
+    const auditOnly = key === "auditLogs";
+    return { key, label: restoreLabels[key] || "其他数据", current, backup, differs: !auditOnly && current !== backup, auditOnly };
   });
   const differenceCount = rows.filter((row) => row.differs).length;
   const allMatch = differenceCount === 0;
@@ -550,8 +552,8 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       <table className="data-center-restore-table">
         <thead><tr><th scope="col">项目</th><th scope="col">当前数据</th><th scope="col">备份数据</th><th scope="col">状态</th></tr></thead>
         <tbody>{rows.map((row) => {
-          const status = row.current === row.backup ? "✅" : row.backup > row.current ? "↑" : "↓";
-          return <tr key={row.key}><th scope="row">{row.label}</th><td>{row.current}</td><td>{row.backup}</td><td aria-label={row.differs ? "存在差异" : "相同"}>{status}</td></tr>;
+          const status = row.auditOnly ? "审计记录" : row.current === row.backup ? "✅" : row.backup > row.current ? "↑" : "↓";
+          return <tr key={row.key}><th scope="row">{row.label}</th><td>{row.current}</td><td>{row.backup}</td><td aria-label={row.auditOnly ? "不参与一致性校验" : row.differs ? "存在差异" : "相同"}>{status}</td></tr>;
         })}</tbody>
       </table>
     </div>
