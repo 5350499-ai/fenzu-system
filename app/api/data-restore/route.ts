@@ -219,6 +219,50 @@ function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | nul
   };
 }
 
+async function createBeforeRestorePackage(admin: ReturnType<typeof getSupabaseAdmin>, workspaceId: string, ownerId: string) {
+  const diagnosticContext = { workspaceId, ownerId, bucket: BACKUP_BUCKET, mimeType: "application/json" };
+  let stage = "database_read";
+  let backupPath = "";
+  try {
+    const currentData = await loadServerBackupData(admin, workspaceId);
+    stage = "json_generation";
+    const beforeRestore = await createDataExportPayload(currentData, new Date().toISOString(), {
+      backupType: "cloud",
+      exportedBy: ownerId,
+      exportReason: "BeforeRestore",
+      timezone: "UTC"
+    });
+    const now = new Date();
+    const part = (value: number) => String(value).padStart(2, "0");
+    const stamp = `${now.getUTCFullYear()}-${part(now.getUTCMonth() + 1)}-${part(now.getUTCDate())}-${part(now.getUTCHours())}-${part(now.getUTCMinutes())}-${part(now.getUTCSeconds())}-${String(now.getUTCMilliseconds()).padStart(3, "0")}`;
+    const fileName = `BeforeRestore-${stamp}-${beforeRestore.metadata.backupId}.json`;
+    backupPath = `${workspaceId}/before-restore/${fileName}`;
+    stage = "json_serialization";
+    const serialized = JSON.stringify(beforeRestore, null, 2);
+    if (!serialized) throw new Error("BeforeRestore JSON serialization returned an empty result");
+    stage = "storage_upload";
+    const upload = await admin.storage.from(BACKUP_BUCKET).upload(backupPath, Buffer.from(serialized, "utf8"), {
+      contentType: "application/json",
+      upsert: false
+    });
+    if (upload.error) {
+      const error = new Error(upload.error.message || "BeforeRestore upload failed");
+      Object.assign(error, { ...upload.error, stage, objectPath: backupPath, storageResponse: upload.error, supabaseResponse: upload.error });
+      throw error;
+    }
+    return { fileName, storagePath: backupPath, payload: beforeRestore };
+  } catch (error) {
+    const source = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
+    const diagnostic = beforeRestoreFailure(error, text(source.stage, stage), {
+      ...diagnosticContext,
+      objectPath: text(source.objectPath, backupPath) || undefined,
+      storageResponse: source.storageResponse,
+      supabaseResponse: source.supabaseResponse
+    });
+    throw Object.assign(new Error(diagnostic.message || diagnostic.error), diagnostic);
+  }
+}
+
 function normalizeRestoreDataFromDatabaseSchema(payload: DataExportPayload, workspaceOwnerId: string) {
   const source = payload.data;
   const snapshotRows = rows(source.settlementSnapshots);
@@ -410,20 +454,40 @@ export async function POST(request: Request) {
     const integrity = await dryRunRestore(body.payload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     const admin = getSupabaseAdmin();
-    const backupPath = body.beforeRestoreBackupPath || "";
+    let backupPath = body.beforeRestoreBackupPath || "";
+    if (mode === "dry_run") {
     const expectedPrefix = `${context.profile.workspace_owner_id}/before-restore/`;
     if (!backupPath.startsWith(expectedPrefix) || !backupPath.endsWith(".json")) return NextResponse.json({ error: "请先完成恢复前备份。", code: "before_restore_required" }, { status: 409 });
     const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
     if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
+    }
     const normalized = normalizeRestoreDataFromDatabaseSchema(body.payload, context.profile.workspace_owner_id);
     if (mode === "restore") {
+      let freshBeforeRestore: Awaited<ReturnType<typeof createBeforeRestorePackage>>;
+      try {
+        freshBeforeRestore = await createBeforeRestorePackage(admin, context.profile.workspace_owner_id, context.userId);
+        backupPath = freshBeforeRestore.storagePath;
+      } catch (error) {
+        const source = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
+        const diagnostic = beforeRestoreFailure(error, text(source.stage, "before_restore"), {
+          workspaceId: context.profile.workspace_owner_id,
+          ownerId: context.userId,
+          bucket: BACKUP_BUCKET,
+          objectPath: nullableText(source.objectPath) || undefined,
+          mimeType: "application/json",
+          storageResponse: source.storageResponse,
+          supabaseResponse: source.supabaseResponse
+        });
+        logBeforeRestoreFailure(diagnostic);
+        return NextResponse.json({ ...diagnostic, report: { beforeRestore: { success: false }, upload: { success: false }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: false, databaseUnchanged: true, databaseRestored: false, mode } }, { status: 503 });
+      }
       const { error: restoreError } = await admin.rpc("restore_workspace_backup", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
       if (restoreError) {
         const diagnostic = { ...restoreDiagnostic(restoreError, null, mode), error: "Restore 失败" };
         console.error("Restore RPC failed", { rpcName: "restore_workspace_backup", workspaceOwnerId: context.profile.workspace_owner_id, ...diagnostic, rawRpcError: restoreError });
         return NextResponse.json({ ...diagnostic, rawRpcError: restoreError, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode } }, { status: 409 });
       }
-      return NextResponse.json({ ok: true, restore: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode } });
+      return NextResponse.json({ ok: true, restore: true, beforeRestore: { fileName: freshBeforeRestore.fileName, storagePath: freshBeforeRestore.storagePath }, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode } });
     }
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
