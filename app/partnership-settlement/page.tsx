@@ -3,17 +3,20 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
-import { BusinessExpense, BusinessProperty, BusinessRentPayment, expenseKey, getInitialExpenses, getInitialProperties, getInitialRentPayments, loadBusinessData, propertyKey, rentPaymentKey } from "@/lib/business-data";
+import { BusinessExpense, BusinessProperty, BusinessRentPayment, expenseKey, getInitialExpenses, getInitialProperties, getInitialRentPayments, refreshBusinessData, propertyKey, rentPaymentKey } from "@/lib/business-data";
 import { buildSettlement, SettlementResult } from "@/lib/partner-settlement";
-import { PartnerWorkspaceData } from "@/lib/partners";
+import { refreshPartners, PartnerWorkspaceData } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
 import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import { useEffect, useMemo, useState } from "react";
+import { cacheManager } from "@/lib/cache/cache-manager";
+import { PARTNER_SETTLEMENT_CACHE_KEY } from "@/lib/cache/cache-keys";
 
 type RangeMode = "previous" | "threeMonths" | "custom";
 type Batch = { id: string; property_id: string; period_start: string; period_end: string; status: "confirmed" | "reversed"; total_income: number; total_expense: number; net_profit: number; confirmed_at: string; confirmed_by_account_id: string | null };
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
+type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
 
 class SettlementPageError extends Error { constructor(message: string, readonly code: string) { super(message); } }
 
@@ -53,22 +56,32 @@ export default function PartnershipSettlementPage() {
   useEffect(() => {
     if (!access.ready) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    const cachedSnapshot = access.userId ? cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId) : null;
+    if (cachedSnapshot) {
+      setProperties(cachedSnapshot.properties); setPayments(cachedSnapshot.payments); setExpenses(cachedSnapshot.expenses); setPartnerData(cachedSnapshot.partnerData); setBatches(cachedSnapshot.batches); setPropertyId((current) => current || cachedSnapshot.properties[0]?.id || ""); setLoadState("ready");
+      unsubscribe = cacheManager.subscribe(access.userId, PARTNER_SETTLEMENT_CACHE_KEY, () => {
+        const next = cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId);
+        if (next && !cancelled) { setProperties(next.properties); setPayments(next.payments); setExpenses(next.expenses); setPartnerData(next.partnerData); setBatches(next.batches); setLoadState("ready"); }
+      });
+    }
     async function load() {
-      setLoadState("loading"); setLoadMessage("");
+      if (!cachedSnapshot) setLoadState("loading"); setLoadMessage("");
       try {
         const session = await getValidSupabaseSession();
         if (!session) throw new SettlementPageError("登录已失效，请重新登录。", "unauthorized");
         const headers = { Authorization: `Bearer ${session.access_token}` };
         const [loadedProperties, loadedPayments, loadedExpenses, partnerPayload, batchPayload] = await Promise.all([
-          access.can("properties") ? loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : Promise.resolve([]),
-          access.can("rent_payments") ? loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : Promise.resolve([]),
-          access.can("expenses") ? loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses()) : Promise.resolve([]),
-          fetch("/api/partners", { headers, cache: "no-store" }).then(readApi),
+          access.can("properties") ? refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : Promise.resolve([]),
+          access.can("rent_payments") ? refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : Promise.resolve([]),
+          access.can("expenses") ? refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses()) : Promise.resolve([]),
+          refreshPartners(),
           fetch("/api/partner-settlements", { headers, cache: "no-store" }).then(readApi)
         ]);
         if (!loadedProperties.length) throw new SettlementPageError("当前工作区没有可用房源。", "no_data");
         if (!cancelled) {
           setProperties(loadedProperties); setPropertyId((current) => current || loadedProperties[0].id); setPayments(loadedPayments); setExpenses(loadedExpenses); setPartnerData(partnerPayload); setBatches(batchPayload.batches || []); setLoadState("ready");
+          void cacheManager.set(PARTNER_SETTLEMENT_CACHE_KEY, { properties: loadedProperties, payments: loadedPayments, expenses: loadedExpenses, partnerData: partnerPayload, batches: batchPayload.batches || [] }, session.user.id);
         }
       } catch (error) {
         if (cancelled) return;
@@ -77,8 +90,8 @@ export default function PartnershipSettlementPage() {
       }
     }
     void load();
-    return () => { cancelled = true; };
-  }, [access.ready]);
+    return () => { cancelled = true; unsubscribe?.(); };
+  }, [access.ready, access.permissionVersion, access.userId]);
 
   function invalidateTrial() { setTrialKey(""); setMessage(""); }
   function changeProperty(value: string) { setPropertyId(value); invalidateTrial(); }

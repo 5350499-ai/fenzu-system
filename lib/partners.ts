@@ -63,9 +63,17 @@ export async function getPartners(): Promise<PartnerWorkspaceData> {
   return cacheManager.get("partners", { scope: session.user.id, loader: getPartnersFromServer });
 }
 
+export async function refreshPartners(): Promise<PartnerWorkspaceData> {
+  const session = await getValidSupabaseSession();
+  if (!session?.user?.id) throw new Error("Session expired");
+  const value = await getPartnersFromServer();
+  await cacheManager.set("partners", value, session.user.id);
+  return value;
+}
+
 export async function invalidatePartnersCache() {
   const session = await getValidSupabaseSession();
-  if (session?.user?.id) await cacheManager.invalidate(["partners"], session.user.id);
+  if (session?.user?.id) await cacheManager.invalidate(["partners", "partner-settlement-v3"], session.user.id);
 }
 
 export async function getActivePartners(data?: PartnerWorkspaceData) {

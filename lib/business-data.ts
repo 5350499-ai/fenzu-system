@@ -538,13 +538,13 @@ async function getCacheScope() {
 }
 
 const CACHE_INVALIDATION: Record<string, string[]> = {
-  [expenseKey]: [expenseKey, "home-summary", "profits", "analytics"],
-  [rentPaymentKey]: [rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [expenseKey]: [expenseKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
+  [rentPaymentKey]: [rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
   [depositKey]: [depositKey, "home-summary", "profits", "analytics"],
-  [propertyKey]: [propertyKey, roomKey, tenantKey, contractKey, rentPaymentKey, expenseKey, depositKey, "home-summary", "profits", "analytics"],
-  [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
-  [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
-  [contractKey]: [contractKey, rentPaymentKey, depositKey, "home-summary", "profits", "analytics"],
+  [propertyKey]: [propertyKey, roomKey, tenantKey, contractKey, rentPaymentKey, expenseKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
+  [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
+  [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
+  [contractKey]: [contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
   [viewingAppointmentKey]: [viewingAppointmentKey],
   [taskKey]: [taskKey, "home-summary"]
 };
@@ -552,6 +552,13 @@ const CACHE_INVALIDATION: Record<string, string[]> = {
 export async function loadBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
   const scope = await getCacheScope();
   return cacheManager.get(key, { scope, loader: () => loadBusinessDataFromServer<T>(key, fallback) });
+}
+
+export async function refreshBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
+  const scope = await getCacheScope();
+  const value = await loadBusinessDataFromServer<T>(key, fallback);
+  await cacheManager.set(key, value, scope);
+  return value;
 }
 
 export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {

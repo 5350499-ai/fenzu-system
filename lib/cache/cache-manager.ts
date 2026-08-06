@@ -12,7 +12,7 @@ type CacheEntry<T = unknown> = {
 
 type CacheOptions<T> = {
   scope: string;
-  loader: () => Promise<T>;
+  loader: (context?: { revalidate?: boolean }) => Promise<T>;
   ttlMs?: number;
 };
 
@@ -86,7 +86,7 @@ class CacheManager {
   async get<T>(key: string, options: CacheOptions<T>): Promise<T> {
     if (this.disabled || !isBrowser()) {
       this.stats.serverRequests += 1;
-      return options.loader();
+      return options.loader({ revalidate: false });
     }
 
     const cacheKey = storageKey(options.scope, key);
@@ -110,7 +110,7 @@ class CacheManager {
     if (existing) return existing;
     const request = (async () => {
       this.stats.serverRequests += 1;
-      const value = await options.loader();
+      const value = await options.loader({ revalidate: false });
       await this.set(key, value, options.scope, options.ttlMs);
       return value;
     })();
@@ -171,7 +171,7 @@ class CacheManager {
     const cacheKey = storageKey(options.scope, key);
     const request = (async () => {
       this.stats.serverRequests += 1;
-      const value = await options.loader();
+      const value = await options.loader({ revalidate: true });
       await this.set(key, value, options.scope, options.ttlMs);
     })();
     this.inflight.set(cacheKey, request);
@@ -180,6 +180,10 @@ class CacheManager {
     } finally {
       this.inflight.delete(cacheKey);
     }
+  }
+
+  peekMemory<T>(key: string, scope: string) {
+    return (this.memory.get(storageKey(scope, key)) as CacheEntry<T> | undefined)?.value || null;
   }
 
   private notify(scope: string, key: string) {

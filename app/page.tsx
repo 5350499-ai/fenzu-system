@@ -24,6 +24,7 @@ import {
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
+  refreshBusinessData,
   propertyKey,
   rentPaymentKey,
   roomKey,
@@ -41,6 +42,8 @@ import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { cacheManager } from "@/lib/cache/cache-manager";
+import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
@@ -52,6 +55,18 @@ const shortcuts = [
   { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue", module: "partnership_settlement", sensitive: "canViewPartnershipSettlement" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
 ] satisfies Array<{ title: string; href: string; icon: typeof LogIn; tone: string; module?: AccountModuleKey; sensitive?: "canViewPartnershipSettlement" }>;
+
+type DashboardSnapshot = {
+  properties: BusinessProperty[];
+  rooms: BusinessRoom[];
+  tenants: BusinessTenant[];
+  contracts: BusinessContract[];
+  rentPayments: BusinessRentPayment[];
+  expenses: BusinessExpense[];
+  deposits: BusinessDeposit[];
+  viewingAppointments: BusinessViewingAppointment[];
+  waivedPaymentIds: string[];
+};
 
 export default function DashboardPage() {
   const access = useAccountAccess();
@@ -72,27 +87,67 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!access.ready || !access.authenticated) return;
     let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const applySnapshot = (snapshot: DashboardSnapshot) => {
+      setProperties(snapshot.properties);
+      setRooms(snapshot.rooms);
+      setTenants(snapshot.tenants);
+      setContracts(snapshot.contracts);
+      setRentPayments(snapshot.rentPayments);
+      setExpenses(snapshot.expenses);
+      setDeposits(snapshot.deposits);
+      setViewingAppointments(snapshot.viewingAppointments);
+      setWaivedPaymentIds(new Set(snapshot.waivedPaymentIds));
+      setDataStatus("ready");
+    };
     async function load() {
-      setDataStatus("loading");
-      setDataError("");
-      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
-      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
-      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
-      const loadedContracts = access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : [];
-      const loadedPayments = access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
-      const loadedExpenses = access.can("expenses") ? await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : [];
-      const loadedDeposits = access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
-      const loadedViewingAppointments = access.can("properties") ? await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : [];
-      if (!active) return;
-      setProperties(loadedProperties);
-      setRooms(loadedRooms);
-      setTenants(loadedTenants);
-      setContracts(loadedContracts);
-      setRentPayments(loadedPayments);
-      setExpenses(loadedExpenses);
-      setDeposits(loadedDeposits);
-      setViewingAppointments(loadedViewingAppointments);
       const session = await getValidSupabaseSession();
+      if (!session) throw new Error("Session expired");
+      const scope = session.user.id;
+      const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
+      if (memorySnapshot) applySnapshot(memorySnapshot);
+      else setDataStatus("loading");
+      setDataError("");
+      unsubscribe = cacheManager.subscribe(scope, DASHBOARD_CACHE_KEY, () => {
+        const next = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
+        if (next && active) applySnapshot(next);
+      });
+      const snapshot = await cacheManager.get<DashboardSnapshot>(DASHBOARD_CACHE_KEY, {
+        scope,
+        loader: async ({ revalidate = false } = {}) => {
+          const loadedProperties = access.can("properties") ? (revalidate ? await refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties())) : [];
+          const loadedRooms = access.can("rooms") ? (revalidate ? await refreshBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties))) : [];
+          const loadedTenants = access.can("tenants") ? (revalidate ? await refreshBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms))) : [];
+          const loadedContracts = access.can("tenants") ? (revalidate ? await refreshBusinessData<BusinessContract>(contractKey, getInitialContracts()) : await loadBusinessData<BusinessContract>(contractKey, getInitialContracts())) : [];
+          const loadedPayments = access.can("rent_payments") ? (revalidate ? await refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants))) : [];
+          const loadedExpenses = access.can("expenses") ? (revalidate ? await refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties))) : [];
+          const loadedDeposits = access.can("deposits") ? (revalidate ? await refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants))) : [];
+          const loadedViewingAppointments = access.can("properties") ? (revalidate ? await refreshBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, [])) : [];
+          const latestSession = await getValidSupabaseSession();
+          let waivedIds: string[] = [];
+          if (latestSession) {
+            const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${latestSession.access_token}` }, cache: "no-store" });
+            if (response.ok) {
+              const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
+              waivedIds = (payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[];
+            }
+          }
+          return { properties: loadedProperties, rooms: loadedRooms, tenants: loadedTenants, contracts: loadedContracts, rentPayments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, viewingAppointments: loadedViewingAppointments, waivedPaymentIds: waivedIds };
+        }
+      });
+      if (!active) return;
+      applySnapshot(snapshot);
+    }
+    load().catch((error) => {
+      if (!active) return;
+      setDataStatus("error");
+      setDataError(error instanceof Error ? error.message : "首页数据加载失败，请稍后重试。");
+    });
+    return () => { active = false; unsubscribe?.(); };
+  }, [access.authenticated, access.ready, access.permissionVersion, loadAttempt]);
+
+  /* legacy loading block removed: dashboard data now arrives through the aggregate cache key above. */
+  /*
       if (session) {
         const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
         if (response.ok) {
@@ -108,8 +163,8 @@ export default function DashboardPage() {
       setDataError(error instanceof Error ? error.message : "加载首页数据失败，请稍后重试。");
     });
     return () => { active = false; };
-  }, [access.authenticated, access.ready, loadAttempt]);
-
+  }
+  */
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const propertyStats = useMemo(
