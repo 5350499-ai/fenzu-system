@@ -28,6 +28,7 @@ import {
   type DataExportPayload
 } from "@/lib/data-export";
 import { downloadFile } from "@/lib/download-adapter";
+import { saveFileWithSystemFallback, UserCancelledFileHandoffError } from "@/lib/file-handoff";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 
 type CoreData = {
@@ -44,7 +45,6 @@ type BackupStatus = "preparing" | "ready" | "generating" | "validating" | "hando
 type RestorePreview = { fileName: string; fileSize: number; payload: DataExportPayload; currentData: Record<string, unknown> };
 type RestoreStep = "preview" | "confirm";
 type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
-type SaveFilePicker = (options: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<{ createWritable: () => Promise<{ write: (value: File) => Promise<void>; close: () => Promise<void> }> }>;
 type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; constraint?: string | null; recordId?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown; rawRpcError?: unknown; rawDryRun?: unknown };
 
 class BeforeRestoreClientError extends Error {
@@ -258,30 +258,14 @@ export default function DataCenterPage() {
       setBackupStatus("complete");
       setBackupNotice("✓ 文件已生成，请在系统菜单中选择保存位置。");
       traceBackupRuntimeEvent("DOWNLOAD_START");
-      let handoffMethod: "share" | "download" = "download";
       try {
-        let canShareFile = false;
-        try {
-          canShareFile = typeof navigator.canShare === "function"
-            && typeof navigator.share === "function"
-            && navigator.canShare({ files: [file] });
-        } catch {
-          canShareFile = false;
-        }
-        if (canShareFile) {
-          handoffMethod = "share";
-          await navigator.share({ files: [file] });
-          setBackupRetryFile(file);
-        } else {
-          await downloadFile(file, { preferShare: false });
-          setBackupRetryFile(file);
-        }
+        await saveFileWithSystemFallback(file);
+        setBackupRetryFile(file);
         setBackupStatus("complete");
         setBackupNotice(`备份已创建：${file.name}`);
       } catch (error) {
-        const isShareCanceled = error instanceof DOMException && error.name === "AbortError";
         setBackupRetryFile(file);
-        if (isShareCanceled && handoffMethod === "share") {
+        if (error instanceof UserCancelledFileHandoffError) {
           setBackupStatus("complete");
           setBackupNotice("用户取消保存，备份文件已生成，可重新创建。");
         } else {
@@ -308,16 +292,7 @@ export default function DataCenterPage() {
     setBackupStatus("handoff");
     setBackupNotice("正在调用系统保存…");
     try {
-      let canShareFile = false;
-      try {
-        canShareFile = typeof navigator.canShare === "function"
-          && typeof navigator.share === "function"
-          && navigator.canShare({ files: [file] });
-      } catch {
-        canShareFile = false;
-      }
-      if (canShareFile) await navigator.share({ files: [file] });
-      else await downloadFile(file, { preferShare: false });
+      await saveFileWithSystemFallback(file);
       setBackupStatus("ready");
       setBackupNotice("下载已结束，可再次创建备份。");
     } catch {
@@ -389,44 +364,6 @@ export default function DataCenterPage() {
     }
   }
 
-  async function saveBeforeRestoreFile(file: File) {
-    // Safari/PWA versions do not consistently implement canShare({ files }),
-    // so the actual share method is the capability check. Fall back only when
-    // the platform rejects the share call.
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({ files: [file] });
-        return;
-      } catch (error) {
-        console.warn("BeforeRestore navigator.share unavailable; falling back", error);
-      }
-    }
-    const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
-    if (picker) {
-      try {
-        const handle = await picker({ suggestedName: file.name, types: [{ description: "JSON 备份文件", accept: { "application/json": [".json"] } }] });
-        const writable = await handle.createWritable();
-        await writable.write(file);
-        await writable.close();
-        return;
-      } catch (error) {
-        console.warn("BeforeRestore File System Access unavailable; falling back", error);
-      }
-    }
-    try {
-      const url = URL.createObjectURL(file);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = file.name;
-      anchor.target = "_blank";
-      anchor.rel = "noopener noreferrer";
-      anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (error) {
-      throw new BeforeRestoreClientError({ stage: "browser_download", code: "browser_download_failed", message: error instanceof Error ? error.message : "浏览器下载失败" });
-    }
-  }
-
   async function prepareBeforeRestore() {
     setBeforeRestoreStatus("preparing");
     setBeforeRestoreError("");
@@ -448,7 +385,7 @@ export default function DataCenterPage() {
         throw new BeforeRestoreClientError({ stage: "file_generation", code: "before_restore_file_generation_failed", message: error instanceof Error ? error.message : "分享文件生成失败" });
       }
       setBeforeRestoreStatus("saving");
-      await saveBeforeRestoreFile(file);
+      await saveFileWithSystemFallback(file);
       setBeforeRestorePackage(packageData);
       setBeforeRestoreConfirmed(false);
       setBeforeRestoreStatus("ready");
