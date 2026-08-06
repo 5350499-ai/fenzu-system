@@ -20,7 +20,6 @@ import {
   SCHEMA_VERSION,
   buildCsvDataExport,
   buildExcelDataExport,
-  createDataExportPayload,
   dryRunRestore,
   formatBackupSize,
   isDataExportPayload,
@@ -236,12 +235,18 @@ export default function DataCenterPage() {
     setBackupRetryFile(null);
     const now = new Date();
     try {
-      const exportDataForBackup = await loadExportData();
       setBackupStatus("generating"); setBackupNotice("正在生成备份…");
       traceBackupRuntimeEvent("CREATE_PAYLOAD");
-      const payload = await createDataExportPayload(exportDataForBackup, now.toISOString(), {
-        backupType: "local", exportedBy: access.userId || null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+      const session = await getValidSupabaseSession();
+      if (!session?.access_token) throw new Error("登录已失效，请重新登录后再创建备份。");
+      const response = await fetch("/api/data-backup", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store"
       });
+      const result = await response.json().catch(() => null) as { payload?: DataExportPayload; error?: string } | null;
+      if (!response.ok || !result?.payload) throw new Error(result?.error || "备份生成失败，请稍后重试。");
+      const payload = result.payload;
       traceBackupRuntimeEvent("JSON_CREATED");
       setBackupStatus("validating");
       setBackupNotice("正在校验…");
