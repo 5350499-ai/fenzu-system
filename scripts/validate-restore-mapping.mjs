@@ -25,6 +25,12 @@ const specs = {
 
 const aliases = (field) => [field, field.replace(/_([a-z])/g, (_, c) => c.toUpperCase())];
 const generatedFields = new Set(["partner_settlement_batches.period_range"]);
+const compatibilityFields = {
+  rooms: ["area", "has_window", "has_private_bathroom", "furniture"],
+  tenants: ["whatsapp", "passport_number", "nie_number", "nationality", "move_in_date", "expected_move_out_date", "key_count"],
+  contracts: ["contract_type", "landlord_id", "is_signed", "is_active", "file_url", "storage_path"],
+  tasks: ["completed_at"]
+};
 const missing = [];
 let fieldCount = 0;
 for (const [table, fields] of Object.entries(specs)) {
@@ -42,6 +48,34 @@ const requiredGuards = [
 ];
 for (const [label, token] of requiredGuards) if (!route.includes(token)) missing.push(`guard:${label}`);
 if (!exportSource.includes("key.endsWith(\"Id\") || key.endsWith(\"_id\")")) missing.push("guard:recursive UUID export normalization");
+if (!route.includes("const RESTORE_TABLE_COLUMNS")) missing.push("guard:live-schema projection");
+if (!route.includes("function projectRestoreData")) missing.push("guard:projection function");
+for (const [table, fields] of Object.entries(specs)) {
+  const projectionKey = {
+    rent_payments: "rentPayments",
+    viewing_appointments: "viewingAppointments",
+    partner_property_shares: "partnerShares",
+    partner_name_history: "partnerNameHistory",
+    partner_settlement_batches: "settlementBatches",
+    partner_settlement_partner_snapshots: "settlementPartnerSnapshots",
+    partner_settlement_segment_snapshots: "settlementSegmentSnapshots",
+    partner_settlement_transfer_snapshots: "settlementTransferSnapshots"
+  }[table] || table;
+  if (!route.includes(`${projectionKey}: [`)) missing.push(`projection:${table}`);
+  for (const field of fields) {
+    if (generatedFields.has(`${table}.${field}`)) continue;
+    if (!route.includes(`\"${field}\"`)) missing.push(`projection:${table}.${field}`);
+  }
+}
+const projectionSource = route.slice(route.indexOf("const RESTORE_TABLE_COLUMNS"), route.indexOf("function projectRestoreRows"));
+const compatibilityProjected = Object.entries(compatibilityFields).flatMap(([table, fields]) =>
+  fields.filter((field) => {
+    const projectionKey = { rent_payments: "rentPayments", viewing_appointments: "viewingAppointments" }[table] || table;
+    const match = projectionSource.match(new RegExp(`${projectionKey}: \\[([^\\]]*)\\]`));
+    return Boolean(match?.[1]?.includes(`\"${field}\"`));
+  }).map((field) => `${table}.${field}`)
+);
+if (compatibilityProjected.length) missing.push(...compatibilityProjected.map((field) => `projection-must-exclude:${field}`));
 
 const restoreOrder = ["properties", "rooms", "tenants", "contracts", "rent_payments", "expenses", "deposits", "viewing_appointments", "tasks", "partners", "partner_property_shares", "partner_name_history"];
 let previousPosition = -1;
@@ -60,6 +94,12 @@ console.log(JSON.stringify({
   fieldsChecked: fieldCount,
   generatedByDatabase: [...generatedFields],
   restoreOrderChecked: restoreOrder.length + 4,
+  liveSchemaProjection: {
+    tables: Object.keys(specs).length,
+    fields: fieldCount,
+    compatibilityFieldsExcludedFromRestoreInput: Object.entries(compatibilityFields).flatMap(([table, fields]) => fields.map((field) => `${table}.${field}`)),
+    compatibilityFieldsProjectedByMistake: compatibilityProjected
+  },
   missing
 }, null, 2));
 if (missing.length) process.exitCode = 1;
