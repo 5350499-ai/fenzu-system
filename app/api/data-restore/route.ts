@@ -75,40 +75,25 @@ function numberValue(value: unknown, fallback = 0) { return typeof value === "nu
 function booleanValue(value: unknown, fallback = false) { return typeof value === "boolean" ? value : fallback; }
 function iso(value: unknown) { return text(value) || new Date().toISOString(); }
 
-// Restore must target the live table contract, not legacy columns that may still
-// exist in older Backup V1 files or compatibility mappings. Unknown keys are
-// intentionally preserved in the backup file, but are not sent to
-// jsonb_populate_recordset because PostgreSQL ignores them and the final
-// field-level validation cannot treat them as restored columns.
-const RESTORE_TABLE_COLUMNS = {
-  properties: ["id", "user_id", "name", "address", "city", "landlord_name", "property_type", "sublet_allowed", "notes", "occupancy_tracking_start_date", "created_at", "updated_at"],
-  rooms: ["id", "user_id", "property_id", "name", "room_number", "monthly_rent", "deposit_amount", "status", "notes", "created_at", "updated_at"],
-  tenants: ["id", "user_id", "property_id", "room_id", "name", "phone", "email", "wechat", "source", "monthly_rent", "deposit_amount", "status", "notes", "created_at", "updated_at", "payment_day", "actual_move_out_date"],
-  contracts: ["id", "user_id", "property_id", "room_id", "tenant_id", "monthly_rent", "deposit_amount", "start_date", "end_date", "status", "notes", "created_at", "updated_at"],
-  rentPayments: ["id", "user_id", "tenant_id", "property_id", "room_id", "rent_month", "amount_due", "amount_paid", "amount_unpaid", "payment_date", "payment_method", "is_overdue", "notes", "created_at", "updated_at", "received_by", "coverage_start_date", "coverage_end_date", "payment_status", "income_type", "income_item"],
-  expenses: ["id", "user_id", "property_id", "room_id", "expense_month", "category", "amount", "payment_date", "payment_method", "paid_by", "is_paid", "notes", "created_at", "updated_at"],
-  deposits: ["id", "user_id", "tenant_id", "property_id", "room_id", "transaction_type", "amount", "transaction_date", "status", "notes", "created_at", "updated_at", "received_by", "paid_by"],
-  viewingAppointments: ["id", "user_id", "property_id", "room_id", "appointment_date", "appointment_time", "contact_name", "contact_whatsapp", "contact_phone", "status", "notes", "created_at", "updated_at"],
-  tasks: ["id", "user_id", "task_type", "title", "description", "due_date", "status", "priority", "property_id", "room_id", "tenant_id", "contract_id", "rent_payment_id", "deposit_id", "notes", "created_at", "updated_at"],
-  partners: ["id", "workspace_owner_id", "legacy_code", "display_name", "color_key", "sort_order", "is_active", "linked_account_id", "created_at", "updated_at"],
-  partnerShares: ["id", "workspace_owner_id", "property_id", "partner_id", "percentage", "effective_from", "effective_to", "created_at", "updated_at"],
-  partnerNameHistory: ["id", "workspace_owner_id", "partner_id", "old_display_name", "new_display_name", "changed_at", "changed_by_account_id", "created_at"],
-  settlementBatches: ["id", "workspace_owner_id", "property_id", "period_start", "period_end", "status", "total_income", "total_expense", "net_profit", "currency", "confirmed_at", "confirmed_by_account_id", "reversed_at", "reversed_by_account_id", "reversal_reason", "note", "created_at", "updated_at", "property_name_snapshot", "confirmed_by_display_name_snapshot", "income_details_snapshot", "expense_details_snapshot"],
-  settlementPartnerSnapshots: ["id", "settlement_batch_id", "partner_id", "partner_display_name_snapshot", "legacy_code_snapshot", "actual_collected", "actual_paid", "actual_retained", "profit_entitlement", "settlement_balance", "share_segments_snapshot", "created_at"],
-  settlementSegmentSnapshots: ["id", "settlement_batch_id", "segment_start", "segment_end", "total_income", "total_expense", "net_profit", "shares_snapshot", "created_at"],
-  settlementTransferSnapshots: ["id", "settlement_batch_id", "from_partner_id", "to_partner_id", "from_name_snapshot", "to_name_snapshot", "amount", "currency", "created_at"]
-} as const;
-
-function projectRestoreRows<T extends Record<string, unknown>>(rowsToProject: T[], columns: readonly string[]) {
-  return rowsToProject.map((row) => Object.fromEntries(columns.map((column) => [column, row[column]])));
+// The database schema is the single source of truth for Restore columns.
+// Export reads live rows with select(*), PostgreSQL maps the normalized keys
+// through jsonb_populate_recordset, and validation projects the expected JSON
+// onto the actual database row keys. This adapter therefore performs only
+// generic key conversion and ownership scoping; it is not a second field list.
+function toSnakeKey(key: string) { return key.replace(/[A-Z]/g, (character) => `_${character.toLowerCase()}`); }
+function normalizeDatabaseRow(row: Record<string, unknown>, ownerColumn?: string, ownerId?: string) {
+  const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => {
+    const databaseKey = toSnakeKey(key);
+    if (databaseKey !== "id" && (databaseKey.endsWith("_id") || databaseKey === "user_id" || databaseKey === "workspace_owner_id")) {
+      return [databaseKey, nullableUuid(value)];
+    }
+    return [databaseKey, value];
+  }));
+  if (ownerColumn && ownerId) normalized[ownerColumn] = ownerId;
+  return normalized;
 }
-
-function projectRestoreData(data: Record<string, unknown>) {
-  const projected = { ...data } as Record<string, unknown>;
-  for (const [key, columns] of Object.entries(RESTORE_TABLE_COLUMNS)) {
-    projected[key] = projectRestoreRows(rows(data[key]), columns);
-  }
-  return projected;
+function normalizeCollection(value: unknown, ownerColumn: string | undefined, ownerId: string) {
+  return rows(value).map((row) => normalizeDatabaseRow(row, ownerColumn, ownerId));
 }
 
 function toCamelKey(key: string) { return key.replace(/_([a-z])/g, (_, character: string) => character.toUpperCase()); }
@@ -234,7 +219,41 @@ function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | nul
   };
 }
 
-function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: string) {
+function normalizeRestoreDataFromDatabaseSchema(payload: DataExportPayload, workspaceOwnerId: string) {
+  const source = payload.data;
+  const snapshotRows = rows(source.settlementSnapshots);
+  const snapshotChildren = (key: "partners" | "segments" | "transfers") => snapshotRows.flatMap((snapshot) => {
+    const batch = snapshot.batch && typeof snapshot.batch === "object" && !Array.isArray(snapshot.batch)
+      ? snapshot.batch as Record<string, unknown>
+      : {};
+    return rows(snapshot[key]).map((row) => normalizeDatabaseRow({
+      ...row,
+      settlementBatchId: row.settlementBatchId ?? row.settlement_batch_id ?? batch.id
+    }));
+  });
+
+  return {
+    properties: normalizeCollection(source.properties, "user_id", workspaceOwnerId),
+    rooms: normalizeCollection(source.rooms, "user_id", workspaceOwnerId),
+    tenants: normalizeCollection(source.tenants, "user_id", workspaceOwnerId),
+    contracts: normalizeCollection(source.contracts, "user_id", workspaceOwnerId),
+    rentPayments: normalizeCollection(source.rentPayments, "user_id", workspaceOwnerId),
+    expenses: normalizeCollection(source.expenses, "user_id", workspaceOwnerId),
+    deposits: normalizeCollection(source.deposits, "user_id", workspaceOwnerId),
+    viewingAppointments: normalizeCollection(source.viewingAppointments, "user_id", workspaceOwnerId),
+    tasks: normalizeCollection(source.tasks, "user_id", workspaceOwnerId),
+    partners: normalizeCollection(source.partners, "workspace_owner_id", workspaceOwnerId),
+    partnerShares: normalizeCollection(source.partnerShares, "workspace_owner_id", workspaceOwnerId),
+    partnerNameHistory: normalizeCollection(source.partnerNameHistory, "workspace_owner_id", workspaceOwnerId),
+    settlementBatches: normalizeCollection(source.settlementBatches, "workspace_owner_id", workspaceOwnerId),
+    settlementPartnerSnapshots: snapshotChildren("partners"),
+    settlementSegmentSnapshots: snapshotChildren("segments"),
+    settlementTransferSnapshots: snapshotChildren("transfers")
+  };
+}
+
+function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId: string) {
+  return normalizeRestoreDataFromDatabaseSchema(payload, workspaceOwnerId); /* legacy compatibility mapping removed from the active path
   const source = payload.data;
   const properties = rows(source.properties).map((row) => ({
     id: text(row.id), user_id: workspaceOwnerId, name: text(row.name), address: text(row.address), city: text(row.city),
@@ -344,7 +363,7 @@ function normalizeRestoreData(payload: DataExportPayload, workspaceOwnerId: stri
     currency: text(row.currency, "EUR"),
     created_at: iso(row.created_at ?? row.createdAt)
   })));
-  return projectRestoreData({ properties, rooms, tenants, contracts, rentPayments, expenses, deposits, viewingAppointments, tasks, partners, partnerShares, partnerNameHistory, settlementBatches, settlementPartnerSnapshots, settlementSegmentSnapshots, settlementTransferSnapshots });
+  */
 }
 
 export async function POST(request: Request) {
@@ -394,7 +413,7 @@ export async function POST(request: Request) {
     if (!backupPath.startsWith(expectedPrefix) || !backupPath.endsWith(".json")) return NextResponse.json({ error: "请先完成恢复前备份。", code: "before_restore_required" }, { status: 409 });
     const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
     if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
-    const normalized = normalizeRestoreData(body.payload, context.profile.workspace_owner_id);
+    const normalized = normalizeRestoreDataFromDatabaseSchema(body.payload, context.profile.workspace_owner_id);
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
       const diagnostic = restoreDiagnostic(error, (dryRun || null) as Record<string, unknown> | null);
