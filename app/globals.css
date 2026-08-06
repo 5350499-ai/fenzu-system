@@ -3713,8 +3713,10 @@ td:last-child {
 }
 
 .detail-field {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border);
@@ -4350,8 +4352,10 @@ td:last-child {
 }
 
 .property-detail-field {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border);
@@ -6306,7 +6310,7 @@ td:last-child {
 .ui-detail-card-heading h3 { margin: 0; font-size: 1rem; }
 .ui-detail-card-heading p { margin: 4px 0 0; color: var(--muted); font-size: .86rem; font-variant-numeric: tabular-nums; }
 .ui-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.ui-detail-item { display: grid; gap: 6px; min-width: 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--ui-radius-md, 12px); background: color-mix(in srgb, var(--surface-soft) 74%, transparent); }
+.ui-detail-item { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--ui-radius-md, 12px); background: color-mix(in srgb, var(--surface-soft) 74%, transparent); }
 .ui-detail-item > span { color: var(--muted); font-size: .78rem; font-weight: 750; }
 .ui-detail-item > strong { min-width: 0; overflow-wrap: anywhere; font-size: 1rem; font-variant-numeric: tabular-nums; text-align: right; }
 .ui-detail-item-income > strong, .ui-money-value-income { color: var(--green); }
@@ -6320,7 +6324,7 @@ td:last-child {
 .snapshot-period { margin: 0 0 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .snapshot-share-list small { display: block; margin-top: 3px; font-size: .72rem; }
 .snapshot-transfer-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; margin: 0; font-variant-numeric: tabular-nums; }
-@media (max-width: 640px) { .ui-detail-grid { grid-template-columns: 1fr; } .ui-detail-item { padding: 10px; } .settlement-share-list span, .snapshot-share-list span { flex: 1 1 auto; } .snapshot-transfer-line .ui-money-value { margin-left: auto; } }
+@media (max-width: 640px) { .detail-grid, .ui-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .detail-field, .ui-detail-item { padding: 9px 10px; gap: 7px; } .detail-field span, .ui-detail-item > span { font-size: .72rem; } .detail-field strong, .ui-detail-item > strong { font-size: .86rem; } .settlement-share-list span, .snapshot-share-list span { flex: 1 1 auto; } .snapshot-transfer-line .ui-money-value { margin-left: auto; } }
 .login-forgot-link {
   color: var(--accent, #2563eb);
   font-size: 0.9rem;
