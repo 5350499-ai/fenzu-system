@@ -570,8 +570,8 @@ export default function TenantsPage() {
   }
 
   async function createDepositRecord(tenant: BusinessTenant, amount: number, status: "待退" | "已退") {
-    if (!Number.isFinite(amount) || amount <= 0) {
-      window.alert("请输入大于 0 的押金金额。");
+    if (!Number.isFinite(amount) || amount < 0) {
+      window.alert("请输入不小于 0 的押金金额。");
       return;
     }
     setSaving(true);
