@@ -378,14 +378,19 @@ export default function DataCenterPage() {
   }
 
   async function saveBeforeRestoreFile(file: File) {
-    const canShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+    let canShare = false;
+    try {
+      canShare = typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+    } catch {
+      canShare = false;
+    }
     if (canShare) {
       try {
         await navigator.share({ files: [file] });
+        return;
       } catch (error) {
-        throw new BeforeRestoreClientError({ stage: "navigator_share", code: "navigator_share_failed", message: error instanceof Error ? error.message : "系统分享失败" });
+        console.warn("BeforeRestore navigator.share unavailable; falling back", error);
       }
-      return;
     }
     const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
     if (picker) {
@@ -394,17 +399,19 @@ export default function DataCenterPage() {
         const writable = await handle.createWritable();
         await writable.write(file);
         await writable.close();
+        return;
       } catch (error) {
-        throw new BeforeRestoreClientError({ stage: "file_system_access", code: "file_system_access_failed", message: error instanceof Error ? error.message : "文件选择器保存失败" });
+        console.warn("BeforeRestore File System Access unavailable; falling back", error);
       }
-      return;
     }
     try {
       const url = URL.createObjectURL(file);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = file.name;
-    anchor.click();
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = file.name;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) {
       throw new BeforeRestoreClientError({ stage: "browser_download", code: "browser_download_failed", message: error instanceof Error ? error.message : "浏览器下载失败" });
