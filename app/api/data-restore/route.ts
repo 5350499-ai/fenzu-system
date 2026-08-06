@@ -18,26 +18,34 @@ function beforeRestoreFailure(error: unknown, stage: string, context: {
   mimeType?: string;
   workspaceId?: string;
   ownerId?: string;
+  schema?: string;
+  table?: string;
+  recordCount?: number;
   storageResponse?: unknown;
   supabaseResponse?: unknown;
 }) {
   const source = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
-  const message = text(source.message || source.error, error instanceof Error ? error.message : "BeforeRestore 生成失败");
+  const nested = (source.supabaseResponse && typeof source.supabaseResponse === "object" ? source.supabaseResponse : {}) as Record<string, unknown>;
+  const message = text(nested.message || nested.error || source.message || source.error, error instanceof Error ? error.message : "BeforeRestore 生成失败");
   return {
     error: "BeforeRestore 生成失败",
-    code: text(source.code || source.name, "before_restore_failed"),
+    code: text(nested.code || source.code || source.name, "before_restore_failed"),
     message,
-    details: nullableText(source.details),
-    hint: nullableText(source.hint),
+    details: nullableText(nested.details || source.details),
+    hint: nullableText(nested.hint || source.hint),
+    sqlState: text(nested.code || source.sqlState || source.code, ""),
     stack: error instanceof Error ? error.stack || null : nullableText(source.stack),
     stage,
+    schema: context.schema || nullableText(source.schema) || "public",
+    table: context.table || nullableText(source.table),
+    recordCount: context.recordCount ?? (typeof source.recordCount === "number" ? source.recordCount : null),
     bucket: context.bucket || null,
     objectPath: context.objectPath || null,
     mimeType: context.mimeType || "application/json",
     workspaceId: context.workspaceId || null,
     ownerId: context.ownerId || null,
-    storageResponse: context.storageResponse || null,
-    supabaseResponse: context.supabaseResponse || null
+    storageResponse: context.storageResponse || source.storageResponse || null,
+    supabaseResponse: context.supabaseResponse || source.supabaseResponse || null
   };
 }
 
@@ -68,8 +76,22 @@ function toExportRows(value: unknown) {
 
 async function readRows(admin: ReturnType<typeof getSupabaseAdmin>, table: string, ownerColumn: string, ownerId: string) {
   const { data, error } = await admin.from(table).select("*").eq(ownerColumn, ownerId);
-  if (error) throw new Error(`无法读取恢复前备份数据：${table}`);
+  if (error) {
+    const failure = new Error(`读取表 ${table} 失败`);
+    Object.assign(failure, { stage: "database_read", schema: "public", table, recordCount: 0, supabaseResponse: error });
+    throw failure;
+  }
   return data || [];
+}
+
+async function readBeforeRestoreTable<T extends { data: unknown; error: unknown }>(table: string, query: PromiseLike<T>) {
+  const result = await query;
+  if (result.error) {
+    const failure = new Error(`读取表 ${table} 失败`);
+    Object.assign(failure, { stage: "database_read", schema: "public", table, recordCount: 0, supabaseResponse: result.error });
+    throw failure;
+  }
+  return Array.isArray(result.data) ? result.data : [];
 }
 
 async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
@@ -81,29 +103,21 @@ async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, 
     readRows(admin, "partner_settlement_batches", "workspace_owner_id", ownerId)
   ]);
   const batchIds = settlementBatches.map((batch) => String(batch.id));
-  const [partnerSnapshots, segmentSnapshots, transferSnapshots] = await Promise.all(batchIds.length ? [
-    admin.from("partner_settlement_partner_snapshots").select("*").in("settlement_batch_id", batchIds),
-    admin.from("partner_settlement_segment_snapshots").select("*").in("settlement_batch_id", batchIds),
-    admin.from("partner_settlement_transfer_snapshots").select("*").in("settlement_batch_id", batchIds)
-  ] : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }]);
-  if (partnerSnapshots.error || segmentSnapshots.error || transferSnapshots.error) throw new Error("无法读取恢复前结算快照数据");
+  const partnerSnapshots = { data: batchIds.length ? await readBeforeRestoreTable("partner_settlement_partner_snapshots", admin.from("partner_settlement_partner_snapshots").select("*").in("settlement_batch_id", batchIds)) : [] };
+  const segmentSnapshots = { data: batchIds.length ? await readBeforeRestoreTable("partner_settlement_segment_snapshots", admin.from("partner_settlement_segment_snapshots").select("*").in("settlement_batch_id", batchIds)) : [] };
+  const transferSnapshots = { data: batchIds.length ? await readBeforeRestoreTable("partner_settlement_transfer_snapshots", admin.from("partner_settlement_transfer_snapshots").select("*").in("settlement_batch_id", batchIds)) : [] };
   const group = (items: Array<Record<string, unknown>>) => items.reduce((map, row) => {
     const key = String(row.settlement_batch_id); const list = map.get(key) || []; list.push(row); map.set(key, list); return map;
   }, new Map<string, Record<string, unknown>[]>());
   const partnerByBatch = group((partnerSnapshots.data || []) as Array<Record<string, unknown>>);
   const segmentByBatch = group((segmentSnapshots.data || []) as Array<Record<string, unknown>>);
   const transferByBatch = group((transferSnapshots.data || []) as Array<Record<string, unknown>>);
-  const [profilesResult, permissionsResult, sensitiveResult, accessResult, identitiesResult, auditResult] = await Promise.all([
-    admin.from("user_profiles").select("auth_user_id,username,display_name,account_type,status,property_access_mode,must_change_password,last_login_at,last_activity_at,disabled_at").eq("workspace_owner_id", ownerId).order("created_at", { ascending: true }),
-    admin.from("user_permissions").select("user_id,module_key,can_view,can_create,can_edit,can_archive,can_delete"),
-    admin.from("user_sensitive_permissions").select("*"),
-    admin.from("user_property_access").select("user_id,property_id"),
-    admin.from("account_auth_identities").select("auth_user_id,auth_email,is_internal_email"),
-    admin.from("audit_logs").select("id,log_category,action,actor_user_id,actor_username,target_table,target_record_id,success,error_message,created_at,metadata").eq("success", true).order("created_at", { ascending: false }).limit(1000)
-  ]);
-  if (profilesResult.error || permissionsResult.error || sensitiveResult.error || accessResult.error || identitiesResult.error || auditResult.error) {
-    throw new Error("无法读取恢复前账号与操作日志数据");
-  }
+  const profilesResult = { data: await readBeforeRestoreTable("user_profiles", admin.from("user_profiles").select("auth_user_id,username,display_name,account_type,status,property_access_mode,must_change_password,last_login_at,last_activity_at,disabled_at").eq("workspace_owner_id", ownerId).order("created_at", { ascending: true })) };
+  const permissionsResult = { data: await readBeforeRestoreTable("user_permissions", admin.from("user_permissions").select("user_id,module_key,can_view,can_create,can_edit,can_archive,can_delete")) };
+  const sensitiveResult = { data: await readBeforeRestoreTable("user_sensitive_permissions", admin.from("user_sensitive_permissions").select("*")) };
+  const accessResult = { data: await readBeforeRestoreTable("user_property_access", admin.from("user_property_access").select("user_id,property_id")) };
+  const identitiesResult = { data: await readBeforeRestoreTable("account_auth_identities", admin.from("account_auth_identities").select("auth_user_id,auth_email,is_internal_email")) };
+  const auditResult = { data: await readBeforeRestoreTable("audit_logs", admin.from("audit_logs").select("id,log_category,action,actor_user_id,actor_username,target_table,target_record_id,success,error_message,created_at,metadata").eq("success", true).order("created_at", { ascending: false }).limit(1000)) };
   const profiles = (profilesResult.data || []) as Array<Record<string, unknown>>;
   const userIds = new Set(profiles.map((profile) => String(profile.auth_user_id)));
   const permissions = (permissionsResult.data || []) as Array<Record<string, unknown>>;

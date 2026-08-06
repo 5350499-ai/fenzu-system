@@ -46,7 +46,7 @@ type RestorePreview = { fileName: string; fileSize: number; payload: DataExportP
 type RestoreStep = "preview" | "confirm";
 type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
 type SaveFilePicker = (options: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<{ createWritable: () => Promise<{ write: (value: File) => Promise<void>; close: () => Promise<void> }> }>;
-type BeforeRestoreDiagnostic = { error?: string; code?: string; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown };
+type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown };
 
 class BeforeRestoreClientError extends Error {
   diagnostic: BeforeRestoreDiagnostic;
@@ -64,8 +64,11 @@ function beforeRestoreStageLabel(stage?: string) {
 function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
   const lines = [`❌ ${beforeRestoreStageLabel(diagnostic.stage)}失败`, diagnostic.message || diagnostic.error || "BeforeRestore 生成失败"];
   if (diagnostic.code) lines.push(`错误代码：${diagnostic.code}`);
+  if (diagnostic.sqlState) lines.push(`SQLSTATE：${diagnostic.sqlState}`);
   if (diagnostic.details) lines.push(`详情：${diagnostic.details}`);
   if (diagnostic.hint) lines.push(`建议：${diagnostic.hint}`);
+  if (diagnostic.schema || diagnostic.table) lines.push(`对象：${diagnostic.schema || "public"}.${diagnostic.table || "未知表"}`);
+  if (diagnostic.recordCount !== undefined && diagnostic.recordCount !== null) lines.push(`已读取记录数：${diagnostic.recordCount}`);
   if (diagnostic.bucket) lines.push(`bucket：${diagnostic.bucket}`);
   if (diagnostic.objectPath) lines.push(`object path：${diagnostic.objectPath}`);
   if (diagnostic.workspaceId) lines.push(`workspace：${diagnostic.workspaceId}`);
