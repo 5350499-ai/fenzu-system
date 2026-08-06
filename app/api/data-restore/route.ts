@@ -194,7 +194,7 @@ async function loadServerBackupData(admin: ReturnType<typeof getSupabaseAdmin>, 
   };
 }
 
-function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | null) {
+function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | null, mode: "dry_run" | "restore" = "dry_run") {
   const source = (error && typeof error === "object" ? error : dryRun || {}) as Record<string, unknown>;
   const message = text(source.message || source.error, "Restore transaction failed");
   const details = nullableText(source.details);
@@ -405,6 +405,8 @@ export async function POST(request: Request) {
       }
     }
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
+    const mode = body.action === "restore" ? "restore" : body.action === "dry_run" ? "dry_run" : null;
+    if (!mode) return NextResponse.json({ error: "无效的 Restore 操作。", code: "invalid_restore_action" }, { status: 400 });
     const integrity = await dryRunRestore(body.payload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     const admin = getSupabaseAdmin();
@@ -414,6 +416,15 @@ export async function POST(request: Request) {
     const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
     if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
     const normalized = normalizeRestoreDataFromDatabaseSchema(body.payload, context.profile.workspace_owner_id);
+    if (mode === "restore") {
+      const { error: restoreError } = await admin.rpc("restore_workspace_backup", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
+      if (restoreError) {
+        const diagnostic = { ...restoreDiagnostic(restoreError, null, mode), error: "Restore 失败" };
+        console.error("Restore RPC failed", { rpcName: "restore_workspace_backup", workspaceOwnerId: context.profile.workspace_owner_id, ...diagnostic, rawRpcError: restoreError });
+        return NextResponse.json({ ...diagnostic, rawRpcError: restoreError, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode } }, { status: 409 });
+      }
+      return NextResponse.json({ ok: true, restore: true, beforeRestoreBackupPath: backupPath, report: { beforeRestore: { success: true }, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode } });
+    }
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
       const diagnostic = restoreDiagnostic(error, (dryRun || null) as Record<string, unknown> | null);

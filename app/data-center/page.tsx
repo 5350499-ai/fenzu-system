@@ -2,7 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
-import { SectionCard, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { SectionCard, PrimaryButton, SecondaryButton, DangerButton } from "@/components/ui";
 import { ArrowDownToLine, Cloud, Crown, FileSpreadsheet, FileText, HardDriveDownload, History, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -457,13 +457,13 @@ export default function DataCenterPage() {
     }
   }
 
-  async function executeRestore(payload: DataExportPayload, beforeRestoreBackupPath: string) {
+  async function executeRestore(payload: DataExportPayload, beforeRestoreBackupPath: string, mode: "dry_run" | "restore" = "dry_run") {
     const session = await getValidSupabaseSession();
     if (!session?.access_token) throw new Error("登录已失效，请重新登录后再恢复。");
     const response = await fetch("/api/data-restore", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: "dry_run", payload, beforeRestoreBackupPath })
+      body: JSON.stringify({ action: mode, payload, beforeRestoreBackupPath })
     });
     const result = await response.json().catch(() => null) as (Record<string, unknown> & { report?: RestoreDryRunReport }) | null;
     if (!response.ok) {
@@ -493,7 +493,7 @@ export default function DataCenterPage() {
         <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton>
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-         {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
+         {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
       </SectionCard>
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
@@ -517,9 +517,11 @@ type RestoreDryRunReport = {
   consistencyValidation: { success: boolean };
   transactionRolledBack: boolean;
   databaseUnchanged: boolean;
+  databaseRestored?: boolean;
+  mode?: "dry_run" | "restore";
 };
 
-function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreStatus, beforeRestoreError, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string) => Promise<RestoreDryRunReport>; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const keys = Object.keys(payload.data);
@@ -572,12 +574,22 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
       {restoreReport ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
-      <div className="settings-actions">
+       {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>真实 Restore 报告</strong><p>BeforeRestore：成功</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>Restore V2 一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
+       <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
          <PrimaryButton type="button" disabled={!confirmed || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => { setRestoreActionError(""); setRestoreActionSuccess(""); if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; } setRestoring(true); setRestoreReport(null); try { const report = await onRestore(payload, beforeRestorePackage.storagePath); setRestoreReport(report); setRestoreActionSuccess("Restore Dry Run 成功，真实恢复预计可以安全执行，本次未修改任何数据。"); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore Dry Run 失败，数据库变更已自动回滚。"); } finally { setRestoring(false); } })()}>{restoring ? "正在演习…" : restoreReport ? "演习已完成" : beforeRestoreStatus === "preparing" ? "正在生成恢复前备份…" : beforeRestoreStatus === "saving" ? "等待保存…" : beforeRestorePackage ? "开始恢复模拟（Dry Run）" : "生成恢复前备份"}</PrimaryButton>
-      </div>
-    </div>;
-  }
+        {canRealRestore ? <DangerButton type="button" disabled={!confirmed || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
+          if (!window.confirm("确认开始真实 Restore？系统将覆盖当前 Backup V1 范围内的数据，并在失败时自动回滚。")) return;
+          setRestoreActionError(""); setRestoreActionSuccess("");
+          if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; }
+          setRestoring(true); setRestoreReport(null);
+          try { const report = await onRestore(payload, beforeRestorePackage.storagePath, "restore"); setRestoreReport(report); setRestoreActionSuccess("Restore 已完成，数据库已恢复。"); }
+          catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore 失败，数据库变更已自动回滚。"); }
+          finally { setRestoring(false); }
+        })()}>{restoring ? "正在恢复…" : "开始恢复（Restore）"}</DangerButton> : null}
+       </div>
+     </div>;
+   }
   return <div className="data-center-restore-preview">
     <div className="panel-header"><div><h3 className="panel-title">恢复预览</h3><p className="data-center-muted">当前仅为恢复预览，未修改任何数据库或业务数据。</p></div></div>
     <div className="detail-grid">
