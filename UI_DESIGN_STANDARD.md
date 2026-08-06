@@ -24,7 +24,7 @@ This is the shared visual contract for statistics, profit, settlement, report, a
 - `代收`, `垫付`, `实际留存`, and `应得利润` use a two-column dense grid with labels left-aligned and values right-aligned.
 - `结算余额` is a separate emphasized row with a divider and the largest monetary value in the card.
 - `应收`, `应付`, and `已平衡` badges share dimensions, radius, typography, and vertical alignment.
-- The final transfer suggestion uses a centered route line (`付款方 → 收款方`) and a separate prominent amount line. It must not compress the route and amount into one sentence.
+- The final transfer suggestion is one compact row: description on the left (`付款方 转给 收款方`) and the prominent amount right-aligned on the same line.
 
 ## Cards, headings, and spacing
 
