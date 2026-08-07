@@ -2760,10 +2760,23 @@ td:last-child {
 .attachment-inline-action { border: 0; padding: 2px 0; background: transparent; color: var(--accent); font: inherit; font-weight: 750; cursor: pointer; }
 .attachment-inline-action.danger { color: var(--danger); }
 .attachment-inventory-row input { flex: 0 0 auto; }
+.attachment-inventory-file-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+.attachment-inventory-file { text-align: center; }
 .attachment-collapse-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
 .attachment-collapse-toggle span { display: inline-flex; align-items: center; gap: 8px; }
 .attachment-collapse-toggle strong { color: var(--accent); font-size: .86rem; }
 .attachment-subheading { margin: 16px 0 0; font-size: 1rem; }
+.attachment-tenant-groups { display: grid; gap: 10px; margin-top: 14px; }
+.attachment-tenant-group { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.attachment-tenant-group .attachment-management-list { margin-top: 10px; }
+.attachment-tenant-group-retired { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.attachment-group-header { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.attachment-group-header input { width: 20px; height: 20px; accent-color: var(--accent); }
+.attachment-group-toggle { display: flex; min-width: 0; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.attachment-group-toggle span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-group-toggle strong { flex: 0 0 auto; color: var(--accent); font-size: .84rem; white-space: nowrap; }
+.attachment-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 55%); }
+.attachment-modal-backdrop .attachment-cleanup-confirm { width: min(100%, 480px); margin: 0; box-shadow: 0 18px 60px rgb(0 0 0 / 32%); }
 .attachment-management-row-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; }
 .attachment-management-skipped { margin-top: 14px; }
 .attachment-management-skipped summary { cursor: pointer; color: var(--muted); }
@@ -2782,6 +2795,8 @@ td:last-child {
   .attachment-management-row-stats { display: grid; gap: 4px; }
   .attachment-selection-bar { align-items: stretch; }
   .attachment-selection-bar .btn { width: 100%; }
+  .attachment-inventory-file-row { gap: 10px; }
+  .attachment-inline-action { min-width: 42px; }
 }
 
 .settings-entry-card {
