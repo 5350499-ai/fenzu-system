@@ -7781,3 +7781,273 @@ input[type="radio"] {
     font-size: 16px;
   }
 }
+
+/* Tenant detail page pilot: UI Design System V1, page-scoped only. */
+.tenant-detail-panel {
+  min-width: 0;
+  overflow: hidden;
+  gap: var(--ui-space-4);
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-lg, 16px);
+  background: var(--ui-color-surface-soft, var(--surface-soft));
+  padding: var(--ui-space-4, 16px);
+}
+
+.tenant-detail-panel .detail-grid {
+  gap: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .detail-field,
+.tenant-detail-panel .tenant-performance-grid .detail-field {
+  min-width: 0;
+  gap: var(--ui-space-2, 8px);
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  background: color-mix(in srgb, var(--ui-color-surface-soft, var(--surface-soft)) 74%, transparent);
+  padding: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .detail-field > span,
+.tenant-detail-panel .tenant-performance-metric {
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-medium, 500);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .detail-field > strong {
+  min-width: 0;
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-body, 14px);
+  font-weight: var(--ui-font-weight-bold, 700);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .detail-section-title,
+.tenant-detail-panel .payment-history-toggle,
+.tenant-detail-panel .attachment-toggle {
+  min-width: 0;
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-section-title, 18px);
+  font-weight: var(--ui-font-weight-bold, 700);
+  line-height: var(--ui-line-height-tight, 1.2);
+  letter-spacing: 0;
+}
+
+.tenant-detail-panel .payment-history-toggle,
+.tenant-detail-panel .attachment-toggle {
+  min-height: var(--ui-touch-target, 44px);
+  padding: var(--ui-space-2, 8px) 0;
+}
+
+.tenant-detail-panel .tenant-performance-section,
+.tenant-detail-panel .tenant-timeline-section,
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  min-width: 0;
+  gap: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  border-top: 1px solid var(--ui-color-border, var(--border));
+  padding-top: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .tenant-performance-summary {
+  gap: var(--ui-space-2, 8px);
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  background: var(--ui-color-surface, var(--surface));
+  padding: var(--ui-space-3, 12px);
+  font-size: var(--ui-font-size-secondary, 13px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .tenant-performance-metric {
+  align-items: baseline;
+  gap: var(--ui-space-2, 8px);
+  white-space: normal;
+}
+
+.tenant-detail-panel .tenant-performance-metric strong,
+.tenant-detail-panel .tenant-payment-rate {
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-body, 14px);
+  font-weight: var(--ui-font-weight-bold, 700);
+}
+
+.tenant-detail-panel .tenant-payment-rate.green {
+  color: var(--ui-color-success, var(--green));
+}
+
+.tenant-detail-panel .tenant-payment-rate.blue {
+  color: var(--ui-color-info, var(--blue));
+}
+
+.tenant-detail-panel .tenant-payment-rate.orange,
+.tenant-detail-panel .tenant-current-overdue.yellow {
+  color: var(--ui-color-warning, var(--amber));
+}
+
+.tenant-detail-panel .tenant-current-overdue,
+.tenant-detail-panel .tenant-performance-empty,
+.tenant-detail-panel .tenant-timeline-selected {
+  border-color: var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  padding: var(--ui-space-3, 12px);
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .tenant-current-overdue {
+  font-weight: var(--ui-font-weight-bold, 700);
+}
+
+.tenant-detail-panel .tenant-performance-empty span,
+.tenant-detail-panel .tenant-timeline-selected {
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-regular, 400);
+}
+
+.tenant-detail-panel .tenant-chart-caption,
+.tenant-detail-panel .payment-history-left {
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-medium, 500);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .tenant-year-switcher {
+  gap: var(--ui-space-2, 8px);
+}
+
+.tenant-detail-panel .tenant-year-switcher button {
+  min-width: var(--ui-touch-target, 44px);
+  min-height: var(--ui-touch-target, 44px);
+  border-radius: var(--ui-radius-pill, 999px);
+  padding: 0 var(--ui-space-2, 8px);
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-semibold, 600);
+}
+
+.tenant-detail-panel .tenant-svg-chart-frame,
+.tenant-detail-panel .tenant-timeline-track,
+.tenant-detail-panel .tenant-chart-frame {
+  min-width: 0;
+  border-color: var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+}
+
+.tenant-detail-panel .tenant-timeline-event,
+.tenant-detail-panel .payment-history-line {
+  min-width: 0;
+  gap: var(--ui-space-3, 12px);
+  padding: var(--ui-space-3, 12px) 0;
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .payment-history-line {
+  border-bottom-color: var(--ui-color-border, var(--border));
+}
+
+.tenant-detail-panel .payment-history-left,
+.tenant-detail-panel .payment-history-right {
+  min-width: 0;
+  gap: var(--ui-space-1, 4px);
+}
+
+.tenant-detail-panel .payment-history-right > * {
+  min-width: 0;
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.tenant-detail-panel .payment-history-right strong {
+  color: var(--ui-color-text-primary, var(--text));
+  font-weight: var(--ui-font-weight-bold, 700);
+  font-variant-numeric: tabular-nums;
+}
+
+.tenant-detail-panel .partner-tag {
+  border-radius: var(--ui-radius-pill, 999px);
+  font-size: var(--ui-font-size-caption, 12px);
+  font-weight: var(--ui-font-weight-semibold, 600);
+}
+
+.tenant-detail-panel .contract-attachments-panel .attachment-file-card,
+.tenant-detail-panel .contract-attachments-panel .attachment-preview {
+  min-width: 0;
+  border-radius: var(--ui-radius-md, 12px);
+  padding: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .attachment-file-card > span {
+  min-width: 0;
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-regular, 400);
+  line-height: var(--ui-line-height-normal, 1.45);
+  overflow-wrap: anywhere;
+}
+
+.tenant-detail-panel .attachment-file-card > button,
+.tenant-detail-panel .tenant-detail-action-button {
+  min-height: var(--ui-touch-target, 44px);
+  height: auto;
+  border-radius: var(--ui-radius-md, 12px);
+  padding: 0 var(--ui-space-3, 12px);
+  font-size: var(--ui-font-size-button, 14px);
+  font-weight: var(--ui-font-weight-semibold, 600);
+  line-height: var(--ui-line-height-tight, 1.2);
+}
+
+.tenant-detail-panel .tenant-detail-actions {
+  gap: var(--ui-space-3, 12px);
+}
+
+.tenant-detail-panel .tenant-detail-action-button.danger,
+.tenant-detail-panel .attachment-file-card > button.danger {
+  color: var(--ui-color-danger, var(--red));
+}
+
+.tenant-detail-panel .tenant-detail-action-button:focus-visible,
+.tenant-detail-panel .attachment-file-card > button:focus-visible,
+.tenant-detail-panel .payment-history-toggle:focus-visible,
+.tenant-detail-panel .attachment-toggle:focus-visible {
+  outline: 2px solid var(--ui-color-focus, var(--blue));
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .tenant-detail-panel {
+    padding: var(--ui-space-3, 12px);
+  }
+
+  .tenant-detail-panel .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-2, 8px);
+  }
+
+  .tenant-detail-panel .tenant-performance-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tenant-detail-panel .tenant-detail-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-detail-panel .payment-history-line {
+    grid-template-columns: minmax(76px, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  .tenant-detail-panel .tenant-details-toggle {
+    min-height: var(--ui-touch-target, 44px);
+    padding-inline: var(--ui-space-3, 12px);
+    font-size: var(--ui-font-size-button, 14px);
+    letter-spacing: 0;
+  }
+}
