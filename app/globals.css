@@ -2759,8 +2759,8 @@ td:last-child {
 .attachment-inventory-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; }
 .attachment-inline-action { min-width: 44px; border: 0; padding: 2px 0; background: transparent; color: #f8fafc; font: inherit; font-weight: 750; text-align: center; cursor: pointer; }
 .attachment-inline-action:hover, .attachment-inline-action:active { color: #ffffff; }
-.attachment-inline-action.danger { color: #ff9aa8; }
-.attachment-inline-action.danger:hover, .attachment-inline-action.danger:active { color: #ffbac3; }
+.attachment-inline-action.danger { color: var(--red); }
+.attachment-inline-action.danger:hover, .attachment-inline-action.danger:active { color: color-mix(in srgb, var(--red) 82%, white); }
 .attachment-inventory-row input { flex: 0 0 auto; }
 .attachment-inventory-file-row { display: grid; grid-template-columns: minmax(44px, auto) minmax(0, 1fr) minmax(44px, auto); align-items: center; gap: 12px; }
 .attachment-inventory-file { text-align: center; }
