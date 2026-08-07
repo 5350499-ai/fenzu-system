@@ -76,6 +76,7 @@ export default function AttachmentArchivePage() {
   const movedOutTenantGroups = useMemo(() => tenantGroups.filter((group) => group.movedOut), [tenantGroups]);
   const movedOutGroupIds = useMemo(() => movedOutTenantGroups.flatMap((group) => group.tenantId ? [group.tenantId] : []), [movedOutTenantGroups]);
   const allMovedOutSelected = movedOutGroupIds.length > 0 && movedOutGroupIds.every((id) => selectedTenantGroupIds.includes(id));
+  const allMovedOutAttachmentSelected = movedOutTenantGroups.length > 0 && movedOutTenantGroups.every((group) => attachmentSelectionState(group.items).all);
   const selectedTenantGroups = useMemo(() => tenantGroups.filter((group) => group.tenantId && selectedTenantGroupIds.includes(group.tenantId)), [selectedTenantGroupIds, tenantGroups]);
   const selectedTenantAttachmentCount = selectedTenantGroups.reduce((total, group) => total + group.items.length, 0);
   const selectedTenantBytes = selectedTenantGroups.reduce((total, group) => total + group.items.reduce((sum, item) => sum + item.fileSize, 0), 0);
@@ -194,13 +195,22 @@ export default function AttachmentArchivePage() {
   function toggleMovedOutGroup() {
     setSingleAttachmentId(null);
     setSelectedAttachmentIds([]);
-    setSelectedTenantGroupIds((current) => allMovedOutSelected
+    setSelectedTenantGroupIds((current) => allMovedOutSelected || allMovedOutAttachmentSelected
       ? current.filter((id) => !movedOutGroupIds.includes(id))
       : Array.from(new Set([...current, ...movedOutGroupIds])));
   }
 
   function toggleExpandedTenant(id: string) {
     setExpandedTenantIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  function attachmentSelectionState(items: AttachmentInventoryItem[]) {
+    const selectedCount = items.filter((item) => selectedAttachmentIds.includes(item.id)).length;
+    return { all: items.length > 0 && selectedCount === items.length, partial: selectedCount > 0 && selectedCount < items.length };
+  }
+
+  function tenantGroupChecked(group: { tenantId: string | null; items: AttachmentInventoryItem[] }) {
+    return Boolean(group.tenantId && selectedTenantGroupIds.includes(group.tenantId)) || attachmentSelectionState(group.items).all;
   }
 
   function ownershipLines(item: AttachmentInventoryItem) {
@@ -269,10 +279,10 @@ export default function AttachmentArchivePage() {
         {inventoryLoading ? <p className="muted">正在加载附件清单…</p> : null}
         {!inventoryLoading && !visibleItems.length ? <p className="muted">当前没有附件。</p> : null}
         {visibleItems.length ? <>
-          <label className="attachment-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /> 全选当前筛选结果</label>
-          {inventoryFilter === "tenant" ? <>
-            <div className="attachment-tenant-groups">{currentTenantGroups.map((group) => <div className="attachment-tenant-group" key={group.id}><div className="attachment-group-header"><input type="checkbox" aria-label={`选择租客 ${group.tenantName}`} checked={Boolean(group.tenantId && selectedTenantGroupIds.includes(group.tenantId))} onChange={() => group.tenantId && toggleTenantGroup(group.tenantId)} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant(group.id)} aria-expanded={expandedTenantIds.includes(group.id)}><span>{group.roomName || "未关联房间"} · {group.tenantName}</span><strong>{group.items.length} 个附件 · {expandedTenantIds.includes(group.id) ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes(group.id) ? <div className="attachment-management-list">{group.items.map(renderInventoryRow)}</div> : null}</div>)}</div>
-            {movedOutTenantGroups.length ? <div className="attachment-tenant-group attachment-tenant-group-retired"><div className="attachment-group-header"><input type="checkbox" aria-label="选择全部已退租租客" checked={allMovedOutSelected} onChange={toggleMovedOutGroup} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant("__moved_out__")} aria-expanded={expandedTenantIds.includes("__moved_out__")}><span>已退租租客</span><strong>{movedOutTenantGroups.reduce((sum, group) => sum + group.items.length, 0)} 个附件 · {expandedTenantIds.includes("__moved_out__") ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes("__moved_out__") ? <div className="attachment-tenant-groups">{movedOutTenantGroups.map((group) => <div className="attachment-tenant-group" key={group.id}><div className="attachment-group-header"><input type="checkbox" aria-label={`选择租客 ${group.tenantName}`} checked={Boolean(group.tenantId && selectedTenantGroupIds.includes(group.tenantId))} onChange={() => group.tenantId && toggleTenantGroup(group.tenantId)} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant(group.id)} aria-expanded={expandedTenantIds.includes(group.id)}><span>{group.roomName || "未关联房间"} · {group.tenantName}</span><strong>{group.items.length} 个附件 · {expandedTenantIds.includes(group.id) ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes(group.id) ? <div className="attachment-management-list">{group.items.map(renderInventoryRow)}</div> : null}</div>)}</div> : null}</div> : null}
+            <label className="attachment-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /> 全选当前筛选结果（{visibleItems.length}个）</label>
+            {inventoryFilter === "tenant" ? <>
+            <div className="attachment-tenant-groups">{currentTenantGroups.map((group) => <div className="attachment-tenant-group" key={group.id}><div className="attachment-group-header"><input type="checkbox" aria-label={`选择租客 ${group.tenantName}`} checked={tenantGroupChecked(group)} ref={(element) => { if (element) element.indeterminate = attachmentSelectionState(group.items).partial; }} onChange={() => group.tenantId && toggleTenantGroup(group.tenantId)} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant(group.id)} aria-expanded={expandedTenantIds.includes(group.id)}><span>{group.roomName || "未关联房间"} · {group.tenantName}</span><strong>{group.items.length} 个附件 · {expandedTenantIds.includes(group.id) ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes(group.id) ? <div className="attachment-management-list">{group.items.map(renderInventoryRow)}</div> : null}</div>)}</div>
+            {movedOutTenantGroups.length ? <div className="attachment-tenant-group attachment-tenant-group-retired"><div className="attachment-group-header"><input type="checkbox" aria-label="选择全部已退租租客" checked={allMovedOutSelected || allMovedOutAttachmentSelected} ref={(element) => { if (element) element.indeterminate = movedOutTenantGroups.some((group) => attachmentSelectionState(group.items).partial) || (movedOutTenantGroups.some((group) => attachmentSelectionState(group.items).all) && !allMovedOutAttachmentSelected); }} onChange={toggleMovedOutGroup} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant("__moved_out__")} aria-expanded={expandedTenantIds.includes("__moved_out__")}><span>已退租租客</span><strong>{movedOutTenantGroups.reduce((sum, group) => sum + group.items.length, 0)} 个附件 · {expandedTenantIds.includes("__moved_out__") ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes("__moved_out__") ? <div className="attachment-tenant-groups">{movedOutTenantGroups.map((group) => <div className="attachment-tenant-group" key={group.id}><div className="attachment-group-header"><input type="checkbox" aria-label={`选择租客 ${group.tenantName}`} checked={tenantGroupChecked(group)} ref={(element) => { if (element) element.indeterminate = attachmentSelectionState(group.items).partial; }} onChange={() => group.tenantId && toggleTenantGroup(group.tenantId)} /><button className="attachment-group-toggle" type="button" onClick={() => toggleExpandedTenant(group.id)} aria-expanded={expandedTenantIds.includes(group.id)}><span>{group.roomName || "未关联房间"} · {group.tenantName}</span><strong>{group.items.length} 个附件 · {expandedTenantIds.includes(group.id) ? "收起" : "展开"}</strong></button></div>{expandedTenantIds.includes(group.id) ? <div className="attachment-management-list">{group.items.map(renderInventoryRow)}</div> : null}</div>)}</div> : null}</div> : null}
           </> : <div className="attachment-management-list">{visibleItems.map(renderInventoryRow)}</div>}
           {selectedItems.length ? <div className="attachment-selection-bar">已选择 {selectedItems.length} 个附件 · {formatBytes(selectedItems.reduce((total, item) => total + item.fileSize, 0))}<button className="btn danger" type="button" onClick={() => setConfirmKind("attachments")}>删除所选云端附件</button></div> : null}
           {inventoryFilter === "tenant" && selectedTenantGroups.length ? <div className="attachment-selection-bar">已选择 {selectedTenantGroups.length} 位租客 · {selectedTenantAttachmentCount} 个附件 · {formatBytes(selectedTenantBytes)}<button className="btn danger" type="button" onClick={() => setConfirmKind("tenants")}>删除所选租客附件</button></div> : null}
