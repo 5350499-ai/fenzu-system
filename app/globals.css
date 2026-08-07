@@ -8694,6 +8694,24 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-column: 1 / -1;
   }
 
+  /* Tenant creation follows the same compact, two-column mobile form rhythm. */
+  .tenant-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+  }
+
+  .tenant-form-grid > .field,
+  .tenant-form-grid > .combobox-field {
+    min-width: 0;
+    gap: var(--ui-space-1, 4px);
+  }
+
+  .tenant-form-grid > .tenant-form-wide,
+  .tenant-form-grid > .modal-actions,
+  .tenant-form-grid > p {
+    grid-column: 1 / -1;
+  }
+
   /* Keep the expense summary as three compact information rows on phones. */
   .expense-core-detail-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

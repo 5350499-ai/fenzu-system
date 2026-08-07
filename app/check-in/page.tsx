@@ -26,7 +26,7 @@ import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
-import { getPartners } from "@/lib/partners";
+import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -73,7 +73,6 @@ export default function CheckInPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [ownershipMode, setOwnershipMode] = useState<string>("");
-  const [customReceivedBy, setCustomReceivedBy] = useState("");
   const requestIdRef = useRef<string | null>(null);
   const submitLockRef = useRef(false);
   const [form, setForm] = useState(createInitialForm);
@@ -94,10 +93,10 @@ export default function CheckInPage() {
   useEffect(() => {
     async function load() {
       const partnerData = await getPartners();
-      const nextPartnerOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
+      const nextPartnerOptions = buildActivePartnerOptions(partnerData);
       setPartnerOptions(nextPartnerOptions);
       setPartnersLoading(false);
-      setOwnershipMode(nextPartnerOptions[0]?.value || "自定义");
+      setOwnershipMode(nextPartnerOptions[0]?.value || "");
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -109,7 +108,10 @@ export default function CheckInPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
     }
-    load().catch((error) => window.alert(`加载入住数据失败：${error.message || error}`));
+    load().catch((error) => {
+      setPartnersLoading(false);
+      window.alert(`加载入住数据失败：${error.message || error}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -127,8 +129,8 @@ export default function CheckInPage() {
       window.alert("请先选择房源、房间，并填写租客姓名。");
       return;
     }
-    if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请填写自定义归属名称。");
+    if (!ownershipMode) {
+      window.alert("请选择收款归属。");
       return;
     }
     if (form.paymentDay != null && (!Number.isInteger(form.paymentDay) || form.paymentDay < 1 || form.paymentDay > 31)) {
@@ -140,7 +142,7 @@ export default function CheckInPage() {
     try {
       const clientRequestId = requestIdRef.current || crypto.randomUUID();
       requestIdRef.current = clientRequestId;
-      const finalReceivedBy = ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode;
+      const finalReceivedBy = ownershipMode;
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("登录状态已失效，请重新登录。");
       const response = await fetch("/api/check-in", {
@@ -308,10 +310,7 @@ export default function CheckInPage() {
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
-          <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
-            setOwnershipMode(mode);
-            if (mode !== "自定义") setCustomReceivedBy("");
-          }} onCustomNameChange={setCustomReceivedBy} />
+          <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
           <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

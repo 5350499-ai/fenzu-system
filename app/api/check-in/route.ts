@@ -7,7 +7,7 @@ import {
   requireModulePermission,
   requirePropertyAccess
 } from "@/lib/server/account-auth";
-import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
 type CheckInBody = {
   clientRequestId?: string;
@@ -44,11 +44,13 @@ export async function POST(request: Request) {
     const rentAmount = Number(body.rentAmount ?? 0);
     const depositAmount = Number(body.depositAmount ?? 0);
     const paymentDay = Number(body.paymentDay ?? 20);
+    const receivedBy = String(body.receivedBy || "").trim();
 
     if (!body.clientRequestId || !uuidPattern.test(body.clientRequestId)
       || !body.propertyId || !uuidPattern.test(body.propertyId)
       || !body.roomId || !uuidPattern.test(body.roomId)
       || !body.tenantName?.trim()
+      || !receivedBy
       || !validDate(body.paymentDate)
       || !validDate(body.coverageStartDate)
       || !validDate(body.coverageEndDate)
@@ -66,6 +68,15 @@ export async function POST(request: Request) {
     await requireModulePermission(context, "rent_payments", "create");
     if (depositAmount > 0) await requireModulePermission(context, "deposits", "create");
     await requirePropertyAccess(context, body.propertyId);
+
+    const { data: activePartners, error: partnersError } = await getSupabaseAdmin()
+      .from("partners")
+      .select("id,legacy_code")
+      .eq("workspace_owner_id", context.profile.workspace_owner_id)
+      .eq("is_active", true);
+    if (partnersError || !(activePartners || []).some((partner) => partner.id === receivedBy || partner.legacy_code === receivedBy)) {
+      throw new AccountApiError("请选择当前有效的收款归属。", 400);
+    }
 
     const client = getSupabaseAuthVerifier(context.accessToken);
     const { data, error } = await client.rpc("create_atomic_check_in", {
@@ -88,7 +99,7 @@ export async function POST(request: Request) {
       p_deposit_status: body.depositStatus || "已收",
       p_payment_status: body.paymentStatus || "已收",
       p_payment_method: body.paymentMethod || "转账",
-      p_received_by: body.receivedBy || "A",
+      p_received_by: receivedBy,
       p_notes: body.notes?.trim() || null
     });
 

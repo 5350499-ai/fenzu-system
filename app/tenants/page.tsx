@@ -45,6 +45,7 @@ import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
+import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
@@ -86,7 +87,7 @@ const emptyTenantPayment: BusinessRentPayment = {
   coverageStartDate: today(),
   coverageEndDate: monthEnd(currentMonth),
   paymentMethod: "转账",
-  receivedBy: "A",
+  receivedBy: "",
   paymentStatus: "已收",
   isOverdue: false,
   notes: ""
@@ -123,8 +124,9 @@ export default function TenantsPage() {
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [ownershipMode, setOwnershipMode] = useState<string>("A");
-  const [customReceivedBy, setCustomReceivedBy] = useState("");
+  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [partnersLoading, setPartnersLoading] = useState(true);
+  const [ownershipMode, setOwnershipMode] = useState<string>("");
   const contractFilesRequestRef = useRef(0);
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDate, setMoveOutDate] = useState(localToday());
@@ -166,6 +168,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     async function load() {
+      const activePartnerOptions = buildActivePartnerOptions(await getPartners());
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -186,6 +189,8 @@ export default function TenantsPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
+      setPartnerOptions(activePartnerOptions);
+      setPartnersLoading(false);
       await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
@@ -193,7 +198,10 @@ export default function TenantsPage() {
       }
       setLoaded(true);
     }
-    load().catch((error) => window.alert(`加载租客失败：${error.message || error}`));
+    load().catch((error) => {
+      setPartnersLoading(false);
+      window.alert(`加载租客失败：${error.message || error}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -312,8 +320,7 @@ export default function TenantsPage() {
     setContractForm({ startDate: today(), endDate: "" });
     setPaymentForm(emptyTenantPayment);
     setNewPaymentDepositAmount(0);
-    setOwnershipMode("A");
-    setCustomReceivedBy("");
+    setOwnershipMode(partnerOptions[0]?.value || "");
   }
 
   function openTenantForm(tenant?: BusinessTenant) {
@@ -322,8 +329,7 @@ export default function TenantsPage() {
       setContractForm({ startDate: today(), endDate: "" });
       setPaymentForm(emptyTenantPayment);
       setNewPaymentDepositAmount(0);
-      setOwnershipMode("A");
-      setCustomReceivedBy("");
+      setOwnershipMode(partnerOptions[0]?.value || "");
       setOpen(true);
       return;
     }
@@ -338,8 +344,7 @@ export default function TenantsPage() {
       amountDue: 0
     });
     setNewPaymentDepositAmount(0);
-    setOwnershipMode("A");
-    setCustomReceivedBy("");
+    setOwnershipMode(partnerOptions[0]?.value || "");
     setOpen(true);
   }
 
@@ -388,8 +393,8 @@ export default function TenantsPage() {
       window.alert("每月缴费日请输入1到31，或留空表示不设置。");
       return;
     }
-    if (!form.id && ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请填写自定义归属名称。");
+    if (!form.id && !ownershipMode) {
+      window.alert("请先选择收款归属。");
       return;
     }
     try {
@@ -475,7 +480,7 @@ export default function TenantsPage() {
       const nextContracts = currentContract
         ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
         : [nextContract, ...contracts];
-      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode }, newPaymentDepositAmount);
+      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode }, newPaymentDepositAmount);
       const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
@@ -584,6 +589,8 @@ export default function TenantsPage() {
         setCreateDepositTenant(null);
         return;
       }
+      const defaultPartner = partnerOptions[0]?.value || "";
+      if (!defaultPartner) throw new Error("没有可用的合伙人归属，请刷新后重试。");
       const nextDeposit: BusinessDeposit = {
         id: crypto.randomUUID(),
         propertyId: tenant.propertyId,
@@ -593,8 +600,8 @@ export default function TenantsPage() {
         amount,
         status,
         transactionDate: today(),
-        receivedBy: "A",
-        paidBy: "A",
+        receivedBy: defaultPartner,
+        paidBy: defaultPartner,
         notes: `[收租押金:历史人工建立:${tenant.id}]`
       };
       await saveBusinessData(depositKey, [nextDeposit, ...latestDeposits]);
@@ -923,8 +930,9 @@ export default function TenantsPage() {
               <h2 className="panel-title">{form.id ? "编辑租客" : "新增租客"}</h2>
               <button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button>
             </div>
-            <form className="form-grid" onSubmit={submit}>
+            <form className="form-grid tenant-form-grid" onSubmit={submit}>
               <SearchableSelect
+                className="tenant-form-wide"
                 label="房源"
                 value={form.propertyId}
                 options={properties.map((property) => ({
@@ -937,6 +945,7 @@ export default function TenantsPage() {
                 placeholder="搜索房源名称、地址、城市"
               />
               <SearchableSelect
+                className="tenant-form-wide"
                 label="房间"
                 value={form.roomId}
                 disabled={!form.propertyId}
@@ -957,7 +966,7 @@ export default function TenantsPage() {
               />
               <TextField label="姓名" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
               <TextField label="电话（可选）" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-              <TextField label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
+              <TextField className="tenant-form-wide" label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
               <MoneyInput label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
               <MoneyInput label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               {!form.id ? <>
@@ -973,14 +982,11 @@ export default function TenantsPage() {
               {!form.id ? <>
                 <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
                 <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
-                <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
-                  setOwnershipMode(mode);
-                  if (mode !== "自定义") setCustomReceivedBy("");
-                }} onCustomNameChange={setCustomReceivedBy} />
+                <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
               </> : null}
               <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <TextField label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <div className="field tenant-form-wide">
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
               </div>
@@ -1582,7 +1588,7 @@ function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, 
     coverageStartDate: draft.coverageStartDate || monthStart(rentMonth),
     coverageEndDate: draft.coverageEndDate || monthEnd(rentMonth),
     paymentMethod: draft.paymentMethod || "转账",
-    receivedBy: draft.receivedBy || "A",
+    receivedBy: draft.receivedBy,
     paymentStatus: draft.paymentStatus || (amountPaid > 0 ? "已收" : "未收"),
     isOverdue: false,
     notes: draft.notes || tenant.notes || ""
@@ -1594,16 +1600,6 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function ownershipChoice(value?: string): "A" | "B" | "自定义" {
-  const normalized = (value || "A").trim().toUpperCase();
-  return normalized === "A" || normalized === "B" ? normalized : "自定义";
-}
-
-function customOwnershipName(value?: string) {
-  const name = (value || "").trim();
-  return name === "自定义" ? "" : name;
-}
-
-function TextField({ label, value, onChange, required }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean }) {
-  return <div className="field"><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
+function TextField({ label, value, onChange, required, className }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean; className?: string }) {
+  return <div className={`field${className ? ` ${className}` : ""}`}><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
 }

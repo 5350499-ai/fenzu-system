@@ -33,7 +33,7 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { getPartners, type PartnerWorkspaceData } from "@/lib/partners";
+import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,7 +49,7 @@ const emptyExpense: BusinessExpense = {
   amount: 0,
   paymentDate: new Date().toISOString().slice(0, 10),
   paymentMethod: "转账",
-  paidBy: "A",
+  paidBy: "",
   isPaid: true,
   notes: ""
 };
@@ -113,14 +113,9 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData: PartnerWorkspaceData = await getPartners();
-      const nextDirectory: Record<string, string> = {};
-      for (const partner of partnerData.partners) {
-        nextDirectory[partner.id] = partner.displayName;
-        if (partner.legacyCode) nextDirectory[partner.legacyCode] = partner.displayName;
-        if (partner.legacyCode) nextDirectory[partner.legacyCode.toUpperCase()] = partner.displayName;
-      }
-      const nextOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
+      const partnerData = await getPartners();
+      const nextDirectory = buildPartnerDirectory(partnerData);
+      const nextOptions = buildActivePartnerOptions(partnerData);
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
@@ -161,6 +156,10 @@ export default function ExpensesPage() {
   );
   const visibleExpenses = pageRows(filteredExpenses, page, pageSize);
   const roomOptions = rooms.filter((room) => room.propertyId === form.propertyId);
+  const expensePartnerOptions = useMemo(
+    () => preserveStoredPartnerOption(partnerOptions, form.paidBy, partnerDirectory),
+    [form.paidBy, partnerDirectory, partnerOptions]
+  );
 
   function close() {
     setOpen(false);
@@ -213,7 +212,7 @@ export default function ExpensesPage() {
       ...form,
       id: expenseId,
       amount: Number(form.amount || 0),
-      paidBy: form.paidBy || "A",
+      paidBy: form.paidBy,
       expenseMonth: (form.paymentDate || new Date().toISOString()).slice(0, 7)
     };
     const next = form.id
@@ -278,7 +277,7 @@ export default function ExpensesPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
-          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm({ ...emptyExpense, paidBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
+          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { setForm({ ...emptyExpense, paidBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -347,7 +346,7 @@ export default function ExpensesPage() {
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!partnerOptions.length} placeholder={partnerOptions.length ? undefined : "正在加载合伙人…"} options={partnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
+              <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!expensePartnerOptions.length} placeholder={expensePartnerOptions.length ? undefined : "暂无可用合伙人"} options={expensePartnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

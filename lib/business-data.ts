@@ -267,7 +267,7 @@ const tableConfigs: Record<string, TableConfig> = {
       amountUnpaid: Number(row.amount_unpaid || 0),
       coverageStartDate: row.coverage_start_date || "",
       coverageEndDate: row.coverage_end_date || "",
-      receivedBy: normalizePartner(row.received_by || "A"),
+      receivedBy: normalizePartner(row.received_by || ""),
       paymentStatus: normalizePaymentStatus(row.payment_status || (Number(row.amount_paid || 0) > 0 ? "已收" : "未收")),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isOverdue: Boolean(row.is_overdue),
@@ -288,7 +288,7 @@ const tableConfigs: Record<string, TableConfig> = {
       amount_unpaid: Number(row.amountUnpaid || 0),
       coverage_start_date: row.coverageStartDate || null,
       coverage_end_date: row.coverageEndDate || null,
-      received_by: normalizePartner(row.receivedBy || "A"),
+      received_by: normalizePartner(row.receivedBy || ""),
       payment_status: normalizePaymentStatus(row.paymentStatus || (Number(row.amountPaid || 0) > 0 ? "已收" : "未收")),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_overdue: Boolean(row.isOverdue),
@@ -336,7 +336,7 @@ const tableConfigs: Record<string, TableConfig> = {
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       paymentDate: row.payment_date || "",
-      paidBy: normalizePartner(row.paid_by || "A"),
+      paidBy: normalizePartner(row.paid_by || ""),
       paymentMethod: normalizePaymentMethod(row.payment_method || "转账"),
       isPaid: Boolean(row.is_paid),
       notes: row.notes || ""
@@ -350,7 +350,7 @@ const tableConfigs: Record<string, TableConfig> = {
       category: normalizeExpenseCategory(row.category || "其他"),
       amount: Number(row.amount || 0),
       payment_date: row.paymentDate || null,
-      paid_by: normalizePartner(row.paidBy || "A"),
+      paid_by: normalizePartner(row.paidBy || ""),
       payment_method: normalizePaymentMethod(row.paymentMethod || "转账"),
       is_paid: Boolean(row.isPaid),
       notes: row.notes || null
@@ -368,8 +368,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amount: Number(row.amount || 0),
       status: normalizeDepositStatus(row.status || "已收"),
       transactionDate: row.transaction_date || "",
-      receivedBy: normalizePartner(row.received_by || "A"),
-      paidBy: normalizePartner(row.paid_by || "A"),
+      receivedBy: normalizePartner(row.received_by || ""),
+      paidBy: normalizePartner(row.paid_by || ""),
       notes: row.notes || ""
     }),
     toDb: (row, userId) => ({
@@ -382,8 +382,8 @@ const tableConfigs: Record<string, TableConfig> = {
       amount: Number(row.amount || 0),
       status: normalizeDepositStatus(row.status || "已收"),
       transaction_date: row.transactionDate || null,
-      received_by: normalizePartner(row.receivedBy || "A"),
-      paid_by: normalizePartner(row.paidBy || "A"),
+      received_by: normalizePartner(row.receivedBy || ""),
+      paid_by: normalizePartner(row.paidBy || ""),
       notes: row.notes || null
     })
   },
@@ -736,10 +736,7 @@ function normalizePaymentStatus(status: string) {
 }
 
 function normalizePartner(value?: string) {
-  const partner = (value || "A").trim();
-  if (!partner) return "A";
-  const fixedCode = partner.toUpperCase();
-  return fixedCode === "A" || fixedCode === "B" ? fixedCode : partner.slice(0, 50);
+  return (value || "").trim().slice(0, 50);
 }
 
 function normalizeIncomeType(value?: string): BusinessRentPayment["incomeType"] {

@@ -30,7 +30,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { getPartners, type PartnerWorkspaceData } from "@/lib/partners";
+import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import {
   deleteRentPaymentFile,
@@ -66,7 +66,7 @@ const emptyPayment: BusinessRentPayment = {
   coverageStartDate: monthStart(new Date().toISOString().slice(0, 7)),
   coverageEndDate: monthEnd(new Date().toISOString().slice(0, 7)),
   paymentMethod: "转账",
-  receivedBy: "A",
+  receivedBy: "",
   paymentStatus: "已收",
   isOverdue: false,
   notes: ""
@@ -109,8 +109,7 @@ export default function RentPaymentsPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
-  const [customReceivedBy, setCustomReceivedBy] = useState("");
-  const [ownershipMode, setOwnershipMode] = useState<string>("A");
+  const [ownershipMode, setOwnershipMode] = useState<string>("");
   const [addingTenant, setAddingTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");
@@ -151,14 +150,9 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData: PartnerWorkspaceData = await getPartners();
-      const nextDirectory: Record<string, string> = {};
-      for (const partner of partnerData.partners) {
-        nextDirectory[partner.id] = partner.displayName;
-        if (partner.legacyCode) nextDirectory[partner.legacyCode] = partner.displayName;
-        if (partner.legacyCode) nextDirectory[partner.legacyCode.toUpperCase()] = partner.displayName;
-      }
-      const nextOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
+      const partnerData = await getPartners();
+      const nextDirectory = buildPartnerDirectory(partnerData);
+      const nextOptions = buildActivePartnerOptions(partnerData);
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -178,7 +172,9 @@ export default function RentPaymentsPage() {
       if (renewTenant) {
         const latest = latestCoverageForTenant(renewTenant.id, loadedPayments);
         const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
-        const receivedBy = latest?.receivedBy || "A";
+        const receivedBy = nextOptions.some((option) => option.value === latest?.receivedBy)
+          ? latest?.receivedBy || ""
+          : nextOptions[0]?.value || "";
         const mode = ownershipChoice(receivedBy, nextOptions);
         setForm({
           ...emptyPayment,
@@ -194,7 +190,6 @@ export default function RentPaymentsPage() {
           receivedBy
         });
         setOwnershipMode(mode);
-        setCustomReceivedBy(mode === "自定义" ? customOwnershipName(receivedBy) : "");
         setMonthlyRentStandard(Number(renewTenant.monthlyRent || 0));
         setOpen(true);
       }
@@ -241,6 +236,10 @@ export default function RentPaymentsPage() {
     map[file.rentPaymentId] = [...(map[file.rentPaymentId] || []), file];
     return map;
   }, {}), [files]);
+  const ownershipOptions = useMemo(
+    () => preserveStoredPartnerOption(partnerOptions, form.id ? form.receivedBy : "", partnerDirectory),
+    [form.id, form.receivedBy, partnerDirectory, partnerOptions]
+  );
   const filteredPayments = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return payments.filter((payment) => {
@@ -268,8 +267,7 @@ export default function RentPaymentsPage() {
     setCollectionPaymentId("");
     setDepositAmount(0);
     setMonthlyRentStandard(null);
-    setCustomReceivedBy("");
-    setOwnershipMode("A");
+    setOwnershipMode("");
     setAddingTenant(false);
     setNewTenantName("");
     setNewTenantPhone("");
@@ -319,7 +317,6 @@ export default function RentPaymentsPage() {
     if (form.incomeType === "续交房租" && latest?.receivedBy) {
       const mode = ownershipChoice(latest.receivedBy, partnerOptions);
       setOwnershipMode(mode);
-      setCustomReceivedBy(mode === "自定义" ? customOwnershipName(latest.receivedBy) : "");
     }
   }
 
@@ -407,10 +404,6 @@ export default function RentPaymentsPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded) return;
-    if (ownershipMode === "自定义" && !customReceivedBy.trim()) {
-      window.alert("请填写自定义归属名称。");
-      return;
-    }
     const incomeType = form.incomeType || "房租收入";
     const isRent = isRentPayment(form);
     const requiresBusinessLink = isRent;
@@ -489,7 +482,7 @@ export default function RentPaymentsPage() {
       amountUnpaid,
       coverageStartDate: isRent ? form.coverageStartDate : "",
       coverageEndDate: isRent ? form.coverageEndDate : "",
-      receivedBy: isHistoricalEdit ? originalPayment?.receivedBy : ownershipMode === "自定义" ? customReceivedBy.trim() : ownershipMode,
+      receivedBy: isHistoricalEdit ? originalPayment?.receivedBy : ownershipMode,
       paymentStatus: isHistoricalEdit ? originalPayment?.paymentStatus : isRent ? collectionPaymentId ? (amountPaid > 0 ? "已收" : "未收") : form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
       paymentMethod: isHistoricalEdit ? originalPayment?.paymentMethod || form.paymentMethod : form.paymentMethod,
       createdAt: isHistoricalEdit ? originalPayment?.createdAt : form.createdAt || (form.id ? undefined : new Date().toISOString()),
@@ -622,7 +615,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setCustomReceivedBy(""); setOwnershipMode((partnerOptions[0]?.value || "") as "A" | "B" | "自定义"); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -670,7 +663,6 @@ export default function RentPaymentsPage() {
                       setForm({ ...payment, amountDue: rentAmount });
                       setMonthlyRentStandard(tenant?.monthlyRent ?? null);
                       setOwnershipMode(mode);
-                      setCustomReceivedBy(mode === "自定义" ? customOwnershipName(payment.receivedBy) : "");
                       setNewTenantName(!payment.tenantId && isRentPayment(payment) ? payment.incomeItem || "" : "");
                       setPendingFiles([]);
                       setDepositAmount(paymentDepositAmount(payment, linkedDeposit));
@@ -724,10 +716,7 @@ export default function RentPaymentsPage() {
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <OwnershipField options={partnerOptions} optionsLoading={!partnerOptions.length} mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
-                setOwnershipMode(mode);
-                if (mode !== "自定义") setCustomReceivedBy("");
-              }} onCustomNameChange={setCustomReceivedBy} />
+              <OwnershipField options={ownershipOptions} mode={ownershipMode} onModeChange={setOwnershipMode} />
               <TapSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已收取"} options={["已收取", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               {!form.id ? <div className="field rent-new-attachments" style={{ gridColumn: "1 / -1" }}><label>附件（可选）</label><input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} /><span className="muted">可先选择文件，保存收款后自动上传。</span></div> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
@@ -976,13 +965,7 @@ function depositPaymentMarker(paymentId: string) {
 }
 
 function ownershipChoice(value?: string, options: Array<{ value: string }> = []) {
-  const raw = (value || "A").trim();
-  if (options.some((option) => option.value === raw)) return raw as "A" | "B" | "自定义";
-  const normalized = raw.toUpperCase();
-  return normalized === "A" || normalized === "B" ? normalized : "自定义";
-}
-
-function customOwnershipName(value?: string) {
-  const name = (value || "").trim();
-  return name === "自定义" ? "" : name;
+  const raw = (value || "").trim();
+  if (options.some((option) => option.value === raw)) return raw;
+  return raw || options[0]?.value || "";
 }

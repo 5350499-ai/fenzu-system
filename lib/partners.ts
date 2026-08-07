@@ -36,6 +36,39 @@ export type PartnerWorkspaceData = {
   nameHistory?: PartnerNameHistory[];
 };
 
+export type PartnerOption = { value: string; label: string };
+
+/**
+ * The partners API is the sole source of truth for attribution choices.
+ * Legacy codes remain aliases in the directory so historical records keep
+ * their original stored value while displaying the current partner name.
+ */
+export function buildPartnerDirectory(data: PartnerWorkspaceData) {
+  const directory: Record<string, string> = {};
+  for (const partner of data.partners) {
+    directory[partner.id] = partner.displayName;
+    if (partner.legacyCode) {
+      directory[partner.legacyCode] = partner.displayName;
+      directory[partner.legacyCode.toUpperCase()] = partner.displayName;
+    }
+  }
+  return directory;
+}
+
+export function buildActivePartnerOptions(data: PartnerWorkspaceData): PartnerOption[] {
+  return data.partners
+    .filter((partner) => partner.isActive)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
+}
+
+/** Keeps a stored legacy/inactive attribution selectable only while editing it. */
+export function preserveStoredPartnerOption(options: PartnerOption[], value?: string, directory: Record<string, string> = {}) {
+  const storedValue = (value || "").trim();
+  if (!storedValue || options.some((option) => option.value === storedValue)) return options;
+  return [{ value: storedValue, label: `${directory[storedValue] || storedValue}（历史）` }, ...options];
+}
+
 export function getCurrentPropertySharePlan(shares: PartnerPropertyShare[], propertyId: string, today = new Date().toISOString().slice(0, 10)) {
   const candidates = shares
     .filter((share) => share.propertyId === propertyId && share.effectiveFrom <= today && (!share.effectiveTo || share.effectiveTo >= today))

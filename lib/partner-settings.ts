@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getPartners, type PartnerWorkspaceData } from "./partners";
+import { buildActivePartnerOptions, buildPartnerDirectory, getPartners } from "./partners";
 
 export type PartnerRatios = {
   A: number;
@@ -30,28 +30,21 @@ export function savePartnerRatios(ratios: PartnerRatios) {
 }
 
 export function partnerLabel(partner?: string, directory?: Record<string, string>) {
-  const value = (partner || "A").trim();
+  const value = (partner || "").trim();
   const code = value.toUpperCase();
   if (directory?.[value]) return directory[value];
   if (directory?.[code]) return directory[code];
-  if (code === "A" || code === "B") return code;
-  return value || "A";
+  return value || "未设置";
 }
 
 export function usePartnerDirectory() {
   const [directory, setDirectory] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
-    void getPartners().then((data: PartnerWorkspaceData) => {
+    void getPartners().then((data) => {
       if (!active) return;
-      const next: Record<string, string> = {};
-      for (const partner of data.partners) {
-        next[partner.id] = partner.displayName;
-        if (partner.legacyCode) next[partner.legacyCode] = partner.displayName;
-        if (partner.legacyCode) next[partner.legacyCode.toUpperCase()] = partner.displayName;
-      }
-      setDirectory(next);
-    }).catch(() => { /* Existing A/B fallback remains if directory loading fails. */ });
+      setDirectory(buildPartnerDirectory(data));
+    }).catch(() => { /* Keep the directory empty rather than inventing a partner. */ });
     return () => { active = false; };
   }, []);
   return directory;
@@ -63,19 +56,17 @@ export function usePartnerOwnershipOptions() {
   const [options, setOptions] = useState<PartnerOwnershipOption[]>([]);
   useEffect(() => {
     let active = true;
-    void getPartners().then((data: PartnerWorkspaceData) => {
+    void getPartners().then((data) => {
       if (!active) return;
-      setOptions(data.partners
-        .filter((partner) => partner.isActive)
-        .map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName })));
-    }).catch(() => { /* Existing A/B fallback remains if partner data is unavailable. */ });
+      setOptions(buildActivePartnerOptions(data));
+    }).catch(() => { /* Leave choices empty; callers must not synthesize A/B. */ });
     return () => { active = false; };
   }, []);
   return options;
 }
 
 export function partnerClass(partner?: string) {
-  const code = (partner || "A").trim().toUpperCase();
+  const code = (partner || "").trim().toUpperCase();
   if (code === "A") return "partner-a";
   if (code === "B") return "partner-b";
   return "partner-custom";

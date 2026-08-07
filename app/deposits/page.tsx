@@ -20,6 +20,7 @@ import {
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
+import { buildActivePartnerOptions, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { isLinkedRentDeposit } from "@/lib/profit";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -34,15 +35,13 @@ const emptyDeposit: BusinessDeposit = {
   amount: 0,
   status: "已收",
   transactionDate: "",
-  receivedBy: "A",
-  paidBy: "A",
+  receivedBy: "",
+  paidBy: "",
   notes: ""
 };
 
 const depositTypes = ["收取", "退还", "扣除"];
 const depositStatuses = ["已收", "待退", "已退", "部分扣除", "已作废"];
-const partnerOptions = ["A", "B"];
-
 export default function DepositsPage() {
   const access = useAccountAccess();
   const partnerDirectory = usePartnerDirectory();
@@ -58,9 +57,11 @@ export default function DepositsPage() {
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
     async function load() {
+      const partnerData = await getPartners();
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
@@ -69,6 +70,7 @@ export default function DepositsPage() {
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setDeposits(loadedDeposits);
+      setPartnerOptions(buildActivePartnerOptions(partnerData));
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载押金记录失败：${error.message || error}`));
@@ -88,6 +90,10 @@ export default function DepositsPage() {
     });
   }, [deposits, properties, query, rooms, tenants]);
   const visibleDeposits = pageRows(filteredDeposits, page, pageSize);
+  const depositPartnerOptions = useMemo(
+    () => preserveStoredPartnerOption(partnerOptions, depositPartnerValue(form), partnerDirectory),
+    [form, partnerDirectory, partnerOptions]
+  );
 
   function close() {
     setOpen(false);
@@ -137,7 +143,7 @@ export default function DepositsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">押金列表</h2><p className="muted">押金记录必须关联房源、房间、租客。</p></div>
-          {access.can("deposits", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => setOpen(true)} type="button"><Plus size={17} /> 新增押金记录</button> : null}
+          {access.can("deposits", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyDeposit, receivedBy: initialPartner, paidBy: initialPartner }); setOpen(true); }} type="button"><Plus size={17} /> 新增押金记录</button> : null}
         </div>
         <div className="list-controls"><label className="search-box"><input placeholder="搜索房源、房间、租客、状态、类型" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
         <div className="table-wrap">
@@ -195,7 +201,7 @@ export default function DepositsPage() {
               <SearchableSelect label="押金类型" value={form.type} options={depositTypes.map((type) => ({ value: type, label: depositTypeLabel(type) }))} onChange={(type) => setForm((current) => ({ ...current, type }))} />
               <MoneyInput label="押金金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="押金状态" value={form.status} options={depositStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
-              <SearchableSelect label={form.type === "退还" ? "付款归属" : "收款归属"} value={depositPartnerValue(form)} options={partnerOptions.map((partner) => ({ value: partner, label: partner }))} onChange={(partner) => setForm((current) => setDepositPartner(current, partner))} />
+              <SearchableSelect label={form.type === "退还" ? "付款归属" : "收款归属"} value={depositPartnerValue(form)} disabled={!depositPartnerOptions.length} options={depositPartnerOptions} onChange={(partner) => setForm((current) => setDepositPartner(current, partner))} />
               <div className="field"><label>日期</label><input type="date" value={form.transactionDate} onChange={(event) => setForm((current) => ({ ...current, transactionDate: event.target.value }))} /></div>
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
@@ -236,9 +242,7 @@ function normalizeDepositPartner(deposit: BusinessDeposit) {
 }
 
 function normalizePartner(value?: string) {
-  const partner = (value || "A").trim();
-  const fixedCode = partner.toUpperCase();
-  return fixedCode === "A" || fixedCode === "B" ? fixedCode : partner || "A";
+  return (value || "").trim();
 }
 
 function depositTone(status: string) {

@@ -657,3 +657,10 @@
 ## 2026-08-07 - Global mobile form focus styling
 
 - Unified editable-control focus and Safari autofill styling so text, number, money, date, select, textarea, search, and combobox controls keep a single dark surface with a subtle primary border and no outer focus ring.
+
+## 2026-08-07 - Tenant form density and live partner attribution (Preview)
+
+- Reorganized the new-tenant form into the established compact mobile two-column layout while retaining full-width property, room, WhatsApp, note, and helper areas.
+- Made active partners from the partner-management API the single source for new tenant, check-in, rent-payment, expense, and deposit attribution choices; removed application-level A/B fallback values.
+- Preserved historical attribution values without a database migration, including inactive/legacy values while editing existing records; missing attribution now remains unset instead of being silently rewritten to A.
+- No database schema, financial calculations, attachments, Backup V1, Restore V4, Storage, or Google Drive behavior changed.
