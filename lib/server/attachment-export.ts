@@ -118,13 +118,14 @@ function readablePath(table: AttachmentTable, row: AttachmentRow, context: Await
   const expense = row.expense_id ? context.expenses.get(row.expense_id) : null;
   const tenantId = row.tenant_id || contract?.tenant_id || payment?.tenant_id || null;
   const tenant = tenantId ? context.tenants.get(tenantId) : null;
+  const relatedContract = contract || (tenantId ? Array.from(context.contracts.values()).find((item) => item.tenant_id === tenantId) : null);
   const propertyId = tenant?.property_id || contract?.property_id || payment?.property_id || expense?.property_id || null;
   const roomId = tenant?.room_id || contract?.room_id || payment?.room_id || expense?.room_id || null;
   const property = propertyId ? context.properties.get(propertyId) : null;
   const room = roomId ? context.rooms.get(roomId) : null;
   const propertyFolder = safeSegment(property?.name || property?.address, "未分类房源");
   const roomFolder = safeSegment(room?.room_number || room?.name, "未分类房间");
-  const tenantArrivalDate = tenant?.move_in_date || contract?.start_date || null;
+  const tenantArrivalDate = tenant?.move_in_date || relatedContract?.start_date || null;
   const tenantFolder = safeSegment(`${tenantArrivalDate ? tenantArrivalDate.replace(/-/g, ".").slice(0, 10) : "未知日期"}-${tenant?.name || "未分类租客"}`, "未知日期-未分类租客");
   const kind = table === "contract_files" ? "合同" : table === "rent_payment_files" ? "收款" : "房屋支出";
   const root = table === "expense_files" ? ["附件归档", "房源", propertyFolder, kind] : ["附件归档", "房源", propertyFolder, roomFolder, tenantFolder, kind];
