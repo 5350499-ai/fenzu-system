@@ -2771,6 +2771,19 @@ td:last-child {
   .attachment-selection-bar .btn { width: 100%; }
 }
 
+.settings-entry-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-entry-button {
+  align-self: flex-start;
+  min-width: 220px;
+  justify-content: center;
+  text-align: center;
+}
+
 .pagination {
   display: flex;
   align-items: center;
@@ -7137,6 +7150,11 @@ input[type="radio"] {
   .settings-actions .btn,
   .modal-actions .btn {
     flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .settings-entry-button {
+    width: 100%;
     min-width: 0;
   }
 

@@ -143,7 +143,7 @@ export default function PropertyDetailPage() {
   const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last3Months")) : null;
   const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last12Months")) : null;
   const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, deposits, 12) : [];
-  const visibleTabs = tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits"));
+  const visibleTabs = tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "attachments" && access.can("attachments") || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits"));
 
   const roomOptions = scopedRooms.map((room) => ({
     value: room.id,
@@ -307,9 +307,8 @@ export default function PropertyDetailPage() {
         <div className="tab-row tab-row-five">
           {visibleTabs.slice(0, 5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
         </div>
-        <div className="tab-row tab-row-four">
+        <div className="tab-row tab-row-five">
           {visibleTabs.slice(5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
-          <span className="tab-placeholder" aria-hidden="true" />
         </div>
       </div>
 

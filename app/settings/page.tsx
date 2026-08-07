@@ -159,17 +159,17 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="设置" description="系统设置与 Backup &amp; Restore。">
-      <section className="card panel">
+      <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">合伙人管理</h2><p className="muted">管理合伙人姓名、状态及各房源利润比例。</p></div></div>
-        <Link className="btn primary" href="/partners">打开合伙人管理</Link>
+        <Link className="btn primary settings-entry-button" href="/partners">打开合伙人管理</Link>
       </section>
 
-      {access.canSensitive("canManageSettings") ? <section className="card panel">
+      {access.canSensitive("canManageSettings") ? <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">附件归档与清理</h2><p className="muted">导出并保存历史附件，归档后可清理云端文件以释放空间。</p></div></div>
-        <Link className="btn primary" href="/admin/attachments">打开附件归档与清理</Link>
+        <Link className="btn primary settings-entry-button" href="/admin/attachments">打开附件归档与清理</Link>
       </section> : null}
 
-      <section className="card panel">
+      <section className="card panel settings-entry-card">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">备份与恢复（数据）</h2>
@@ -177,13 +177,13 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="settings-actions data-center-settings-entry">
-          <Link className="btn primary" href="/data-center">打开备份与恢复（数据）</Link>
+          <Link className="btn primary settings-entry-button" href="/data-center">打开备份与恢复（数据）</Link>
         </div>
       </section>
 
-      <section className="card panel">
+      <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">账号安全</h2><p className="muted">查看当前账号邮箱状态并修改自己的密码。</p></div></div>
-        <Link className="btn primary" href="/settings/security">打开账号安全</Link>
+        <Link className="btn primary settings-entry-button" href="/settings/security">打开账号安全</Link>
       </section>
 
       <section className="card panel">
