@@ -340,9 +340,9 @@ export default function ExpensesPage() {
         <div className="modal-backdrop" onMouseDown={close}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑支出" : "录入支出"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
-            <form className="form-grid" onSubmit={submit}>
-              <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
-              <SearchableSelect label="房间（可选）" value={form.roomId || ""} disabled={!form.propertyId} options={[{ value: "", label: "不关联房间" }, ...roomOptions.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))]} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
+            <form className="form-grid expense-form-grid" onSubmit={submit}>
+              <SearchableSelect className="expense-form-wide" label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
+              <SearchableSelect className="expense-form-wide" label="房间（可选）" value={form.roomId || ""} disabled={!form.propertyId} options={[{ value: "", label: "不关联房间" }, ...roomOptions.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))]} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
               <div className="field"><label>支出日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, expenseMonth: event.target.value.slice(0, 7) }))} /></div>
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />

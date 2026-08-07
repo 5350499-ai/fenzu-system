@@ -650,3 +650,7 @@
 
 - Kept check-in and rent-payment short fields in compact two-column mobile layouts while preserving full-width selectors, normal touch targets, and existing partner data; paired check-in payment day/coverage fields in the intended order.
 - Paired tenant payment-day and coverage-end details and constrained expense detail values to their own columns with safe single-line ellipsis.
+## 2026-08-07 - Mobile check-in and expense form density
+
+- Paired check-in coverage start/end dates on the first row and moved the optional payment day to the next row without changing date behavior.
+- Compressed expense entry fields into three mobile two-column rows while keeping property and room selectors full width and preserving existing controls and validation.

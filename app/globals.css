@@ -8839,6 +8839,36 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     min-width: 0;
   }
 
+  .expense-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+  }
+
+  .expense-form-grid > * {
+    min-width: 0;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .expense-form-grid > .expense-form-wide,
+  .expense-form-grid > .field[style*="grid-column"] {
+    grid-column: 1 / -1;
+  }
+
+  .expense-form-grid .field,
+  .expense-form-grid .combobox-field {
+    min-width: 0;
+    gap: var(--ui-space-1, 4px);
+  }
+
+  .expense-form-grid .field input,
+  .expense-form-grid .field select,
+  .expense-form-grid .combobox,
+  .expense-form-grid .combobox input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .tenant-core-detail-grid .tenant-coverage-field {
     grid-column: auto;
   }
