@@ -565,3 +565,9 @@
 - Added read-only tenant-list payment performance labels by reusing the existing tenant payment performance calculation and memoizing the tenant-id map.
 - Condensed the tenant detail payment summary into a single-line inline layout with rate-based color emphasis and an explicit no-record state.
 - No database, migration, RLS, API, payment algorithm, or real business data changes.
+## 2026-08-07 - Attachment Export V1 (Preview)
+
+- Enabled owner attachment ZIP export from the existing attachment management page.
+- Added a versioned `manifest.json` with parent IDs, provider identifiers, file metadata and SHA-256 checksums.
+- Supabase Storage and Google Drive attachment failures are recorded per file and do not stop export of other attachments.
+- Attachment import and combined data-plus-attachment restore remain unimplemented.

@@ -318,6 +318,15 @@ In progress: Global Cache V3; Product Roadmap.
 Planned: local attachment import/export; full-app navigation optimization; UI detail refinement; multi-property support; membership/subscription system (not open); cloud backup; enhanced historical restore; attachment capacity management; multi-person collaboration for advanced partners.
 
 The static `/roadmap` page is a product-planning surface only. All current roadmap items remain free, with no payment or subscription flow connected.
+
+## Attachment Export V1
+
+Attachment export is intentionally independent from Backup V1 and Restore V4. The business-data JSON remains database-only; attachment export produces a separate `attachments-*.zip` containing `manifest.json` and files under `attachments/`.
+
+- The manifest binds attachments by metadata UUID and parent record IDs, never by file name, tenant name or room name.
+- The manifest preserves provider, bucket/path or provider file ID, MIME type, size, upload time and SHA-256 checksum.
+- Export reads the existing `contract_files`, `rent_payment_files` and `expense_files` indexes and tolerates an individual missing or unreadable file by recording it in the manifest and continuing.
+- ZIP import and combined data-plus-attachment restore remain future work; no Backup V1 or Restore V4 schema is changed by Attachment Export V1.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

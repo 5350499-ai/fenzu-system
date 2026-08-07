@@ -44,6 +44,32 @@ export default function AttachmentManagementPage() {
   const [summary, setSummary] = useState<AttachmentSummary | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
+  const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
+  const [exportMessage, setExportMessage] = useState("");
+
+  async function exportAttachments() {
+    if (exportState === "exporting") return;
+    setExportState("exporting"); setExportMessage("");
+    try {
+      if (!isSupabaseConfigured || !supabase) throw new Error("当前环境未配置登录服务。");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("请先登录管理员账号。");
+      const response = await fetch("/api/admin/attachments/export", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "附件导出失败，请稍后重试。");
+      }
+      const blob = await response.blob();
+      const fileName = response.headers.get("Content-Disposition")?.match(/filename="?([^";]+)"?/i)?.[1] || "attachments.zip";
+      const { downloadFile } = await import("@/lib/download-adapter");
+      await downloadFile(new File([blob], fileName, { type: "application/zip" }), { title: "附件归档" });
+      setExportMessage("附件 ZIP 已生成，可在系统菜单中选择保存位置。");
+      setExportState("idle");
+    } catch (caught) {
+      setExportMessage(caught instanceof Error ? caught.message : "附件导出失败，请稍后重试。");
+      setExportState("error");
+    }
+  }
 
   async function load() {
     setState("loading"); setError("");
@@ -75,10 +101,11 @@ export default function AttachmentManagementPage() {
       <section className="card panel attachment-management-actions">
         <div className="panel-header"><div><h2 className="panel-title">附件导入与导出</h2><p className="muted">所有图片、PDF、合同及其它 Storage 文件统一从这里管理，业务 JSON 不包含这些文件。</p></div></div>
         <div className="settings-actions">
-          <button className="btn" type="button" disabled><ArrowDownToLine size={17} /> 导出 attachments.zip</button>
+          <button className="btn" type="button" disabled={exportState === "exporting"} onClick={() => void exportAttachments()}><ArrowDownToLine size={17} /> {exportState === "exporting" ? "正在生成 attachments.zip…" : "导出 attachments.zip"}</button>
           <button className="btn" type="button" disabled><ArrowUpFromLine size={17} /> 导入 attachments.zip</button>
         </div>
-        <p className="muted attachment-management-reserved"><FileArchive size={16} /> 当前保留操作入口，具体 ZIP 接口将在附件功能阶段接入。</p>
+        {exportMessage ? <p className={exportState === "error" ? "error-text" : "success-text"}>{exportMessage}</p> : null}
+        <p className="muted attachment-management-reserved"><FileArchive size={16} /> 附件导出已开放；附件导入暂未开放，后续仍将只在本页面处理。</p>
       </section>
       <CandidateList title="退租超过 3 个月的候选" data={summary.candidates.over3Months} />
       <CandidateList title="退租超过 6 个月的候选" data={summary.candidates.over6Months} />
