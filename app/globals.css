@@ -3345,26 +3345,33 @@ td:last-child {
 }
 
 .tenant-performance-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
-  justify-content: center;
   min-height: 0;
-  gap: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
+  gap: 8px;
+  padding: 8px 10px;
   line-height: 1.25;
-  padding: 6px 9px;
-  font-size: clamp(8px, 1.2vw, 12px);
-  letter-spacing: -0.25px;
+}
+
+.tenant-performance-metric {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tenant-performance-metric strong {
+  color: var(--text);
+  font-weight: 750;
 }
 
 .tenant-performance-summary > span {
-  flex: 0 0 auto;
   min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
 }
 
 .tenant-payment-rate {
@@ -3379,10 +3386,13 @@ td:last-child {
 
 @media (max-width: 640px) {
   .tenant-performance-summary {
-    padding: 4px;
-    line-height: 1.1;
-    font-size: clamp(8px, 2.4vw, 12px);
-    letter-spacing: -0.5px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+    padding: 8px 10px;
+  }
+
+  .tenant-performance-metric {
+    font-size: 11px;
   }
 }
 

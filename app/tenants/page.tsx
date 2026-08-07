@@ -1241,10 +1241,10 @@ function TenantDetail({
       <section className="tenant-performance-section">
         <div className="detail-section-title">付款摘要</div>
         <div className="tenant-performance-summary">
-          <span>累计迟交{performance.lateCount}次</span><span aria-hidden="true">｜</span>
-          <span>平均迟交{performance.averageLateDays?.toFixed(0) || "-"}天</span><span aria-hidden="true">｜</span>
-          <span>最长迟交{performance.longestLateDays ?? "-"}天</span><span aria-hidden="true">｜</span>
-          <span>按时付款率<span className={`tenant-payment-rate ${paymentRateTone}`}>{paymentRateLabel}</span></span>
+          <span className="tenant-performance-metric">累计迟交<strong>{performance.lateCount}次</strong></span>
+          <span className="tenant-performance-metric">平均迟交<strong>{performance.averageLateDays?.toFixed(0) || "-"}天</strong></span>
+          <span className="tenant-performance-metric">最长迟交<strong>{performance.longestLateDays ?? "-"}天</strong></span>
+          <span className="tenant-performance-metric">按时付款率<strong className={`tenant-payment-rate ${paymentRateTone}`}>{paymentRateLabel}</strong></span>
         </div>
         {performance.periods.length === 0 ? (
           <div className="tenant-performance-empty">
