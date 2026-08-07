@@ -165,8 +165,8 @@ export default function SettingsPage() {
       </section>
 
       {access.canSensitive("canManageSettings") ? <section className="card panel">
-        <div className="panel-header"><div><h2 className="panel-title">备份与恢复（附件）</h2><p className="muted">查看附件统计，并导出或恢复图片、PDF、合同及其它附件。</p></div></div>
-        <Link className="btn primary" href="/admin/attachments">打开附件备份与恢复</Link>
+        <div className="panel-header"><div><h2 className="panel-title">附件归档与清理</h2><p className="muted">导出并保存历史附件，归档后可清理云端文件以释放空间。</p></div></div>
+        <Link className="btn primary" href="/admin/attachments">打开附件归档与清理</Link>
       </section> : null}
 
       <section className="card panel">

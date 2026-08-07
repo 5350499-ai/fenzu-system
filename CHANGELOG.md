@@ -571,11 +571,14 @@
 - Added a versioned `manifest.json` with parent IDs, provider identifiers, file metadata and SHA-256 checksums.
 - Supabase Storage and Google Drive attachment failures are recorded per file and do not stop export of other attachments.
 - Attachment import and combined data-plus-attachment restore remain unimplemented.
-# 2026-08-07 - Attachment Restore V1 (Preview only)
+# 2026-08-07 - Attachment Restore V1 cancelled
 
-- Added ZIP manifest validation and restore preview for `attachments.zip`.
-- Added non-destructive, idempotent attachment merge restore with per-file error tolerance and a user-readable report.
-- Changed large-ZIP handling to browser-local manifest parsing plus one-file-at-a-time restore requests; the full archive is no longer sent to a Serverless preview endpoint.
-- Existing attachments outside the ZIP are preserved; attachment UUIDs and manifest parent IDs remain the only restore bindings.
-- Added the attachment recovery action beside attachment export and renamed the Settings entries to `备份与恢复（数据）` and `备份与恢复（附件）`.
-- No migration, Backup V1 change, Restore V4 change, Production deployment, or real-data deletion was performed.
+- The earlier attachment restore experiment is cancelled as a product direction and is not supported going forward.
+- Its preview, restore endpoints and server implementation were removed in favor of local attachment archiving and conservative cloud cleanup.
+## 2026-08-07 - Attachment archive and cleanup direction
+
+- Cancelled Attachment Restore V1 as a product direction and removed its user-facing UI, APIs and server implementation.
+- Renamed the attachment entry to `附件归档与清理` and kept data Backup/Restore independent.
+- Upgraded attachment ZIP export to human-readable, collision-safe paths while retaining a manifest index with stable IDs and checksums.
+- Added a conservative moved-out-tenant cleanup flow. Supabase files and metadata are handled together; Google Drive files are left for manual handling.
+- No database schema, Backup V1, Restore V4 or Production data was changed.

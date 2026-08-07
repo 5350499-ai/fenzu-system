@@ -319,27 +319,17 @@ Planned: local attachment import/export; full-app navigation optimization; UI de
 
 The static `/roadmap` page is a product-planning surface only. All current roadmap items remain free, with no payment or subscription flow connected.
 
-## Attachment Export V1
+## Attachment archive and cleanup
 
-Attachment export is intentionally independent from Backup V1 and Restore V4. The business-data JSON remains database-only; attachment export produces a separate `attachments-*.zip` containing `manifest.json` and files under `attachments/`.
+Attachment handling is intentionally independent from Backup V1 and Restore V4. The business-data JSON remains database-only; attachment export produces a separate ZIP for local archiving. Attachment Restore V1 was cancelled as a product direction and its UI, APIs and server implementation were removed.
 
-- The manifest binds attachments by metadata UUID and parent record IDs, never by file name, tenant name or room name.
-- The manifest preserves provider, bucket/path or provider file ID, MIME type, size, upload time and SHA-256 checksum.
-- Export reads the existing `contract_files`, `rent_payment_files` and `expense_files` indexes and tolerates an individual missing or unreadable file by recording it in the manifest and continuing.
-- ZIP import and combined data-plus-attachment restore remain future work; no Backup V1 or Restore V4 schema is changed by Attachment Export V1.
-
-## Attachment Restore V1
-
-Attachment restore remains independent from Backup V1 and Restore V4. The ZIP manifest is the sole source of attachment-to-business-record mapping; attachment UUIDs and parent UUIDs are used instead of names, filenames or UI text. The existing Restore V4 path preserves business record UUIDs, so attachment parent IDs remain addressable after a data restore.
-
-- The browser parses the selected ZIP locally and sends only the small `manifest.json` to `/api/admin/attachments/restore-preview`; the preview never uploads the full archive to a Vercel Serverless Function.
-- Restore uploads one archive member at a time to `/api/admin/attachments/restore-item`. This avoids ordinary request-body limits for 20MB+ and future much larger ZIP files while keeping each attachment independently retryable and reportable.
-- The old whole-ZIP restore route is retired; it is not used by the page and returns an explicit deprecation response rather than accepting a large request.
-- The item route performs a non-destructive, idempotent merge. It only upserts entries present in the ZIP; existing attachments outside the ZIP are never deleted.
-- Matching attachment UUIDs with matching content/checksum are skipped. Missing or mismatching provider content is repaired in place where the provider supports it; metadata is then upserted with the original attachment UUID and parent IDs.
-- Each entry is isolated. Missing archive members, invalid manifests, missing parents, checksum failures, unsupported providers, Storage failures and metadata write failures are recorded and skipped while later entries continue. Missing parents are reported as orphan attachments and never create dangling links.
-- Supabase Storage and Google Drive are handled separately. Supabase uses bucket/path identity; Drive uses provider file ID and a new provider upload when repair is required. No attachment BeforeRestore is created, and no attachment table or Storage bucket is cleared.
-- The page uses one attachment backup/recovery entry point: `备份与恢复（附件）`. Data backup remains `备份与恢复（数据）`.
+- Export V2 keeps `manifest.json` as the machine-readable index and uses human-readable paths such as `附件归档/房源/<房源>/<房间>/<租客>/合同/` and `附件归档/房源/<房源>/房屋支出/`.
+- Names preserve the user's original language. Invalid path characters are sanitized, blank names get safe fallbacks, and collisions receive a stable short attachment suffix without overwriting another file.
+- Manifest entries retain attachment UUID, parent IDs, provider identity, original filename, MIME, size, upload time, checksum, export status and the actual `archiveRelativePath`.
+- Export reads `contract_files`, `rent_payment_files` and `expense_files`; one missing or unreadable file is recorded and skipped while the rest of the archive is generated.
+- Cleanup is a separate, explicit action. The first candidate scope is attachments belonging to moved-out tenants. It removes a Supabase Storage object before deleting its metadata, continues after individual failures, and reports released/unreleased capacity.
+- Google Drive attachments are never deleted automatically by cleanup; they are reported for manual handling because provider deletion authority is not guaranteed.
+- Data Backup/Restore and attachment archive/cleanup are separate products. No Backup V1 or Restore V4 schema or flow is changed.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

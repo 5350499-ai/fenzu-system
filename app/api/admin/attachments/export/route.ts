@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
     await requireSensitivePermission(context, "can_manage_settings");
-    const result = await createAttachmentZipExport();
+    const result = await createAttachmentZipExport(context.profile.workspace_owner_id);
     return new NextResponse(result.bytes as BodyInit, {
       headers: {
         "Content-Type": "application/zip",
@@ -16,7 +16,8 @@ export async function GET(request: Request) {
         "Cache-Control": "no-store",
         "X-Attachment-Count": String(result.manifest.attachmentCount),
         "X-Attachment-Exported": String(result.manifest.exportedCount),
-        "X-Attachment-Skipped": String(result.manifest.skippedCount)
+        "X-Attachment-Skipped": String(result.manifest.skippedCount),
+        "X-Attachment-Manifest-Version": String(result.manifest.manifestVersion)
       }
     });
   } catch (error) {
