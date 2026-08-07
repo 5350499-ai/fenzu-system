@@ -45,6 +45,11 @@
 - 兼容性影响：仅调整租客列表主行显示，不影响租金、收款、押金和历史数据。
 # CHANGELOG.md
 
+## 2026-08-07 - Attachment cleanup V2 (Preview only)
+
+- Attachment inventory now uses a compact two-line layout with property/room/tenant ownership first, business date and shortened filename second, plus view and single-delete actions.
+- Single deletion reuses the existing explicit cleanup endpoint and Storage-before-metadata safety rule. No schema, Storage object, Backup V1, Restore V4 or Production changes.
+
 ## 2026-07-29 - New attachments return to private Supabase Storage (Preview only)
 
 - New contract, receipt and expense attachments now use a short-lived, server-authorized Supabase signed upload capability. File bytes upload directly from the browser to the existing private buckets; completion verifies the object before saving its Supabase attachment index.

@@ -5,18 +5,18 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export type AttachmentTable = "property_files" | "contract_files" | "rent_payment_files" | "expense_files";
 type AttachmentProvider = "supabase" | "google_drive" | "unknown";
 export type AttachmentCategory = "property" | "tenant" | "income" | "expense";
-type AttachmentRow = { id: string; user_id: string; storage_provider: string | null; storage_bucket: string | null; storage_path: string | null; file_name: string; file_type?: string | null; file_size: number | null; uploaded_at?: string | null; property_id?: string | null; contract_id?: string | null; tenant_id?: string | null; rent_payment_id?: string | null; expense_id?: string | null };
+type AttachmentRow = { id: string; user_id: string; storage_provider: string | null; storage_bucket: string | null; storage_path: string | null; provider_file_id?: string | null; file_name: string; file_type?: string | null; file_size: number | null; uploaded_at?: string | null; property_id?: string | null; contract_id?: string | null; tenant_id?: string | null; rent_payment_id?: string | null; expense_id?: string | null };
 type TenantRow = { id: string; name: string | null; status: string | null; move_in_date?: string | null; actual_move_out_date?: string | null; property_id: string | null; room_id: string | null };
 type PropertyRow = { id: string; name: string | null; address?: string | null };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id?: string | null };
 type ContractRow = { id: string; tenant_id: string | null; property_id: string | null; room_id: string | null; start_date: string | null };
-type PaymentRow = { id: string; tenant_id: string | null; property_id: string | null; room_id: string | null; payment_date: string | null; rent_month: string | null };
+type PaymentRow = { id: string; tenant_id: string | null; property_id: string | null; room_id: string | null; payment_date: string | null; rent_month: string | null; coverage_start_date: string | null };
 type ExpenseRow = { id: string; property_id: string | null; room_id: string | null; payment_date: string | null; expense_month: string | null };
 
 export type AttachmentCleanupCandidate = { tenantId: string; tenantName: string; propertyName: string; roomName: string; status: string; actualMoveOutDate: string | null; attachmentCount: number; bytes: number; googleDriveCount: number };
 export type AttachmentCleanupError = { attachmentId: string; fileName: string; reason: string };
 export type AttachmentCleanupReport = { planned: number; deleted: number; failed: number; skippedGoogleDrive: number; releasedBytes: number; unreleasedBytes: number; errors: AttachmentCleanupError[] };
-export type AttachmentInventoryItem = { id: string; sourceTable: AttachmentTable; category: AttachmentCategory; provider: AttachmentProvider; fileName: string; fileType: string; fileSize: number; uploadedAt: string | null; businessDate: string | null; tenantName: string | null; propertyName: string | null; roomName: string | null; categoryLabel: string; tenantId: string | null };
+export type AttachmentInventoryItem = { id: string; sourceTable: AttachmentTable; category: AttachmentCategory; provider: AttachmentProvider; fileName: string; fileType: string; fileSize: number; uploadedAt: string | null; businessDate: string | null; tenantName: string | null; propertyName: string | null; roomName: string | null; categoryLabel: string; tenantId: string | null; storageBucket: string; storagePath: string | null; providerFileId: string | null };
 
 function bytes(value: number | null | undefined) { return Math.max(0, Number(value || 0)); }
 function formatDate(value: string | null | undefined) { return value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null; }
@@ -34,7 +34,7 @@ async function loadContext(ownerId: string) {
   const admin = getSupabaseAdmin();
   const [tenants, properties, rooms, contracts, payments, expenses] = await Promise.all([
     loadTenants(ownerId), admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,name,room_number,property_id").eq("user_id", ownerId),
-    admin.from("contracts").select("id,tenant_id,property_id,room_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,tenant_id,property_id,room_id,payment_date,rent_month").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
+    admin.from("contracts").select("id,tenant_id,property_id,room_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,tenant_id,property_id,room_id,payment_date,rent_month,coverage_start_date").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
   ]);
   const failed = [properties, rooms, contracts, payments, expenses].find((result) => result.error);
   if (failed?.error) throw new Error(`读取附件关联数据失败：${failed.error.message}`);
@@ -58,13 +58,13 @@ function relatedRecords(table: AttachmentTable, row: AttachmentRow, context: Awa
   const tenantId = row.tenant_id || contract?.tenant_id || payment?.tenant_id || null; const tenant = tenantId ? context.tenants.find((item) => item.id === tenantId) : null;
   const propertyId = row.property_id || tenant?.property_id || contract?.property_id || payment?.property_id || expense?.property_id || null; const roomId = tenant?.room_id || contract?.room_id || payment?.room_id || expense?.room_id || null;
   const property = propertyId ? context.properties.get(propertyId) : null; const room = roomId ? context.rooms.get(roomId) : null;
-  const businessDate = table === "property_files" ? row.uploaded_at : table === "contract_files" ? contract?.start_date : table === "rent_payment_files" ? payment?.payment_date || payment?.rent_month : expense?.payment_date || expense?.expense_month;
+  const businessDate = table === "property_files" ? row.uploaded_at : table === "contract_files" ? contract?.start_date : table === "rent_payment_files" ? payment?.coverage_start_date || payment?.payment_date || payment?.rent_month : expense?.payment_date || expense?.expense_month;
   return { tenantId, tenant, property, room, businessDate: formatDate(businessDate) };
 }
 function inventoryItem(table: AttachmentTable, row: AttachmentRow, context: Awaited<ReturnType<typeof loadContext>>): AttachmentInventoryItem {
   const related = relatedRecords(table, row, context); const category = table === "property_files" ? "property" : table === "contract_files" ? "tenant" : table === "rent_payment_files" ? "income" : "expense";
   const categoryLabel = category === "property" ? "房源附件" : category === "tenant" ? "租客附件" : category === "income" ? "收入附件" : "支出附件";
-  return { id: row.id, sourceTable: table, category, provider: row.storage_provider === "supabase" || row.storage_provider === "google_drive" ? row.storage_provider : "unknown", fileName: row.file_name, fileType: row.file_type || "文件", fileSize: bytes(row.file_size), uploadedAt: formatDate(row.uploaded_at), businessDate: related.businessDate, tenantName: related.tenant?.name || null, propertyName: related.property?.name || related.property?.address || null, roomName: related.room?.room_number || related.room?.name || null, categoryLabel, tenantId: related.tenantId };
+  return { id: row.id, sourceTable: table, category, provider: row.storage_provider === "supabase" || row.storage_provider === "google_drive" ? row.storage_provider : "unknown", fileName: row.file_name, fileType: row.file_type || "文件", fileSize: bytes(row.file_size), uploadedAt: formatDate(row.uploaded_at), businessDate: related.businessDate, tenantName: related.tenant?.name || null, propertyName: related.property?.name || related.property?.address || null, roomName: related.room?.room_number || related.room?.name || null, categoryLabel, tenantId: related.tenantId, storageBucket: row.storage_bucket || "", storagePath: row.storage_path || null, providerFileId: row.provider_file_id || null };
 }
 export async function loadAttachmentInventory(ownerId: string) { const context = await loadContext(ownerId); return (await loadAllRows(ownerId)).map(({ table, row }) => inventoryItem(table, row, context)); }
 export async function loadAttachmentCleanupCandidates(ownerId: string): Promise<AttachmentCleanupCandidate[]> {

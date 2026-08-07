@@ -325,12 +325,14 @@ Attachment handling is intentionally independent from Backup V1 and Restore V4. 
 
 - Export V2 keeps `manifest.json` as the machine-readable index and uses human-readable paths such as `附件归档/房源/<房源>/<房间>/<租客>/合同/` and `附件归档/房源/<房源>/房屋支出/`.
 - Names preserve the user's original language. Invalid path characters are sanitized, blank names get safe fallbacks, and collisions receive a stable short attachment suffix without overwriting another file.
-- Tenant folders use the canonical `tenants.move_in_date`; where that field is empty, the related `contracts.start_date` is used as the lease-start fallback. Neither upload time nor export time is used. The folder format is `YYYY.MM.DD-tenant name`, or `未知日期-tenant name` when no reliable date exists.
+- Tenant folders use the earliest valid `rent_payments.coverage_start_date` for that tenant. No contract start date, payment creation date or upload/export date is used; when no coverage start date exists, the folder uses `未知日期-tenant name`. The folder format is `YYYY.MM.DD-tenant name`.
 - Manifest entries retain attachment UUID, parent IDs, provider identity, original filename, MIME, size, upload time, checksum, export status and the actual `archiveRelativePath`.
 - Export reads `contract_files`, `rent_payment_files` and `expense_files`; one missing or unreadable file is recorded and skipped while the rest of the archive is generated.
 - Cleanup is a separate, explicit action. It supports multi-select by concrete attachment and by moved-out tenant. Both paths use the same per-file deletion service: remove the Supabase Storage object before deleting its metadata, continue after individual failures, and report released/unreleased capacity.
 - Google Drive attachments are never deleted automatically by cleanup; they are reported for manual handling because provider deletion authority is not guaranteed.
 - Data Backup/Restore and attachment archive/cleanup are separate products. No Backup V1 or Restore V4 schema or flow is changed.
+
+Attachment cleanup V2 keeps the four-category model and adds a compact two-line inventory: business ownership is shown first, while date and a shortened filename are secondary. Each item can be viewed through the existing authenticated private-storage/provider path or selected for the existing safe cleanup service; single-item deletion and batch deletion share the same Storage-before-metadata safety rule.
 
 ## Attachment taxonomy V1 (2026-08-07)
 

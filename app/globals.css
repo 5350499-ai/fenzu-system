@@ -2751,6 +2751,14 @@ td:last-child {
 .attachment-management-list { display: grid; gap: 10px; margin-top: 14px; }
 .attachment-management-row { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
 .attachment-management-row > div:first-child { display: grid; gap: 3px; }
+.attachment-inventory-content { min-width: 0; display: grid; gap: 5px; }
+.attachment-inventory-owner { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-inventory-meta { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .86rem; }
+.attachment-inventory-meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-inventory-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; }
+.attachment-inline-action { border: 0; padding: 2px 0; background: transparent; color: var(--accent); font: inherit; font-weight: 750; cursor: pointer; }
+.attachment-inline-action.danger { color: var(--danger); }
+.attachment-inventory-row input { flex: 0 0 auto; }
 .attachment-management-row-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; }
 .attachment-management-skipped { margin-top: 14px; }
 .attachment-management-skipped summary { cursor: pointer; color: var(--muted); }
