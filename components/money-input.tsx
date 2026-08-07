@@ -6,12 +6,14 @@ export function MoneyInput({
   label,
   value,
   onChange,
-  readOnly
+  readOnly,
+  className
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   readOnly?: boolean;
+  className?: string;
 }) {
   const [text, setText] = useState(value ? String(value) : "");
 
@@ -20,7 +22,7 @@ export function MoneyInput({
   }, [value]);
 
   return (
-    <div className="field">
+    <div className={`field${className ? ` ${className}` : ""}`}>
       <label>{label}</label>
       <input
         inputMode="decimal"

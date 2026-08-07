@@ -8808,6 +8808,63 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   .tenant-core-detail-grid > :nth-child(3) {
     grid-column: auto;
   }
+
+  /* Compact mobile forms: keep selectors wide, pair short controls, and never
+     let a detail value escape its own column. */
+  .rent-payment-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+  }
+
+  .rent-payment-form-grid > * {
+    min-width: 0;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .rent-payment-form-grid > .rent-form-wide,
+  .rent-payment-form-grid > .rent-new-attachments,
+  .rent-payment-form-grid > .field[style*="grid-column"] {
+    grid-column: 1 / -1;
+  }
+
+  .rent-payment-form-grid > .rent-form-half,
+  .rent-payment-form-grid > .rent-total-field,
+  .rent-payment-form-grid > .rent-payment-date-field {
+    grid-column: auto;
+  }
+
+  .rent-payment-form-grid .field,
+  .rent-payment-form-grid .tap-select-field {
+    min-width: 0;
+  }
+
+  .tenant-core-detail-grid .tenant-coverage-field {
+    grid-column: auto;
+  }
+
+  .expense-core-detail-grid > .compact-detail-row,
+  .payment-core-detail-grid > .compact-detail-row,
+  .tenant-core-detail-grid > .compact-detail-row {
+    min-width: 0;
+  }
+
+  .expense-core-detail-grid > .compact-detail-row > strong,
+  .payment-core-detail-grid > .compact-detail-row > strong,
+  .tenant-core-detail-grid > .compact-detail-row > strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .expense-core-detail-grid .compact-detail-row--wide > strong,
+  .payment-core-detail-grid .payment-note-field > strong,
+  .tenant-core-detail-grid .tenant-note-field .compact-detail-row > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
 }
 
 @media (max-width: 359px) {

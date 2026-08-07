@@ -703,24 +703,24 @@ export default function RentPaymentsPage() {
         <div className="modal-backdrop" onMouseDown={close}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑收款" : "登记收款"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
-            <form className="form-grid" onSubmit={submit}>
-              <TapSelect label="收款类型" value={form.incomeType || "房租收入"} disabled={Boolean(form.id)} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
+            <form className="form-grid rent-payment-form-grid" onSubmit={submit}>
+              <TapSelect className="rent-form-wide" label="收款类型" value={form.incomeType || "房租收入"} disabled={Boolean(form.id)} options={incomeTypes.map((type) => ({ value: type, label: type }))} onChange={(incomeType) => {
                 const nextType = incomeType as BusinessRentPayment["incomeType"];
                 const nextIsRent = nextType === "房租收入" || nextType === "续交房租";
                 setForm((current) => ({ ...current, incomeType: nextType, incomeItem: "", amountDue: nextIsRent ? current.amountDue : 0, amountUnpaid: 0, coverageStartDate: nextIsRent ? current.coverageStartDate : "", coverageEndDate: nextIsRent ? current.coverageEndDate : "", paymentStatus: "已收" }));
                 if (!nextIsRent) setDepositAmount(0);
               }} />
-              <TapSelect label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} disabled={Boolean(form.id)} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city || "-"} · ${property.address || "-"}` }))} onChange={(propertyId) => { setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "", amountDue: 0 })); setDepositAmount(0); setMonthlyRentStandard(null); setNewTenantName(""); }} placeholder={isRentPayment(form) ? "点这里选择房源" : "不关联房源"} allowEmpty={!isRentPayment(form)} />
-              <TapSelect label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={Boolean(form.id) || !form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `月租 ${euro(room.monthlyRent || 0)} · 押金 ${euro(room.depositAmount || 0)} · ${room.status}` }))} onChange={chooseRoom} placeholder={form.propertyId ? "点这里选择房间" : "先选择房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect className="rent-form-wide" label={isRentPayment(form) ? "房源" : "房源（可选）"} value={form.propertyId} disabled={Boolean(form.id)} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city || "-"} · ${property.address || "-"}` }))} onChange={(propertyId) => { setForm((current) => ({ ...current, propertyId, roomId: "", tenantId: "", amountDue: 0 })); setDepositAmount(0); setMonthlyRentStandard(null); setNewTenantName(""); }} placeholder={isRentPayment(form) ? "点这里选择房源" : "不关联房源"} allowEmpty={!isRentPayment(form)} />
+              <TapSelect className="rent-form-wide" label={isRentPayment(form) ? "房间" : "房间（可选）"} value={form.roomId} disabled={Boolean(form.id) || !form.propertyId} options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `月租 ${euro(room.monthlyRent || 0)} · 押金 ${euro(room.depositAmount || 0)} · ${room.status}` }))} onChange={chooseRoom} placeholder={form.propertyId ? "点这里选择房间" : "先选择房源"} allowEmpty={!isRentPayment(form)} />
               <TapSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={Boolean(form.id) || !form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone || "无电话"} · 月租 ${euro(tenant.monthlyRent || 0)} · 押金 ${euro(tenant.depositAmount || 0)}` }))} onChange={(tenantId) => { chooseTenant(tenantId); setNewTenantName(""); }} placeholder={form.roomId ? "点这里选择租客" : "先选择房间"} allowEmpty />
               {isRentPayment(form) && !form.id ? <div className="field"><label>租客姓名（可直接输入）</label><input disabled={!form.roomId} maxLength={80} placeholder={form.roomId ? "没有租客时直接输入，例如 01、李、临时租客" : "先选择房间"} value={newTenantName} onChange={(event) => { setNewTenantName(event.target.value); if (event.target.value.trim()) setForm((current) => ({ ...current, tenantId: "" })); }} /></div> : null}
               {isRentPayment(form) && !form.id ? <MoneyInput label="当前月租标准" value={monthlyRentStandard ?? tenants.find((tenant) => tenant.id === form.tenantId)?.monthlyRent ?? rooms.find((room) => room.id === form.roomId)?.monthlyRent ?? 0} onChange={setMonthlyRentStandard} /> : null}
               {isRentPayment(form) ? <MoneyInput readOnly={Boolean(collectionPaymentId)} label={collectionPaymentId ? "本次剩余欠租" : "本次实收房租"} value={form.amountDue} onChange={(amountDue) => { if (!collectionPaymentId) { updateMoney({ amountDue }); if (!form.tenantId && (monthlyRentStandard == null || monthlyRentStandard === 0)) setMonthlyRentStandard(amountDue); } }} /> : <MoneyInput label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
               {isRentPayment(form) ? <MoneyInput label="本次新增押金" value={depositAmount} onChange={setDepositAmount} /> : null}
               {isRentPayment(form) && (form.id || collectionPaymentId) ? <MoneyInput label="本次实际收款" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /> : null}
-              {isRentPayment(form) ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
+              {isRentPayment(form) ? <div className="field rent-total-field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
-              <div className="field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>
+              <div className="field rent-payment-date-field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
@@ -744,6 +744,7 @@ function TapSelect({
   label,
   value,
   options,
+  className,
   placeholder = "点这里选择",
   disabled,
   allowEmpty,
@@ -752,6 +753,7 @@ function TapSelect({
   label: string;
   value: string;
   options: TapOption[];
+  className?: string;
   placeholder?: string;
   disabled?: boolean;
   allowEmpty?: boolean;
@@ -760,6 +762,7 @@ function TapSelect({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
+  const resolvedClassName = className || (label.startsWith("房源") || label.startsWith("房间") || label.startsWith("租客") || label === "收款类型" ? "rent-form-wide" : "rent-form-half");
 
   useEffect(() => {
     if (!open) return;
@@ -781,7 +784,7 @@ function TapSelect({
   }
 
   return (
-    <div className="field tap-select-field" ref={rootRef}>
+    <div className={`field tap-select-field ${resolvedClassName}`} ref={rootRef}>
       <label>{label}</label>
       <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
         <button className="tap-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">

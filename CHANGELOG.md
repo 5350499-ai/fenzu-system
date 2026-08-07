@@ -646,3 +646,7 @@
 - Kept expense property/room and payment detail fields single-line on mobile with compact label/value columns and safe ellipsis for long text.
 - Kept payment coverage dates paired, moved total/status after the coverage row, and preserved full date values.
 - Protected the tenant coverage date from truncation and aligned all affected notes left without changing business data or behavior.
+## 2026-08-07 - Mobile form and detail density final pass
+
+- Kept check-in and rent-payment short fields in compact two-column mobile layouts while preserving full-width selectors, normal touch targets, and existing partner data; paired check-in payment day/coverage fields in the intended order.
+- Paired tenant payment-day and coverage-end details and constrained expense detail values to their own columns with safe single-line ellipsis.
