@@ -165,14 +165,14 @@ export default function SettingsPage() {
       </section>
 
       {access.canSensitive("canManageSettings") ? <section className="card panel">
-        <div className="panel-header"><div><h2 className="panel-title">附件管理与归档</h2><p className="muted">只读查看 Supabase 附件容量和退租归档候选，不会删除或修改任何文件。</p></div></div>
-        <Link className="btn primary" href="/admin/attachments">打开附件管理</Link>
+        <div className="panel-header"><div><h2 className="panel-title">备份与恢复（附件）</h2><p className="muted">查看附件统计，并导出或恢复图片、PDF、合同及其它附件。</p></div></div>
+        <Link className="btn primary" href="/admin/attachments">打开附件备份与恢复</Link>
       </section> : null}
 
       <section className="card panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Backup &amp; Restore（备份与恢复）</h2>
+            <h2 className="panel-title">备份与恢复（数据）</h2>
             <p className="muted">管理业务数据备份、恢复入口和报表导出。</p>
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function SettingsPage() {
           <div className="detail-field"><span>业务数据</span><strong>房源、房间、租客、收租、支出、合同、合伙结算</strong></div>
         </div>
         <div className="settings-actions data-center-settings-entry">
-          <Link className="btn primary" href="/data-center">打开备份与恢复（Backup &amp; Restore）</Link>
+          <Link className="btn primary" href="/data-center">打开备份与恢复（数据）</Link>
         </div>
       </section>
 

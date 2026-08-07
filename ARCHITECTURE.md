@@ -327,6 +327,17 @@ Attachment export is intentionally independent from Backup V1 and Restore V4. Th
 - The manifest preserves provider, bucket/path or provider file ID, MIME type, size, upload time and SHA-256 checksum.
 - Export reads the existing `contract_files`, `rent_payment_files` and `expense_files` indexes and tolerates an individual missing or unreadable file by recording it in the manifest and continuing.
 - ZIP import and combined data-plus-attachment restore remain future work; no Backup V1 or Restore V4 schema is changed by Attachment Export V1.
+
+## Attachment Restore V1
+
+Attachment restore remains independent from Backup V1 and Restore V4. The ZIP manifest is the sole source of attachment-to-business-record mapping; attachment UUIDs and parent UUIDs are used instead of names, filenames or UI text. The existing Restore V4 path preserves business record UUIDs, so attachment parent IDs remain addressable after a data restore.
+
+- `/api/admin/attachments/restore-preview` parses the ZIP, validates `manifest.json`, checks parent records and reports recoverable, existing and abnormal entries without writing.
+- `/api/admin/attachments/restore` performs a non-destructive, idempotent merge. It only upserts entries present in the ZIP; existing attachments outside the ZIP are never deleted.
+- Matching attachment UUIDs with matching content/checksum are skipped. Missing or mismatching provider content is repaired in place where the provider supports it; metadata is then upserted with the original attachment UUID and parent IDs.
+- Each entry is isolated. Missing archive members, invalid manifests, missing parents, checksum failures, unsupported providers, Storage failures and metadata write failures are recorded and skipped while later entries continue. Missing parents are reported as orphan attachments and never create dangling links.
+- Supabase Storage and Google Drive are handled separately. Supabase uses bucket/path identity; Drive uses provider file ID and a new provider upload when repair is required. No attachment BeforeRestore is created, and no attachment table or Storage bucket is cleared.
+- The page uses one attachment backup/recovery entry point: `备份与恢复（附件）`. Data backup remains `备份与恢复（数据）`.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。
