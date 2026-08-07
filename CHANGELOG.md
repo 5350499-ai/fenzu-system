@@ -595,6 +595,13 @@
 - Consolidated check-in attachments into one optional queue that reuses the existing income and tenant-contract upload services.
 - Aligned tenant detail collapsible actions, mobile action grid, and room-card information layout without changing business logic or data structures.
 
+## 2026-08-07 - UI Design System V1 global foundation correction (Preview)
+
+- Established one effective shared measurement rule for standard controls, filters, searchable selects, money/date inputs and form spacing.
+- Made detail grids content-driven so narrow screens fall back to one column before labels, dates or amounts become unreadable.
+- Unified responsive filter layout and room-card information grid while retaining secondary room status information.
+- Kept the existing modal scroll-lock and dynamic viewport behavior intact; no business logic or data structures changed.
+
 ## 2026-08-07 - Attachment taxonomy V1 (Preview)
 
 - Unified the user-facing attachment model into property, tenant, income, and expense attachments without migrating or deleting existing attachment rows or Storage objects.

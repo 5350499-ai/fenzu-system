@@ -60,8 +60,7 @@ body {
   min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Microsoft YaHei", sans-serif;
+  font-family: var(--ui-font-family-system, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif);
 }
 
 button,
@@ -387,7 +386,7 @@ a {
  * their current values until a page is migrated deliberately.
  */
 :root {
-  --ui-font-family-system: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --ui-font-family-system: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   --ui-font-size-display: 34px;
   --ui-font-size-page-title: 24px;
   --ui-font-size-section-title: 18px;
@@ -8093,4 +8092,248 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   .room-finance-line .room-property-name { font-size: var(--ui-font-size-secondary, 13px); }
   .check-in-attachment-item { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .check-in-attachment-item > select, .check-in-attachment-item > button { grid-column: 2; width: 100%; max-width: none; }
+}
+
+/* UI Design System V1: effective shared foundation.
+   This is the single final rule set for controls, filters and detail grids.
+   Legacy selectors above remain for compatibility, but new page styles must
+   use these shared measurements instead of adding page-specific dimensions. */
+.field,
+.ui-form-field {
+  gap: var(--ui-space-2, 8px);
+}
+
+.btn,
+.ui-button {
+  font-size: var(--ui-font-size-button, 14px);
+  font-weight: var(--ui-font-weight-semibold, 600);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.form-grid {
+  gap: var(--ui-space-4, 16px);
+}
+
+.field label,
+.ui-form-field > label {
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-medium, 500);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.field input,
+.field select,
+.field textarea,
+.combobox,
+.search-box,
+.list-controls select,
+.filter-grid input,
+.filter-grid select,
+.date-range-preset select,
+.date-range-inputs input {
+  box-sizing: border-box;
+  min-height: var(--ui-form-control-height, 42px);
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  background: var(--ui-color-surface, var(--surface));
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.field input,
+.field select,
+.field textarea,
+.date-range-inputs input,
+.date-range-preset select,
+.list-controls select,
+.filter-grid input,
+.filter-grid select {
+  padding: 10px 12px;
+}
+
+.combobox {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.combobox input,
+.search-box input {
+  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.search-box {
+  width: 100%;
+  min-width: 0;
+  padding: 0 12px;
+  background: var(--ui-color-surface-soft, var(--surface-soft));
+}
+
+.list-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  align-items: stretch;
+  gap: var(--ui-space-3, 12px);
+}
+
+.filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--ui-space-3, 12px);
+}
+
+.filter-grid > * {
+  min-width: 0;
+}
+
+.list-controls > *,
+.list-controls .search-box,
+.list-controls .date-range-filter {
+  min-width: 0;
+  width: 100%;
+}
+
+.date-range-filter {
+  min-width: 0;
+  gap: var(--ui-space-2, 8px);
+}
+
+.detail-grid,
+.ui-detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--ui-space-3, 12px);
+}
+
+.detail-field,
+.ui-detail-item {
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ui-space-2, 8px);
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.detail-field > span,
+.ui-detail-item > span {
+  flex: 0 1 auto;
+  min-width: 4em;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.detail-field > strong,
+.ui-detail-item > strong {
+  flex: 1 1 8em;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-field > strong,
+.ui-detail-item > strong,
+.ui-money-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-money-value {
+  white-space: nowrap;
+}
+
+.room-finance-line {
+  grid-template-columns: minmax(120px, 1.15fr) minmax(110px, 1fr) auto auto minmax(74px, auto) auto;
+  grid-template-areas: "room property status rent unpaid expiry";
+  min-height: 64px;
+  gap: var(--ui-space-3, 12px);
+  padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px);
+}
+
+.room-finance-line > :nth-child(1) { grid-area: property; }
+.room-finance-line > :nth-child(2) { grid-area: room; }
+.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
+.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
+.room-finance-line > :nth-child(5) { grid-area: unpaid; justify-self: end; }
+.room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
+.room-finance-line .room-display-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ui-font-size-card-title, 16px);
+  font-weight: var(--ui-font-weight-bold, 700);
+}
+.room-finance-line .room-property-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+}
+
+@media (max-width: 640px) {
+  .list-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid,
+  .ui-detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  }
+
+  .room-finance-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "room status"
+      "property rent"
+      "unpaid expiry";
+    min-height: 88px;
+    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+    padding: var(--ui-space-3, 12px);
+  }
+
+  .room-finance-line > :nth-child(5),
+  .room-finance-line > :nth-child(6) {
+    display: block;
+    justify-self: start;
+  }
+
+  .room-finance-line .room-display-name {
+    font-size: var(--ui-font-size-card-title, 16px);
+  }
+}
+
+@media (max-width: 360px) {
+  .detail-grid,
+  .ui-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-finance-line {
+    grid-template-areas:
+      "room status"
+      "property rent"
+      "unpaid unpaid"
+      "expiry expiry";
+  }
+}
+
+@media (max-width: 640px) {
+  .tenant-detail-panel .detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .tenant-detail-panel .detail-grid {
+    grid-template-columns: 1fr;
+  }
 }

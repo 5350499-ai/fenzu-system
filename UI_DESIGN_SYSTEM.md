@@ -17,7 +17,7 @@
 正式字体栈：
 
 ```css
-Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 "Segoe UI", "Microsoft YaHei", sans-serif
 ```
 
@@ -221,3 +221,14 @@ Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 ## 13. Migration policy
 
 本阶段只建立 Token 和规范，不批量修改现有业务页面。旧变量和历史 CSS 保留，后续按页面逐步迁移。每次迁移必须单独验证功能、主题、窄屏布局和可访问操作。
+
+## 14. Effective shared layout rules
+
+- Standard single-line controls use the same 42px base height, 12px radius, 14px text size, shared border and shared horizontal padding. On mobile, the usable touch target is at least 44px.
+- Native selects, searchable selects, money/date inputs and search controls must use the shared control rules; textarea remains the intentional multi-line exception.
+- Detail grids are content-driven. They use two columns only when each column can preserve readable labels and values; at narrow widths they fall back to one column instead of creating single-character vertical labels.
+- Detail labels keep a readable minimum width, values use the remaining width, money uses tabular numerals and nowrap where required, and long text wraps normally rather than using `break-all`.
+- Filter controls use an auto-fit grid on larger screens and a single orderly column on narrow mobile screens. Height is unified; width remains content-dependent.
+- Room cards use the same information grid at every breakpoint: room first, property second, status and amounts aligned, with secondary unpaid/expiry information retained without absolute positioning.
+- Modal overlays lock the page behind them. The modal surface owns vertical scrolling, uses dynamic viewport and safe-area insets, and keeps the header/close action reachable on mobile Safari.
+- This shared foundation is the effective baseline for new pages. Existing page-specific legacy rules remain only for compatibility and should not introduce new control dimensions.
