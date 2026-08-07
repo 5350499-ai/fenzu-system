@@ -7774,27 +7774,40 @@ input[type="radio"] {
 
   .rent-finance-line,
   .expense-finance-line {
-    grid-template-columns: 78px minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "date description amount status"
-      "partner partner partner status";
+    grid-template-columns: minmax(70px, max-content) minmax(34px, 58px) minmax(0, 1fr) max-content max-content;
+    grid-template-areas: "date partner description amount status";
     align-items: center;
-    gap: var(--ui-space-1, 4px) var(--ui-space-2, 8px);
+    gap: var(--ui-space-1, 4px);
+    min-width: 0;
+    flex-wrap: nowrap;
   }
 
   .rent-finance-line > :nth-child(1),
   .expense-finance-line > :nth-child(1) {
     grid-area: date;
-    min-width: 78px;
+    min-width: 70px;
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
   }
 
   .rent-finance-line > :nth-child(2),
-  .expense-finance-line > :nth-child(2) { grid-area: partner; }
+  .expense-finance-line > :nth-child(2) {
+    grid-area: partner;
+    min-width: 0;
+    max-width: 58px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .rent-finance-line > :nth-child(3),
-  .expense-finance-line > :nth-child(3) { grid-area: description; }
+  .expense-finance-line > :nth-child(3) {
+    grid-area: description;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .rent-finance-line > :nth-child(4),
   .expense-finance-line > :nth-child(4) { grid-area: amount; min-width: max-content; white-space: nowrap; }
   .rent-finance-line > :nth-child(5),
@@ -8635,8 +8648,29 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   .rent-finance-line,
   .expense-finance-line {
     min-height: 0;
-    padding-block: var(--ui-space-2, 8px);
+    padding-block: var(--ui-space-1, 4px);
     font-size: var(--ui-font-size-secondary, 13px);
+  }
+
+  .tenant-compact-list {
+    gap: 0;
+  }
+
+  .tenant-compact-list > .finance-list-item {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  }
+
+  .tenant-compact-list .tenant-mobile-meta {
+    gap: var(--ui-space-1, 4px);
+    padding-block: 2px 3px;
+    line-height: 1.2;
+  }
+
+  .tenant-compact-list .tenant-finance-line .badge,
+  .tenant-compact-list .tenant-mobile-meta .badge {
+    min-height: 22px;
+    padding-block: 3px;
+    line-height: 1.1;
   }
 }
 

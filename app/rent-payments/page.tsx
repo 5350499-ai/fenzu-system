@@ -646,7 +646,7 @@ export default function RentPaymentsPage() {
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{payment.paymentDate || payment.rentMonth}</span>
                   <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</span>
-                  <span>{isRentPayment(payment) ? `${room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
+                  <span>{isRentPayment(payment) ? `${room?.roomNumber || room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
                   <strong>{euro(paymentListAmount(payment))}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
                 </button>
