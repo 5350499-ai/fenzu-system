@@ -1195,7 +1195,7 @@ function TenantDetail({
           <DetailField label="已收押金" value={euro(receivedDeposit)} />
         </div>
         <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
-        <DetailField label="租金已覆盖至" value={coverageEnd} />
+        <DetailField className="tenant-coverage-field" label="租金已覆盖至" value={coverageEnd} />
         <div className="tenant-note-field">
           <DetailField label="备注" value={tenant.notes || "-"} />
         </div>
@@ -1346,8 +1346,8 @@ function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelet
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return <CompactDetailRow label={label} value={value} />;
+function DetailField({ label, value, className }: { label: string; value: string; className?: string }) {
+  return <CompactDetailRow className={className} label={label} value={value} />;
 }
 
 function linkedDepositAmount(paymentId: string, deposits: BusinessDeposit[]) {

@@ -8748,6 +8748,57 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     min-width: 0;
   }
 
+  .expense-core-detail-grid .compact-detail-row,
+  .payment-core-detail-grid .compact-detail-row,
+  .tenant-core-detail-grid .compact-detail-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    justify-content: initial;
+    align-items: baseline;
+    gap: var(--ui-space-1, 4px);
+  }
+
+  .expense-core-detail-grid .compact-detail-row > strong,
+  .payment-core-detail-grid .compact-detail-row > strong,
+  .tenant-core-detail-grid .compact-detail-row > strong {
+    text-align: left;
+  }
+
+  .expense-core-detail-grid .compact-detail-row > strong,
+  .payment-core-detail-grid .compact-detail-row > strong {
+    white-space: nowrap;
+  }
+
+  .expense-core-detail-grid .compact-detail-row--wide > strong,
+  .payment-core-detail-grid .payment-note-field > strong,
+  .tenant-core-detail-grid .tenant-note-field .compact-detail-row > strong {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .payment-core-detail-grid .payment-date-field,
+  .payment-core-detail-grid .payment-deposit-field {
+    grid-column: 1 / -1;
+  }
+
+  .tenant-core-detail-grid .tenant-coverage-field {
+    grid-column: 1 / -1;
+  }
+
+  .tenant-core-detail-grid .tenant-coverage-field > strong {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .expense-core-detail-grid > :nth-child(5),
+  .tenant-core-detail-grid .tenant-note-field .compact-detail-row,
+  .payment-core-detail-grid .payment-note-field {
+    grid-template-columns: max-content minmax(0, 1fr);
+    justify-content: initial;
+  }
+
   /* Property and room remain separate, readable fields on the same row. */
   .tenant-core-detail-grid > :nth-child(1) {
     grid-column: 1 / -1;

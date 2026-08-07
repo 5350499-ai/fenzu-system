@@ -640,3 +640,9 @@
 - Shortened the check-in deposit label and paired coverage start/end dates before the payment day field.
 - Tightened expense detail label/value spacing and reordered payment details into compact grouped rows; project/description is no longer shown in the detail view.
 - No data, API, schema, attachment, Backup V1, or Restore V4 changes.
+
+## 2026-08-07 - Mobile detail alignment final pass
+
+- Kept expense property/room and payment detail fields single-line on mobile with compact label/value columns and safe ellipsis for long text.
+- Kept payment coverage dates paired, moved total/status after the coverage row, and preserved full date values.
+- Protected the tenant coverage date from truncation and aligned all affected notes left without changing business data or behavior.
