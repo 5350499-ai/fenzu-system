@@ -16,7 +16,7 @@ type AttachmentRow = {
 };
 type Property = { id: string; name: string | null; address: string | null };
 type Room = { id: string; property_id: string; name: string | null; room_number: string | null };
-type Tenant = { id: string; property_id: string; room_id: string; name: string | null; move_in_date: string | null };
+type Tenant = { id: string; property_id: string; room_id: string; name: string | null };
 type Contract = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; start_date: string | null };
 type Payment = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; payment_date: string | null; rent_month: string | null };
 type Expense = { id: string; property_id: string; room_id: string | null; payment_date: string | null; expense_month: string | null };
@@ -59,7 +59,7 @@ function parentFor(table: AttachmentTable, row: AttachmentRow) {
 
 async function loadContext(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
   const [properties, rooms, tenants, contracts, payments, expenses] = await Promise.all([
-    admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,property_id,name,room_number").eq("user_id", ownerId), admin.from("tenants").select("id,property_id,room_id,name,move_in_date").eq("user_id", ownerId),
+    admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,property_id,name,room_number").eq("user_id", ownerId), admin.from("tenants").select("id,property_id,room_id,name").eq("user_id", ownerId),
     admin.from("contracts").select("id,property_id,room_id,tenant_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,property_id,room_id,tenant_id,payment_date,rent_month").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
   ]);
   const failed = [properties, rooms, tenants, contracts, payments, expenses].find((result) => result.error);
@@ -95,7 +95,7 @@ function readablePath(table: AttachmentTable, row: AttachmentRow, context: Await
   const room = roomId ? context.rooms.get(roomId) : null;
   const propertyFolder = safeSegment(property?.name || property?.address, "未分类房源");
   const roomFolder = safeSegment(room?.room_number || room?.name, "未分类房间");
-  const tenantArrivalDate = tenant?.move_in_date || relatedContract?.start_date || null;
+  const tenantArrivalDate = relatedContract?.start_date || null;
   const tenantFolder = safeSegment(`${tenantArrivalDate ? tenantArrivalDate.replace(/-/g, ".").slice(0, 10) : "未知日期"}-${tenant?.name || "未分类租客"}`, "未知日期-未分类租客");
   const kind = table === "property_files" ? "房源附件" : table === "contract_files" ? "租客附件" : table === "rent_payment_files" ? "房屋收入" : "房屋支出";
   const root = table === "property_files" || table === "expense_files" || table === "rent_payment_files" ? ["附件归档", "房源", propertyFolder, kind] : ["附件归档", "房源", propertyFolder, roomFolder, tenantFolder, kind];
