@@ -582,3 +582,10 @@
 - Upgraded attachment ZIP export to human-readable, collision-safe paths while retaining a manifest index with stable IDs and checksums.
 - Added a conservative moved-out-tenant cleanup flow. Supabase files and metadata are handled together; Google Drive files are left for manual handling.
 - No database schema, Backup V1, Restore V4 or Production data was changed.
+
+## 2026-08-07 - Attachment archive directory and cleanup center
+
+- Tenant archive folders now use `YYYY.MM.DD-tenant name`, sourced from `tenants.move_in_date` with the related lease `contracts.start_date` fallback; unknown dates remain explicit.
+- Attachment statistics now open filtered, multi-select inventory lists for contracts, rent payments and expenses.
+- Moved-out tenants can be selected in bulk for cleanup; concrete attachment cleanup and tenant cleanup share one safe per-file deletion path.
+- No database schema, Backup V1, Restore V4 or Production data was changed.

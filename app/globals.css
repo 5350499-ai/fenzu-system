@@ -2754,8 +2754,21 @@ td:last-child {
 .attachment-management-row-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; }
 .attachment-management-skipped { margin-top: 14px; }
 .attachment-management-skipped summary { cursor: pointer; color: var(--muted); }
+.attachment-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.attachment-stat-button { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); color: var(--text); text-align: left; cursor: pointer; }
+.attachment-stat-button:hover, .attachment-stat-button.active { border-color: var(--accent); background: var(--surface); }
+.attachment-stat-button span { color: var(--muted); font-size: .82rem; }
+.attachment-stat-button strong { overflow-wrap: anywhere; font-size: .95rem; }
+.attachment-select-all { display: flex; align-items: center; gap: 8px; min-height: 42px; color: var(--muted); cursor: pointer; }
+.attachment-inventory-row, .attachment-tenant-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.attachment-inventory-row input, .attachment-tenant-row input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+.attachment-selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); font-weight: 700; }
+.attachment-cleanup-confirm { border-color: var(--danger); }
 @media (max-width: 640px) {
+  .attachment-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .attachment-management-row-stats { display: grid; gap: 4px; }
+  .attachment-selection-bar { align-items: stretch; }
+  .attachment-selection-bar .btn { width: 100%; }
 }
 
 .pagination {

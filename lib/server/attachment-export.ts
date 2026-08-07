@@ -27,7 +27,7 @@ type AttachmentRow = {
 
 type Property = { id: string; name: string | null; address: string | null };
 type Room = { id: string; property_id: string; name: string | null; room_number: string | null };
-type Tenant = { id: string; property_id: string; room_id: string; name: string | null };
+type Tenant = { id: string; property_id: string; room_id: string; name: string | null; move_in_date: string | null };
 type Contract = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; start_date: string | null };
 type Payment = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; payment_date: string | null; rent_month: string | null };
 type Expense = { id: string; property_id: string; room_id: string | null; payment_date: string | null; expense_month: string | null };
@@ -90,7 +90,7 @@ function parentFor(table: AttachmentTable, row: AttachmentRow) {
 
 async function loadContext(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
   const [properties, rooms, tenants, contracts, payments, expenses] = await Promise.all([
-    admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,property_id,name,room_number").eq("user_id", ownerId), admin.from("tenants").select("id,property_id,room_id,name").eq("user_id", ownerId),
+    admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,property_id,name,room_number").eq("user_id", ownerId), admin.from("tenants").select("id,property_id,room_id,name,move_in_date").eq("user_id", ownerId),
     admin.from("contracts").select("id,property_id,room_id,tenant_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,property_id,room_id,tenant_id,payment_date,rent_month").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
   ]);
   const failed = [properties, rooms, tenants, contracts, payments, expenses].find((result) => result.error);
@@ -113,17 +113,19 @@ async function loadRows(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: str
 
 function readablePath(table: AttachmentTable, row: AttachmentRow, context: Awaited<ReturnType<typeof loadContext>>, date: string | null | undefined, used: Set<string>) {
   const parent = parentFor(table, row);
-  const tenant = row.tenant_id ? context.tenants.get(row.tenant_id) : null;
   const contract = row.contract_id ? context.contracts.get(row.contract_id) : null;
   const payment = row.rent_payment_id ? context.payments.get(row.rent_payment_id) : null;
   const expense = row.expense_id ? context.expenses.get(row.expense_id) : null;
+  const tenantId = row.tenant_id || contract?.tenant_id || payment?.tenant_id || null;
+  const tenant = tenantId ? context.tenants.get(tenantId) : null;
   const propertyId = tenant?.property_id || contract?.property_id || payment?.property_id || expense?.property_id || null;
   const roomId = tenant?.room_id || contract?.room_id || payment?.room_id || expense?.room_id || null;
   const property = propertyId ? context.properties.get(propertyId) : null;
   const room = roomId ? context.rooms.get(roomId) : null;
   const propertyFolder = safeSegment(property?.name || property?.address, "未分类房源");
   const roomFolder = safeSegment(room?.room_number || room?.name, "未分类房间");
-  const tenantFolder = safeSegment(tenant?.name, "未分类租客");
+  const tenantArrivalDate = tenant?.move_in_date || contract?.start_date || null;
+  const tenantFolder = safeSegment(`${tenantArrivalDate ? tenantArrivalDate.replace(/-/g, ".").slice(0, 10) : "未知日期"}-${tenant?.name || "未分类租客"}`, "未知日期-未分类租客");
   const kind = table === "contract_files" ? "合同" : table === "rent_payment_files" ? "收款" : "房屋支出";
   const root = table === "expense_files" ? ["附件归档", "房源", propertyFolder, kind] : ["附件归档", "房源", propertyFolder, roomFolder, tenantFolder, kind];
   return `${root.join("/")}/${fileLeaf(row, date, kind, used)}`;
