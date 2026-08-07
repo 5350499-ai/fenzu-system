@@ -18,7 +18,7 @@ type Property = { id: string; name: string | null; address: string | null };
 type Room = { id: string; property_id: string; name: string | null; room_number: string | null };
 type Tenant = { id: string; property_id: string; room_id: string; name: string | null };
 type Contract = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; start_date: string | null };
-type Payment = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; payment_date: string | null; rent_month: string | null };
+type Payment = { id: string; property_id: string; room_id: string | null; tenant_id: string | null; payment_date: string | null; rent_month: string | null; coverage_start_date: string | null; income_type: string | null; payment_status: string | null; notes: string | null; amount_due: number | null };
 type Expense = { id: string; property_id: string; room_id: string | null; payment_date: string | null; expense_month: string | null };
 
 export type AttachmentExportManifestEntry = {
@@ -60,14 +60,30 @@ function parentFor(table: AttachmentTable, row: AttachmentRow) {
 async function loadContext(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
   const [properties, rooms, tenants, contracts, payments, expenses] = await Promise.all([
     admin.from("properties").select("id,name,address").eq("user_id", ownerId), admin.from("rooms").select("id,property_id,name,room_number").eq("user_id", ownerId), admin.from("tenants").select("id,property_id,room_id,name").eq("user_id", ownerId),
-    admin.from("contracts").select("id,property_id,room_id,tenant_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,property_id,room_id,tenant_id,payment_date,rent_month").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
+    admin.from("contracts").select("id,property_id,room_id,tenant_id,start_date").eq("user_id", ownerId), admin.from("rent_payments").select("id,property_id,room_id,tenant_id,payment_date,rent_month,coverage_start_date,income_type,payment_status,notes,amount_due").eq("user_id", ownerId), admin.from("expenses").select("id,property_id,room_id,payment_date,expense_month").eq("user_id", ownerId)
   ]);
   const failed = [properties, rooms, tenants, contracts, payments, expenses].find((result) => result.error);
   if (failed?.error) throw new Error(`附件归档关联读取失败：${failed.error.message}`);
   return {
     properties: new Map((properties.data || []).map((row) => [row.id, row as Property])), rooms: new Map((rooms.data || []).map((row) => [row.id, row as Room])), tenants: new Map((tenants.data || []).map((row) => [row.id, row as Tenant])),
-    contracts: new Map((contracts.data || []).map((row) => [row.id, row as Contract])), payments: new Map((payments.data || []).map((row) => [row.id, row as Payment])), expenses: new Map((expenses.data || []).map((row) => [row.id, row as Expense]))
+    contracts: new Map((contracts.data || []).map((row) => [row.id, row as Contract])), payments: new Map((payments.data || []).map((row) => [row.id, row as Payment])), expenses: new Map((expenses.data || []).map((row) => [row.id, row as Expense])),
+    tenantArchiveDates: earliestTenantCoverageDates((payments.data || []) as Payment[])
   };
+}
+
+function earliestTenantCoverageDates(payments: Payment[]) {
+  const dates = new Map<string, string>();
+  for (const payment of payments) {
+    const startDate = payment.coverage_start_date;
+    const incomeType = payment.income_type || "房租收入";
+    const status = `${payment.payment_status || ""} ${payment.notes || ""}`.toLowerCase();
+    const isRent = incomeType === "房租收入" || incomeType === "续交房租";
+    const isInvalid = status.includes("已作废") || status.includes("void") || status.includes("已归档");
+    if (!payment.tenant_id || !startDate || !isRent || isInvalid || Number(payment.amount_due || 0) <= 0) continue;
+    const current = dates.get(payment.tenant_id);
+    if (!current || startDate < current) dates.set(payment.tenant_id, startDate);
+  }
+  return dates;
 }
 async function loadRows(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
   const all: Array<{ table: AttachmentTable; row: AttachmentRow }> = [];
@@ -95,7 +111,7 @@ function readablePath(table: AttachmentTable, row: AttachmentRow, context: Await
   const room = roomId ? context.rooms.get(roomId) : null;
   const propertyFolder = safeSegment(property?.name || property?.address, "未分类房源");
   const roomFolder = safeSegment(room?.room_number || room?.name, "未分类房间");
-  const tenantArrivalDate = relatedContract?.start_date || null;
+  const tenantArrivalDate = tenantId ? context.tenantArchiveDates.get(tenantId) || null : null;
   const tenantFolder = safeSegment(`${tenantArrivalDate ? tenantArrivalDate.replace(/-/g, ".").slice(0, 10) : "未知日期"}-${tenant?.name || "未分类租客"}`, "未知日期-未分类租客");
   const kind = table === "property_files" ? "房源附件" : table === "contract_files" ? "租客附件" : table === "rent_payment_files" ? "房屋收入" : "房屋支出";
   const root = table === "property_files" || table === "expense_files" || table === "rent_payment_files" ? ["附件归档", "房源", propertyFolder, kind] : ["附件归档", "房源", propertyFolder, roomFolder, tenantFolder, kind];
