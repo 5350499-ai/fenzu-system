@@ -634,3 +634,9 @@
 - Check-in attribution now uses the active partner directory, matching rent and expense records instead of the legacy A/B fallback.
 - Compressed expense and tenant detail rows on mobile and removed the login input's extra focus/autofill visual layer.
 - No database, schema, API, financial calculation, attachment, Backup V1, or Restore V4 changes.
+
+## 2026-08-07 - Compact field ordering polish
+
+- Shortened the check-in deposit label and paired coverage start/end dates before the payment day field.
+- Tightened expense detail label/value spacing and reordered payment details into compact grouped rows; project/description is no longer shown in the detail view.
+- No data, API, schema, attachment, Backup V1, or Restore V4 changes.

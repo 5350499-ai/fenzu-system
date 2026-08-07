@@ -8711,6 +8711,43 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-column: 1 / -1;
   }
 
+  .expense-core-detail-grid .compact-detail-row {
+    gap: var(--ui-space-1, 4px);
+    justify-content: flex-start;
+  }
+
+  .expense-core-detail-grid .compact-detail-row > span {
+    flex: 0 1 auto;
+  }
+
+  .expense-core-detail-grid .compact-detail-row > strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .payment-core-detail-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--ui-space-1, 4px) var(--ui-space-2, 8px);
+  }
+
+  .payment-core-detail-grid > * {
+    grid-column: auto;
+  }
+
+  .payment-core-detail-grid .payment-property-field,
+  .payment-core-detail-grid .payment-note-field {
+    grid-column: 1 / -1;
+  }
+
+  .payment-core-detail-grid .compact-detail-row {
+    gap: var(--ui-space-1, 4px);
+  }
+
+  .payment-core-detail-grid .compact-detail-row > strong {
+    min-width: 0;
+  }
+
   /* Property and room remain separate, readable fields on the same row. */
   .tenant-core-detail-grid > :nth-child(1) {
     grid-column: 1 / -1;

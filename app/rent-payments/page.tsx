@@ -862,21 +862,20 @@ function PaymentDetail({
     <div className="record-detail-panel">
       <CompactDetailGroup className="record-core-detail-group">
         <CompactDetailGrid className="payment-core-detail-grid">
-        <DetailField label="房源" value={propertyName} />
-        <DetailField label="房间" value={roomName} />
-        <DetailField label="租客" value={tenantName} />
-        <DetailField label="收款类型" value={payment.incomeType || "房租收入"} />
-        {payment.incomeItem ? <DetailField label="项目/说明" value={payment.incomeItem} /> : null}
-        <DetailField label="收款日期" value={payment.paymentDate || "-"} />
-        {isRentPayment(payment) ? <DetailField label="房租金额" value={euro(Number(payment.amountPaid || 0) > 0 ? Math.max(Number(payment.amountPaid || 0) - depositAmount, 0) : Number(payment.amountDue || 0))} /> : null}
-        {isRentPayment(payment) && depositAmount > 0 ? <DetailField label="押金金额" value={euro(depositAmount)} /> : null}
-        <DetailField label="本次合计收入" value={euro(payment.amountPaid)} />
-        {isRentPayment(payment) ? <DetailField label="覆盖开始" value={paymentCoverageStart(payment) || "-"} /> : null}
-        {isRentPayment(payment) ? <DetailField label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
-        <DetailField label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
-        <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
-        <DetailField label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
-        <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
+        <DetailField className="payment-property-field" label="房源" value={propertyName} />
+        <DetailField className="payment-room-field" label="房间" value={roomName} />
+        <DetailField className="payment-tenant-field" label="租客" value={tenantName} />
+        <DetailField className="payment-type-field" label="收款类型" value={payment.incomeType || "房租收入"} />
+        {isRentPayment(payment) ? <DetailField className="payment-rent-field" label="房租金额" value={euro(Number(payment.amountPaid || 0) > 0 ? Math.max(Number(payment.amountPaid || 0) - depositAmount, 0) : Number(payment.amountDue || 0))} /> : null}
+        <DetailField className="payment-date-field" label="收款日期" value={payment.paymentDate || "-"} />
+        {isRentPayment(payment) && depositAmount > 0 ? <DetailField className="payment-deposit-field" label="押金金额" value={euro(depositAmount)} /> : null}
+        {isRentPayment(payment) ? <DetailField className="payment-coverage-start-field" label="覆盖开始" value={paymentCoverageStart(payment) || "-"} /> : null}
+        {isRentPayment(payment) ? <DetailField className="payment-coverage-end-field" label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
+        <DetailField className="payment-total-field" label="本次合计收入" value={euro(payment.amountPaid)} />
+        <DetailField className="payment-status-field" label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
+        <DetailField className="payment-method-field" label="付款方式" value={payment.paymentMethod || "-"} />
+        <DetailField className="payment-owner-field" label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
+        <DetailField className="payment-note-field" label="备注" value={cleanVoidNote(payment.notes) || "-"} />
         </CompactDetailGrid>
       </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel rent-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
@@ -898,8 +897,8 @@ function PaymentDetail({
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return <CompactDetailRow label={label} value={value} />;
+function DetailField({ label, value, className }: { label: string; value: string; className?: string }) {
+  return <CompactDetailRow className={className} label={label} value={value} />;
 }
 
 function paymentDepositAmount(payment: BusinessRentPayment, legacyLinkedDeposit?: number) {
