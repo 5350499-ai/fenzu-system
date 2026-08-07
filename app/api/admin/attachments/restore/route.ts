@@ -1,18 +1,10 @@
-import { NextResponse } from "next/server";
-import { apiErrorResponse, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
-import { restoreAttachmentZip } from "@/lib/server/attachment-restore";
+import { AccountApiError, apiErrorResponse } from "@/lib/server/account-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const context = await requireActiveAccount(request);
-    await requireSensitivePermission(context, "can_manage_settings");
-    const form = await request.formData();
-    const file = form.get("file");
-    if (!(file instanceof File)) return NextResponse.json({ error: "请选择 attachments.zip 文件。" }, { status: 400 });
-    const result = await restoreAttachmentZip(new Uint8Array(await file.arrayBuffer()), context.profile.workspace_owner_id);
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    throw new AccountApiError("整包 ZIP 恢复接口已停用，请使用逐附件恢复流程。", 410, "ATTACHMENT_ZIP_ROUTE_RETIRED");
   } catch (error) {
     return apiErrorResponse(error);
   }

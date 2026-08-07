@@ -1,19 +1,12 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { unzipSync } from "fflate";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import {
-  createGoogleResumableUpload,
-  getGoogleDriveContent,
-  stampGoogleUpload,
-  verifyGoogleUpload,
-  type DriveAttachmentKind
-} from "@/lib/server/google-drive";
+import { createGoogleResumableUpload, getGoogleDriveContent, stampGoogleUpload, verifyGoogleUpload, type DriveAttachmentKind } from "@/lib/server/google-drive";
 import { attachmentStorageConfigs, type AttachmentStorageBucket } from "@/lib/server/supabase-attachment-upload";
 import type { AttachmentExportManifestEntry } from "@/lib/server/attachment-export";
 
-type ManifestDocument = {
+export type AttachmentManifestDocument = {
   manifestVersion: number;
   generatedAt?: string;
   attachmentCount: number;
@@ -22,19 +15,9 @@ type ManifestDocument = {
   entries: AttachmentExportManifestEntry[];
 };
 
-type AttachmentRow = {
-  id: string;
-  storage_provider: string | null;
-  storage_bucket: string | null;
-  storage_path: string | null;
-  provider_file_id: string | null;
-};
-type ParentMaps = {
-  tenants: Set<string>;
-  contracts: Map<string, string | null>;
-  rentPayments: Set<string>;
-  expenses: Set<string>;
-};
+type AttachmentRow = { id: string; storage_provider: string | null; storage_bucket: string | null; storage_path: string | null; provider_file_id: string | null };
+type AttachmentTable = "contract_files" | "rent_payment_files" | "expense_files";
+type ParentMaps = { tenants: Set<string>; contracts: Map<string, string | null>; rentPayments: Set<string>; expenses: Set<string> };
 
 export type AttachmentRestoreReport = {
   total: number;
@@ -49,68 +32,29 @@ export type AttachmentRestoreReport = {
   errors: Array<{ attachmentId: string | null; category: string; reason: string }>;
 };
 
-export type AttachmentRestorePreview = AttachmentRestoreReport & {
-  generatedAt: string | null;
-  recoverable: number;
-  abnormal: number;
-};
+export type AttachmentRestorePreview = AttachmentRestoreReport & { generatedAt: string | null; recoverable: number; abnormal: number };
 
 const tableNames = ["contract_files", "rent_payment_files", "expense_files"] as const;
-type AttachmentTable = (typeof tableNames)[number];
 
-function sha256(bytes: Uint8Array) {
-  return createHash("sha256").update(bytes).digest("hex");
+export function validateAttachmentManifest(value: unknown): AttachmentManifestDocument {
+  const document = value as Partial<AttachmentManifestDocument> | null;
+  if (!document || document.manifestVersion !== 1 || !Array.isArray(document.entries)) throw new Error("备份文件格式无效：缺少兼容的 manifest.json。");
+  return document as AttachmentManifestDocument;
 }
 
-function reason(error: unknown) {
-  return error instanceof Error ? error.message.slice(0, 240) : "附件处理失败";
-}
-
-function emptyReport(): AttachmentRestoreReport {
-  return { total: 0, restored: 0, existing: 0, repaired: 0, missing: 0, checksumFailed: 0, orphan: 0, uploadFailed: 0, skipped: 0, errors: [] };
-}
-
-function addError(report: AttachmentRestoreReport, attachmentId: string | null, category: string, message: string) {
-  report.errors.push({ attachmentId, category, reason: message.slice(0, 240) });
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function parseArchive(bytes: Uint8Array) {
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(bytes);
-  } catch {
-    throw new Error("ZIP 文件无法解析或已损坏。");
-  }
-  const manifestBytes = files["manifest.json"];
-  if (!manifestBytes) throw new Error("ZIP 缺少 manifest.json。");
-  let manifest: ManifestDocument;
-  try {
-    manifest = JSON.parse(new TextDecoder().decode(manifestBytes)) as ManifestDocument;
-  } catch {
-    throw new Error("manifest.json 不是有效 JSON。");
-  }
-  if (!isObject(manifest) || manifest.manifestVersion !== 1 || !Array.isArray(manifest.entries)) {
-    throw new Error("附件清单版本不兼容或格式不完整。");
-  }
-  return { files, manifest };
-}
+function sha256(bytes: Uint8Array) { return createHash("sha256").update(bytes).digest("hex"); }
+function message(error: unknown) { return error instanceof Error ? error.message.slice(0, 240) : "附件处理失败。"; }
+function emptyReport(): AttachmentRestoreReport { return { total: 0, restored: 0, existing: 0, repaired: 0, missing: 0, checksumFailed: 0, orphan: 0, uploadFailed: 0, skipped: 0, errors: [] }; }
+function addError(report: AttachmentRestoreReport, attachmentId: string | null, category: string, reason: string) { report.errors.push({ attachmentId, category, reason: reason.slice(0, 240) }); }
+function validTable(value: string): value is AttachmentTable { return (tableNames as readonly string[]).includes(value); }
 
 async function loadCurrent(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: string) {
   const [contractFiles, rentFiles, expenseFiles, tenants, contracts, payments, expenses] = await Promise.all([
-    admin.from("contract_files").select("*").eq("user_id", ownerId),
-    admin.from("rent_payment_files").select("*").eq("user_id", ownerId),
-    admin.from("expense_files").select("*").eq("user_id", ownerId),
-    admin.from("tenants").select("id").eq("user_id", ownerId),
-    admin.from("contracts").select("id,tenant_id").eq("user_id", ownerId),
-    admin.from("rent_payments").select("id").eq("user_id", ownerId),
-    admin.from("expenses").select("id").eq("user_id", ownerId)
+    admin.from("contract_files").select("*").eq("user_id", ownerId), admin.from("rent_payment_files").select("*").eq("user_id", ownerId), admin.from("expense_files").select("*").eq("user_id", ownerId),
+    admin.from("tenants").select("id").eq("user_id", ownerId), admin.from("contracts").select("id,tenant_id").eq("user_id", ownerId), admin.from("rent_payments").select("id").eq("user_id", ownerId), admin.from("expenses").select("id").eq("user_id", ownerId)
   ]);
   const failed = [contractFiles, rentFiles, expenseFiles, tenants, contracts, payments, expenses].find((result) => result.error);
-  if (failed?.error) throw new Error(`附件恢复读取当前数据失败：${failed.error.message}`);
+  if (failed?.error) throw new Error(`无法读取当前附件或业务记录：${failed.error.message}`);
   const rows = new Map<string, AttachmentRow>();
   for (const row of [...(contractFiles.data || []), ...(rentFiles.data || []), ...(expenseFiles.data || [])] as AttachmentRow[]) rows.set(row.id, row);
   return {
@@ -124,10 +68,6 @@ async function loadCurrent(admin: ReturnType<typeof getSupabaseAdmin>, ownerId: 
   };
 }
 
-function validTable(value: string): value is AttachmentTable {
-  return (tableNames as readonly string[]).includes(value);
-}
-
 function parentExists(entry: AttachmentExportManifestEntry, parents: ParentMaps) {
   if (!validTable(entry.sourceTable)) return false;
   if (entry.sourceTable === "contract_files") {
@@ -135,39 +75,16 @@ function parentExists(entry: AttachmentExportManifestEntry, parents: ParentMaps)
     if (entry.contractId && (!parents.contracts.has(entry.contractId) || parents.contracts.get(entry.contractId) !== entry.tenantId)) return false;
     return Boolean(entry.tenantId || entry.contractId);
   }
-  if (entry.sourceTable === "rent_payment_files") return Boolean(entry.rentPaymentId && parents.rentPayments.has(entry.rentPaymentId));
-  return Boolean(entry.expenseId && parents.expenses.has(entry.expenseId));
+  return entry.sourceTable === "rent_payment_files" ? Boolean(entry.rentPaymentId && parents.rentPayments.has(entry.rentPaymentId)) : Boolean(entry.expenseId && parents.expenses.has(entry.expenseId));
 }
 
-function archiveMember(files: Record<string, Uint8Array>, entry: AttachmentExportManifestEntry) {
-  if (!entry.zipPath || !entry.zipPath.startsWith("attachments/") || entry.zipPath.includes("..")) return null;
-  return files[entry.zipPath] || null;
-}
-
-function isSupabaseBucket(value: string | null): value is AttachmentStorageBucket {
-  return Boolean(value && Object.prototype.hasOwnProperty.call(attachmentStorageConfigs, value));
-}
-
-function driveKind(table: AttachmentTable): DriveAttachmentKind {
-  return table === "contract_files" ? "contract-files" : table === "rent_payment_files" ? "rent-payment-files" : "expense-files";
-}
+function isSupabaseBucket(value: string | null): value is AttachmentStorageBucket { return Boolean(value && Object.prototype.hasOwnProperty.call(attachmentStorageConfigs, value)); }
+function driveKind(table: AttachmentTable): DriveAttachmentKind { return table === "contract_files" ? "contract-files" : table === "rent_payment_files" ? "rent-payment-files" : "expense-files"; }
 
 function metadataFor(entry: AttachmentExportManifestEntry, ownerId: string, provider: "supabase" | "google_drive", bucket: string | null, path: string | null, providerFileId: string | null, size: number) {
-  const base = {
-    id: entry.attachmentId,
-    user_id: ownerId,
-    storage_provider: provider,
-    storage_bucket: bucket,
-    storage_path: path,
-    provider_file_id: providerFileId,
-    file_name: entry.fileName,
-    file_type: entry.mimeType,
-    file_size: size,
-    uploaded_at: entry.uploadedAt || new Date().toISOString()
-  };
+  const base = { id: entry.attachmentId, user_id: ownerId, storage_provider: provider, storage_bucket: bucket, storage_path: path, provider_file_id: providerFileId, file_name: entry.fileName, file_type: entry.mimeType, file_size: size, uploaded_at: entry.uploadedAt || new Date().toISOString() };
   if (entry.sourceTable === "contract_files") return { ...base, tenant_id: entry.tenantId, contract_id: entry.contractId };
-  if (entry.sourceTable === "rent_payment_files") return { ...base, rent_payment_id: entry.rentPaymentId };
-  return { ...base, expense_id: entry.expenseId };
+  return entry.sourceTable === "rent_payment_files" ? { ...base, rent_payment_id: entry.rentPaymentId } : { ...base, expense_id: entry.expenseId };
 }
 
 async function storageChecksum(admin: ReturnType<typeof getSupabaseAdmin>, bucket: AttachmentStorageBucket, path: string) {
@@ -187,71 +104,60 @@ async function uploadGoogle(entry: AttachmentExportManifestEntry, bytes: Uint8Ar
   return file.id;
 }
 
-function classifyPreview(report: AttachmentRestoreReport): AttachmentRestorePreview {
+function previewResult(report: AttachmentRestoreReport, generatedAt: string | null): AttachmentRestorePreview {
   const abnormal = report.missing + report.checksumFailed + report.orphan + report.uploadFailed + report.skipped;
-  return { ...report, generatedAt: null, recoverable: report.total - abnormal, abnormal };
+  return { ...report, generatedAt, recoverable: report.total - abnormal, abnormal };
 }
 
-export async function previewAttachmentZipRestore(bytes: Uint8Array, ownerId: string): Promise<AttachmentRestorePreview> {
-  const { files, manifest } = parseArchive(bytes);
+export async function previewAttachmentManifestRestore(manifestValue: unknown, ownerId: string) {
+  const manifest = validateAttachmentManifest(manifestValue);
   const current = await loadCurrent(getSupabaseAdmin(), ownerId);
-  const report = emptyReport();
-  report.total = manifest.entries.length;
+  const report = emptyReport(); report.total = manifest.entries.length;
   for (const entry of manifest.entries) {
-    if (!isObject(entry) || !entry.attachmentId || !validTable(entry.sourceTable)) { report.skipped += 1; addError(report, null, "invalid", "清单条目缺少有效附件 ID 或来源表。"); continue; }
-    if (entry.status !== "exported" || !archiveMember(files, entry)) { report.missing += 1; addError(report, entry.attachmentId, "missing", "ZIP 中没有可用的附件文件。"); continue; }
-    if (!parentExists(entry, current.parents)) { report.orphan += 1; addError(report, entry.attachmentId, "orphan", "找不到对应的业务记录。"); continue; }
-    const existing = current.rows.get(entry.attachmentId);
-    if (existing) report.existing += 1; else report.restored += 1;
+    if (!entry || !entry.attachmentId || !validTable(entry.sourceTable)) { report.skipped++; addError(report, null, "invalid", "清单条目缺少有效附件 ID 或来源表。"); continue; }
+    if (entry.status !== "exported" || !entry.zipPath) { report.missing++; addError(report, entry.attachmentId, "missing", "ZIP 中没有可用的附件文件。"); continue; }
+    if (!parentExists(entry, current.parents)) { report.orphan++; addError(report, entry.attachmentId, "orphan", "找不到对应的业务记录。"); continue; }
+    if (current.rows.has(entry.attachmentId)) report.existing++; else report.restored++;
   }
-  return { ...classifyPreview(report), generatedAt: manifest.generatedAt || null };
+  return previewResult(report, manifest.generatedAt || null);
+}
+
+export async function restoreAttachmentEntry(entryValue: unknown, bytes: Uint8Array, ownerId: string): Promise<AttachmentRestoreReport> {
+  const report = emptyReport(); report.total = 1;
+  const entry = entryValue as AttachmentExportManifestEntry;
+  const id = entry && typeof entry.attachmentId === "string" ? entry.attachmentId : null;
+  try {
+    if (!entry || !id || !validTable(entry.sourceTable)) { report.skipped++; addError(report, id, "invalid", "清单条目无效。"); return report; }
+    if (entry.status !== "exported") { report.skipped++; addError(report, id, "skipped", entry.error || "导出时未成功归档。"); return report; }
+    if (!entry.zipPath || !bytes.byteLength) { report.missing++; addError(report, id, "missing", "ZIP 中缺少实际文件。"); return report; }
+    if (entry.fileSize > 0 && bytes.byteLength !== entry.fileSize) { report.checksumFailed++; addError(report, id, "checksum", "文件大小与清单不一致。"); return report; }
+    if (!entry.checksum || sha256(bytes) !== entry.checksum) { report.checksumFailed++; addError(report, id, "checksum", "文件 checksum 校验失败。"); return report; }
+    const admin = getSupabaseAdmin(); const current = await loadCurrent(admin, ownerId);
+    if (!parentExists(entry, current.parents)) { report.orphan++; addError(report, id, "orphan", "找不到对应的业务记录，未创建悬空关联。"); return report; }
+    const existing = current.rows.get(id);
+    if (entry.storageProvider === "supabase") {
+      if (!isSupabaseBucket(entry.bucket) || !entry.storagePath) { report.skipped++; addError(report, id, "provider", "Supabase bucket 或路径无效。"); return report; }
+      const currentChecksum = existing?.storage_provider === "supabase" && existing.storage_bucket === entry.bucket && existing.storage_path === entry.storagePath ? await storageChecksum(admin, entry.bucket, entry.storagePath) : null;
+      if (existing && currentChecksum === entry.checksum) { report.existing++; return report; }
+      const { error: uploadError } = await admin.storage.from(entry.bucket).upload(entry.storagePath, Buffer.from(bytes), { contentType: entry.mimeType, upsert: true });
+      if (uploadError) { report.uploadFailed++; addError(report, id, "upload", uploadError.message); return report; }
+      const { error: rowError } = await (admin.from(entry.sourceTable) as any).upsert(metadataFor(entry, ownerId, "supabase", entry.bucket, entry.storagePath, null, bytes.byteLength), { onConflict: "id" });
+      if (rowError) { report.uploadFailed++; addError(report, id, "metadata", rowError.message); return report; }
+      if (existing) report.repaired++; else report.restored++; return report;
+    }
+    if (entry.storageProvider === "google_drive") {
+      if (existing?.storage_provider === "google_drive" && existing.provider_file_id) {
+        try { const currentBytes = new Uint8Array(await (await getGoogleDriveContent(existing.provider_file_id)).arrayBuffer()); if (sha256(currentBytes) === entry.checksum) { report.existing++; return report; } } catch { /* repair below */ }
+      }
+      const providerFileId = await uploadGoogle(entry, bytes, ownerId);
+      const { error: rowError } = await (admin.from(entry.sourceTable) as any).upsert(metadataFor(entry, ownerId, "google_drive", null, null, providerFileId, bytes.byteLength), { onConflict: "id" });
+      if (rowError) { report.uploadFailed++; addError(report, id, "metadata", rowError.message); return report; }
+      if (existing) report.repaired++; else report.restored++; return report;
+    }
+    report.skipped++; addError(report, id, "provider", "不支持的附件存储提供商。"); return report;
+  } catch (error) { report.uploadFailed++; addError(report, id, "error", message(error)); return report; }
 }
 
 export async function restoreAttachmentZip(bytes: Uint8Array, ownerId: string): Promise<AttachmentRestoreReport> {
-  const { files, manifest } = parseArchive(bytes);
-  const admin = getSupabaseAdmin();
-  const current = await loadCurrent(admin, ownerId);
-  const report = emptyReport();
-  report.total = manifest.entries.length;
-  for (const entry of manifest.entries) {
-    const id = isObject(entry) && typeof entry.attachmentId === "string" ? entry.attachmentId : null;
-    try {
-      if (!id || !validTable(entry.sourceTable)) { report.skipped += 1; addError(report, id, "invalid", "清单条目无效。"); continue; }
-      if (entry.status !== "exported") { report.skipped += 1; addError(report, id, "skipped", entry.error || "导出时未成功归档。"); continue; }
-      const bytesInZip = archiveMember(files, entry);
-      if (!bytesInZip) { report.missing += 1; addError(report, id, "missing", "ZIP 中缺少实际文件。"); continue; }
-      if (entry.fileSize > 0 && bytesInZip.byteLength !== entry.fileSize) { report.checksumFailed += 1; addError(report, id, "checksum", "文件大小与清单不一致。"); continue; }
-      if (!entry.checksum || sha256(bytesInZip) !== entry.checksum) { report.checksumFailed += 1; addError(report, id, "checksum", "文件 checksum 校验失败。"); continue; }
-      if (!parentExists(entry, current.parents)) { report.orphan += 1; addError(report, id, "orphan", "找不到对应的业务记录，未创建悬空关联。"); continue; }
-      const existing = current.rows.get(id);
-      if (entry.storageProvider === "supabase") {
-        if (!isSupabaseBucket(entry.bucket) || !entry.storagePath) { report.skipped += 1; addError(report, id, "provider", "Supabase bucket 或路径无效。"); continue; }
-        const currentChecksum = existing?.storage_provider === "supabase" && existing.storage_bucket === entry.bucket && existing.storage_path === entry.storagePath ? await storageChecksum(admin, entry.bucket, entry.storagePath) : null;
-        if (existing && currentChecksum === entry.checksum) { report.existing += 1; continue; }
-        const { error: uploadError } = await admin.storage.from(entry.bucket).upload(entry.storagePath, bytesInZip, { contentType: entry.mimeType, upsert: true });
-        if (uploadError) { report.uploadFailed += 1; addError(report, id, "upload", uploadError.message); continue; }
-        const { error: rowError } = await (admin.from(entry.sourceTable) as any).upsert(metadataFor(entry, ownerId, "supabase", entry.bucket, entry.storagePath, null, bytesInZip.byteLength), { onConflict: "id" });
-        if (rowError) { report.uploadFailed += 1; addError(report, id, "metadata", rowError.message); continue; }
-        if (existing) report.repaired += 1; else report.restored += 1;
-      } else if (entry.storageProvider === "google_drive") {
-        if (existing?.storage_provider === "google_drive" && existing.provider_file_id) {
-          try {
-            const currentResponse = await getGoogleDriveContent(existing.provider_file_id);
-            const currentBytes = new Uint8Array(await currentResponse.arrayBuffer());
-            if (sha256(currentBytes) === entry.checksum) { report.existing += 1; continue; }
-          } catch { /* repair below */ }
-        }
-        const providerFileId = await uploadGoogle(entry, bytesInZip, ownerId);
-        const { error: rowError } = await (admin.from(entry.sourceTable) as any).upsert(metadataFor(entry, ownerId, "google_drive", null, null, providerFileId, bytesInZip.byteLength), { onConflict: "id" });
-        if (rowError) { report.uploadFailed += 1; addError(report, id, "metadata", rowError.message); continue; }
-        if (existing) report.repaired += 1; else report.restored += 1;
-      } else {
-        report.skipped += 1; addError(report, id, "provider", "不支持的附件存储提供商。");
-      }
-    } catch (error) {
-      report.uploadFailed += 1;
-      addError(report, id, "error", reason(error));
-    }
-  }
-  return report;
+  throw new Error("旧版整包恢复接口已停用，请使用逐附件恢复流程。");
 }

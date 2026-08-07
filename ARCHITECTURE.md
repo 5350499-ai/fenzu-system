@@ -332,8 +332,10 @@ Attachment export is intentionally independent from Backup V1 and Restore V4. Th
 
 Attachment restore remains independent from Backup V1 and Restore V4. The ZIP manifest is the sole source of attachment-to-business-record mapping; attachment UUIDs and parent UUIDs are used instead of names, filenames or UI text. The existing Restore V4 path preserves business record UUIDs, so attachment parent IDs remain addressable after a data restore.
 
-- `/api/admin/attachments/restore-preview` parses the ZIP, validates `manifest.json`, checks parent records and reports recoverable, existing and abnormal entries without writing.
-- `/api/admin/attachments/restore` performs a non-destructive, idempotent merge. It only upserts entries present in the ZIP; existing attachments outside the ZIP are never deleted.
+- The browser parses the selected ZIP locally and sends only the small `manifest.json` to `/api/admin/attachments/restore-preview`; the preview never uploads the full archive to a Vercel Serverless Function.
+- Restore uploads one archive member at a time to `/api/admin/attachments/restore-item`. This avoids ordinary request-body limits for 20MB+ and future much larger ZIP files while keeping each attachment independently retryable and reportable.
+- The old whole-ZIP restore route is retired; it is not used by the page and returns an explicit deprecation response rather than accepting a large request.
+- The item route performs a non-destructive, idempotent merge. It only upserts entries present in the ZIP; existing attachments outside the ZIP are never deleted.
 - Matching attachment UUIDs with matching content/checksum are skipped. Missing or mismatching provider content is repaired in place where the provider supports it; metadata is then upserted with the original attachment UUID and parent IDs.
 - Each entry is isolated. Missing archive members, invalid manifests, missing parents, checksum failures, unsupported providers, Storage failures and metadata write failures are recorded and skipped while later entries continue. Missing parents are reported as orphan attachments and never create dangling links.
 - Supabase Storage and Google Drive are handled separately. Supabase uses bucket/path identity; Drive uses provider file ID and a new provider upload when repair is required. No attachment BeforeRestore is created, and no attachment table or Storage bucket is cleared.

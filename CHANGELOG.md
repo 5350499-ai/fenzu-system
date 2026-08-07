@@ -575,6 +575,7 @@
 
 - Added ZIP manifest validation and restore preview for `attachments.zip`.
 - Added non-destructive, idempotent attachment merge restore with per-file error tolerance and a user-readable report.
+- Changed large-ZIP handling to browser-local manifest parsing plus one-file-at-a-time restore requests; the full archive is no longer sent to a Serverless preview endpoint.
 - Existing attachments outside the ZIP are preserved; attachment UUIDs and manifest parent IDs remain the only restore bindings.
 - Added the attachment recovery action beside attachment export and renamed the Settings entries to `备份与恢复（数据）` and `备份与恢复（附件）`.
 - No migration, Backup V1 change, Restore V4 change, Production deployment, or real-data deletion was performed.
