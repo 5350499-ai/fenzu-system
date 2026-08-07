@@ -14,6 +14,7 @@ export function SearchableSelect({
   label,
   value,
   options,
+  className,
   placeholder,
   disabled,
   openOnTouchWithoutKeyboard = true,
@@ -22,6 +23,7 @@ export function SearchableSelect({
   label: string;
   value: string;
   options: SelectOption[];
+  className?: string;
   placeholder?: string;
   disabled?: boolean;
   /** Lets touch users open a long option list before the virtual keyboard takes screen space. */
@@ -107,7 +109,7 @@ export function SearchableSelect({
   }
 
   return (
-    <div className="field combobox-field" ref={rootRef}>
+    <div className={`field combobox-field${className ? ` ${className}` : ""}`} ref={rootRef}>
       <label>{label}</label>
       <div
         className={`combobox ${disabled ? "disabled" : ""}`}

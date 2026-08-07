@@ -123,7 +123,7 @@ export default function TenantsPage() {
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
+  const [ownershipMode, setOwnershipMode] = useState<string>("A");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
   const contractFilesRequestRef = useRef(0);
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
@@ -1186,7 +1186,8 @@ function TenantDetail({
       <CompactDetailGroup className="tenant-core-detail-group">
         <CompactDetailGrid className="tenant-core-detail-grid">
         {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
-        <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
+        <DetailField label="房源" value={propertyName} />
+        <DetailField label="房间" value={roomName} />
         <div className="tenant-amount-grid">
           <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
           <DetailField label="最近一次实收" value={euro(latestReceived)} />

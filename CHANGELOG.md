@@ -628,3 +628,9 @@
 - Protected mobile transaction-row priorities: full `YYYY-MM-DD` dates, amounts, and status badges keep their width while middle descriptions may truncate.
 - Added scoped dark-theme login input, focus, and Safari WebKit autofill styling to prevent browser autofill color bleed.
 - No database, API, business-rule, Backup V1, Restore V4, Storage, Google Drive, or attachment workflow changes.
+## 2026-08-07 - Mobile density and check-in attribution polish
+
+- Tightened the check-in form rhythm and kept short fields in a compact two-column mobile layout while preserving touch-sized controls.
+- Check-in attribution now uses the active partner directory, matching rent and expense records instead of the legacy A/B fallback.
+- Compressed expense and tenant detail rows on mobile and removed the login input's extra focus/autofill visual layer.
+- No database, schema, API, financial calculation, attachment, Backup V1, or Restore V4 changes.

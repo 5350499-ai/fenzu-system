@@ -1,12 +1,13 @@
 "use client";
 
-export type OwnershipMode = "A" | "B" | "自定义";
+export type OwnershipMode = string;
 
 export function OwnershipField({
   label = "收款归属",
   mode,
   customName,
   options,
+  className,
   optionsLoading = false,
   onModeChange,
   onCustomNameChange
@@ -15,13 +16,14 @@ export function OwnershipField({
   mode: OwnershipMode;
   customName: string;
   options?: Array<{ value: string; label: string }>;
+  className?: string;
   optionsLoading?: boolean;
   onModeChange: (mode: OwnershipMode) => void;
   onCustomNameChange: (name: string) => void;
 }) {
   return (
     <>
-      <div className="field">
+      <div className={`field${className ? ` ${className}` : ""}`}>
         <label>{label}</label>
         <select
           disabled={optionsLoading}

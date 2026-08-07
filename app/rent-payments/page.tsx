@@ -110,7 +110,7 @@ export default function RentPaymentsPage() {
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
-  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
+  const [ownershipMode, setOwnershipMode] = useState<string>("A");
   const [addingTenant, setAddingTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");

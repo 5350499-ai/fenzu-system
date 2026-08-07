@@ -26,6 +26,7 @@ import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
+import { getPartners } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -63,13 +64,15 @@ export default function CheckInPage() {
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [partnersLoading, setPartnersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [checkInAttachments, setCheckInAttachments] = useState<CheckInAttachment[]>([]);
   const [preparingAttachment, setPreparingAttachment] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [ownershipMode, setOwnershipMode] = useState<"A" | "B" | "自定义">("A");
+  const [ownershipMode, setOwnershipMode] = useState<string>("");
   const [customReceivedBy, setCustomReceivedBy] = useState("");
   const requestIdRef = useRef<string | null>(null);
   const submitLockRef = useRef(false);
@@ -90,6 +93,11 @@ export default function CheckInPage() {
 
   useEffect(() => {
     async function load() {
+      const partnerData = await getPartners();
+      const nextPartnerOptions = partnerData.partners.filter((partner) => partner.isActive).map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
+      setPartnerOptions(nextPartnerOptions);
+      setPartnersLoading(false);
+      setOwnershipMode(nextPartnerOptions[0]?.value || "自定义");
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -288,9 +296,9 @@ export default function CheckInPage() {
   return (
     <AppLayout title="一键入住" description="一次录入租客、合同、押金和本月租金，减少重复操作。">
       <section className="card panel">
-        <form className="form-grid" onSubmit={submit}>
-          <SearchableSelect label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
-          <SearchableSelect label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
+        <form className="form-grid check-in-form-grid" onSubmit={submit}>
+          <SearchableSelect className="check-in-wide" label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
+          <SearchableSelect className="check-in-wide" label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
@@ -300,7 +308,7 @@ export default function CheckInPage() {
           <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
-          <OwnershipField mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
+          <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} customName={customReceivedBy} onModeChange={(mode) => {
             setOwnershipMode(mode);
             if (mode !== "自定义") setCustomReceivedBy("");
           }} onCustomNameChange={setCustomReceivedBy} />

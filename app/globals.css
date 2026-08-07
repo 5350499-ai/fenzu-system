@@ -5387,10 +5387,14 @@ td:last-child {
 }
 
 .login-card .field input {
+  appearance: none;
+  -webkit-appearance: none;
   border-color: var(--ui-color-border, var(--border));
   background: var(--ui-color-surface, var(--surface));
   color: var(--ui-color-text-primary, var(--text));
   caret-color: var(--ui-color-text-primary, var(--text));
+  box-shadow: none;
+  outline: none;
 }
 
 .login-card .field input::placeholder {
@@ -5402,7 +5406,7 @@ td:last-child {
 .login-card .field input:focus-visible {
   border-color: var(--ui-color-primary, var(--primary));
   outline: 0;
-  box-shadow: var(--ui-focus);
+  box-shadow: none;
 }
 
 .login-card .field input:-webkit-autofill,
@@ -5413,6 +5417,8 @@ td:last-child {
   -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
   box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
   border-color: var(--ui-color-border, var(--border));
+  background-color: var(--ui-color-surface, var(--surface));
+  background-image: none;
   background-clip: padding-box;
 }
 
@@ -8671,6 +8677,48 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     min-height: 22px;
     padding-block: 3px;
     line-height: 1.1;
+  }
+
+  /* Compact form rhythm: keep touch targets, reduce only inter-field whitespace. */
+  .check-in-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+  }
+
+  .check-in-form-grid > .field,
+  .check-in-form-grid > .combobox-field {
+    gap: var(--ui-space-1, 4px);
+  }
+
+  .check-in-form-grid > .check-in-wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Keep the expense summary as three compact information rows on phones. */
+  .expense-core-detail-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--ui-space-1, 4px) var(--ui-space-2, 8px);
+  }
+
+  .expense-core-detail-grid > :nth-child(1),
+  .expense-core-detail-grid > :nth-child(2),
+  .expense-core-detail-grid > :nth-child(3),
+  .expense-core-detail-grid > :nth-child(4) {
+    grid-column: auto;
+  }
+
+  .expense-core-detail-grid > :nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
+  /* Property and room remain separate, readable fields on the same row. */
+  .tenant-core-detail-grid > :nth-child(1) {
+    grid-column: 1 / -1;
+  }
+
+  .tenant-core-detail-grid > :nth-child(2),
+  .tenant-core-detail-grid > :nth-child(3) {
+    grid-column: auto;
   }
 }
 
