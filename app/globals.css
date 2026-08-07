@@ -2439,7 +2439,7 @@ td:last-child {
   box-sizing: border-box;
   min-height: 42px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--ui-radius-md, 12px);
   background: var(--surface);
   color: var(--text);
   padding: 10px 12px;
@@ -7116,6 +7116,8 @@ body,
   min-height: var(--ui-control-height);
   border-radius: var(--ui-radius-md);
   padding: 10px 12px;
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
 }
 
 .field textarea {
@@ -8050,4 +8052,45 @@ input[type="radio"] {
     font-size: var(--ui-font-size-button, 14px);
     letter-spacing: 0;
   }
+}
+
+/* Final precedence for the first-round UI sample fixes. */
+html:has(.modal-backdrop), body:has(.modal-backdrop),
+html:has(.attachment-modal-backdrop), body:has(.attachment-modal-backdrop),
+html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { overflow: hidden; }
+.modal-backdrop, .attachment-modal-backdrop, .data-center-sheet-backdrop { overscroll-behavior: contain; }
+.modal-backdrop { height: 100dvh; min-height: 100svh; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.modal-card { display: flex; flex-direction: column; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
+.modal-card > .panel-header:first-child { position: sticky; top: -20px; z-index: 2; flex: 0 0 auto; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); }
+.modal-card > .panel-header:first-child .btn { min-height: var(--ui-touch-target, 44px); }
+.field input, .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
+.tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
+.tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
+.tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tenant-detail-panel .tenant-detail-action-button { min-height: var(--ui-touch-target, 44px); height: auto; padding-inline: var(--ui-space-2, 8px); font-size: var(--ui-font-size-button, 14px); line-height: var(--ui-line-height-tight, 1.2); white-space: normal; }
+.room-finance-line { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto auto; grid-template-areas: "room property status rent unpaid expiry"; min-height: 64px; padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px); gap: var(--ui-space-3, 12px); }
+.room-finance-line > :nth-child(1) { grid-area: property; }
+.room-finance-line > :nth-child(2) { grid-area: room; }
+.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
+.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
+.room-finance-line > :nth-child(5) { grid-area: unpaid; justify-self: end; }
+.room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
+.room-finance-line .room-display-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text-primary, var(--text)); font-size: var(--ui-font-size-card-title, 16px); font-weight: var(--ui-font-weight-bold, 700); }
+.room-finance-line .room-property-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text-secondary, var(--muted)); font-size: var(--ui-font-size-secondary, 13px); }
+.room-finance-line > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .field input, .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
+  .modal-backdrop { align-items: flex-start; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .modal-card { width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
+  .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
+  .tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
+  .room-finance-line > :nth-child(5) { display: none; }
+  .room-finance-line > :nth-child(6) { display: block; grid-area: expiry; justify-self: start; }
+  .room-finance-line .room-display-name { font-size: var(--ui-font-size-card-title, 16px); }
+  .room-finance-line .room-property-name { font-size: var(--ui-font-size-secondary, 13px); }
+  .check-in-attachment-item { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .check-in-attachment-item > select, .check-in-attachment-item > button { grid-column: 2; width: 100%; max-width: none; }
 }

@@ -588,6 +588,13 @@
 - Added a conservative moved-out-tenant cleanup flow. Supabase files and metadata are handled together; Google Drive files are left for manual handling.
 - No database schema, Backup V1, Restore V4 or Production data was changed.
 
+## 2026-08-07 - UI Design System V1 workflow sample corrections (Preview)
+
+- Stabilized shared mobile form modals: the page is locked while open, the modal is the scroll container, and safe-area/dynamic viewport rules keep the header and close action reachable.
+- Standardized shared form-control sizing and added the existing tenant contact, source and contract-date fields to tenant editing.
+- Consolidated check-in attachments into one optional queue that reuses the existing income and tenant-contract upload services.
+- Aligned tenant detail collapsible actions, mobile action grid, and room-card information layout without changing business logic or data structures.
+
 ## 2026-08-07 - Attachment taxonomy V1 (Preview)
 
 - Unified the user-facing attachment model into property, tenant, income, and expense attachments without migrating or deleting existing attachment rows or Storage objects.

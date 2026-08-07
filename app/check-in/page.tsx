@@ -53,6 +53,8 @@ function createInitialForm() {
   };
 }
 
+type CheckInAttachment = { file: File; target: "payment" | "contract" };
+
 export default function CheckInPage() {
   const router = useRouter();
   const access = useAccountAccess();
@@ -63,8 +65,7 @@ export default function CheckInPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [saving, setSaving] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
+  const [checkInAttachments, setCheckInAttachments] = useState<CheckInAttachment[]>([]);
   const [preparingAttachment, setPreparingAttachment] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
@@ -234,8 +235,10 @@ export default function CheckInPage() {
 
       let attachmentFailed = false;
       try {
-        if (attachment) await uploadContractFile(tenantId, contractId, attachment);
-        if (paymentAttachment) await uploadRentPaymentFile(paymentId, paymentAttachment);
+        for (const item of checkInAttachments) {
+          if (item.target === "contract") await uploadContractFile(tenantId, contractId, item.file);
+          else await uploadRentPaymentFile(paymentId, item.file);
+        }
       } catch {
         attachmentFailed = true;
       }
@@ -243,8 +246,7 @@ export default function CheckInPage() {
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts.filter((contract) => contract.id !== contractId)]);
       setPayments([nextPayment, ...payments.filter((payment) => payment.id !== paymentId)]);
-      setAttachment(null);
-      setPaymentAttachment(null);
+      setCheckInAttachments([]);
       setAdvancedOpen(false);
       setAttachmentsOpen(false);
       setForm(createInitialForm());
@@ -257,29 +259,27 @@ export default function CheckInPage() {
     }
   }
 
-  async function chooseFile(file?: File) {
-    if (!file) return;
+  async function chooseAttachments(selection: FileList | null) {
+    if (!selection) return;
     setPreparingAttachment(true);
     try {
-      const prepared = await prepareAttachmentFile(file);
-      setAttachment(prepared.file);
-      if (prepared.notice) window.alert(prepared.notice);
+      const accepted: CheckInAttachment[] = [];
+      const notices: string[] = [];
+      const rejected: string[] = [];
+      for (const file of Array.from(selection)) {
+        try {
+          const prepared = await prepareAttachmentFile(file);
+          accepted.push({ file: prepared.file, target: "payment" });
+          if (prepared.notice) notices.push(prepared.notice);
+        } catch (error: any) {
+          rejected.push(`${file.name}：${error?.message || "无法处理该文件"}`);
+        }
+      }
+      setCheckInAttachments((current) => [...current, ...accepted]);
+      if (notices.length) window.alert(notices.join("\n"));
+      if (rejected.length) window.alert(`以下文件未加入上传队列：\n${rejected.join("\n")}`);
     } catch (error: any) {
-      window.alert(error?.message || "无法处理合同附件。");
-    } finally {
-      setPreparingAttachment(false);
-    }
-  }
-
-  async function choosePaymentFile(file?: File) {
-    if (!file) return;
-    setPreparingAttachment(true);
-    try {
-      const prepared = await prepareAttachmentFile(file);
-      setPaymentAttachment(prepared.file);
-      if (prepared.notice) window.alert(prepared.notice);
-    } catch (error: any) {
-      window.alert(error?.message || "无法处理收款附件。");
+      window.alert(error?.message || "无法处理附件。");
     } finally {
       setPreparingAttachment(false);
     }
@@ -328,23 +328,29 @@ export default function CheckInPage() {
           </div>
           {access.can("attachments", "create") && access.canSensitive("canUploadFiles") ? <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
             <button className="btn soft attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)}>
-              <span><FileUp size={16} /> 附件管理</span>
+              <span><FileUp size={16} /> 附件（可选）</span>
               <span className="muted">{attachmentsOpen ? "收起" : "展开"}</span>
             </button>
             {attachmentsOpen ? (
               <div className="attachment-sections">
-                <div className="attachment-subsection">
-                  <label>收款附件 PDF/JPG/PNG/HEIC/HEIF</label>
-                  <input accept={ATTACHMENT_FILE_ACCEPT} type="file" onChange={(event) => { void choosePaymentFile(event.target.files?.[0]); }} />
-                  {paymentAttachment ? <div className="attachment-preview"><FileUp size={16} /><span>{paymentAttachment.name} · {formatFileSize(paymentAttachment.size)}</span><button className="btn danger" type="button" onClick={() => setPaymentAttachment(null)}>移除</button></div> : <p className="muted">可上传付款截图或收款凭证，附件会绑定到本次收款记录。</p>}
-                </div>
-                <div className="attachment-subsection">
-                  <label>合同附件 PDF/JPG/PNG/HEIC/HEIF</label>
-                  <input accept={ATTACHMENT_FILE_ACCEPT} type="file" onChange={(event) => { void chooseFile(event.target.files?.[0]); }} />
-                  {attachment ? <div className="attachment-preview"><FileUp size={16} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span><button className="btn danger" type="button" onClick={() => setAttachment(null)}>移除</button></div> : <p className="muted">手机浏览器可选择拍照、相册或文件上传；新附件会保存到 Google Drive。</p>}
+                <div className="attachment-subsection check-in-attachments">
+                  <label>附件（可选）</label>
+                  <input accept={ATTACHMENT_FILE_ACCEPT} multiple type="file" onChange={(event) => { void chooseAttachments(event.target.files); event.currentTarget.value = ""; }} />
+                  <p className="muted">可一次选择多个文件；每个文件可指定保存到本次收款或租客合同。</p>
+                  {checkInAttachments.map((item, index) => (
+                    <div className="attachment-preview check-in-attachment-item" key={`${item.file.name}-${item.file.size}-${index}`}>
+                      <FileUp size={16} />
+                      <span>{item.file.name} · {formatFileSize(item.file.size)}</span>
+                      <select aria-label={`${item.file.name} 保存位置`} value={item.target} onChange={(event) => setCheckInAttachments((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, target: event.target.value as CheckInAttachment["target"] } : entry))}>
+                        <option value="payment">收入附件</option>
+                        <option value="contract">租客附件</option>
+                      </select>
+                      <button className="btn danger" type="button" onClick={() => setCheckInAttachments((current) => current.filter((_, entryIndex) => entryIndex !== index))}>移除</button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ) : <p className="muted">合同和收款凭证默认隐藏，需要时再展开上传。</p>}
+            ) : <p className="muted">附件默认隐藏，需要时展开后一次选择并分类保存。</p>}
           </div> : null}
           {access.can("check_in", "create") ? <div className="modal-actions">
             {completionMessage ? <p className="form-status success" role="status">{completionMessage}</p> : null}
