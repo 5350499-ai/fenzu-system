@@ -380,6 +380,94 @@ a {
   color: var(--red);
 }
 
+/*
+ * UI DESIGN SYSTEM V1 — foundational tokens only.
+ *
+ * These tokens are intentionally additive. Existing legacy selectors keep
+ * their current values until a page is migrated deliberately.
+ */
+:root {
+  --ui-font-family-system: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --ui-font-size-display: 34px;
+  --ui-font-size-page-title: 24px;
+  --ui-font-size-section-title: 18px;
+  --ui-font-size-card-title: 16px;
+  --ui-font-size-body: 14px;
+  --ui-font-size-secondary: 13px;
+  --ui-font-size-caption: 12px;
+  --ui-font-size-button: 14px;
+  --ui-font-size-navigation: 13px;
+  --ui-font-size-amount: 20px;
+  --ui-font-size-amount-large: 28px;
+  --ui-font-weight-regular: 400;
+  --ui-font-weight-medium: 500;
+  --ui-font-weight-semibold: 600;
+  --ui-font-weight-bold: 700;
+  --ui-font-weight-extrabold: 800;
+  --ui-line-height-tight: 1.2;
+  --ui-line-height-normal: 1.45;
+  --ui-line-height-relaxed: 1.55;
+
+  --ui-color-bg: #f6f7f9;
+  --ui-color-surface: #ffffff;
+  --ui-color-surface-soft: #f9fafb;
+  --ui-color-surface-hover: #f3f4f6;
+  --ui-color-border: #e5e7eb;
+  --ui-color-text-primary: #111827;
+  --ui-color-text-secondary: #4b5563;
+  --ui-color-text-muted: #6b7280;
+  --ui-color-primary: #111827;
+  --ui-color-primary-text: #ffffff;
+  --ui-color-info: #2563eb;
+  --ui-color-success: #16a34a;
+  --ui-color-warning: #f59e0b;
+  --ui-color-danger: #dc2626;
+  --ui-color-focus: #2563eb;
+  --ui-color-danger-bg: color-mix(in srgb, var(--ui-color-danger) 10%, var(--ui-color-surface));
+  --ui-color-success-bg: color-mix(in srgb, var(--ui-color-success) 10%, var(--ui-color-surface));
+  --ui-color-warning-bg: color-mix(in srgb, var(--ui-color-warning) 12%, var(--ui-color-surface));
+  --ui-color-info-bg: color-mix(in srgb, var(--ui-color-info) 10%, var(--ui-color-surface));
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-7: 32px;
+  --ui-radius-sm: 8px;
+  --ui-radius-md: 12px;
+  --ui-radius-lg: 16px;
+  --ui-radius-xl: 20px;
+  --ui-radius-pill: 999px;
+  --ui-touch-target: 44px;
+  --ui-form-control-height: 42px;
+  --ui-button-height: 42px;
+  --ui-button-padding-inline: 14px;
+  --ui-button-icon-size: 18px;
+  --ui-button-icon-gap: 8px;
+  --ui-card-padding: 20px;
+  --ui-card-padding-mobile: 14px;
+}
+
+[data-theme="dark"] {
+  --ui-color-bg: #0f172a;
+  --ui-color-surface: #111827;
+  --ui-color-surface-soft: #1f2937;
+  --ui-color-surface-hover: #273449;
+  --ui-color-border: #374151;
+  --ui-color-text-primary: #f9fafb;
+  --ui-color-text-secondary: #d1d5db;
+  --ui-color-text-muted: #9ca3af;
+  --ui-color-primary: #f9fafb;
+  --ui-color-primary-text: #111827;
+  --ui-color-info: #60a5fa;
+  --ui-color-success: #22c55e;
+  --ui-color-warning: #fbbf24;
+  --ui-color-danger: #f87171;
+  --ui-color-focus: #60a5fa;
+}
+
 .data-center-backup-status {
   min-height: 20px;
   margin: 0;
