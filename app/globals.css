@@ -8905,3 +8905,53 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   }
 
 }
+
+/* Global form focus policy: one dark control surface, one subtle border.
+   Safari/iOS otherwise combines the browser ring with the shared focus shadow. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: var(--ui-color-primary, var(--primary));
+}
+
+.combobox:focus-within,
+.search-box:focus-within {
+  outline: none;
+  box-shadow: none;
+  border-color: var(--ui-color-primary, var(--primary));
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.combobox:has(input:focus-visible),
+.search-box:has(input:focus-visible) {
+  border-color: var(--ui-color-primary, var(--primary));
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+.combobox input:-webkit-autofill,
+.combobox input:-webkit-autofill:hover,
+.combobox input:-webkit-autofill:focus,
+.search-box input:-webkit-autofill,
+.search-box input:-webkit-autofill:hover,
+.search-box input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ui-color-text-primary, var(--text));
+  caret-color: var(--ui-color-text-primary, var(--text));
+  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
+  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
+  border-color: var(--ui-color-border, var(--border));
+  background-color: var(--ui-color-surface, var(--surface));
+  background-image: none;
+  background-clip: padding-box;
+}

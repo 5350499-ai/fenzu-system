@@ -654,3 +654,6 @@
 
 - Paired check-in coverage start/end dates on the first row and moved the optional payment day to the next row without changing date behavior.
 - Compressed expense entry fields into three mobile two-column rows while keeping property and room selectors full width and preserving existing controls and validation.
+## 2026-08-07 - Global mobile form focus styling
+
+- Unified editable-control focus and Safari autofill styling so text, number, money, date, select, textarea, search, and combobox controls keep a single dark surface with a subtle primary border and no outer focus ring.
