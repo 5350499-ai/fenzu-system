@@ -2757,10 +2757,12 @@ td:last-child {
 .attachment-inventory-file-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .86rem; }
 .attachment-inventory-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-inventory-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; }
-.attachment-inline-action { border: 0; padding: 2px 0; background: transparent; color: var(--accent); font: inherit; font-weight: 750; cursor: pointer; }
-.attachment-inline-action.danger { color: var(--danger); }
+.attachment-inline-action { min-width: 44px; border: 0; padding: 2px 0; background: transparent; color: #f8fafc; font: inherit; font-weight: 750; text-align: center; cursor: pointer; }
+.attachment-inline-action:hover, .attachment-inline-action:active { color: #ffffff; }
+.attachment-inline-action.danger { color: #ff9aa8; }
+.attachment-inline-action.danger:hover, .attachment-inline-action.danger:active { color: #ffbac3; }
 .attachment-inventory-row input { flex: 0 0 auto; }
-.attachment-inventory-file-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+.attachment-inventory-file-row { display: grid; grid-template-columns: minmax(44px, auto) minmax(0, 1fr) minmax(44px, auto); align-items: center; gap: 12px; }
 .attachment-inventory-file { text-align: center; }
 .attachment-tenant-groups { display: grid; gap: 10px; margin-top: 14px; }
 .attachment-tenant-group { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
