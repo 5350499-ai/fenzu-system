@@ -2762,10 +2762,6 @@ td:last-child {
 .attachment-inventory-row input { flex: 0 0 auto; }
 .attachment-inventory-file-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
 .attachment-inventory-file { text-align: center; }
-.attachment-collapse-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
-.attachment-collapse-toggle span { display: inline-flex; align-items: center; gap: 8px; }
-.attachment-collapse-toggle strong { color: var(--accent); font-size: .86rem; }
-.attachment-subheading { margin: 16px 0 0; font-size: 1rem; }
 .attachment-tenant-groups { display: grid; gap: 10px; margin-top: 14px; }
 .attachment-tenant-group { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
 .attachment-tenant-group .attachment-management-list { margin-top: 10px; }
@@ -2786,8 +2782,8 @@ td:last-child {
 .attachment-stat-button span { color: var(--muted); font-size: .82rem; }
 .attachment-stat-button strong { overflow-wrap: anywhere; font-size: .95rem; }
 .attachment-select-all { display: flex; align-items: center; gap: 8px; min-height: 42px; color: var(--muted); cursor: pointer; }
-.attachment-inventory-row, .attachment-tenant-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
-.attachment-inventory-row input, .attachment-tenant-row input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+.attachment-inventory-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.attachment-inventory-row input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
 .attachment-selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); font-weight: 700; }
 .attachment-cleanup-confirm { border-color: var(--danger); }
 @media (max-width: 640px) {
