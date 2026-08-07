@@ -4,6 +4,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { AccountApiError } from "@/lib/server/account-auth";
 
 export const attachmentStorageConfigs = {
+  "property-files": { table: "property_files", parentTable: "properties", ownerColumn: "property_id" },
   "contract-files": { table: "contract_files", parentTable: "contracts", ownerColumn: "contract_id", tenantColumn: "tenant_id" },
   "rent-payment-files": { table: "rent_payment_files", parentTable: "rent_payments", ownerColumn: "rent_payment_id" },
   "expense-files": { table: "expense_files", parentTable: "expenses", ownerColumn: "expense_id" }

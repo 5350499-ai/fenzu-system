@@ -507,7 +507,7 @@ export default function TenantsPage() {
       window.alert("请输入有效的实际退租日期。");
       return;
     }
-    if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和合同附件，并把房间设为空置、合同设为已结束。")) return;
+    if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和租客附件，并把房间设为空置、合同设为已结束。")) return;
     const nextTenants = tenants.map((item) => (item.id === tenant.id ? {
       ...item,
       status: "已退租",
@@ -648,7 +648,7 @@ export default function TenantsPage() {
   }
 
   async function archiveTenant(tenant: BusinessTenant) {
-    if (!window.confirm("确认归档该租客吗？\n归档后默认隐藏，历史收租、押金、利润和合同附件都会保留。")) return;
+    if (!window.confirm("确认归档该租客吗？\n归档后默认隐藏，历史收租、押金、利润和租客附件都会保留。")) return;
     await persistAll({
       tenants: tenants.map((item) => (item.id === tenant.id ? { ...item, status: "已归档" } : item))
     });
@@ -667,7 +667,7 @@ export default function TenantsPage() {
   async function permanentlyDeleteTenant(tenant: BusinessTenant) {
     if (!access.can("tenants", "delete")) return;
     const confirmText = window.prompt(
-      "⚠️ 此操作不可恢复\n\n将删除：\n- 租客资料\n- 收租记录\n- 押金记录\n- 合同记录\n- 合同附件\n- 收款附件\n\n请输入 DELETE 确认永久删除。"
+      "⚠️ 此操作不可恢复\n\n将删除：\n- 租客资料\n- 收租记录\n- 押金记录\n- 合同记录\n- 租客附件\n- 收入附件\n\n请输入 DELETE 确认永久删除。"
     );
     if (confirmText !== "DELETE") return;
     setSaving(true);
@@ -736,25 +736,25 @@ export default function TenantsPage() {
   }
 
   async function removeContractFile(file: ContractFile) {
-    if (!window.confirm("确定要删除这个合同附件吗？")) return;
+    if (!window.confirm("确定要删除这个租客附件吗？")) return;
     setSaving(true);
     try {
       await deleteContractFile(file);
       setContractFiles((current) => current.filter((item) => item.id !== file.id));
     } catch (error: any) {
-      window.alert(error.message || "删除合同附件失败，请稍后重试。");
+      window.alert(error.message || "删除租客附件失败，请稍后重试。");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <AppLayout title="租客管理" description="默认显示核心信息，点击租客后直接查看和管理合同附件。">
+    <AppLayout title="租客管理" description="默认显示核心信息，点击租客后直接查看和管理租客附件。">
       <section className="card panel">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">租客列表</h2>
-            <p className="muted">默认只显示一行核心信息，点击后展开详情和合同附件。</p>
+            <p className="muted">默认只显示一行核心信息，点击后展开详情和租客附件。</p>
           </div>
           <div className="top-actions">
             <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
@@ -772,7 +772,7 @@ export default function TenantsPage() {
               autoComplete="off"
               onChange={(event) => updateTenantSearch(event.target.value)}
               onFocus={() => setSearchOpen(true)}
-              placeholder="搜索姓名、电话、微信、房源、房间、合同附件"
+              placeholder="搜索姓名、电话、微信、房源、房间、租客附件"
               value={query}
             />
             {query ? (
@@ -977,7 +977,7 @@ export default function TenantsPage() {
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
               </div>
-              <p className="muted" style={{ gridColumn: "1 / -1" }}>请先保存租客和合同字段；保存后在租客详情中可逐个添加合同附件。收款附件请在对应收款记录详情中添加。</p>
+              <p className="muted" style={{ gridColumn: "1 / -1" }}>请先保存租客和合同字段；保存后在租客详情中可逐个添加租客附件。收入附件请在对应收款记录详情中添加。</p>
               <div className="modal-actions">
                 <button className="btn" onClick={close} type="button">取消</button>
                 <button className="btn primary" disabled={saving} type="submit">保存</button>

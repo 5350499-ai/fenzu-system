@@ -19,7 +19,7 @@ function StatButton({ label, value, active, onClick }: { label: string; value: s
 }
 
 type LoadState = "loading" | "ready" | "error";
-type InventoryFilter = "all" | "contract_files" | "rent_payment_files" | "expense_files";
+type InventoryFilter = "all" | "property" | "tenant" | "income" | "expense";
 type ConfirmKind = "attachments" | "tenants" | null;
 
 export default function AttachmentArchivePage() {
@@ -40,7 +40,7 @@ export default function AttachmentArchivePage() {
   const [cleanupMessage, setCleanupMessage] = useState("");
   const [cleanupReport, setCleanupReport] = useState<AttachmentCleanupReport | null>(null);
 
-  const visibleItems = useMemo(() => inventoryFilter ? inventory.filter((item) => inventoryFilter === "all" || item.sourceTable === inventoryFilter) : [], [inventory, inventoryFilter]);
+  const visibleItems = useMemo(() => inventoryFilter ? inventory.filter((item) => inventoryFilter === "all" || item.category === inventoryFilter) : [], [inventory, inventoryFilter]);
   const selectedItems = useMemo(() => visibleItems.filter((item) => selectedAttachmentIds.includes(item.id)), [selectedAttachmentIds, visibleItems]);
   const selectedTenants = useMemo(() => candidates.filter((item) => selectedTenantIds.includes(item.tenantId)), [candidates, selectedTenantIds]);
   const selectedTenantAttachmentCount = selectedTenants.reduce((total, item) => total + item.attachmentCount, 0);
@@ -170,10 +170,11 @@ export default function AttachmentArchivePage() {
       <section className="card panel">
         <div className="panel-header"><div><h2 className="panel-title">附件归档</h2><p className="muted">建议先将历史附件导出并保存到本地，再按需清理云端文件。</p></div><FileArchive size={22} /></div>
         <div className="attachment-stat-grid">
-          <StatButton label="云端附件" value={`${summary.supabase.totalCount} 个 · ${formatBytes(summary.supabase.totalBytes)}`} active={inventoryFilter === "all"} onClick={() => void loadInventory("all")} />
-          <StatButton label="合同附件" value={`${summary.supabase.byTable.contract_files.count} 个 · ${formatBytes(summary.supabase.byTable.contract_files.bytes)}`} active={inventoryFilter === "contract_files"} onClick={() => void loadInventory("contract_files")} />
-          <StatButton label="收款附件" value={`${summary.supabase.byTable.rent_payment_files.count} 个 · ${formatBytes(summary.supabase.byTable.rent_payment_files.bytes)}`} active={inventoryFilter === "rent_payment_files"} onClick={() => void loadInventory("rent_payment_files")} />
-          <StatButton label="支出附件" value={`${summary.supabase.byTable.expense_files.count} 个 · ${formatBytes(summary.supabase.byTable.expense_files.bytes)}`} active={inventoryFilter === "expense_files"} onClick={() => void loadInventory("expense_files")} />
+          <StatButton label="全部附件" value={`${summary.supabase.totalCount} 个 · ${formatBytes(summary.supabase.totalBytes)}`} active={inventoryFilter === "all"} onClick={() => void loadInventory("all")} />
+          <StatButton label="房源附件" value={`${summary.supabase.byTable.property_files.count} 个 · ${formatBytes(summary.supabase.byTable.property_files.bytes)}`} active={inventoryFilter === "property"} onClick={() => void loadInventory("property")} />
+          <StatButton label="租客附件" value={`${summary.supabase.byTable.contract_files.count} 个 · ${formatBytes(summary.supabase.byTable.contract_files.bytes)}`} active={inventoryFilter === "tenant"} onClick={() => void loadInventory("tenant")} />
+          <StatButton label="收入附件" value={`${summary.supabase.byTable.rent_payment_files.count} 个 · ${formatBytes(summary.supabase.byTable.rent_payment_files.bytes)}`} active={inventoryFilter === "income"} onClick={() => void loadInventory("income")} />
+          <StatButton label="支出附件" value={`${summary.supabase.byTable.expense_files.count} 个 · ${formatBytes(summary.supabase.byTable.expense_files.bytes)}`} active={inventoryFilter === "expense"} onClick={() => void loadInventory("expense")} />
         </div>
         <button className="btn primary" type="button" disabled={exportState === "exporting"} onClick={() => void exportAttachments()}><ArrowDownToLine size={17} /> {exportState === "exporting" ? "正在生成附件归档…" : "导出附件归档"}</button>
         {exportMessage ? <p className={exportState === "error" ? "error-text" : "success-text"}>{exportMessage}</p> : null}

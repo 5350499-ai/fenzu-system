@@ -4,6 +4,7 @@ import { restoreGoogleDriveFile, trashGoogleDriveFile } from "@/lib/server/googl
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
 const configs = {
+  "property-files": { table: "property_files" },
   "contract-files": { table: "contract_files" },
   "rent-payment-files": { table: "rent_payment_files" },
   "expense-files": { table: "expense_files" }

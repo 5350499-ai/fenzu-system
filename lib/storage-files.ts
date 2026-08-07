@@ -37,6 +37,14 @@ export const contractFileConfig: FileConfig = {
   missingMessage: "合同附件存储尚未初始化。请先执行 contract-files 迁移 SQL。"
 };
 
+export const propertyFileConfig: FileConfig = {
+  bucket: "property-files",
+  table: "property_files",
+  ownerColumn: "property_id",
+  ownerField: "propertyId",
+  missingMessage: "房源附件存储尚未初始化，请联系管理员。"
+};
+
 export const expenseFileConfig: FileConfig = {
   bucket: "expense-files",
   table: "expense_files",
@@ -154,6 +162,8 @@ export async function deleteStoredFile(file: StoredFile) {
       ? "expense_files"
       : file.storageBucket === "rent-payment-files"
         ? "rent_payment_files"
+      : file.storageBucket === "property-files"
+        ? "property_files"
         : "contract_files";
   const { error } = await supabase.from(table).delete().eq("id", file.id);
   if (error) throw new Error(error.message);
@@ -263,7 +273,7 @@ async function loadFileAccount(token: string): Promise<FileAccount> {
 }
 
 function viewPermissionFor(config: FileConfig) {
-  return config.bucket === "contract-files" ? "canViewContractFiles" : config.bucket === "expense-files" ? "canViewExpenseFiles" : "canViewRentFiles";
+  return config.bucket === "contract-files" ? "canViewContractFiles" : config.bucket === "expense-files" ? "canViewExpenseFiles" : config.bucket === "property-files" ? "canViewAttachments" : "canViewRentFiles";
 }
 
 function sanitizeFileName(name: string) {

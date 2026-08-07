@@ -5,6 +5,7 @@ import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
 
 const configs = {
+  "property-files": { table: "properties", sensitive: "can_upload_files" },
   "contract-files": { table: "contracts", sensitive: "can_upload_files" },
   "rent-payment-files": { table: "rent_payments", sensitive: "can_upload_files" },
   "expense-files": { table: "expenses", sensitive: "can_upload_files" }

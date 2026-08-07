@@ -3,6 +3,7 @@ import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, req
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
 const buckets = {
+  "property-files": { table: "property_files", view: "can_view_attachments" },
   "contract-files": { table: "contract_files", view: "can_view_contract_files" },
   "rent-payment-files": { table: "rent_payment_files", view: "can_view_rent_files" },
   "expense-files": { table: "expense_files", view: "can_view_expense_files" }

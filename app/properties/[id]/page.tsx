@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MoneyInput } from "@/components/money-input";
@@ -35,11 +36,12 @@ import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
-import { Archive, ChevronDown, Edit3, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Archive, ChevronDown, Download, Edit3, Eye, FileText, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { deletePropertyFile, downloadPropertyFile, formatFileSize as formatPropertyFileSize, loadPropertyFiles, openPropertyFile, PropertyFile, uploadPropertyFile } from "@/lib/property-files";
 import { useParams } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "profit" | "notes";
+type Tab = "overview" | "rooms" | "tenants" | "contracts" | "payments" | "deposits" | "expenses" | "profit" | "attachments" | "notes";
 type Editor = "room" | "tenant" | "contract" | "payment" | "deposit" | "expense" | null;
 
 const tabs: { id: Tab; label: string }[] = [
@@ -51,6 +53,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "deposits", label: "押金" },
   { id: "expenses", label: "支出" },
   { id: "profit", label: "利润" },
+  { id: "attachments", label: "附件" },
   { id: "notes", label: "备注" }
 ];
 const ScopedModuleContext = createContext<AccountModuleKey>("properties");
@@ -67,6 +70,9 @@ export default function PropertyDetailPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
+  const [propertyFiles, setPropertyFiles] = useState<PropertyFile[]>([]);
+  const [propertyFilesLoading, setPropertyFilesLoading] = useState(false);
+  const [propertyFilesError, setPropertyFilesError] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
   const [editor, setEditor] = useState<Editor>(null);
   const [roomForm, setRoomForm] = useState<BusinessRoom>(emptyRoom(propertyId));
@@ -115,6 +121,13 @@ export default function PropertyDetailPage() {
     }
     load().catch(console.error);
   }, [access.ready]);
+
+  useEffect(() => {
+    if (!access.ready || !propertyId || !access.can("attachments")) return;
+    setPropertyFilesLoading(true);
+    setPropertyFilesError("");
+    loadPropertyFiles([propertyId]).then(setPropertyFiles).catch((error) => setPropertyFilesError(error instanceof Error ? error.message : "房源附件加载失败，请稍后重试。")).finally(() => setPropertyFilesLoading(false));
+  }, [access.ready, access, propertyId]);
 
   const property = properties.find((item) => item.id === propertyId);
   const scopedRooms = rooms.filter((item) => item.propertyId === propertyId);
@@ -429,6 +442,24 @@ export default function PropertyDetailPage() {
             </ScopedReadOnlyTable>
           </div>
         </>
+      ) : null}
+
+      {tab === "attachments" ? (
+        <section className="card panel property-attachments-panel">
+          <div className="panel-header"><div><h2 className="panel-title">房源附件</h2><p className="muted">保存整套房源相关的合同、保险、证明和其它资料。</p></div><FileText size={22} /></div>
+          {access.can("attachments", "create") && access.canSensitive("canUploadFiles") ? <AttachmentAddControl label="房源附件" onAdd={async (file) => { const uploaded = await uploadPropertyFile(propertyId, file); setPropertyFiles((current) => [uploaded, ...current]); }} /> : null}
+          {propertyFilesLoading ? <p className="muted">正在加载房源附件…</p> : null}
+          {propertyFilesError ? <p className="error-text">{propertyFilesError}</p> : null}
+          {!propertyFilesLoading && !propertyFiles.length ? <p className="muted">暂无房源附件。</p> : null}
+          <div className="attachment-list">
+            {propertyFiles.map((file) => <div className="attachment-preview attachment-file-card" key={file.id}>
+              <FileText size={16} /><span>{file.fileName} · {file.fileSize ? formatPropertyFileSize(file.fileSize) : ""}</span>
+              <button className="btn" type="button" onClick={() => void openPropertyFile(file)}><Eye size={15} /> 查看</button>
+              {access.canSensitive("canDownloadFiles") ? <button className="btn" type="button" onClick={() => void downloadPropertyFile(file)}><Download size={15} /> 下载</button> : null}
+              {access.can("attachments", "delete") && access.canSensitive("canDeleteFiles") ? <button className="btn danger" type="button" onClick={() => { if (!window.confirm("确定要删除这个房源附件吗？")) return; void deletePropertyFile(file).then(() => setPropertyFiles((current) => current.filter((item) => item.id !== file.id))).catch((error) => window.alert(error instanceof Error ? error.message : "删除房源附件失败，请稍后重试。")); }}><Trash2 size={15} /> 删除</button> : null}
+            </div>)}
+          </div>
+        </section>
       ) : null}
 
       {tab === "notes" ? (

@@ -1,6 +1,7 @@
-export type MigrationRuleTable = "contract_files" | "rent_payment_files" | "expense_files";
+export type MigrationRuleTable = "property_files" | "contract_files" | "rent_payment_files" | "expense_files";
 
 export const migrationTableSelect: Record<MigrationRuleTable, string> = {
+  property_files: "id,user_id,file_name,file_type,file_size,storage_provider,provider_file_id,property_id",
   contract_files: "id,user_id,file_name,file_type,file_size,storage_provider,provider_file_id,contract_id",
   rent_payment_files: "id,user_id,file_name,file_type,file_size,storage_provider,provider_file_id,rent_payment_id",
   expense_files: "id,user_id,file_name,file_type,file_size,storage_provider,provider_file_id,expense_id"

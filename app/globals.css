@@ -2754,7 +2754,7 @@ td:last-child {
 .attachment-management-row-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; }
 .attachment-management-skipped { margin-top: 14px; }
 .attachment-management-skipped summary { cursor: pointer; color: var(--muted); }
-.attachment-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.attachment-stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .attachment-stat-button { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); color: var(--text); text-align: left; cursor: pointer; }
 .attachment-stat-button:hover, .attachment-stat-button.active { border-color: var(--accent); background: var(--surface); }
 .attachment-stat-button span { color: var(--muted); font-size: .82rem; }

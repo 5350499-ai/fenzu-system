@@ -5,6 +5,7 @@ import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin"
 import { isAllowedAttachmentType, MAX_ATTACHMENT_FILE_SIZE, MAX_ATTACHMENT_FILE_SIZE_LABEL } from "@/lib/attachment-file-limits";
 
 const configs = {
+  "property-files": { table: "property_files", parentTable: "properties", ownerColumn: "property_id" },
   "contract-files": { table: "contract_files", parentTable: "contracts", ownerColumn: "contract_id" },
   "rent-payment-files": { table: "rent_payment_files", parentTable: "rent_payments", ownerColumn: "rent_payment_id" },
   "expense-files": { table: "expense_files", parentTable: "expenses", ownerColumn: "expense_id" }

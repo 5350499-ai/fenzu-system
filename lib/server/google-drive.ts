@@ -7,7 +7,7 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 const ROOT_FOLDER_NAME = "分租管理";
 
-export type DriveAttachmentKind = "contract-files" | "rent-payment-files" | "expense-files";
+export type DriveAttachmentKind = "property-files" | "contract-files" | "rent-payment-files" | "expense-files";
 
 export type GoogleDriveFailureCategory = "not_configured" | "refresh_token_missing" | "refresh_token_invalid" | "token_exchange_failed" | "drive_api_unauthorized" | "drive_api_forbidden" | "drive_api_not_found" | "drive_api_unavailable" | "network_error";
 
@@ -18,6 +18,7 @@ export class GoogleDriveAccessError extends AccountApiError {
 }
 
 const kindLabels: Record<DriveAttachmentKind, string> = {
+  "property-files": "房源附件",
   "contract-files": "合同附件",
   "rent-payment-files": "收款附件",
   "expense-files": "支出附件"

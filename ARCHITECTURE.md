@@ -331,6 +331,14 @@ Attachment handling is intentionally independent from Backup V1 and Restore V4. 
 - Cleanup is a separate, explicit action. It supports multi-select by concrete attachment and by moved-out tenant. Both paths use the same per-file deletion service: remove the Supabase Storage object before deleting its metadata, continue after individual failures, and report released/unreleased capacity.
 - Google Drive attachments are never deleted automatically by cleanup; they are reported for manual handling because provider deletion authority is not guaranteed.
 - Data Backup/Restore and attachment archive/cleanup are separate products. No Backup V1 or Restore V4 schema or flow is changed.
+
+## Attachment taxonomy V1 (2026-08-07)
+
+The user-facing attachment model is now four categories: property, tenant, income, and expense attachments. Existing `contract_files`, `rent_payment_files`, and `expense_files` rows and Storage objects remain in place. Historical contract attachments are shown from the tenant attachment entry when the real `tenant_id` or contract-to-tenant relationship exists; records without a reliable relationship remain untouched.
+
+Property-level files use the additive `property_files` table and private `property-files` bucket. This structure does not alter Backup V1 or Restore V4. The property detail page reuses the existing upload, view, download, and delete security path.
+
+Attachment archives remain independent from data Backup/Restore. The ZIP has human-readable four-category paths and retains `manifest.json` with stable attachment IDs, business relationships, provider information, checksums, and actual archive paths. Cleanup filters the same four categories; moved-out tenant cleanup only targets tenant attachments, and Google Drive originals are never automatically deleted.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

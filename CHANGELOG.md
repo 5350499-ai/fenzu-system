@@ -583,6 +583,13 @@
 - Added a conservative moved-out-tenant cleanup flow. Supabase files and metadata are handled together; Google Drive files are left for manual handling.
 - No database schema, Backup V1, Restore V4 or Production data was changed.
 
+## 2026-08-07 - Attachment taxonomy V1 (Preview)
+
+- Unified the user-facing attachment model into property, tenant, income, and expense attachments without migrating or deleting existing attachment rows or Storage objects.
+- Added the additive `property_files` / `property-files` structure and a property-detail attachment entry using the existing attachment security and upload flow.
+- Updated ZIP archive paths and manifest source mappings for all four categories; historical contract attachments remain available from the tenant attachment entry when the real relationship is present.
+- Updated the cleanup center category filters and limited moved-out tenant cleanup to tenant attachments. Backup V1 and Restore V4 remain unchanged.
+
 ## 2026-08-07 - Attachment archive directory and cleanup center
 
 - Tenant archive folders now use `YYYY.MM.DD-tenant name`, sourced from `tenants.move_in_date` with the related lease `contracts.start_date` fallback; unknown dates remain explicit.
