@@ -48,6 +48,7 @@ import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-s
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
+import { CompactDetailGroup } from "@/components/ui";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1182,7 +1183,8 @@ function TenantDetail({
   const latestReceived = latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0;
   return (
     <div className="record-detail-panel tenant-detail-panel">
-      <div className="detail-grid">
+      <CompactDetailGroup className="tenant-core-detail-group">
+        <div className="detail-grid">
         {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
         <DetailField label="房源/房间" value={`${propertyName} / ${roomName}`} />
         <div className="tenant-amount-grid">
@@ -1211,7 +1213,8 @@ function TenantDetail({
           <DetailField label="合同到期" value={contract?.endDate || "-"} />
           <DetailField label="来源" value={tenant.source || "-"} />
         </> : null}
-      </div>
+        </div>
+      </CompactDetailGroup>
 
       {depositStatus === "未建立押金管理记录" ? (
         <div className="deposit-status-detail">

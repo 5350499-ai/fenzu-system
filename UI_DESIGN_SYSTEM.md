@@ -232,3 +232,11 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 - Room cards use the same information grid at every breakpoint: room first, property second, status and amounts aligned, with secondary unpaid/expiry information retained without absolute positioning.
 - Modal overlays lock the page behind them. The modal surface owns vertical scrolling, uses dynamic viewport and safe-area insets, and keeps the header/close action reachable on mobile Safari.
 - This shared foundation is the effective baseline for new pages. Existing page-specific legacy rules remain only for compatibility and should not introduce new control dimensions.
+
+## 15. Compact density for display data
+
+- Interactive controls keep the 42px visual height and 44px mobile touch target. Display rows are not controls and must not inherit that height.
+- Use a compact detail group for related business data. A group owns one card, while its label/value rows use 8px vertical padding and separators instead of nested cards.
+- Use content-driven grids: short fields may share a row, long property names and notes use the full row, and narrow screens fall back to one column before text becomes unreadable.
+- List summaries should use one to three effective rows. Empty fields do not reserve a visual row.
+- Dates, amounts and status badges remain intact with tabular numerals/nowrap where appropriate; long descriptions wrap or ellipsize according to their importance. Never reduce normal text size or scale content to create density.

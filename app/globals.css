@@ -8337,3 +8337,251 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-template-columns: 1fr;
   }
 }
+
+/* UI Design System V1: Compact Density.
+   Display data is deliberately separate from interactive controls: only form
+   controls retain the 42px/44px touch measurements. Related detail rows live
+   in one compact group card instead of becoming a stack of mini cards. */
+.record-detail-panel:has(> .compact-detail-card) {
+  gap: var(--ui-space-3, 12px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.compact-detail-card {
+  display: grid;
+  gap: var(--ui-space-2, 8px);
+  min-width: 0;
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-lg, 16px);
+  background: var(--ui-color-surface, var(--surface));
+  padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px);
+}
+
+.compact-detail-title {
+  margin: 0;
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-card-title, 16px);
+  font-weight: var(--ui-font-weight-bold, 700);
+  line-height: var(--ui-line-height-tight, 1.2);
+}
+
+.compact-detail-grid,
+.compact-detail-card .detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 0 var(--ui-space-3, 12px);
+  min-width: 0;
+}
+
+.compact-detail-row,
+.compact-detail-card .detail-field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--ui-space-2, 8px);
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-color-border, var(--border)) 72%, transparent);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--ui-space-2, 8px) 0;
+}
+
+.compact-detail-grid > :nth-last-child(-n + 2),
+.compact-detail-card .detail-grid > :nth-last-child(-n + 2) {
+  border-bottom-color: transparent;
+}
+
+.compact-detail-row > span,
+.compact-detail-card .detail-field > span {
+  flex: 0 0 auto;
+  min-width: 0;
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-medium, 500);
+  line-height: var(--ui-line-height-normal, 1.45);
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.compact-detail-row > strong,
+.compact-detail-card .detail-field > strong {
+  min-width: 0;
+  color: var(--ui-color-text-primary, var(--text));
+  font-size: var(--ui-font-size-body, 14px);
+  font-weight: var(--ui-font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--ui-line-height-normal, 1.45);
+  overflow-wrap: break-word;
+  text-align: right;
+}
+
+.compact-detail-row--wide,
+.compact-detail-card .tenant-note-field,
+.compact-detail-card .tenant-details-toggle-row {
+  grid-column: 1 / -1;
+}
+
+.compact-detail-row--wide {
+  align-items: flex-start;
+}
+
+.compact-detail-row--wide > strong {
+  flex: 1 1 auto;
+  white-space: normal;
+}
+
+.tenant-core-detail-group .tenant-amount-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 0 var(--ui-space-3, 12px);
+  min-width: 0;
+}
+
+.tenant-core-detail-group .tenant-amount-grid .detail-field {
+  min-width: 0;
+}
+
+.tenant-core-detail-group .tenant-note-field .detail-field {
+  align-items: flex-start;
+}
+
+.tenant-core-detail-group .tenant-note-field .detail-field strong {
+  white-space: normal;
+}
+
+.record-core-detail-group .detail-field:first-child,
+.room-core-detail-group .detail-field:first-child {
+  grid-column: 1 / -1;
+}
+
+.record-core-detail-group .detail-field:first-child > strong,
+.room-core-detail-group .detail-field:first-child > strong {
+  white-space: normal;
+}
+
+.record-core-detail-group .detail-field:last-child {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+}
+
+.record-core-detail-group .detail-field:last-child > strong {
+  white-space: normal;
+}
+
+.room-core-detail-group .detail-field:last-child {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+}
+
+.room-core-detail-group .detail-field:last-child > strong {
+  white-space: normal;
+}
+
+.room-detail-panel .room-current-tenants,
+.tenant-detail-panel .tenant-performance-section,
+.tenant-detail-panel .tenant-timeline-section,
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  padding-top: var(--ui-space-3, 12px);
+}
+
+.settlement-controls,
+.settlement-history-panel {
+  gap: var(--ui-space-3, 12px);
+}
+
+.settlement-controls .panel-header,
+.settlement-history-panel .panel-header {
+  margin-bottom: var(--ui-space-3, 12px);
+}
+
+.settlement-controls .filter-grid {
+  gap: var(--ui-space-3, 12px);
+}
+
+.compact-report-card {
+  gap: var(--ui-space-2, 8px);
+  padding: var(--ui-space-3, 12px);
+}
+
+.compact-report-metric {
+  min-height: 0;
+  padding: var(--ui-space-3, 12px);
+}
+
+.compact-report-metric strong {
+  margin-top: var(--ui-space-1, 4px);
+}
+
+@media (max-width: 640px) {
+  .record-detail-panel:has(> .compact-detail-card) {
+    gap: var(--ui-space-3, 12px);
+  }
+
+  .compact-detail-card {
+    padding: var(--ui-space-3, 12px);
+  }
+
+  .room-compact-list {
+    gap: var(--ui-space-2, 8px);
+  }
+
+  .room-finance-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "room status"
+      "property rent"
+      "unpaid expiry";
+    min-height: 0;
+    padding: var(--ui-space-3, 12px);
+    gap: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
+  }
+
+  .room-finance-line > :nth-child(5),
+  .room-finance-line > :nth-child(6) {
+    display: block;
+    justify-self: start;
+  }
+
+  .room-finance-line .room-display-name {
+    font-size: var(--ui-font-size-card-title, 16px);
+  }
+
+  .room-finance-line .room-property-name {
+    font-size: var(--ui-font-size-secondary, 13px);
+  }
+
+  .tenant-compact-list .tenant-finance-line,
+  .rent-finance-line,
+  .expense-finance-line {
+    min-height: 0;
+    padding-block: var(--ui-space-2, 8px);
+    font-size: var(--ui-font-size-secondary, 13px);
+  }
+}
+
+@media (max-width: 359px) {
+  .compact-detail-grid,
+  .compact-detail-card .detail-grid,
+  .tenant-core-detail-group .tenant-amount-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-detail-grid > *,
+  .compact-detail-card .detail-grid > *,
+  .tenant-core-detail-group .tenant-amount-grid > * {
+    border-bottom-color: color-mix(in srgb, var(--ui-color-border, var(--border)) 72%, transparent);
+  }
+
+  .compact-detail-grid > :last-child,
+  .compact-detail-card .detail-grid > :last-child,
+  .tenant-core-detail-group .tenant-amount-grid > :last-child {
+    border-bottom-color: transparent;
+  }
+}

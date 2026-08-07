@@ -602,6 +602,13 @@
 - Unified responsive filter layout and room-card information grid while retaining secondary room status information.
 - Kept the existing modal scroll-lock and dynamic viewport behavior intact; no business logic or data structures changed.
 
+## 2026-08-07 - UI Design System V1 compact density correction (Preview)
+
+- Added a shared compact-detail pattern that separates display rows from touch controls and replaces per-field bordered cards with grouped, content-driven detail panels.
+- Applied the pattern to tenant, rent-payment, expense and room expanded details; preserved every field, attachment panel and action path.
+- Reduced mobile room and settlement whitespace through shared spacing rules while keeping amounts, dates and status information visible.
+- No database, API, calculation, attachment, Backup V1 or Restore V4 behavior changed.
+
 ## 2026-08-07 - Attachment taxonomy V1 (Preview)
 
 - Unified the user-facing attachment model into property, tenant, income, and expense attachments without migrating or deleting existing attachment rows or Storage objects.

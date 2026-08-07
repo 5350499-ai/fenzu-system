@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/app-layout";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
+import { CompactDetailGroup } from "@/components/ui";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -362,7 +363,8 @@ function RoomDetail({
   const hasHistory = historicalTenants.length > 0 || payments.length > 0;
   return (
     <div className="record-detail-panel room-detail-panel">
-      <div className="detail-grid">
+      <CompactDetailGroup className="room-core-detail-group">
+        <div className="detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间名称" value={room.name || "-"} />
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
@@ -374,7 +376,8 @@ function RoomDetail({
         <DetailField label="合同到期日期" value={contractEndDate} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
-      </div>
+        </div>
+      </CompactDetailGroup>
       <div className="room-current-tenants">
         <div className="detail-section-title">当前在租租客（{currentTenants.length}人）</div>
         {currentTenants.map((tenant) => {

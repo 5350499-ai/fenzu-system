@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
+import { CompactDetailGroup } from "@/components/ui";
 import {
   BusinessProperty,
   BusinessDeposit,
@@ -859,7 +860,8 @@ function PaymentDetail({
 
   return (
     <div className="record-detail-panel">
-      <div className="detail-grid">
+      <CompactDetailGroup className="record-core-detail-group">
+        <div className="detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="租客" value={tenantName} />
@@ -875,7 +877,8 @@ function PaymentDetail({
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
         <DetailField label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
-      </div>
+        </div>
+      </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel rent-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
         <button className="attachment-toggle" type="button" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen((current) => !current)}>
           <span>收款附件（{files.length}个）</span>

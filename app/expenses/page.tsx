@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
+import { CompactDetailGroup } from "@/components/ui";
 import {
   BusinessExpense,
   BusinessProperty,
@@ -412,13 +413,15 @@ function ExpenseDetail({
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   return (
     <div className="record-detail-panel">
-      <div className="detail-grid">
+      <CompactDetailGroup className="record-core-detail-group">
+        <div className="detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
         <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
-      </div>
+        </div>
+      </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel expense-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
         <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>
           附件（{files.length}个） <span>{attachmentsOpen ? "收起 ▲" : "展开 ▼"}</span>

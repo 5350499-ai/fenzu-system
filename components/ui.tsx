@@ -35,6 +35,18 @@ export function DetailItem({ label, value, tone = "default", className }: { labe
   return <div className={cx("ui-detail-item", `ui-detail-item-${tone}`, className)}><span>{label}</span><strong>{value}</strong></div>;
 }
 
+export function CompactDetailGroup({ title, children, className }: { title?: ReactNode; children: ReactNode; className?: string }) {
+  return <section className={cx("compact-detail-card", className)}>{title ? <h3 className="compact-detail-title">{title}</h3> : null}{children}</section>;
+}
+
+export function CompactDetailGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx("compact-detail-grid", className)}>{children}</div>;
+}
+
+export function CompactDetailRow({ label, value, wide = false, className }: { label: ReactNode; value: ReactNode; wide?: boolean; className?: string }) {
+  return <div className={cx("compact-detail-row", wide && "compact-detail-row--wide", className)}><span>{label}</span><strong>{value}</strong></div>;
+}
+
 export function MoneyValue({ value, tone = "default", className }: { value: number; tone?: "default" | "income" | "expense" | "profit" | "loss"; className?: string }) {
   return <span className={cx("ui-money-value", `ui-money-value-${tone}`, className)}>{euro(value)}</span>;
 }
