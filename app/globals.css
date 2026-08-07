@@ -2753,12 +2753,17 @@ td:last-child {
 .attachment-management-row > div:first-child { display: grid; gap: 3px; }
 .attachment-inventory-content { min-width: 0; display: grid; gap: 5px; }
 .attachment-inventory-owner { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.attachment-inventory-meta { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .86rem; }
-.attachment-inventory-meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-inventory-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .86rem; }
+.attachment-inventory-file-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .86rem; }
+.attachment-inventory-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-inventory-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; }
 .attachment-inline-action { border: 0; padding: 2px 0; background: transparent; color: var(--accent); font: inherit; font-weight: 750; cursor: pointer; }
 .attachment-inline-action.danger { color: var(--danger); }
 .attachment-inventory-row input { flex: 0 0 auto; }
+.attachment-collapse-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border: 0; padding: 0; background: transparent; color: var(--text); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
+.attachment-collapse-toggle span { display: inline-flex; align-items: center; gap: 8px; }
+.attachment-collapse-toggle strong { color: var(--accent); font-size: .86rem; }
+.attachment-subheading { margin: 16px 0 0; font-size: 1rem; }
 .attachment-management-row-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; }
 .attachment-management-skipped { margin-top: 14px; }
 .attachment-management-skipped summary { cursor: pointer; color: var(--muted); }

@@ -6,7 +6,7 @@ import type { AttachmentSummary } from "@/lib/server/attachment-management";
 import type { AttachmentCleanupCandidate, AttachmentCleanupReport, AttachmentInventoryItem } from "@/lib/server/attachment-cleanup";
 import { openStoredFile, type StoredFile } from "@/lib/storage-files";
 import { ArrowDownToLine, FileArchive, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function formatBytes(value: number) {
   if (!value) return "0 B";
@@ -40,13 +40,18 @@ export default function AttachmentArchivePage() {
   const [cleaning, setCleaning] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState("");
   const [cleanupReport, setCleanupReport] = useState<AttachmentCleanupReport | null>(null);
+  const [offboardingOpen, setOffboardingOpen] = useState(false);
+  const confirmRef = useRef<HTMLElement | null>(null);
 
   const visibleItems = useMemo(() => inventoryFilter ? inventory.filter((item) => inventoryFilter === "all" || item.category === inventoryFilter) : [], [inventory, inventoryFilter]);
   const selectedItems = useMemo(() => visibleItems.filter((item) => selectedAttachmentIds.includes(item.id)), [selectedAttachmentIds, visibleItems]);
+  const selectedAttachmentItems = useMemo(() => inventory.filter((item) => selectedAttachmentIds.includes(item.id)), [inventory, selectedAttachmentIds]);
   const selectedTenants = useMemo(() => candidates.filter((item) => selectedTenantIds.includes(item.tenantId)), [candidates, selectedTenantIds]);
   const selectedTenantAttachmentCount = selectedTenants.reduce((total, item) => total + item.attachmentCount, 0);
   const selectedTenantBytes = selectedTenants.reduce((total, item) => total + item.bytes, 0);
   const allVisibleSelected = visibleItems.length > 0 && visibleItems.every((item) => selectedAttachmentIds.includes(item.id));
+  const movedOutTenantIds = useMemo(() => new Set(candidates.map((item) => item.tenantId)), [candidates]);
+  const movedOutAttachmentItems = useMemo(() => inventory.filter((item) => item.category === "tenant" && item.tenantId && movedOutTenantIds.has(item.tenantId)), [inventory, movedOutTenantIds]);
 
   function storedFile(item: AttachmentInventoryItem): StoredFile {
     return { id: item.id, ownerId: "", tenantId: item.tenantId, storageBucket: item.storageBucket, storagePath: item.storagePath, fileUrl: null, fileName: item.fileName, fileType: item.fileType, fileSize: item.fileSize, uploadedAt: item.uploadedAt || "", storageProvider: item.provider === "google_drive" ? "google_drive" : "supabase", providerFileId: item.providerFileId };
@@ -97,9 +102,7 @@ export default function AttachmentArchivePage() {
     }
   }
 
-  async function loadInventory(nextFilter: InventoryFilter, force = false) {
-    setInventoryFilter(nextFilter);
-    setSelectedAttachmentIds([]);
+  async function loadInventoryData(force = false) {
     if (inventory.length && !force) return;
     setInventoryLoading(true);
     setCleanupMessage("");
@@ -113,6 +116,12 @@ export default function AttachmentArchivePage() {
     } finally {
       setInventoryLoading(false);
     }
+  }
+
+  async function loadInventory(nextFilter: InventoryFilter, force = false) {
+    setInventoryFilter(nextFilter);
+    setSelectedAttachmentIds([]);
+    await loadInventoryData(force);
   }
 
   async function exportAttachments() {
@@ -153,13 +162,38 @@ export default function AttachmentArchivePage() {
     setSelectedTenantIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
 
+  async function toggleOffboarding() {
+    const nextOpen = !offboardingOpen;
+    setOffboardingOpen(nextOpen);
+    if (nextOpen) await loadInventoryData();
+  }
+
+  function ownershipLines(item: AttachmentInventoryItem) {
+    const date = item.businessDate || item.uploadedAt || "日期未知";
+    const secondLine = [date, item.roomName, item.tenantName].filter(Boolean);
+    if (item.category === "property" || (!item.roomName && !item.tenantName)) secondLine.push(item.categoryLabel);
+    return { firstLine: item.propertyName || "未关联房源", secondLine: secondLine.join(" · ") };
+  }
+
+  function renderInventoryRow(item: AttachmentInventoryItem) {
+    const lines = ownershipLines(item);
+    return <div className="attachment-management-row attachment-inventory-row" key={item.id}>
+      <input type="checkbox" aria-label={`选择附件 ${item.fileName}`} checked={selectedAttachmentIds.includes(item.id)} onChange={() => toggleAttachment(item.id)} />
+      <div className="attachment-inventory-content">
+        <strong className="attachment-inventory-owner" title={lines.firstLine}>{lines.firstLine}</strong>
+        <span className="attachment-inventory-context" title={lines.secondLine}>{lines.secondLine}</span>
+        <div className="attachment-inventory-file-row"><span className="attachment-inventory-file" title={item.fileName}>{item.fileName}</span><span className="attachment-inventory-actions"><button className="attachment-inline-action" type="button" onClick={() => void viewAttachment(item)}>查看</button><button className="attachment-inline-action danger" type="button" onClick={() => { setSelectedAttachmentIds([item.id]); setSelectedTenantIds([]); setConfirmKind("single"); }}>删除</button></span></div>
+      </div>
+    </div>;
+  }
+
   async function runCleanup() {
-    if (cleaning || (!selectedItems.length && !selectedTenants.length)) return;
+    if (cleaning || (!selectedAttachmentItems.length && !selectedTenants.length)) return;
     setCleaning(true);
     setCleanupMessage("");
     setCleanupReport(null);
     try {
-      const body = selectedItems.length ? { attachmentIds: selectedItems.map((item) => item.id), confirmation: true } : { tenantIds: selectedTenants.map((item) => item.tenantId), confirmation: true };
+      const body = selectedAttachmentItems.length ? { attachmentIds: selectedAttachmentItems.map((item) => item.id), confirmation: true } : { tenantIds: selectedTenants.map((item) => item.tenantId), confirmation: true };
       const response = await fetch("/api/admin/attachments/cleanup", { method: "POST", headers: { ...(await authHeaders()), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "云端附件清理失败。");
@@ -176,6 +210,10 @@ export default function AttachmentArchivePage() {
   }
 
   useEffect(() => { void loadSummary(); void loadCandidates(); }, []);
+  useEffect(() => {
+    if (!confirmKind) return;
+    window.requestAnimationFrame(() => confirmRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [confirmKind]);
 
   return <AppLayout title="附件归档与清理" description="导出并保存历史附件，归档后可清理云端文件以释放空间。">
     {state === "loading" ? <section className="card panel"><p>正在加载附件统计…</p></section> : null}
@@ -200,35 +238,26 @@ export default function AttachmentArchivePage() {
         {!inventoryLoading && !visibleItems.length ? <p className="muted">当前没有附件。</p> : null}
         {visibleItems.length ? <>
           <label className="attachment-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /> 全选当前筛选结果</label>
-          <div className="attachment-management-list">{visibleItems.map((item) => {
-            const ownership = [item.propertyName, item.roomName, item.tenantName].filter(Boolean);
-            if (item.category === "property") ownership.push(item.categoryLabel);
-            if (item.category === "income" || item.category === "expense") ownership.push(item.categoryLabel);
-            const date = item.businessDate || item.uploadedAt || "日期未知";
-            return <div className="attachment-management-row attachment-inventory-row" key={item.id}>
-              <input type="checkbox" aria-label={`选择附件 ${item.fileName}`} checked={selectedAttachmentIds.includes(item.id)} onChange={() => toggleAttachment(item.id)} />
-              <div className="attachment-inventory-content">
-                <strong className="attachment-inventory-owner" title={ownership.join(" · ") || "未关联业务记录"}>{ownership.join(" · ") || "未关联业务记录"}</strong>
-                <div className="attachment-inventory-meta"><span>{date} · <span title={item.fileName}>{item.fileName}</span></span><span className="attachment-inventory-actions"><button className="attachment-inline-action" type="button" onClick={() => void viewAttachment(item)}>查看</button><button className="attachment-inline-action danger" type="button" onClick={() => { setSelectedAttachmentIds([item.id]); setSelectedTenantIds([]); setConfirmKind("single"); }}>删除</button></span></div>
-                <span className="sr-only">{item.fileType} · {formatBytes(item.fileSize)}</span>
-              </div>
-            </div>;
-          })}</div>
+          <div className="attachment-management-list">{visibleItems.map(renderInventoryRow)}</div>
           {selectedItems.length ? <div className="attachment-selection-bar">已选择 {selectedItems.length} 个附件 · {formatBytes(selectedItems.reduce((total, item) => total + item.fileSize, 0))}<button className="btn danger" type="button" onClick={() => setConfirmKind("attachments")}>删除所选云端附件</button></div> : null}
         </> : null}
       </section> : null}
 
       <section className="card panel">
-        <div className="panel-header"><div><h2 className="panel-title">已退租租客清理</h2><p className="muted">只显示已退租且仍有云端附件的租客。建议确认附件已保存到本地后再删除。</p></div><Trash2 size={22} /></div>
-        {candidateLoading ? <p className="muted">正在检查清理候选…</p> : null}
-        {!candidateLoading && !candidates.length ? <p className="muted">暂无可清理的已退租租客附件。</p> : null}
-        {candidates.length ? <div className="attachment-management-list">{candidates.map((item) => <label className="attachment-management-row attachment-tenant-row" key={item.tenantId}><input type="checkbox" checked={selectedTenantIds.includes(item.tenantId)} onChange={() => toggleTenant(item.tenantId)} /><div><strong>{item.tenantName}</strong><span className="muted">{item.propertyName} · {item.roomName}{item.actualMoveOutDate ? ` · 退租 ${item.actualMoveOutDate}` : ""}</span><span>{item.attachmentCount} 个附件 · {formatBytes(item.bytes)}{item.googleDriveCount ? ` · ${item.googleDriveCount} 个外部云端附件需人工处理` : ""}</span></div></label>)}</div> : null}
+        <button className="attachment-collapse-toggle" type="button" onClick={() => void toggleOffboarding} aria-expanded={offboardingOpen}><span><Trash2 size={18} />已退租租客清理</span><strong>{offboardingOpen ? "收起" : "展开"}</strong></button>
+        {offboardingOpen ? <>
+          <p className="muted">只显示已退租且仍有云端附件的租客。建议确认附件已保存到本地后再删除。</p>
+          {candidateLoading || inventoryLoading ? <p className="muted">正在检查清理候选…</p> : null}
+          {!candidateLoading && !candidates.length ? <p className="muted">暂无可清理的已退租租客附件。</p> : null}
+          {candidates.length ? <div className="attachment-management-list">{candidates.map((item) => <label className="attachment-management-row attachment-tenant-row" key={item.tenantId}><input type="checkbox" checked={selectedTenantIds.includes(item.tenantId)} onChange={() => toggleTenant(item.tenantId)} /><div><strong>{item.tenantName}</strong><span className="muted">{item.propertyName} · {item.roomName}{item.actualMoveOutDate ? ` · 退租 ${item.actualMoveOutDate}` : ""}</span><span>{item.attachmentCount} 个附件 · {formatBytes(item.bytes)}{item.googleDriveCount ? ` · ${item.googleDriveCount} 个外部云端附件需人工处理` : ""}</span></div></label>)}</div> : null}
+          {movedOutAttachmentItems.length ? <><h3 className="attachment-subheading">已退租租客附件</h3><div className="attachment-management-list">{movedOutAttachmentItems.map(renderInventoryRow)}</div></> : null}
+        </> : null}
         {selectedTenants.length ? <div className="attachment-selection-bar">已选择 {selectedTenants.length} 人 · {selectedTenantAttachmentCount} 个附件 · {formatBytes(selectedTenantBytes)}<button className="btn danger" type="button" onClick={() => setConfirmKind("tenants")}>删除所选租客云端附件</button></div> : null}
         {cleanupMessage ? <p className="error-text">{cleanupMessage}</p> : null}
         {cleanupReport ? <div className="attachment-management-row"><strong>清理完成</strong><span>计划删除：{cleanupReport.planned} 个 · 成功删除：{cleanupReport.deleted} 个 · 删除失败：{cleanupReport.failed} 个</span><span>释放空间：{formatBytes(cleanupReport.releasedBytes)} · 未释放：{formatBytes(cleanupReport.unreleasedBytes)}</span>{cleanupReport.skippedGoogleDrive ? <span className="muted">跳过外部云端附件 {cleanupReport.skippedGoogleDrive} 个，需要人工处理。</span> : null}{cleanupReport.errors.length ? <details><summary>查看失败原因（{cleanupReport.errors.length}）</summary><ul>{cleanupReport.errors.map((item) => <li key={`${item.attachmentId}-${item.fileName}`}>{item.fileName}：{item.reason}</li>)}</ul></details> : null}</div> : null}
       </section>
 
-      {confirmKind ? <section className="card panel attachment-cleanup-confirm"><p className="warning-text">{confirmKind === "single" ? "确定永久删除这个附件吗？" : `即将删除 ${confirmKind === "attachments" ? selectedItems.length : selectedTenantAttachmentCount} 个云端附件，共 ${formatBytes(confirmKind === "attachments" ? selectedItems.reduce((total, item) => total + item.fileSize, 0) : selectedTenantBytes)}。`}<br />删除后软件中将无法再查看，请确认已经完成本地归档。</p><div className="settings-actions"><button className="btn" type="button" onClick={() => setConfirmKind(null)} disabled={cleaning}>取消</button><button className="btn danger" type="button" onClick={() => void runCleanup()} disabled={cleaning}>{cleaning ? "正在清理…" : "确认删除"}</button></div></section> : null}
+      {confirmKind ? <section ref={confirmRef} className="card panel attachment-cleanup-confirm"><p className="warning-text">{confirmKind === "single" ? "确定永久删除这个附件吗？" : `即将删除 ${confirmKind === "attachments" ? selectedItems.length : selectedTenantAttachmentCount} 个云端附件，共 ${formatBytes(confirmKind === "attachments" ? selectedItems.reduce((total, item) => total + item.fileSize, 0) : selectedTenantBytes)}。`}<br />删除后软件中将无法再查看，请确认已经完成本地归档。</p><div className="settings-actions"><button className="btn" type="button" onClick={() => setConfirmKind(null)} disabled={cleaning}>取消</button><button className="btn danger" type="button" onClick={() => void runCleanup()} disabled={cleaning}>{cleaning ? "正在清理…" : "确认删除"}</button></div></section> : null}
     </> : null}
     <p className="muted attachment-management-reserved"><FileArchive size={16} />数据备份与附件归档彼此独立；本页面不提供附件重新导入。</p>
   </AppLayout>;
