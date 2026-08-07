@@ -622,3 +622,9 @@
 - Attachment statistics now open filtered, multi-select inventory lists for contracts, rent payments and expenses.
 - Moved-out tenants can be selected in bulk for cleanup; concrete attachment cleanup and tenant cleanup share one safe per-file deletion path.
 - No database schema, Backup V1, Restore V4 or Production data was changed.
+# 2026-08-07 - UI Design System V1 Compact Density Round 2 (Preview)
+
+- Reworked the shared compact detail rows used by tenant, rent payment, expense, and room details so display data stays label-and-value oriented without inheriting form-control height or per-field card borders.
+- Protected mobile transaction-row priorities: full `YYYY-MM-DD` dates, amounts, and status badges keep their width while middle descriptions may truncate.
+- Added scoped dark-theme login input, focus, and Safari WebKit autofill styling to prevent browser autofill color bleed.
+- No database, API, business-rule, Backup V1, Restore V4, Storage, Google Drive, or attachment workflow changes.

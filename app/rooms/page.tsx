@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/app-layout";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
-import { CompactDetailGroup } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -364,7 +364,7 @@ function RoomDetail({
   return (
     <div className="record-detail-panel room-detail-panel">
       <CompactDetailGroup className="room-core-detail-group">
-        <div className="detail-grid">
+        <CompactDetailGrid className="room-core-detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间名称" value={room.name || "-"} />
         <DetailField label="房间编号" value={room.roomNumber || "-"} />
@@ -376,7 +376,7 @@ function RoomDetail({
         <DetailField label="合同到期日期" value={contractEndDate} />
         <DetailField label="到期提醒" value={expiryLabel} />
         <DetailField label="备注" value={room.notes || "-"} />
-        </div>
+        </CompactDetailGrid>
       </CompactDetailGroup>
       <div className="room-current-tenants">
         <div className="detail-section-title">当前在租租客（{currentTenants.length}人）</div>
@@ -440,7 +440,7 @@ function RoomDetail({
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
-  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+  return <CompactDetailRow label={label} value={value} />;
 }
 
 function paymentDepositAmount(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {

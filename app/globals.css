@@ -5366,14 +5366,54 @@ td:last-child {
 
 .login-page {
   display: grid;
-  min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
-  padding: 20px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .login-card {
   width: min(440px, 100%);
-  padding: 26px;
+  display: grid;
+  gap: var(--ui-space-4, 16px);
+  padding: 24px;
+}
+
+.login-card .brand {
+  margin: 0;
+}
+
+.login-card form {
+  gap: var(--ui-space-3, 12px);
+}
+
+.login-card .field input {
+  border-color: var(--ui-color-border, var(--border));
+  background: var(--ui-color-surface, var(--surface));
+  color: var(--ui-color-text-primary, var(--text));
+  caret-color: var(--ui-color-text-primary, var(--text));
+}
+
+.login-card .field input::placeholder {
+  color: var(--ui-color-text-muted, var(--muted));
+  opacity: 1;
+}
+
+.login-card .field input:focus,
+.login-card .field input:focus-visible {
+  border-color: var(--ui-color-primary, var(--primary));
+  outline: 0;
+  box-shadow: var(--ui-focus);
+}
+
+.login-card .field input:-webkit-autofill,
+.login-card .field input:-webkit-autofill:hover,
+.login-card .field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ui-color-text-primary, var(--text));
+  caret-color: var(--ui-color-text-primary, var(--text));
+  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
+  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
+  border-color: var(--ui-color-border, var(--border));
+  background-clip: padding-box;
 }
 
 @media (max-width: 980px) {
@@ -7732,6 +7772,34 @@ input[type="radio"] {
     padding: 9px 10px;
   }
 
+  .rent-finance-line,
+  .expense-finance-line {
+    grid-template-columns: 78px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "date description amount status"
+      "partner partner partner status";
+    align-items: center;
+    gap: var(--ui-space-1, 4px) var(--ui-space-2, 8px);
+  }
+
+  .rent-finance-line > :nth-child(1),
+  .expense-finance-line > :nth-child(1) {
+    grid-area: date;
+    min-width: 78px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .rent-finance-line > :nth-child(2),
+  .expense-finance-line > :nth-child(2) { grid-area: partner; }
+  .rent-finance-line > :nth-child(3),
+  .expense-finance-line > :nth-child(3) { grid-area: description; }
+  .rent-finance-line > :nth-child(4),
+  .expense-finance-line > :nth-child(4) { grid-area: amount; min-width: max-content; white-space: nowrap; }
+  .rent-finance-line > :nth-child(5),
+  .expense-finance-line > :nth-child(5) { grid-area: status; min-width: max-content; white-space: nowrap; }
+
   .room-finance-line > :nth-child(1) { grid-area: property; align-self: stretch; display: flex; align-items: center; }
   .room-finance-line > :nth-child(2) { grid-area: room; }
   .room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
@@ -8371,8 +8439,8 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .compact-detail-grid,
 .compact-detail-card .detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 0 var(--ui-space-3, 12px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 164px), 1fr));
+  gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
   min-width: 0;
 }
 
@@ -8385,10 +8453,9 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   min-height: 0;
   gap: var(--ui-space-2, 8px);
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--ui-color-border, var(--border)) 72%, transparent);
   border-radius: 0;
   background: transparent;
-  padding: var(--ui-space-2, 8px) 0;
+  padding: var(--ui-space-1, 4px) 0;
 }
 
 .compact-detail-grid > :nth-last-child(-n + 2),
@@ -8416,8 +8483,11 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   font-weight: var(--ui-font-weight-semibold, 600);
   font-variant-numeric: tabular-nums;
   line-height: var(--ui-line-height-normal, 1.45);
-  overflow-wrap: break-word;
+  overflow: hidden;
+  overflow-wrap: normal;
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compact-detail-row--wide,
@@ -8432,6 +8502,36 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 
 .compact-detail-row--wide > strong {
   flex: 1 1 auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.tenant-core-detail-grid > :nth-child(1),
+.tenant-core-detail-grid > :nth-child(2),
+.payment-core-detail-grid > :nth-child(1),
+.payment-core-detail-grid > :nth-last-child(1),
+.expense-core-detail-grid > :nth-child(1),
+.expense-core-detail-grid > :nth-child(2),
+.expense-core-detail-grid > :nth-last-child(1),
+.room-core-detail-grid > :nth-child(1),
+.room-core-detail-grid > :nth-child(2),
+.room-core-detail-grid > :nth-last-child(1) {
+  grid-column: 1 / -1;
+}
+
+.tenant-core-detail-grid > :nth-child(1) > strong,
+.tenant-core-detail-grid > :nth-child(2) > strong,
+.payment-core-detail-grid > :nth-child(1) > strong,
+.payment-core-detail-grid > :nth-last-child(1) > strong,
+.expense-core-detail-grid > :nth-child(1) > strong,
+.expense-core-detail-grid > :nth-child(2) > strong,
+.expense-core-detail-grid > :nth-last-child(1) > strong,
+.room-core-detail-grid > :nth-child(1) > strong,
+.room-core-detail-grid > :nth-child(2) > strong,
+.room-core-detail-grid > :nth-last-child(1) > strong {
+  overflow: visible;
+  text-overflow: clip;
   white-space: normal;
 }
 
@@ -8443,43 +8543,17 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   min-width: 0;
 }
 
-.tenant-core-detail-group .tenant-amount-grid .detail-field {
+.tenant-core-detail-group .tenant-amount-grid .compact-detail-row {
   min-width: 0;
 }
 
-.tenant-core-detail-group .tenant-note-field .detail-field {
+.tenant-core-detail-group .tenant-note-field .compact-detail-row {
   align-items: flex-start;
 }
 
-.tenant-core-detail-group .tenant-note-field .detail-field strong {
-  white-space: normal;
-}
-
-.record-core-detail-group .detail-field:first-child,
-.room-core-detail-group .detail-field:first-child {
-  grid-column: 1 / -1;
-}
-
-.record-core-detail-group .detail-field:first-child > strong,
-.room-core-detail-group .detail-field:first-child > strong {
-  white-space: normal;
-}
-
-.record-core-detail-group .detail-field:last-child {
-  grid-column: 1 / -1;
-  align-items: flex-start;
-}
-
-.record-core-detail-group .detail-field:last-child > strong {
-  white-space: normal;
-}
-
-.room-core-detail-group .detail-field:last-child {
-  grid-column: 1 / -1;
-  align-items: flex-start;
-}
-
-.room-core-detail-group .detail-field:last-child > strong {
+.tenant-core-detail-group .tenant-note-field .compact-detail-row strong {
+  overflow: visible;
+  text-overflow: clip;
   white-space: normal;
 }
 
@@ -8573,15 +8647,4 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-template-columns: 1fr;
   }
 
-  .compact-detail-grid > *,
-  .compact-detail-card .detail-grid > *,
-  .tenant-core-detail-group .tenant-amount-grid > * {
-    border-bottom-color: color-mix(in srgb, var(--ui-color-border, var(--border)) 72%, transparent);
-  }
-
-  .compact-detail-grid > :last-child,
-  .compact-detail-card .detail-grid > :last-child,
-  .tenant-core-detail-group .tenant-amount-grid > :last-child {
-    border-bottom-color: transparent;
-  }
 }

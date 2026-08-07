@@ -9,7 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
-import { CompactDetailGroup } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
   BusinessExpense,
   BusinessProperty,
@@ -414,13 +414,13 @@ function ExpenseDetail({
   return (
     <div className="record-detail-panel">
       <CompactDetailGroup className="record-core-detail-group">
-        <div className="detail-grid">
+        <CompactDetailGrid className="expense-core-detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
         <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
-        </div>
+        </CompactDetailGrid>
       </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel expense-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
         <button className="attachment-toggle" type="button" onClick={() => setAttachmentsOpen((current) => !current)} aria-expanded={attachmentsOpen}>
@@ -441,7 +441,7 @@ function ExpenseDetail({
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
-  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+  return <CompactDetailRow label={label} value={value} />;
 }
 
 function ExpenseAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ExpenseFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ExpenseFile) => void; canDownload?: boolean; canDelete?: boolean }) {

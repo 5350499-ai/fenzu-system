@@ -9,7 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
-import { CompactDetailGroup } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
   BusinessProperty,
   BusinessDeposit,
@@ -861,7 +861,7 @@ function PaymentDetail({
   return (
     <div className="record-detail-panel">
       <CompactDetailGroup className="record-core-detail-group">
-        <div className="detail-grid">
+        <CompactDetailGrid className="payment-core-detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="租客" value={tenantName} />
@@ -877,7 +877,7 @@ function PaymentDetail({
         <DetailField label="付款方式" value={payment.paymentMethod || "-"} />
         <DetailField label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
         <DetailField label="备注" value={cleanVoidNote(payment.notes) || "-"} />
-        </div>
+        </CompactDetailGrid>
       </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel rent-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
         <button className="attachment-toggle" type="button" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen((current) => !current)}>
@@ -899,7 +899,7 @@ function PaymentDetail({
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
-  return <div className="detail-field"><span>{label}</span><strong>{value}</strong></div>;
+  return <CompactDetailRow label={label} value={value} />;
 }
 
 function paymentDepositAmount(payment: BusinessRentPayment, legacyLinkedDeposit?: number) {
