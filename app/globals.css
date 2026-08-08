@@ -8431,6 +8431,20 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .room-finance-line .room-coverage-summary.red { color: var(--ui-color-danger, var(--red)); }
 .room-finance-line .room-coverage-summary.amber { color: var(--ui-color-warning, var(--amber)); }
 .room-finance-line .room-coverage-summary.green { color: var(--ui-color-success, var(--green)); }
+.room-finance-line .room-monthly-rent {
+  min-width: max-content;
+  white-space: nowrap;
+}
+.room-finance-line > :nth-child(6) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-height: 26px;
+  line-height: 1.2;
+  padding-block: 0;
+  box-sizing: border-box;
+}
 
 .room-core-detail-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
