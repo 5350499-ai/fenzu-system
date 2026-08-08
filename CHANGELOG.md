@@ -1,5 +1,6 @@
 ## 2026-08-08 - Actual occupant count
 
+- Fixed the authorized tenant RPC return shape after adding `occupant_count`; the RPC now returns the complete `public.tenants` row and preserves the existing authorization and field masking rules.
 - Added `tenants.occupant_count` with `NOT NULL DEFAULT 1` and a `>= 1` check. Existing tenants remain 1 until a user explicitly edits the value; no historical tenant or financial record was changed.
 - Check-in, tenant create/edit, business mappings, CSV export, and old/new Backup V1 restore paths now preserve the value. Old backups without the field default it to 1.
 - Property, property-detail, room-detail, and analytics people counts sum active tenants' `occupant_count`; room occupancy rate and all rent, deposit, payment, contract, reminder, and profit calculations remain relationship/financial-record based.
