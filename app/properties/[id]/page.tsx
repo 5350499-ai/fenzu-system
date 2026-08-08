@@ -36,6 +36,7 @@ import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
+import { sumOccupants } from "@/lib/tenant-occupancy";
 import { Archive, ChevronDown, Download, Edit3, Eye, FileText, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { deletePropertyFile, downloadPropertyFile, formatFileSize as formatPropertyFileSize, loadPropertyFiles, openPropertyFile, PropertyFile, uploadPropertyFile } from "@/lib/property-files";
 import { useParams } from "next/navigation";
@@ -162,7 +163,7 @@ export default function PropertyDetailPage() {
   const scopedPayments = sortByRoomName(payments.filter((item) => item.propertyId === propertyId), scopedRooms);
   const scopedDeposits = sortByRoomName(deposits.filter((item) => item.propertyId === propertyId && !item.notes?.includes("[收租押金:")), scopedRooms);
   const scopedExpenses = sortByRoomName(expenses.filter((item) => item.propertyId === propertyId), scopedRooms);
-  const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
+  const currentTenantCount = sumOccupants(scopedTenants.filter((item) => item.status === "在租"));
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
   const calculatedMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth")) : null;
   const monthProfit = calculatedMonthProfit ? {
@@ -575,6 +576,10 @@ function PropertyEditor(props: any) {
 
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (props.editor === "tenant" && (!Number.isInteger(props.tenantForm.occupantCount) || props.tenantForm.occupantCount < 1)) {
+      window.alert("入住人数请输入1或更大的正整数。");
+      return;
+    }
     props.onSave();
   }
 
@@ -604,7 +609,7 @@ function RoomFields({ form, setForm }: { form: BusinessRoom; setForm: (updater: 
 }
 
 function TenantFields({ form, setForm, roomOptions }: any) {
-  return <><SearchableSelect label="房间" value={form.roomId} options={roomOptions} onChange={(roomId) => setForm((c: BusinessTenant) => ({ ...c, roomId }))} /><Text label="姓名" value={form.name} onChange={(name) => setForm((c: BusinessTenant) => ({ ...c, name }))} /><Text label="电话" value={form.phone} onChange={(phone) => setForm((c: BusinessTenant) => ({ ...c, phone }))} /><Text label="微信" value={form.wechat} onChange={(wechat) => setForm((c: BusinessTenant) => ({ ...c, wechat }))} /><SearchableSelect label="状态" value={form.status} options={["在租", "预定入住", "已退房"].map((v) => ({ value: v, label: v }))} onChange={(status) => setForm((c: BusinessTenant) => ({ ...c, status: status as BusinessTenant["status"] }))} /><NumberInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((c: BusinessTenant) => ({ ...c, monthlyRent }))} /><NumberInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((c: BusinessTenant) => ({ ...c, depositAmount }))} /><Note value={form.notes} onChange={(notes) => setForm((c: BusinessTenant) => ({ ...c, notes }))} /></>;
+  return <><SearchableSelect label="房间" value={form.roomId} options={roomOptions} onChange={(roomId) => setForm((c: BusinessTenant) => ({ ...c, roomId }))} /><Text label="姓名" value={form.name} onChange={(name) => setForm((c: BusinessTenant) => ({ ...c, name }))} /><Text label="电话" value={form.phone} onChange={(phone) => setForm((c: BusinessTenant) => ({ ...c, phone }))} /><Text label="微信" value={form.wechat} onChange={(wechat) => setForm((c: BusinessTenant) => ({ ...c, wechat }))} /><div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount} onChange={(event) => setForm((c: BusinessTenant) => ({ ...c, occupantCount: event.target.value === "" ? 1 : Number(event.target.value) }))} /></div><SearchableSelect label="状态" value={form.status} options={["在租", "预定入住", "已退房"].map((v) => ({ value: v, label: v }))} onChange={(status) => setForm((c: BusinessTenant) => ({ ...c, status: status as BusinessTenant["status"] }))} /><NumberInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((c: BusinessTenant) => ({ ...c, monthlyRent }))} /><NumberInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((c: BusinessTenant) => ({ ...c, depositAmount }))} /><Note value={form.notes} onChange={(notes) => setForm((c: BusinessTenant) => ({ ...c, notes }))} /></>;
 }
 
 function ContractFields({ form, setForm, roomOptions, tenantOptions }: any) {
@@ -734,7 +739,7 @@ function isActiveTenant(tenant: BusinessTenant) {
 }
 
 function emptyRoom(propertyId: string): BusinessRoom { return { id: "", propertyId, name: "", roomNumber: "", monthlyRent: 0, depositAmount: 0, status: "空置", notes: "" }; }
-function emptyTenant(propertyId: string): BusinessTenant { return { id: "", propertyId, roomId: "", name: "", phone: "", wechat: "", source: "其他", monthlyRent: 0, depositAmount: 0, status: "在租", notes: "" }; }
+function emptyTenant(propertyId: string): BusinessTenant { return { id: "", propertyId, roomId: "", name: "", phone: "", wechat: "", source: "其他", monthlyRent: 0, depositAmount: 0, occupantCount: 1, status: "在租", notes: "" }; }
 function emptyContract(propertyId: string): BusinessContract { return { id: "", propertyId, roomId: "", tenantId: "", startDate: "", endDate: "", monthlyRent: 0, depositAmount: 0, status: "有效", notes: "" }; }
 function emptyPayment(propertyId: string): BusinessRentPayment { return { id: "", propertyId, roomId: "", tenantId: "", incomeType: "房租收入", incomeItem: "", rentMonth: new Date().toISOString().slice(0, 7), amountDue: 0, amountPaid: 0, amountUnpaid: 0, paymentMethod: "转账", receivedBy: "", isOverdue: false, notes: "" }; }
 function emptyDeposit(propertyId: string): BusinessDeposit { return { id: "", propertyId, roomId: "", tenantId: "", type: "收取", amount: 0, status: "已收", transactionDate: "", receivedBy: "", paidBy: "", notes: "" }; }

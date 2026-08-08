@@ -31,6 +31,7 @@ import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
 import { isCoverageExpired, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { sumOccupants } from "@/lib/tenant-occupancy";
 import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -389,7 +390,7 @@ function RoomDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name || "-"}`} />
         <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
-        <DetailField label="当前在租租客" value={`${currentTenants.length}人`} />
+        <DetailField label="当前实际入住人数" value={`${sumOccupants(currentTenants)}人`} />
         <DetailField label="当前月租合计" value={euro(currentMonthlyRent)} />
         <DetailField label="当前押金合计" value={euro(currentDepositAmount)} />
         <DetailField className="room-coverage-field" label="租金已覆盖至" value={coverageEnd} wide />
@@ -399,7 +400,7 @@ function RoomDetail({
         </CompactDetailGrid>
       </CompactDetailGroup>
       <div className="room-current-tenants">
-        <div className="detail-section-title">当前在租租客（{currentTenants.length}人）</div>
+        <div className="detail-section-title">当前在租租客（{sumOccupants(currentTenants)}人）</div>
         {currentTenants.map((tenant) => {
           const payment = latestCoverageForTenant(tenant.id, allPayments);
           const currentRent = currentRentForTenant(tenant, allPayments);

@@ -46,6 +46,7 @@ function createInitialForm() {
     coverageStartDate: today,
     coverageEndDate: "",
     depositAmount: 0,
+    occupantCount: 1,
     paymentDay: 20 as number | undefined,
     depositStatus: "已收",
     paymentStatus: "已收",
@@ -137,6 +138,10 @@ export default function CheckInPage() {
       window.alert("每月缴费日请输入1到31，或留空表示不设置。");
       return;
     }
+    if (!Number.isInteger(form.occupantCount) || form.occupantCount < 1) {
+      window.alert("入住人数请输入1或更大的正整数。");
+      return;
+    }
     submitLockRef.current = true;
     setSaving(true);
     try {
@@ -157,6 +162,7 @@ export default function CheckInPage() {
           documentNumber: form.documentNumber,
           rentAmount: form.amountPaid,
           depositAmount: form.depositAmount,
+          occupantCount: form.occupantCount,
           paymentDay: form.paymentDay ?? 20,
           paymentDate: form.paymentDate,
           coverageStartDate: form.coverageStartDate,
@@ -192,6 +198,7 @@ export default function CheckInPage() {
         source: "其他",
         monthlyRent: effectiveMonthlyRent,
         depositAmount: form.depositAmount,
+        occupantCount: form.occupantCount,
         paymentDay: form.paymentDay,
         status: "在租",
         notes: [form.documentNumber ? `证件号：${form.documentNumber}` : "", form.notes].filter(Boolean).join("\n")
@@ -302,6 +309,7 @@ export default function CheckInPage() {
           <SearchableSelect className="check-in-wide" label="房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId, roomId: "" }))} />
           <SearchableSelect className="check-in-wide" label="房间" value={form.roomId} disabled={!form.propertyId} openOnTouchWithoutKeyboard options={availableRooms.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
+          <div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount} onChange={(event) => setForm((current) => ({ ...current, occupantCount: event.target.value === "" ? 1 : Number(event.target.value) }))} /></div>
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
           <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
           <MoneyInput label="本次房租金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />

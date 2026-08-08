@@ -66,6 +66,7 @@ const emptyTenant: BusinessTenant = {
   source: "其他",
   monthlyRent: 0,
   depositAmount: 0,
+  occupantCount: 1,
   paymentDay: 20,
   status: "在租",
   notes: ""
@@ -398,6 +399,10 @@ export default function TenantsPage() {
     }
     if (!form.id && !ownershipMode) {
       window.alert("请先选择收款归属。");
+      return;
+    }
+    if (!Number.isInteger(form.occupantCount) || form.occupantCount < 1) {
+      window.alert("入住人数请输入1或更大的正整数。");
       return;
     }
     try {
@@ -991,6 +996,7 @@ export default function TenantsPage() {
               <TextField className="tenant-form-wide" label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
               <MoneyInput label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
               <MoneyInput label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+              <div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount} onChange={(event) => setForm((current) => ({ ...current, occupantCount: event.target.value === "" ? 1 : Number(event.target.value) }))} /></div>
               {!form.id ? <>
                 <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />
                 <MoneyInput label="本次新增押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />

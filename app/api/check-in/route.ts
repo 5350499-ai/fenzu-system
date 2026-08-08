@@ -18,6 +18,7 @@ type CheckInBody = {
   documentNumber?: string;
   rentAmount?: number;
   depositAmount?: number;
+  occupantCount?: number;
   paymentDay?: number;
   paymentDate?: string;
   coverageStartDate?: string;
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     const body = await parseJson(request) as CheckInBody;
     const rentAmount = Number(body.rentAmount ?? 0);
     const depositAmount = Number(body.depositAmount ?? 0);
+    const occupantCount = Number(body.occupantCount ?? 1);
     const paymentDay = Number(body.paymentDay ?? 20);
     const receivedBy = String(body.receivedBy || "").trim();
 
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
       || body.coverageEndDate! < body.coverageStartDate!
       || !Number.isFinite(rentAmount) || rentAmount < 0
       || !Number.isFinite(depositAmount) || depositAmount < 0
+      || !Number.isInteger(occupantCount) || occupantCount < 1
       || !Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31) {
       throw new AccountApiError("请检查入住资料。", 400);
     }
@@ -91,6 +94,7 @@ export async function POST(request: Request) {
       p_monthly_rent: rentAmount,
       p_rent_amount: rentAmount,
       p_deposit_amount: depositAmount,
+      p_occupant_count: occupantCount,
       p_payment_day: paymentDay,
       p_payment_date: body.paymentDate,
       p_coverage_start_date: body.coverageStartDate,

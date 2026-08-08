@@ -1,3 +1,10 @@
+## 2026-08-08 - Actual occupant count
+
+- Added `tenants.occupant_count` with `NOT NULL DEFAULT 1` and a `>= 1` check. Existing tenants remain 1 until a user explicitly edits the value; no historical tenant or financial record was changed.
+- Check-in, tenant create/edit, business mappings, CSV export, and old/new Backup V1 restore paths now preserve the value. Old backups without the field default it to 1.
+- Property, property-detail, room-detail, and analytics people counts sum active tenants' `occupant_count`; room occupancy rate and all rent, deposit, payment, contract, reminder, and profit calculations remain relationship/financial-record based.
+- Preview only; Production was not deployed.
+
 ## 2026-08-02 - Tenant-level attachments without contracts
 
 - Tenant attachments can now be uploaded, listed, viewed, downloaded, and deleted when a tenant has no contract; `tenant_id` is required and `contract_id` is optional.

@@ -95,6 +95,7 @@ function monthDate(value: unknown) {
   return /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw;
 }
 function numberValue(value: unknown, fallback = 0) { return typeof value === "number" && Number.isFinite(value) ? value : Number(value || fallback); }
+function positiveInteger(value: unknown, fallback = 1) { const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback; }
 function booleanValue(value: unknown, fallback = false) { return typeof value === "boolean" ? value : fallback; }
 function iso(value: unknown) { return text(value) || new Date().toISOString(); }
 
@@ -237,7 +238,7 @@ function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId
     id: text(row.id), user_id: workspaceOwnerId, property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId), name: text(row.name),
     phone: nullableText(row.phone), email: nullableText(row.email), wechat: nullableText(row.wechat), whatsapp: nullableText(row.whatsapp), passport_number: nullableText(row.passport_number ?? row.passportNumber), nie_number: nullableText(row.nie_number ?? row.nieNumber),
     nationality: nullableText(row.nationality), source: nullableText(row.source), move_in_date: date(row.move_in_date ?? row.moveInDate), expected_move_out_date: date(row.expected_move_out_date ?? row.expectedMoveOutDate),
-    actual_move_out_date: date(row.actual_move_out_date ?? row.actualMoveOutDate), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount),
+    actual_move_out_date: date(row.actual_move_out_date ?? row.actualMoveOutDate), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount), occupant_count: positiveInteger(row.occupant_count ?? row.occupantCount, 1),
     key_count: row.key_count == null && row.keyCount == null ? 0 : numberValue(row.key_count ?? row.keyCount), payment_day: row.payment_day == null && row.paymentDay == null ? 20 : numberValue(row.payment_day ?? row.paymentDay, 20), status: text(row.status, "active"), notes: nullableText(row.notes),
     created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));

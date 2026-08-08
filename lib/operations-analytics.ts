@@ -17,6 +17,7 @@ import {
   todayString
 } from "./rent-coverage";
 import { compareOperationsRooms } from "./room-status-sort";
+import { sumOccupants } from "./tenant-occupancy";
 
 export { compareOperationsRooms } from "./room-status-sort";
 
@@ -31,6 +32,7 @@ export type OperationsScope = {
 
 export type OperationsStats = {
   activeTenants: number;
+  activeOccupants: number;
   movedOutTenants: number;
   contractsStartedThisMonth: number;
   expiringContracts: number;
@@ -112,6 +114,7 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
 
   return {
     activeTenants: activeTenants.length,
+    activeOccupants: sumOccupants(activeTenants),
     movedOutTenants: movedOutTenants.length,
     contractsStartedThisMonth,
     expiringContracts,

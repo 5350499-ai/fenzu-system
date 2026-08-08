@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const route = fs.readFileSync(new URL("../app/api/data-restore/route.ts", import.meta.url), "utf8");
+const backupService = fs.readFileSync(new URL("../lib/server/backup-service.ts", import.meta.url), "utf8");
 const exportSource = fs.readFileSync(new URL("../app/api/data-restore/route.ts", import.meta.url), "utf8");
 const restoreSql = fs.readFileSync(new URL("../supabase/migrations/20260805120000_restore_v4_transaction.sql", import.meta.url), "utf8");
 const schemaMigration = fs.readFileSync(new URL("../supabase/migrations/20260806080332_restore_schema_single_source.sql", import.meta.url), "utf8");
@@ -20,7 +21,7 @@ for (const table of restoreTables) {
   if (!restoreSql.includes(`insert into public.${table}`)) missing.push(`restore-insert:${table}`);
 }
 
-if (!route.includes('select("*")')) missing.push("export:select-star-live-schema");
+if (!backupService.includes('select("*")')) missing.push("export:select-star-live-schema");
 if (!route.includes("function toSnakeKey")) missing.push("restore:generic-snake-case-mapping");
 if (!route.includes("normalizeRestoreDataFromDatabaseSchema")) missing.push("restore:generic-normalizer");
 if (!route.includes("jsonb_populate_recordset")) missing.push("restore:database-record-mapping");

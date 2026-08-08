@@ -43,6 +43,7 @@ export type BusinessTenant = {
   source: string;
   monthlyRent: number;
   depositAmount: number;
+  occupantCount: number;
   paymentDay?: number;
   moveInDate?: string;
   actualMoveOutDate?: string;
@@ -194,6 +195,7 @@ const tableConfigs: Record<string, TableConfig> = {
       source: normalizeSource(row.source || "其他"),
       monthlyRent: Number(row.monthly_rent || 0),
       depositAmount: Number(row.deposit_amount || 0),
+      occupantCount: Number.isInteger(Number(row.occupant_count)) && Number(row.occupant_count) >= 1 ? Number(row.occupant_count) : 1,
       paymentDay: row.payment_day == null ? undefined : Number(row.payment_day),
       moveInDate: row.move_in_date || undefined,
       actualMoveOutDate: row.actual_move_out_date || undefined,
@@ -211,6 +213,7 @@ const tableConfigs: Record<string, TableConfig> = {
       source: normalizeSource(row.source || "其他"),
       monthly_rent: Number(row.monthlyRent || 0),
       deposit_amount: Number(row.depositAmount || 0),
+      occupant_count: Number.isInteger(Number(row.occupantCount)) && Number(row.occupantCount) >= 1 ? Number(row.occupantCount) : 1,
       payment_day: row.paymentDay == null || row.paymentDay === "" ? 20 : Number(row.paymentDay),
       ...(isActualMoveOutDateEnabled() && row.actualMoveOutDate !== undefined ? { actual_move_out_date: row.actualMoveOutDate || null } : {}),
       status: normalizeTenantStatus(row.status || "在租"),
@@ -438,7 +441,11 @@ export function getInitialRooms(..._args: unknown[]): BusinessRoom[] {
 }
 
 export function getInitialTenants(..._args: unknown[]): BusinessTenant[] {
-  return isSupabaseConfigured ? [] : readStored<BusinessTenant[]>(tenantKey) || [];
+  if (isSupabaseConfigured) return [];
+  return (readStored<BusinessTenant[]>(tenantKey) || []).map((tenant) => ({
+    ...tenant,
+    occupantCount: Number.isInteger(Number(tenant.occupantCount)) && Number(tenant.occupantCount) >= 1 ? Number(tenant.occupantCount) : 1
+  }));
 }
 
 export function getInitialContracts(..._args: unknown[]): BusinessContract[] {

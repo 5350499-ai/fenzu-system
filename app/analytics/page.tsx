@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
       <section className="operations-metric-group" aria-label={`${scopeLabel}租客统计`}>
         <div className="operations-section-heading"><h2>租客</h2><span>{scopeLabel}</span></div>
         <div className="operations-metric-grid">
-          <OperationsMetric label="当前在租" value={`${stats.activeTenants} 人`} />
+          <OperationsMetric label="当前在租人数" value={`${stats.activeOccupants} 人`} />
           <OperationsMetric label="已退租" value={`${stats.movedOutTenants} 人`} />
           <OperationsMetric label="本月开始合同" value={`${stats.contractsStartedThisMonth} 份`} />
           <OperationsMetric label="30天内到期" value={`${stats.expiringContracts} 份`} tone={stats.expiringContracts ? "warning" : ""} />
@@ -200,7 +200,7 @@ export default function AnalyticsPage() {
               <Link className="operations-property-card" href={`/properties/${property.id}`} key={property.id}>
                 <div className="operations-property-head"><strong>{property.name}</strong><span>查看房源</span></div>
                 <div className="operations-property-values">
-                  <span>房间 {propertyStats.totalRooms}</span><span>已租 {propertyStats.rentedRooms}</span><span>空置 {propertyStats.vacantRooms}</span><span>入住率 {propertyStats.occupancy}%</span><span>在租 {propertyStats.activeTenants}</span><span>待收租 {propertyStats.rentDueTenants}</span><span>欠租 {propertyStats.overdueTenants}</span><span>即将到期 {propertyStats.expiringContracts}</span>
+                  <span>房间 {propertyStats.totalRooms}</span><span>已租 {propertyStats.rentedRooms}</span><span>空置 {propertyStats.vacantRooms}</span><span>入住率 {propertyStats.occupancy}%</span><span>在租 {propertyStats.activeOccupants}</span><span>待收租 {propertyStats.rentDueTenants}</span><span>欠租 {propertyStats.overdueTenants}</span><span>即将到期 {propertyStats.expiringContracts}</span>
                 </div>
               </Link>
             ))}

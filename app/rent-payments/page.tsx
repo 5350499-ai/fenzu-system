@@ -358,6 +358,7 @@ export default function RentPaymentsPage() {
       source: "其他",
       monthlyRent: Number(monthlyRentStandard || form.amountDue || room?.monthlyRent || 0),
       depositAmount: room?.depositAmount || 0,
+      occupantCount: 1,
       paymentDay: 20,
       status: "在租",
       notes: ""
@@ -431,6 +432,7 @@ export default function RentPaymentsPage() {
         source: "其他",
         monthlyRent: Number(monthlyRentStandard || form.amountDue || room?.monthlyRent || 0),
         depositAmount: Number(depositAmount || 0),
+        occupantCount: 1,
         paymentDay: 20,
         status: "在租",
         notes: "由收款登记自动创建"

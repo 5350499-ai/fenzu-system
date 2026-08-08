@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data";
 import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, buildPaymentDelayTrend, buildTenantMonthRange, buildTenantTimeline, calculateMonthlyPaymentStatusDays, calculatePaymentDueDate, calculateTenantPaymentPerformance, classifyPaymentDelay, diagnoseTenantRentPayments, formatPaymentCycleLabel, getRentAttributionMonth, groupTimelineEventsByDate, isCompleteNaturalMonthCoverage, rentAmountFromRecord } from "../lib/tenant-timeline";
 
-const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, paymentDay: 20, status: "在租" };
+const tenant: BusinessTenant = { id: "t1", propertyId: "p1", roomId: "r1", name: "测试", phone: "", wechat: "", source: "其他", monthlyRent: 300, depositAmount: 0, occupantCount: 1, paymentDay: 20, status: "在租" };
 const payment = (overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({ id: "p1", propertyId: "p1", roomId: "r1", tenantId: "t1", incomeType: "房租收入", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 300, amountPaid: 300, amountUnpaid: 0, coverageStartDate: "2026-08-01", coverageEndDate: "2026-08-31", paymentStatus: "已收", paymentMethod: "转账", isOverdue: false, ...overrides });
 
 assert.equal(calculatePaymentDueDate(payment(), tenant), "2026-08-20");
