@@ -1,3 +1,9 @@
+## 2026-08-08 - Complete expense detail text
+
+- Added the full expense category to expanded expense details.
+- Expense category and notes now wrap naturally in the expanded detail card instead of inheriting collapsed-row ellipsis behavior.
+- Preview only; no business logic, database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Tenant action hierarchy and iOS date-range sizing
 
 - Made “新增租客” the primary left action and kept archive visibility as the compact right-side secondary action on mobile.

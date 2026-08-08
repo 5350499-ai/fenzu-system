@@ -416,9 +416,10 @@ function ExpenseDetail({
         <CompactDetailGrid className="expense-core-detail-grid">
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
+        <DetailField label="支出类型" value={expense.category || "-"} wideText />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
         <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} />
-        <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} />
+        <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} wideText />
         </CompactDetailGrid>
       </CompactDetailGroup>
       {canViewFiles ? <div className={`attachment-panel expense-attachment-panel${attachmentsOpen ? " attachments-open" : ""}`}>
@@ -439,8 +440,8 @@ function ExpenseDetail({
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return <CompactDetailRow label={label} value={value} />;
+function DetailField({ label, value, wideText = false }: { label: string; value: string; wideText?: boolean }) {
+  return <CompactDetailRow className={wideText ? "expense-text-detail" : undefined} label={label} value={value} wide={wideText} />;
 }
 
 function ExpenseAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ExpenseFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ExpenseFile) => void; canDownload?: boolean; canDelete?: boolean }) {

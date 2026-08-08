@@ -9183,6 +9183,27 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     text-overflow: clip;
     white-space: normal;
   }
+
+  /* Expanded expense text is intentionally complete; only the collapsed
+     finance row is allowed to truncate its category. */
+  .expense-core-detail-grid > .expense-text-detail {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: start;
+    gap: var(--ui-space-1, 4px);
+    min-width: 0;
+  }
+
+  .expense-core-detail-grid > .expense-text-detail > strong {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-align: left;
+    text-overflow: clip;
+    white-space: normal;
+  }
 }
 
 @media (max-width: 359px) {
