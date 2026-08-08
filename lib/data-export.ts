@@ -77,6 +77,31 @@ export function stripSensitiveExportData(value: unknown): unknown {
   );
 }
 
+/** Free-single exports are portable business records only: no attachment or
+ * partnership metadata is carried into a user-controlled local file. */
+export function sanitizeFreeSingleExportData(data: Record<string, unknown>): Record<string, unknown> {
+  const cleanRows = (value: unknown) => Array.isArray(value)
+    ? value.map((row) => isRecord(row)
+      ? Object.fromEntries(Object.entries(row).filter(([key]) => !/attachment|storage|provider_file|signed.?url|google.?drive|receivedBy|received_by|paidBy|paid_by/i.test(key)))
+      : row)
+    : [];
+  return {
+    ...data,
+    rentPayments: cleanRows(data.rentPayments),
+    expenses: cleanRows(data.expenses),
+    deposits: cleanRows(data.deposits),
+    contracts: cleanRows(data.contracts),
+    partners: [],
+    partnerShares: [],
+    partnerNameHistory: [],
+    settlementBatches: [],
+    settlementSnapshots: [],
+    accounts: [],
+    auditLogs: [],
+    settings: {}
+  };
+}
+
 function count(data: Record<string, unknown>, key: string): number {
   return Array.isArray(data[key]) ? data[key].length : 0;
 }

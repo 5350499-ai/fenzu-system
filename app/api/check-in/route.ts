@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   AccountApiError,
   apiErrorResponse,
+  isFreeSingleAccount,
   parseJson,
   requireActiveAccount,
   requireModulePermission,
@@ -47,12 +48,13 @@ export async function POST(request: Request) {
     const occupantCount = Number(body.occupantCount ?? 1);
     const paymentDay = Number(body.paymentDay ?? 20);
     const receivedBy = String(body.receivedBy || "").trim();
+    const freeSingle = isFreeSingleAccount(context);
 
     if (!body.clientRequestId || !uuidPattern.test(body.clientRequestId)
       || !body.propertyId || !uuidPattern.test(body.propertyId)
       || !body.roomId || !uuidPattern.test(body.roomId)
       || !body.tenantName?.trim()
-      || !receivedBy
+      || (!freeSingle && !receivedBy)
       || !validDate(body.paymentDate)
       || !validDate(body.coverageStartDate)
       || !validDate(body.coverageEndDate)
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
     if (depositAmount > 0) await requireModulePermission(context, "deposits", "create");
     await requirePropertyAccess(context, body.propertyId);
 
+    if (!freeSingle) {
     const { data: activePartners, error: partnersError } = await getSupabaseAdmin()
       .from("partners")
       .select("id,legacy_code")
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
       .eq("is_active", true);
     if (partnersError || !(activePartners || []).some((partner) => partner.id === receivedBy || partner.legacy_code === receivedBy)) {
       throw new AccountApiError("请选择当前有效的收款归属。", 400);
+    }
     }
 
     const client = getSupabaseAuthVerifier(context.accessToken);
@@ -103,7 +107,7 @@ export async function POST(request: Request) {
       p_deposit_status: body.depositStatus || "已收",
       p_payment_status: body.paymentStatus || "已收",
       p_payment_method: body.paymentMethod || "转账",
-      p_received_by: receivedBy,
+      p_received_by: freeSingle ? "本人" : receivedBy,
       p_notes: body.notes?.trim() || null
     });
 

@@ -213,6 +213,13 @@ export default function RoomsPage() {
     );
   }
 
+  const roomQuotaReached = Boolean(
+    access.isFreeSingle
+    && !form.id
+    && form.propertyId
+    && rooms.filter((room) => room.propertyId === form.propertyId && !room.status.includes("已归档")).length >= 10
+  );
+
   return (
     <AppLayout title="房间管理" description="房间必须关联所属房源。已有业务记录的房间不能直接删除。">
       <section className="card panel">
@@ -305,7 +312,8 @@ export default function RoomsPage() {
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <SearchableSelect label="房间状态" value={form.status} options={roomStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
-              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">保存</button></div>
+              {roomQuotaReached ? <p className="muted" style={{ gridColumn: "1 / -1" }}>免费版每套房源最多可管理 10 间房间；归档房间不占用额度。</p> : null}
+              <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving || roomQuotaReached} type="submit">保存</button></div>
             </form>
           </section>
         </div>

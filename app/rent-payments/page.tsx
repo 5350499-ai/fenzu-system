@@ -150,9 +150,9 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextDirectory = buildPartnerDirectory(partnerData);
-      const nextOptions = buildActivePartnerOptions(partnerData);
+      const partnerData = access.isFreeSingle ? null : await getPartners();
+      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
+      const nextOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -223,7 +223,7 @@ export default function RentPaymentsPage() {
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载收租记录失败：${error.message || error}`));
-  }, []);
+  }, [access.isFreeSingle]);
 
   useEffect(() => {
     if (!loaded || !detailPaymentId) return;
@@ -484,7 +484,7 @@ export default function RentPaymentsPage() {
       amountUnpaid,
       coverageStartDate: isRent ? form.coverageStartDate : "",
       coverageEndDate: isRent ? form.coverageEndDate : "",
-      receivedBy: isHistoricalEdit ? originalPayment?.receivedBy : ownershipMode,
+       receivedBy: access.isFreeSingle ? "" : (isHistoricalEdit ? originalPayment?.receivedBy : ownershipMode),
       paymentStatus: isHistoricalEdit ? originalPayment?.paymentStatus : isRent ? collectionPaymentId ? (amountPaid > 0 ? "已收" : "未收") : form.paymentStatus || (amountPaid > 0 ? "已收" : "未收") : "已收",
       paymentMethod: isHistoricalEdit ? originalPayment?.paymentMethod || form.paymentMethod : form.paymentMethod,
       createdAt: isHistoricalEdit ? originalPayment?.createdAt : form.createdAt || (form.id ? undefined : new Date().toISOString()),
@@ -617,7 +617,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || (!access.isFreeSingle && !partnerOptions.length)} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; const initialPartner = access.isFreeSingle ? "" : partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -640,7 +640,7 @@ export default function RentPaymentsPage() {
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{payment.paymentDate || payment.rentMonth}</span>
-                  <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</span>
+                  {!access.isFreeSingle ? <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</span> : null}
                   <span>{isRentPayment(payment) ? `${room?.roomNumber || room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
                   <strong>{euro(paymentListAmount(payment))}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
@@ -682,6 +682,7 @@ export default function RentPaymentsPage() {
                     canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
+                    showOwnership={!access.isFreeSingle}
                   />
                 ) : null}
               </article>
@@ -718,9 +719,9 @@ export default function RentPaymentsPage() {
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
               <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <OwnershipField options={ownershipOptions} mode={ownershipMode} onModeChange={setOwnershipMode} />
+               {!access.isFreeSingle ? <OwnershipField options={ownershipOptions} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
               <TapSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已收取"} options={["已收取", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
-              {!form.id ? <div className="field rent-new-attachments" style={{ gridColumn: "1 / -1" }}><label>附件（可选）</label><input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} /><span className="muted">可先选择文件，保存收款后自动上传。</span></div> : null}
+              {!form.id && !access.isFreeSingle ? <div className="field rent-new-attachments" style={{ gridColumn: "1 / -1" }}><label>附件（可选）</label><input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} /><span className="muted">可先选择文件，保存收款后自动上传。</span></div> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">{!form.id && pendingFiles.length ? "保存并上传附件" : "保存"}</button></div>
             </form>
@@ -824,7 +825,8 @@ function PaymentDetail({
   canViewFiles,
   canUploadFiles,
   canDownloadFiles,
-  canDeleteFiles
+  canDeleteFiles,
+  showOwnership
 }: {
   payment: BusinessRentPayment;
   partnerDirectory: Record<string, string>;
@@ -849,6 +851,7 @@ function PaymentDetail({
   canUploadFiles: boolean;
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
+  showOwnership: boolean;
 }) {
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
 
@@ -868,7 +871,7 @@ function PaymentDetail({
         <DetailField className="payment-total-field" label="本次合计收入" value={euro(payment.amountPaid)} />
         <DetailField className="payment-status-field" label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
         <DetailField className="payment-method-field" label="付款方式" value={payment.paymentMethod || "-"} />
-        <DetailField className="payment-owner-field" label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} />
+        {showOwnership ? <DetailField className="payment-owner-field" label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} /> : null}
         <DetailField className="payment-note-field" label="备注" value={cleanVoidNote(payment.notes) || "-"} />
         </CompactDetailGrid>
       </CompactDetailGroup>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
+import { apiErrorResponse, parseJson, requireActiveAccount, requireManagedAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   dryRunRestore,
@@ -338,6 +338,7 @@ function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request, true);
+    requireManagedAccount(context, "云端恢复");
     const operationId = crypto.randomUUID();
     logRestoreStage(operationId, "REQUEST_RECEIVED", { action: "data_restore" });
     const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string };

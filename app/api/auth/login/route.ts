@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     const { data: profileData } = await admin
       .from("user_profiles")
-      .select("auth_user_id,workspace_owner_id,username,display_name,account_type,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
+      .select("auth_user_id,workspace_owner_id,username,display_name,account_type,account_plan,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
       .eq("auth_user_id", identity.auth_user_id)
       .maybeSingle();
     if (!profileData || profileData.status !== "active") {

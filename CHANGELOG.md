@@ -755,3 +755,12 @@
 - Hid the room number field from the standard add/edit room forms while retaining the underlying `roomNumber` model value and save behavior.
 - Room-name natural ordering and all existing room data remain unchanged.
 - Preview only; no database, schema, historical data, or Production changes.
+## 2026-08-08 - Free single-account V1 boundaries (Preview)
+
+- Added the explicit `free_single` account plan and server-verified capability checks. Existing owner/managed accounts remain `managed` and retain their current functions.
+- Free-single accounts are limited to five active properties and ten active rooms per property. Archived records do not consume quota; restore is server-blocked if it would exceed the quota.
+- Hidden attachment, Google Drive, partner and cloud Backup/Restore interfaces for free-single accounts, while preserving administrators' existing features and data.
+- Blocked attachment, signed URL, Google Drive, attachment-admin and cloud Backup/Restore APIs on the server; tightened legacy attachment/Storage policies that could bypass the newer permission checks.
+- Free-single financial records use the internal self-managed value `本人` for legacy non-null attribution columns; the product UI does not show partner or attribution controls. No A/B default is introduced for new free-single data.
+- Free-local JSON/CSV/Excel export excludes attachment/provider paths, signed URLs, Google metadata, partnership and account/audit data.
+- Added migration `20260808110000_free_single_account_boundaries.sql`; it adds only `user_profiles.account_plan` and permission/RLS policy changes. No business data, attachment object, historical partner value or financial calculation was changed.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess } from "@/lib/server/account-auth";
+import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess } from "@/lib/server/account-auth";
+import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-single";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
@@ -46,12 +47,51 @@ type BusinessOperation = {
   id?: string;
 };
 
+async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof requireActiveAccount>>, resource: { table: string }, row: Record<string, unknown>, existing?: Record<string, unknown>) {
+  if (!isFreeSingleAccount(context)) return;
+  const client = getSupabaseAuthVerifier(context.accessToken);
+  if (resource.table === "properties") {
+    const wasArchived = String(existing?.notes || "").startsWith("[已归档]");
+    const willBeArchived = String(row.notes || "").startsWith("[已归档]");
+    if (existing && (!wasArchived || willBeArchived)) return;
+    const { count, error } = await client.from("properties").select("id", { count: "exact", head: true }).eq("user_id", context.profile.workspace_owner_id).not("notes", "ilike", "[已归档]%");
+    if (error) throw new AccountApiError("无法检查免费版房源额度，请稍后重试。", 500);
+    if ((count || 0) >= FREE_SINGLE_PROPERTY_LIMIT) throw new AccountApiError("免费版最多可管理 5 套房源。", 409);
+  }
+  if (resource.table === "rooms") {
+    const wasArchived = String(existing?.status || "").includes("已归档");
+    const willBeArchived = String(row.status || "").includes("已归档");
+    if (existing && (!wasArchived || willBeArchived)) return;
+    const propertyId = String(row.property_id || existing?.property_id || "");
+    if (!propertyId) throw new AccountApiError("房间缺少所属房源。", 400);
+    const { count, error } = await client.from("rooms").select("id", { count: "exact", head: true }).eq("user_id", context.profile.workspace_owner_id).eq("property_id", propertyId).not("status", "ilike", "%已归档%");
+    if (error) throw new AccountApiError("无法检查免费版房间额度，请稍后重试。", 500);
+    if ((count || 0) >= FREE_SINGLE_ROOM_LIMIT) throw new AccountApiError("免费版每套房源最多可管理 10 间房间。", 409);
+  }
+}
+
+function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof requireActiveAccount>>, row: Record<string, unknown>) {
+  if (!isFreeSingleAccount(context)) return row;
+  const next = { ...row };
+  // Legacy finance columns remain non-null for backwards compatibility. New
+  // free-single records are explicitly self-managed, never fake A/B values.
+  if ("received_by" in next) next.received_by = "本人";
+  if ("paid_by" in next) next.paid_by = "本人";
+  return next;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean };
     const paymentUpdateRequiresOwner = body.key === "business-rent-payments"
       && body.operations?.some((operation) => operation?.action === "update");
-    const context = await requireActiveAccount(request, body.ownerOnly === true || paymentUpdateRequiresOwner);
+    const context = await requireActiveAccount(request, body.ownerOnly === true);
+    // Existing delegated accounts keep the historical owner-only payment edit
+    // boundary. A free-single account manages only its own workspace and may
+    // use the normal rent-payment edit permission.
+    if (paymentUpdateRequiresOwner && context.profile.account_type !== "owner" && !isFreeSingleAccount(context)) {
+      throw new AccountApiError("没有权限编辑收款记录。", 403);
+    }
     const resource = body.key ? resources[body.key] : null;
     if (!resource) throw new AccountApiError("不支持的业务数据类型。", 400);
     if (!Array.isArray(body.operations)) throw new AccountApiError("页面版本已更新，请刷新后重试。", 400);
@@ -71,12 +111,13 @@ export async function POST(request: Request) {
     const savedRows: Array<{ id: string }> = [];
 
     for (const operation of operations) {
-      const row = operation.row || {};
+      const row = normalizeFreeSingleBusinessRow(context, operation.row || {});
       const id = String(operation.id || row.id || "");
       if (!id) throw new AccountApiError("记录ID不能为空。", 400);
 
       if (operation.action === "create") {
         await requireModulePermission(context, resource.module, "create");
+        await enforceFreeSingleQuota(context, resource, row);
         const propertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
         await requirePropertyAccess(context, propertyId as string | undefined);
         if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
@@ -100,6 +141,7 @@ export async function POST(request: Request) {
 
       const permission = isArchiveChange(before, row) ? "archive" : "edit";
       await requireModulePermission(context, resource.module, permission);
+      await enforceFreeSingleQuota(context, resource, row, before);
       const newPropertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
       await requirePropertyAccess(context, newPropertyId as string | undefined);
       if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);

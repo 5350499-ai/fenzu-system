@@ -113,9 +113,9 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextDirectory = buildPartnerDirectory(partnerData);
-      const nextOptions = buildActivePartnerOptions(partnerData);
+      const partnerData = access.isFreeSingle ? null : await getPartners();
+      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
+      const nextOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
@@ -128,7 +128,7 @@ export default function ExpensesPage() {
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));
-  }, []);
+  }, [access.isFreeSingle, refreshExpenseFiles]);
 
   useEffect(() => {
     if (!loaded || !detailExpenseId) return;
@@ -212,7 +212,7 @@ export default function ExpensesPage() {
       ...form,
       id: expenseId,
       amount: Number(form.amount || 0),
-      paidBy: form.paidBy,
+      paidBy: access.isFreeSingle ? "" : form.paidBy,
       expenseMonth: (form.paymentDate || new Date().toISOString()).slice(0, 7)
     };
     const next = form.id
@@ -273,11 +273,11 @@ export default function ExpensesPage() {
   }
 
   return (
-    <AppLayout title="支出管理" description="默认压缩显示支出明细，点击一条记录后查看附件和完整信息。">
+    <AppLayout title="支出管理" description={access.isFreeSingle ? "默认压缩显示支出明细，点击一条记录后查看完整信息。" : "默认压缩显示支出明细，点击一条记录后查看附件和完整信息。"}>
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">支出列表</h2><p className="muted">日期｜归属｜项目｜金额｜状态</p></div>
-          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { setForm({ ...emptyExpense, paidBy: partnerOptions[0]?.value || "" }); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
+          {access.can("expenses", "create") ? <button className="btn primary" disabled={!loaded || saving || (!access.isFreeSingle && !partnerOptions.length)} onClick={() => { setForm({ ...emptyExpense, paidBy: access.isFreeSingle ? "" : partnerOptions[0]?.value || "" }); setPendingFiles([]); setOpen(true); }} type="button"><Plus size={17} /> 录入支出</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
@@ -296,7 +296,7 @@ export default function ExpensesPage() {
               <article className="finance-list-item" key={expense.id}>
                 <button className="finance-line expense-finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
-                  <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy, partnerDirectory)}</span>
+                  {!access.isFreeSingle ? <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy, partnerDirectory)}</span> : null}
                   <span>{expense.category || "-"}</span>
                   <strong>{euro(expense.amount)}</strong>
                   <StatusBadge tone={isVoided(expense.notes) ? "red" : "green"}>{isVoided(expense.notes) ? "已作废" : "已支出"}</StatusBadge>
@@ -324,6 +324,7 @@ export default function ExpensesPage() {
                     canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
+                    showOwnership={!access.isFreeSingle}
                   />
                 ) : null}
               </article>
@@ -346,11 +347,11 @@ export default function ExpensesPage() {
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
-              <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!expensePartnerOptions.length} placeholder={expensePartnerOptions.length ? undefined : "暂无可用合伙人"} options={expensePartnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
+              {!access.isFreeSingle ? <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!expensePartnerOptions.length} placeholder={expensePartnerOptions.length ? undefined : "暂无可用合伙人"} options={expensePartnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} /> : null}
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
-              <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p>
+              {!access.isFreeSingle ? <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p> : null}
               <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={cleanVoidNote(form.notes)} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
-              {!form.id ? <div className="expense-new-attachments field" style={{ gridColumn: "1 / -1" }}>
+              {!form.id && !access.isFreeSingle ? <div className="expense-new-attachments field" style={{ gridColumn: "1 / -1" }}>
                 <label>附件（可选）</label>
                 <input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} />
                 <span className="muted">{pendingFiles.length ? `已选择 ${pendingFiles.length} 个文件，保存支出后自动上传。` : "可先选择文件，保存支出时一起上传。"}</span>
@@ -385,7 +386,8 @@ function ExpenseDetail({
   canViewFiles,
   canUploadFiles,
   canDownloadFiles,
-  canDeleteFiles
+  canDeleteFiles,
+  showOwnership
 }: {
   expense: BusinessExpense;
   partnerDirectory: Record<string, string>;
@@ -408,6 +410,7 @@ function ExpenseDetail({
   canUploadFiles: boolean;
   canDownloadFiles: boolean;
   canDeleteFiles: boolean;
+  showOwnership: boolean;
 }) {
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   return (
@@ -418,7 +421,7 @@ function ExpenseDetail({
         <DetailField label="房间" value={roomName} />
         <DetailField label="支出类型" value={expense.category || "-"} wideText />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
-        <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} />
+        {showOwnership ? <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} /> : null}
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} wideText />
         </CompactDetailGrid>
       </CompactDetailGroup>

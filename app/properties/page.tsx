@@ -67,6 +67,8 @@ export default function PropertiesPage() {
     );
   }, [properties, query]);
   const visible = pageRows(filtered, page, pageSize);
+  const activePropertyCount = useMemo(() => properties.filter((property) => !isArchived(property.notes)).length, [properties]);
+  const freePropertyLimitReached = access.isFreeSingle && activePropertyCount >= 5;
 
   function close() {
     setOpen(false);
@@ -103,10 +105,11 @@ export default function PropertiesPage() {
             <h2 className="panel-title">房源列表</h2>
             <p className="muted">点击房源名称进入集中管理。</p>
           </div>
-          {access.can("properties", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => { setForm(emptyProperty); setOpen(true); }} type="button">
+          {access.can("properties", "create") ? <button className="btn primary" disabled={!loaded || saving || freePropertyLimitReached} onClick={() => { setForm(emptyProperty); setOpen(true); }} type="button">
             <Plus size={17} /> 新增房源
           </button> : null}
         </div>
+        {freePropertyLimitReached ? <p className="muted">免费版最多可管理 5 套房源；归档房源不占用额度。</p> : null}
         <div className="list-controls">
           <label className="search-box">
             <input placeholder="搜索房源名称、地址" value={query} onChange={(event) => setQuery(event.target.value)} />

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, parseJson, requireActiveAccount, requireSensitivePermission, writeAuditLog } from "@/lib/server/account-auth";
+import { apiErrorResponse, parseJson, requireActiveAccount, requireManagedAccount, requireSensitivePermission, writeAuditLog } from "@/lib/server/account-auth";
 import { cleanupAttachmentIds, cleanupTenantAttachments } from "@/lib/server/attachment-cleanup";
 
 export const runtime = "nodejs";
@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
+    requireManagedAccount(context, "附件归档与清理");
     await requireSensitivePermission(context, "can_manage_settings");
     const body = await parseJson(request) as { tenantIds?: unknown; attachmentIds?: unknown; confirmation?: unknown };
     const tenantIds = Array.isArray(body.tenantIds) ? body.tenantIds.filter((value): value is string => typeof value === "string" && Boolean(value)) : [];

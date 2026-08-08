@@ -20,6 +20,7 @@ import {
   SCHEMA_VERSION,
   buildCsvDataExport,
   buildExcelDataExport,
+  createDataExportPayload,
   dryRunRestore,
   formatBackupSize,
   isDataExportPayload,
@@ -27,6 +28,7 @@ import {
   verifyDataExportChecksum,
   type DataExportPayload
 } from "@/lib/data-export";
+import { sanitizeFreeSingleExportData } from "@/lib/data-export";
 import { downloadFile } from "@/lib/download-adapter";
 import { saveFileWithSystemFallback, UserCancelledFileHandoffError } from "@/lib/file-handoff";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
@@ -159,10 +161,12 @@ export default function DataCenterPage() {
       const taskRows = access.can("tasks", "view") ? await loadBusinessData<ExportRow>(taskKey, []) : [];
       let nextPartners: Partner[] = [], nextShares: PartnerPropertyShare[] = [], nextHistory: PartnerNameHistory[] = [];
       try {
-        const partnerData = await getPartners();
-        nextPartners = partnerData.partners;
-        nextShares = partnerData.shares;
-        nextHistory = partnerData.nameHistory || [];
+        if (!access.isFreeSingle) {
+          const partnerData = await getPartners();
+          nextPartners = partnerData.partners;
+          nextShares = partnerData.shares;
+          nextHistory = partnerData.nameHistory || [];
+        }
       } catch { /* The export remains limited to the current account's readable data. */ }
       const session = await getValidSupabaseSession();
       const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
@@ -320,10 +324,18 @@ export default function DataCenterPage() {
     : "创建备份";
 
   async function exportTable(format: "excel" | "csv") {
-    const exportDataForTable = await loadExportData();
+    const rawExportData = await loadExportData();
+    const exportDataForTable = access.isFreeSingle ? sanitizeFreeSingleExportData(rawExportData) : rawExportData;
     const now = new Date(); const stamp = now.toISOString().replace(/[:.]/g, "-");
     if (format === "excel") void downloadFile(buildExportFile(`分租管理数据-${stamp}.xls`, buildExcelDataExport(exportDataForTable), "application/vnd.ms-excel;charset=utf-8"), { title: "咱家分租 Excel 导出" });
     else void downloadFile(buildExportFile(`分租管理数据-${stamp}.csv`, buildCsvDataExport(exportDataForTable), "text/csv;charset=utf-8"), { title: "咱家分租 CSV 导出" });
+    setExportSheetOpen(false);
+  }
+
+  async function exportFreeSingleJson() {
+    const payload = await createDataExportPayload(sanitizeFreeSingleExportData(await loadExportData()), undefined, { backupType: "local", exportReason: "Manual" });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    void downloadFile(buildExportFile(`分租管理本地数据-${stamp}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8"), { title: "分租管理本地 JSON 导出" });
     setExportSheetOpen(false);
   }
 
@@ -415,9 +427,10 @@ export default function DataCenterPage() {
     return result.report;
   }
 
-  return <AppLayout title="Backup & Restore" description="备份与恢复业务数据、导出报表并查看后续云端能力。">
+  return <AppLayout title={access.isFreeSingle ? "数据导出" : "Backup & Restore"} description={access.isFreeSingle ? "将自己的结构化业务数据导出并保存到本地。" : "备份与恢复业务数据、导出报表并查看后续云端能力。"}>
     <div className="data-center-page">
       {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
+      {!access.isFreeSingle ? <>
       <SectionCard className="data-center-card">
         <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
         <CountSummary counts={counts} loading={loading} loaded={dataLoaded} />
@@ -436,11 +449,14 @@ export default function DataCenterPage() {
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
       {restorePreview ? <RestorePreviewCard preview={restorePreview} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
       </SectionCard>
+      </> : null}
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
+      {!access.isFreeSingle ? <>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
       <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
+      </> : null}
     </div>
-    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={() => setExportSheetOpen(false)}><section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}><div className="data-center-sheet-handle" aria-hidden="true" /><h2 id="export-sheet-title">请选择导出格式</h2><button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button><button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button><SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton></section></div> : null}
+    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={() => setExportSheetOpen(false)}><section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}><div className="data-center-sheet-handle" aria-hidden="true" /><h2 id="export-sheet-title">请选择导出格式</h2>{access.isFreeSingle ? <button type="button" className="data-center-sheet-option" onClick={() => void exportFreeSingleJson()}><FileText size={19} /><span>JSON <small>本地保存</small></span></button> : null}<button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button><button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button><SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton></section></div> : null}
     {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={() => setSubscriptionDialog(null)}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
   </AppLayout>;
 }

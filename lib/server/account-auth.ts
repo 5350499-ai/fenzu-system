@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { isFreeSinglePlan, isFreeSingleRestrictedModule, isFreeSingleRestrictedSensitivePermission, type AccountPlan } from "@/lib/free-single";
 
 export type AccountProfileRow = {
   auth_user_id: string;
@@ -10,6 +11,7 @@ export type AccountProfileRow = {
   username: string;
   display_name: string;
   account_type: "owner" | "custom";
+  account_plan: AccountPlan;
   status: "active" | "disabled";
   property_access_mode: "all" | "selected";
   must_change_password: boolean;
@@ -97,7 +99,7 @@ export async function restoreApplicationSession(request: Request): Promise<Accou
   const admin = getSupabaseAdmin();
   const { data: profileData, error: profileError } = await admin
     .from("user_profiles")
-    .select("auth_user_id,workspace_owner_id,username,display_name,account_type,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
+    .select("auth_user_id,workspace_owner_id,username,display_name,account_type,account_plan,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
     .eq("auth_user_id", userData.user.id)
     .maybeSingle();
   if (profileError || !profileData) throw new AccountApiError("当前账号未完成授权配置。", 403);
@@ -173,7 +175,7 @@ export async function requireActiveAccount(request: Request, ownerOnly = false):
   const admin = getSupabaseAdmin();
   const { data: profileData, error: profileError } = await admin
     .from("user_profiles")
-    .select("auth_user_id,workspace_owner_id,username,display_name,account_type,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
+    .select("auth_user_id,workspace_owner_id,username,display_name,account_type,account_plan,status,property_access_mode,must_change_password,sessions_revoked_at,last_login_at,last_activity_at,disabled_at,disabled_by,created_at,updated_at")
     .eq("auth_user_id", userData.user.id)
     .maybeSingle();
 
@@ -234,6 +236,9 @@ export async function requireActiveAccount(request: Request, ownerOnly = false):
 }
 
 export async function requireModulePermission(context: AccountRequestContext, moduleKey: string, action: "view" | "create" | "edit" | "archive" | "delete" = "view") {
+  if (isFreeSingleAccount(context) && isFreeSingleRestrictedModule(moduleKey)) {
+    throw new AccountApiError("免费单人版不提供此功能。", 403);
+  }
   if (context.profile.account_type === "owner") return;
   const column = action === "view" ? "can_view" : action === "create" ? "can_create" : action === "edit" ? "can_edit" : action === "archive" ? "can_archive" : "can_delete";
   const admin = getSupabaseAdmin();
@@ -242,10 +247,21 @@ export async function requireModulePermission(context: AccountRequestContext, mo
 }
 
 export async function requireSensitivePermission(context: AccountRequestContext, permissionColumn: string) {
+  if (isFreeSingleAccount(context) && isFreeSingleRestrictedSensitivePermission(permissionColumn)) {
+    throw new AccountApiError("免费单人版不提供此功能。", 403);
+  }
   if (context.profile.account_type === "owner") return;
   const admin = getSupabaseAdmin();
   const { data } = await admin.from("user_sensitive_permissions").select(permissionColumn).eq("user_id", context.userId).maybeSingle();
   if (!data || !Boolean((data as unknown as Record<string, unknown>)[permissionColumn])) throw new AccountApiError("没有权限执行此操作。", 403);
+}
+
+export function isFreeSingleAccount(context: Pick<AccountRequestContext, "profile">) {
+  return context.profile.account_type !== "owner" && isFreeSinglePlan(context.profile.account_plan);
+}
+
+export function requireManagedAccount(context: AccountRequestContext, feature = "此功能") {
+  if (isFreeSingleAccount(context)) throw new AccountApiError(`免费单人版不提供${feature}。`, 403);
 }
 
 export async function requirePropertyAccess(context: AccountRequestContext, propertyId: string | null | undefined) {

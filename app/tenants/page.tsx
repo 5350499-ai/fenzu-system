@@ -170,7 +170,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     async function load() {
-      const activePartnerOptions = buildActivePartnerOptions(await getPartners());
+      const activePartnerOptions = access.isFreeSingle ? [] : buildActivePartnerOptions(await getPartners());
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -193,7 +193,7 @@ export default function TenantsPage() {
       setDeposits(loadedDeposits);
       setPartnerOptions(activePartnerOptions);
       setPartnersLoading(false);
-      await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
+      if (!access.isFreeSingle) await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
       const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
       setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
@@ -206,12 +206,12 @@ export default function TenantsPage() {
       setPartnersLoading(false);
       window.alert(`加载租客失败：${error.message || error}`);
     });
-  }, []);
+  }, [access.isFreeSingle, refreshContractFiles]);
 
   useEffect(() => {
-    if (!loaded || !detailTenantId) return;
+    if (access.isFreeSingle || !loaded || !detailTenantId) return;
     void refreshContractFiles(contracts.filter((contract) => contract.tenantId === detailTenantId).map((contract) => contract.id), [detailTenantId]);
-  }, [contracts, detailTenantId, loaded, refreshContractFiles]);
+  }, [access.isFreeSingle, contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -622,7 +622,7 @@ export default function TenantsPage() {
         setCreateDepositTenant(null);
         return;
       }
-      const defaultPartner = partnerOptions[0]?.value || "";
+      const defaultPartner = access.isFreeSingle ? "本人" : partnerOptions[0]?.value || "";
       if (!defaultPartner) throw new Error("没有可用的合伙人归属，请刷新后重试。");
       const nextDeposit: BusinessDeposit = {
         id: crypto.randomUUID(),
@@ -790,12 +790,12 @@ export default function TenantsPage() {
   }
 
   return (
-    <AppLayout title="租客管理" description="默认显示核心信息，点击租客后直接查看和管理租客附件。">
+    <AppLayout title="租客管理" description={access.isFreeSingle ? "默认显示核心信息，点击租客后直接查看完整资料。" : "默认显示核心信息，点击租客后直接查看和管理租客附件。"}>
       <section className="card panel">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">租客列表</h2>
-            <p className="muted">默认只显示一行核心信息，点击后展开详情和租客附件。</p>
+            <p className="muted">{access.isFreeSingle ? "默认只显示一行核心信息，点击后展开详情。" : "默认只显示一行核心信息，点击后展开详情和租客附件。"}</p>
           </div>
           <div className="top-actions tenant-top-actions">
             {access.can("tenants", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
@@ -813,7 +813,7 @@ export default function TenantsPage() {
               autoComplete="off"
               onChange={(event) => updateTenantSearch(event.target.value)}
               onFocus={() => setSearchOpen(true)}
-              placeholder="搜索姓名、电话、微信、房源、房间、租客附件"
+              placeholder={access.isFreeSingle ? "搜索姓名、电话、微信、房源、房间" : "搜索姓名、电话、微信、房源、房间、租客附件"}
               value={query}
             />
             {query ? (
@@ -1017,7 +1017,7 @@ export default function TenantsPage() {
                 <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               </> : null}
               <div className={`field ${form.id ? "tenant-edit-payment-day" : ""}`}><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
-              {!form.id ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
+              {!form.id && !access.isFreeSingle ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
               {form.id ? <SearchableSelect className="tenant-edit-status" label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {!form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               <TextField className={form.id ? "tenant-edit-source" : undefined} label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
@@ -1025,7 +1025,7 @@ export default function TenantsPage() {
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
               </div>
-              <p className="muted" style={{ gridColumn: "1 / -1" }}>请先保存租客和合同字段；保存后在租客详情中可逐个添加租客附件。收入附件请在对应收款记录详情中添加。</p>
+              {!access.isFreeSingle ? <p className="muted" style={{ gridColumn: "1 / -1" }}>请先保存租客和合同字段；保存后在租客详情中可逐个添加租客附件。收入附件请在对应收款记录详情中添加。</p> : null}
               <div className="modal-actions">
                 <button className="btn" onClick={close} type="button">取消</button>
                 <button className="btn primary" disabled={saving} type="submit">保存</button>

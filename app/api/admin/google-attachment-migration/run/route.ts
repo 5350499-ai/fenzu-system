@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
+import { apiErrorResponse, requireActiveAccount, requireManagedAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { executeGoogleAttachmentMigration, verifyMigrationPreviewToken } from "@/lib/server/google-attachment-migration";
 
 function enabled() {
@@ -9,6 +9,7 @@ function enabled() {
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
+    requireManagedAccount(context, "Google Drive 附件迁移");
     await requireSensitivePermission(context, "can_manage_settings");
     if (!enabled()) return NextResponse.json({ error: "Google Drive 迁移功能尚未启用。" }, { status: 403 });
     const body = await request.json().catch(() => null) as { previewToken?: string } | null;

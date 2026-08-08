@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { emptyModulePermissions, emptySensitivePermissions, type AccountModuleKey, type ModulePermission, type PermissionAction, type SensitivePermissionKey, type SensitivePermissions } from "@/lib/account-permissions";
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 
 type AccountAccessState = {
   ready: boolean;
@@ -13,6 +14,8 @@ type AccountAccessState = {
   invalidReason: string;
   isOwner: boolean;
   accountType: "owner" | "custom";
+  accountPlan: AccountPlan;
+  isFreeSingle: boolean;
   accountStatus: "active" | "disabled";
   userId: string;
   profileUsername: string;
@@ -41,6 +44,7 @@ type AccountApiPayload = {
     username?: string;
     displayName?: string;
     accountType?: string;
+    accountPlan?: string;
     status?: string;
     workspaceOwnerId?: string;
     propertyAccessMode?: string;
@@ -51,12 +55,13 @@ type AccountApiPayload = {
 };
 
 type AccountAccessSnapshot = {
-  cacheVersion: 2;
+  cacheVersion: 3;
   accountId: string;
   workspaceOwnerId: string;
   profileUsername: string;
   profileDisplayName: string;
   accountType: "owner" | "custom";
+  accountPlan: AccountPlan;
   accountStatus: "active";
   propertyAccessMode: "all" | "selected";
   propertyIds: string[];
@@ -67,8 +72,8 @@ type AccountAccessSnapshot = {
   lastPath: string;
 };
 
-const ACCESS_SNAPSHOT_KEY_PREFIX = "fenzu.account-access.v2.";
-const ACTIVE_SNAPSHOT_ACCOUNT_KEY = "fenzu.account-access.active-account.v2";
+const ACCESS_SNAPSHOT_KEY_PREFIX = "fenzu.account-access.v3.";
+const ACTIVE_SNAPSHOT_ACCOUNT_KEY = "fenzu.account-access.active-account.v3";
 const LEGACY_ACCESS_SNAPSHOT_KEY = "fenzu.account-access.v1";
 
 const emptyState = (): AccountAccessState => ({
@@ -80,6 +85,8 @@ const emptyState = (): AccountAccessState => ({
   invalidReason: "",
   isOwner: false,
   accountType: "custom",
+  accountPlan: "managed",
+  isFreeSingle: false,
   accountStatus: "active",
   userId: "",
   profileUsername: "",
@@ -147,14 +154,15 @@ function readAccessSnapshot(): AccountAccessSnapshot | null {
     const accountId = safeText(window.localStorage.getItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY));
     if (!accountId) return null;
     const parsed = JSON.parse(window.localStorage.getItem(snapshotKey(accountId)) || "null") as unknown;
-    if (!isRecord(parsed) || parsed.cacheVersion !== 2 || parsed.accountId !== accountId || parsed.accountStatus !== "active" || !parsed.workspaceOwnerId) return null;
+    if (!isRecord(parsed) || parsed.cacheVersion !== 3 || parsed.accountId !== accountId || parsed.accountStatus !== "active" || !parsed.workspaceOwnerId) return null;
     return {
-      cacheVersion: 2,
+      cacheVersion: 3,
       accountId,
       workspaceOwnerId: safeText(parsed.workspaceOwnerId),
       profileUsername: safeText(parsed.profileUsername),
       profileDisplayName: safeText(parsed.profileDisplayName),
       accountType: parsed.accountType === "owner" ? "owner" : "custom",
+      accountPlan: isFreeSinglePlan(parsed.accountPlan) ? "free_single" : "managed",
       accountStatus: "active",
       propertyAccessMode: parsed.propertyAccessMode === "all" ? "all" : "selected",
       propertyIds: normalizePropertyIds(parsed.propertyIds),
@@ -179,6 +187,8 @@ function snapshotState(snapshot: AccountAccessSnapshot): AccountAccessState {
     invalidReason: "",
     isOwner: snapshot.accountType === "owner",
     accountType: snapshot.accountType,
+    accountPlan: snapshot.accountPlan,
+    isFreeSingle: isFreeSinglePlan(snapshot.accountPlan),
     accountStatus: snapshot.accountStatus,
     userId: snapshot.accountId,
     profileUsername: snapshot.profileUsername,
@@ -197,12 +207,13 @@ function persistAccessSnapshot(state: AccountAccessState) {
   if (typeof window === "undefined" || !state.authenticated || !state.isServerVerified || state.accountStatus !== "active") return;
   const previous = readAccessSnapshot();
   const snapshot: AccountAccessSnapshot = {
-    cacheVersion: 2,
+    cacheVersion: 3,
     accountId: state.userId,
     workspaceOwnerId: state.workspaceOwnerId,
     profileUsername: state.profileUsername,
     profileDisplayName: state.profileDisplayName,
     accountType: state.accountType,
+    accountPlan: state.accountPlan,
     accountStatus: "active",
     propertyAccessMode: state.propertyAccessMode,
     propertyIds: normalizePropertyIds(state.propertyIds),
@@ -325,6 +336,7 @@ async function resolveAccessState(): Promise<AccountAccessState> {
 
   const verifiedAt = new Date().toISOString();
   const accountType = profile.accountType === "owner" ? "owner" : "custom";
+  const accountPlan = isFreeSinglePlan(profile.accountPlan) ? "free_single" : "managed";
   return {
     ready: true,
     authenticated: true,
@@ -334,6 +346,8 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     invalidReason: "",
     isOwner: accountType === "owner",
     accountType,
+    accountPlan,
+    isFreeSingle: isFreeSinglePlan(accountPlan),
     accountStatus: profile.status === "disabled" ? "disabled" : "active",
     userId,
     profileUsername: safeText(profile.username),

@@ -93,8 +93,8 @@ export default function CheckInPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextPartnerOptions = buildActivePartnerOptions(partnerData);
+      const partnerData = access.isFreeSingle ? null : await getPartners();
+      const nextPartnerOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
       setPartnerOptions(nextPartnerOptions);
       setPartnersLoading(false);
       setOwnershipMode(nextPartnerOptions[0]?.value || "");
@@ -113,7 +113,7 @@ export default function CheckInPage() {
       setPartnersLoading(false);
       window.alert(`加载入住数据失败：${error.message || error}`);
     });
-  }, []);
+  }, [access.isFreeSingle]);
 
   useEffect(() => {
     if (!completionMessage) return;
@@ -130,7 +130,7 @@ export default function CheckInPage() {
       window.alert("请先选择房源、房间，并填写租客姓名。");
       return;
     }
-    if (!ownershipMode) {
+    if (!access.isFreeSingle && !ownershipMode) {
       window.alert("请选择收款归属。");
       return;
     }
@@ -147,7 +147,7 @@ export default function CheckInPage() {
     try {
       const clientRequestId = requestIdRef.current || crypto.randomUUID();
       requestIdRef.current = clientRequestId;
-      const finalReceivedBy = ownershipMode;
+      const finalReceivedBy = access.isFreeSingle ? "" : ownershipMode;
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("登录状态已失效，请重新登录。");
       const response = await fetch("/api/check-in", {
@@ -318,7 +318,7 @@ export default function CheckInPage() {
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
           <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
-          <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
+          {!access.isFreeSingle ? <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
           <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus }))} />
           <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>

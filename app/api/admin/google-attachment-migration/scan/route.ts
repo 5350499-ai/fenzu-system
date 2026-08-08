@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
+import { apiErrorResponse, requireActiveAccount, requireManagedAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { scanGoogleAttachments } from "@/lib/server/google-attachment-migration";
 
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
+    requireManagedAccount(context, "Google Drive 附件迁移");
     await requireSensitivePermission(context, "can_manage_settings");
     const result = await scanGoogleAttachments(context.profile.workspace_owner_id, context.userId);
     return NextResponse.json({
