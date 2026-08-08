@@ -1,3 +1,9 @@
+## 2026-08-08 - Global date-pair and form-boundary rules
+
+- Kept date-range controls consistently ordered as start then end; the tenant creation form now places coverage start/end together before payment day and attribution.
+- Added shared shrink and box-sizing constraints across form, filter, combobox and date-input layers to prevent mobile controls from exceeding their parent containers.
+- Preview only; no business logic, database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Mobile tenant and expense filter density
 
 - Paired tenant payment day beside occupant count in the expanded tenant summary while keeping coverage dates complete.

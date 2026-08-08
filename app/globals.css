@@ -8221,6 +8221,8 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .field,
 .ui-form-field {
   gap: var(--ui-space-2, 8px);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .btn,
@@ -8260,6 +8262,35 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   color: var(--ui-color-text-primary, var(--text));
   font-size: var(--ui-font-size-body, 14px);
   line-height: var(--ui-line-height-normal, 1.45);
+}
+
+/* Every form-control layer must be allowed to shrink inside its grid/flex cell. */
+.form-grid > *,
+.filter-grid > *,
+.list-controls > *,
+.date-range-filter,
+.date-range-inputs,
+.date-range-inputs > label,
+.combobox-field,
+.combobox {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.field input,
+.field select,
+.field textarea,
+.date-range-inputs input,
+.filter-grid input,
+.filter-grid select,
+.list-controls select,
+.combobox,
+.combobox input,
+.search-box input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .field input,

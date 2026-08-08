@@ -1008,8 +1008,6 @@ export default function TenantsPage() {
                 <MoneyInput label="本次新增押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />
                 <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(newPaymentDepositAmount || 0))} /></div>
               </> : null}
-              <div className={`field ${form.id ? "tenant-edit-payment-day" : ""}`}><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
-              {form.id ? <SearchableSelect className="tenant-edit-status" label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {form.id ? <>
                 <div className="field tenant-edit-coverage-start"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value })} /></div>
                 <div className="field tenant-edit-coverage-end"><label>租金覆盖结束日期</label><input required type="date" min={paymentForm.coverageStartDate || undefined} value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
@@ -1017,8 +1015,10 @@ export default function TenantsPage() {
               {!form.id ? <>
                 <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
                 <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
-                <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
               </> : null}
+              <div className={`field ${form.id ? "tenant-edit-payment-day" : ""}`}><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
+              {!form.id ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
+              {form.id ? <SearchableSelect className="tenant-edit-status" label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {!form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               <TextField className={form.id ? "tenant-edit-source" : undefined} label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
               <div className="field tenant-form-wide tenant-edit-note">
