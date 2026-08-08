@@ -250,9 +250,9 @@ export default function RoomsPage() {
                   <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
                   <span className="room-display-name" title={`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name}`}>{`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name}`}</span>
                   <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <strong className="room-rent-summary">当前月租 {euro(currentMonthlyRent)}</strong>
-                  <span className="room-unpaid-placeholder" aria-hidden="true" />
-                  <span className={`room-coverage-summary ${expiry.tone}`}>{currentCoverageEnd ? `租金已覆盖至 ${currentCoverageEnd} · ${expiry.label}` : "暂无有效租金覆盖"}</span>
+                  <strong>{euro(currentMonthlyRent)}</strong>
+                  <span className={`room-coverage-summary ${expiry.tone}`}>{currentCoverageEnd ? `租金已覆盖至 ${currentCoverageEnd}` : "-"}</span>
+                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
                 {expanded ? (
                   <RoomDetail

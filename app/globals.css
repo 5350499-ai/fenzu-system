@@ -9037,3 +9037,51 @@ textarea:-webkit-autofill:focus,
 .search-box input:-webkit-autofill:focus {
   border-color: var(--ui-color-primary, var(--primary)) !important;
 }
+
+/* Room list outer card: preserve the original three-row summary and only
+   replace the two third-row placeholders with coverage information. */
+.room-finance-line {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "room property status rent coverage expiry";
+  min-height: 64px;
+  gap: var(--ui-space-2, 8px);
+  padding: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+}
+.room-finance-line > :nth-child(1) { grid-area: property; }
+.room-finance-line > :nth-child(2) { grid-area: room; }
+.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
+.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
+.room-finance-line > :nth-child(5) { grid-area: coverage; display: block; min-width: 0; justify-self: start; }
+.room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
+.room-finance-line .room-property-name,
+.room-finance-line .room-display-name,
+.room-finance-line .room-coverage-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-finance-line .room-coverage-summary {
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+}
+.room-finance-line .room-coverage-summary.red { color: var(--ui-color-danger, var(--red)); }
+.room-finance-line .room-coverage-summary.amber { color: var(--ui-color-warning, var(--amber)); }
+.room-finance-line .room-coverage-summary.green { color: var(--ui-color-success, var(--green)); }
+
+@media (max-width: 640px) {
+  .room-finance-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "room status"
+      "property rent"
+      "coverage expiry";
+    min-height: 68px;
+    gap: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
+    padding: 9px 10px;
+  }
+  .room-finance-line > :nth-child(3),
+  .room-finance-line > :nth-child(4),
+  .room-finance-line > :nth-child(6) { justify-self: end; }
+  .room-finance-line > :nth-child(5) { justify-self: start; }
+}
