@@ -7780,18 +7780,21 @@ input[type="radio"] {
 
   .rent-finance-line,
   .expense-finance-line {
-    grid-template-columns: minmax(70px, max-content) minmax(34px, 58px) minmax(0, 1fr) max-content max-content;
+    grid-template-columns: minmax(76px, max-content) minmax(34px, 58px) minmax(0, 1fr) max-content max-content;
     grid-template-areas: "date partner description amount status";
     align-items: center;
     gap: var(--ui-space-1, 4px);
     min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
     flex-wrap: nowrap;
   }
 
   .rent-finance-line > :nth-child(1),
   .expense-finance-line > :nth-child(1) {
     grid-area: date;
-    min-width: 70px;
+    min-width: 76px;
+    flex: 0 0 auto;
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;

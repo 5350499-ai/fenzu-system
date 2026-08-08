@@ -664,3 +664,9 @@
 - Made active partners from the partner-management API the single source for new tenant, check-in, rent-payment, expense, and deposit attribution choices; removed application-level A/B fallback values.
 - Preserved historical attribution values without a database migration, including inactive/legacy values while editing existing records; missing attribution now remains unset instead of being silently rewritten to A.
 - No database schema, financial calculations, attachments, Backup V1, Restore V4, Storage, or Google Drive behavior changed.
+
+## 2026-08-08 - Tenant coverage editing and mobile finance date protection (Preview)
+
+- Tenant editing now reads and persists the current valid rent payment coverage start/end dates instead of editing contract start/end dates; historical payment amounts and contract dates remain unchanged.
+- Protected the mobile rent and expense transaction rows with a non-shrinking full-date column; only the middle description can ellipsize while amount and status remain intact.
+- No database schema, historical transaction, attachment, Backup V1, Restore V4, Storage, Google Drive, or Production changes.

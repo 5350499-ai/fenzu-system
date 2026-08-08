@@ -334,6 +334,7 @@ export default function TenantsPage() {
       return;
     }
     const contract = latestContractForTenant(tenant.id, contracts);
+    const currentCoverage = latestCoverageForTenant(tenant.id, payments);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
     setPaymentForm({
@@ -341,7 +342,9 @@ export default function TenantsPage() {
       propertyId: tenant.propertyId,
       roomId: tenant.roomId,
       tenantId: tenant.id,
-      amountDue: 0
+      amountDue: 0,
+      coverageStartDate: currentCoverage?.coverageStartDate || "",
+      coverageEndDate: currentCoverage?.coverageEndDate || ""
     });
     setNewPaymentDepositAmount(0);
     setOwnershipMode(partnerOptions[0]?.value || "");
@@ -401,6 +404,22 @@ export default function TenantsPage() {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
       if (form.id) {
         if (!previousTenant) throw new Error("租客不存在，请刷新后重试。");
+        const currentCoverage = latestCoverageForTenant(form.id, payments);
+        const coverageStartDate = paymentForm.coverageStartDate || "";
+        const coverageEndDate = paymentForm.coverageEndDate || "";
+        if (currentCoverage && (!coverageStartDate || !coverageEndDate || coverageStartDate > coverageEndDate)) {
+          window.alert("请填写有效的当前租金覆盖起止日期。");
+          return;
+        }
+        if (!currentCoverage && (coverageStartDate || coverageEndDate)) {
+          window.alert("当前租客没有可编辑的租金覆盖记录。");
+          return;
+        }
+        const nextPayments = currentCoverage
+          ? payments.map((payment) => payment.id === currentCoverage.id
+            ? { ...payment, coverageStartDate, coverageEndDate, isOverdue: isCoverageExpired({ ...payment, coverageStartDate, coverageEndDate }) }
+            : payment)
+          : payments;
         setSaving(true);
         try {
           const nextTenants = tenants.map((tenant) => tenant.id === form.id ? form : tenant);
@@ -412,12 +431,14 @@ export default function TenantsPage() {
             if (!savedTenantIds.includes(form.id)) throw new Error("租客资料保存失败");
           }
           if (roomsChanged) await saveBusinessData(roomKey, nextRooms);
+          if (JSON.stringify(payments) !== JSON.stringify(nextPayments)) {
+            const savedPaymentIds = await saveBusinessData(rentPaymentKey, nextPayments);
+            if (!savedPaymentIds.includes(currentCoverage!.id)) throw new Error("租金覆盖日期保存失败");
+          }
           const currentContract = latestContractForTenant(form.id, contracts);
           if (currentContract) {
             const nextContract = {
               ...currentContract,
-              startDate: contractForm.startDate,
-              endDate: contractForm.endDate,
               monthlyRent: form.monthlyRent,
               depositAmount: form.depositAmount,
               notes: form.notes || currentContract.notes || ""
@@ -438,6 +459,7 @@ export default function TenantsPage() {
           setContracts(loadedContracts);
           setTenants(nextTenants);
           setRooms(nextRooms);
+          setPayments(nextPayments);
         } catch {
           throw new Error("租客资料保存失败");
         }
@@ -975,16 +997,17 @@ export default function TenantsPage() {
                 <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(newPaymentDepositAmount || 0))} /></div>
               </> : null}
               <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
+              {form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {form.id ? <>
-                <div className="field"><label>入住日期</label><input type="date" value={contractForm.startDate || ""} onChange={(event) => setContractForm((current) => ({ ...current, startDate: event.target.value }))} /></div>
-                <div className="field"><label>合同到期日期</label><input type="date" value={contractForm.endDate || ""} onChange={(event) => setContractForm((current) => ({ ...current, endDate: event.target.value }))} /></div>
+                <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value })} /></div>
+                <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={paymentForm.coverageStartDate || undefined} value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               </> : null}
               {!form.id ? <>
                 <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value, rentMonth: event.target.value.slice(0, 7) })} /></div>
                 <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
                 <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
               </> : null}
-              <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
+              {!form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               <TextField label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
               <div className="field tenant-form-wide">
                 <label>备注</label>
