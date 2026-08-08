@@ -1,3 +1,10 @@
+## 2026-08-08 - Mobile control and date layout fixes
+
+- Centered shared combobox clear buttons by removing inherited button padding and enforcing a stable circular flex/grid box.
+- Kept tenant rent coverage dates as complete, non-ellipsized mobile detail values.
+- Constrained custom expense date-range inputs to their parent width with min/max sizing rules.
+- Preview only; no business logic, database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Stability first-round business semantics
 
 - Unified formal current-rental checks around active and pending-move-out relationships; terminal, vacant and reserved statuses no longer count as current.
