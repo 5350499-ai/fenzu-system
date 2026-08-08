@@ -58,6 +58,31 @@ const tabs: { id: Tab; label: string }[] = [
 ];
 const ScopedModuleContext = createContext<AccountModuleKey>("properties");
 
+function compareNaturalRoomName(left: string, right: string) {
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function sortRoomsByName(rooms: BusinessRoom[]) {
+  const originalOrder = new Map(rooms.map((room, index) => [room.id, index]));
+  return [...rooms].sort((left, right) => {
+    const result = compareNaturalRoomName(left.name || left.roomNumber || "", right.name || right.roomNumber || "");
+    return result || (originalOrder.get(left.id) || 0) - (originalOrder.get(right.id) || 0);
+  });
+}
+
+function sortByRoomName<T extends { id: string; roomId?: string }>(items: T[], rooms: BusinessRoom[]) {
+  const roomNames = new Map(rooms.map((room) => [room.id, room.name || room.roomNumber || ""]));
+  const originalOrder = new Map(items.map((item, index) => [item.id, index]));
+  return [...items].sort((left, right) => {
+    const leftName = left.roomId ? roomNames.get(left.roomId) || "" : "";
+    const rightName = right.roomId ? roomNames.get(right.roomId) || "" : "";
+    if (!leftName && rightName) return 1;
+    if (leftName && !rightName) return -1;
+    const result = compareNaturalRoomName(leftName, rightName);
+    return result || (originalOrder.get(left.id) || 0) - (originalOrder.get(right.id) || 0);
+  });
+}
+
 export default function PropertyDetailPage() {
   const access = useAccountAccess();
   const partnerDirectory = usePartnerDirectory();
@@ -131,15 +156,20 @@ export default function PropertyDetailPage() {
   }, [access.ready, access, propertyId]);
 
   const property = properties.find((item) => item.id === propertyId);
-  const scopedRooms = rooms.filter((item) => item.propertyId === propertyId);
-  const scopedTenants = tenants.filter((item) => item.propertyId === propertyId);
-  const scopedContracts = contracts.filter((item) => item.propertyId === propertyId);
-  const scopedPayments = payments.filter((item) => item.propertyId === propertyId);
-  const scopedDeposits = deposits.filter((item) => item.propertyId === propertyId && !item.notes?.includes("[收租押金:"));
-  const scopedExpenses = expenses.filter((item) => item.propertyId === propertyId);
+  const scopedRooms = sortRoomsByName(rooms.filter((item) => item.propertyId === propertyId));
+  const scopedTenants = sortByRoomName(tenants.filter((item) => item.propertyId === propertyId), scopedRooms);
+  const scopedContracts = sortByRoomName(contracts.filter((item) => item.propertyId === propertyId), scopedRooms);
+  const scopedPayments = sortByRoomName(payments.filter((item) => item.propertyId === propertyId), scopedRooms);
+  const scopedDeposits = sortByRoomName(deposits.filter((item) => item.propertyId === propertyId && !item.notes?.includes("[收租押金:")), scopedRooms);
+  const scopedExpenses = sortByRoomName(expenses.filter((item) => item.propertyId === propertyId), scopedRooms);
   const currentTenantCount = scopedTenants.filter((item) => item.status === "在租").length;
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
-  const monthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth")) : null;
+  const calculatedMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth")) : null;
+  const monthProfit = calculatedMonthProfit ? {
+    ...calculatedMonthProfit,
+    payments: sortByRoomName(calculatedMonthProfit.payments, scopedRooms),
+    expenses: sortByRoomName(calculatedMonthProfit.expenses, scopedRooms)
+  } : null;
   const monthlyIncome = monthProfit?.income || 0;
   const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last3Months")) : null;
   const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last12Months")) : null;
@@ -610,7 +640,7 @@ function CompactRecordCard({ title, status, tone, note, noteExpanded = false, on
   return <article className="compact-record-card">
     <div className="compact-record-heading"><strong>{title}</strong><StatusBadge tone={tone === "danger" ? "red" : tone === "profit" ? "green" : tone as any}>{status}</StatusBadge></div>
     <div className="compact-record-grid">{children}</div>
-    {note?.trim() ? note.length > 80 && onToggleNote ? <button className={`compact-record-note-toggle${noteExpanded ? " is-expanded" : ""}`} aria-expanded={noteExpanded} onClick={(event) => { event.stopPropagation(); onToggleNote(); }} type="button"><span>{note}</span><small>{noteExpanded ? "收起" : "展开"}</small></button> : <p className="compact-record-note" title={note}>{note}</p> : null}
+    {note?.trim() ? note.length > 60 && onToggleNote ? <button className={`compact-record-note-toggle${noteExpanded ? " is-expanded" : ""}`} aria-expanded={noteExpanded} aria-label={noteExpanded ? "收起完整备注" : "展开完整备注"} onClick={(event) => { event.stopPropagation(); onToggleNote(); }} type="button"><span>{note}</span><small>{noteExpanded ? "收起" : "展开"}</small></button> : <p className="compact-record-note" title={note}>{note}</p> : null}
     <RowActions onEdit={onEdit} onDelete={onDelete} />
   </article>;
 }

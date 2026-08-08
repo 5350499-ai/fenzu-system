@@ -682,3 +682,8 @@
 - 房间列表外层卡片恢复原有房间、房源、状态和月租信息，仅将第三排占位符替换为真实租金覆盖日期与到期状态。
 - 租金覆盖到期提醒现在跳转到对应房间，并通过房间 ID 自动定位和展开房间详情。
 - 房间列表与详情改为展示当前月租、真实租金覆盖结束日期及“今日到期／剩余／已逾期”状态；合同到期日期继续只保留合同语义。
+## 2026-08-08 - Property detail tenant notes and room ordering
+
+- Property detail tenant notes now use the actual tenant-card toggle with a lower long-note threshold, per-card state, and full-text expansion/collapse.
+- Property detail room-linked tabs now use one natural room-name sort, with unlinked records kept after linked records and original order preserved as the tie-breaker.
+- Preview only; no database, business data, or Production changes.
