@@ -758,6 +758,7 @@
 ## 2026-08-08 - Free single-account V1 boundaries (Preview)
 
 - Added the explicit `free_single` account plan and server-verified capability checks. Existing owner/managed accounts remain `managed` and retain their current functions.
+- The existing owner-only custom-account server flow can explicitly provision an isolated `free_single` workspace with the single-user core permission set; no public registration route or page was added.
 - Free-single accounts are limited to five active properties and ten active rooms per property. Archived records do not consume quota; restore is server-blocked if it would exceed the quota.
 - Hidden attachment, Google Drive, partner and cloud Backup/Restore interfaces for free-single accounts, while preserving administrators' existing features and data.
 - Blocked attachment, signed URL, Google Drive, attachment-admin and cloud Backup/Restore APIs on the server; tightened legacy attachment/Storage policies that could bypass the newer permission checks.

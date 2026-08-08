@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { ACCOUNT_MODULES, emptyModulePermissions, emptySensitivePermissions, SENSITIVE_PERMISSIONS, type ModulePermission, type SensitivePermissions } from "@/lib/account-permissions";
+import type { AccountPlan } from "@/lib/free-single";
 import { supabase } from "@/lib/supabase";
 import { Copy, KeyRound, LockKeyhole, Plus, RotateCcw, Save, Share2, ShieldCheck, UserRoundCheck, UserRoundX, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,6 +14,7 @@ type AccountItem = {
   username: string;
   displayName: string;
   accountType: "owner" | "custom";
+  accountPlan: AccountPlan;
   status: "active" | "disabled";
   propertyAccessMode: "all" | "selected";
   propertyIds: string[];
@@ -34,6 +36,7 @@ type EditorState = {
   password: string;
   passwordConfirmation: string;
   status: "active" | "disabled";
+  accountPlan: AccountPlan;
   mustChangePassword: boolean;
   propertyAccessMode: "all" | "selected";
   propertyIds: string[];
@@ -50,6 +53,7 @@ function blankEditor(): EditorState {
     password: "",
     passwordConfirmation: "",
     status: "active",
+    accountPlan: "managed",
     mustChangePassword: false,
     propertyAccessMode: "selected",
     propertyIds: [],
@@ -136,6 +140,7 @@ export default function AccountsPage() {
       password: "",
       passwordConfirmation: "",
       status: account.status,
+      accountPlan: account.accountPlan,
       mustChangePassword: account.mustChangePassword,
       propertyAccessMode: account.propertyAccessMode,
       propertyIds: account.propertyIds,
@@ -171,6 +176,7 @@ export default function AccountsPage() {
         password: editor.password,
         passwordConfirmation: editor.passwordConfirmation,
         status: editor.status,
+        accountPlan: editor.accountPlan,
         mustChangePassword: editor.mustChangePassword,
         propertyAccessMode: editor.propertyAccessMode,
         propertyIds: editor.propertyIds,
@@ -331,6 +337,7 @@ export default function AccountsPage() {
               <div className="field"><label>{editor.id ? "绑定邮箱（历史账号可暂时留空）" : "邮箱（必填）"}</label><input type="email" autoComplete="email" value={editor.email} onChange={(event) => setEditor({ ...editor, email: event.target.value })} placeholder="name@example.com" />{editor.id && !editor.email ? <small className="danger-text">建议绑定真实邮箱，否则无法邮件找回密码。</small> : null}</div>
               {!editor.id ? <><div className="field"><label>初始密码</label><input type="password" value={editor.password} onChange={(event) => setEditor({ ...editor, password: event.target.value })} /></div><div className="field"><label>确认密码</label><input type="password" value={editor.passwordConfirmation} onChange={(event) => setEditor({ ...editor, passwordConfirmation: event.target.value })} /></div></> : null}
               {!editor.id ? <div className="field"><label>账号状态</label><div className="account-choice-row"><label className="checkbox-line"><input type="radio" name="account-status" checked={editor.status === "active"} onChange={() => setEditor({ ...editor, status: "active" })} /> 启用</label><label className="checkbox-line"><input type="radio" name="account-status" checked={editor.status === "disabled"} onChange={() => setEditor({ ...editor, status: "disabled" })} /> 停用</label></div></div> : null}
+              {!editor.id ? <div className="field"><label>账户方案</label><select value={editor.accountPlan} onChange={(event) => setEditor({ ...editor, accountPlan: event.target.value === "free_single" ? "free_single" : "managed" })}><option value="managed">管理员/受管账号</option><option value="free_single">普通单人免费版</option></select><small className="muted">免费版创建独立工作区；无附件、合伙和云端备份恢复功能，最多 5 套房源、每套 10 间房。</small></div> : null}
               <label className="checkbox-line"><input type="checkbox" checked={editor.mustChangePassword} onChange={(event) => setEditor({ ...editor, mustChangePassword: event.target.checked })} /> 首次登录后要求修改密码</label>
             </div></details>
 

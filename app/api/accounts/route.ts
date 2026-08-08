@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const context = await requireActiveAccount(request, true);
     const admin = getSupabaseAdmin();
     const [profilesResult, permissionsResult, sensitiveResult, accessResult, propertyResult, logsResult, identitiesResult] = await Promise.all([
-      admin.from("user_profiles").select("auth_user_id,username,display_name,account_type,status,property_access_mode,must_change_password,last_login_at,last_activity_at,disabled_at").eq("workspace_owner_id", context.profile.workspace_owner_id).order("created_at", { ascending: true }),
+      admin.from("user_profiles").select("auth_user_id,username,display_name,account_type,account_plan,status,property_access_mode,must_change_password,last_login_at,last_activity_at,disabled_at").eq("workspace_owner_id", context.profile.workspace_owner_id).order("created_at", { ascending: true }),
       admin.from("user_permissions").select("user_id,module_key,can_view,can_create,can_edit,can_archive,can_delete"),
       admin.from("user_sensitive_permissions").select("*"),
       admin.from("user_property_access").select("user_id,property_id"),
@@ -52,6 +52,7 @@ export async function GET(request: Request) {
       username: profile.username,
       displayName: profile.display_name,
       accountType: profile.account_type,
+      accountPlan: profile.account_plan,
       status: profile.status,
       propertyAccessMode: profile.property_access_mode,
       propertyIds: accessByUser.get(profile.auth_user_id) || [],

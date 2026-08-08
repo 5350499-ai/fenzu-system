@@ -12,6 +12,7 @@ import {
 import { AccountApiError, type AccountRequestContext, type AccountProfileRow, revokeAllAppSessions, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { isDeliverableAccountEmail, passwordValidationMessage } from "@/lib/password-security";
+import { FREE_SINGLE_PLAN, MANAGED_PLAN, isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 
 const OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
 
@@ -27,7 +28,32 @@ export type AccountConfigurationInput = {
   propertyIds?: string[];
   modulePermissions?: RawModulePermission[];
   sensitivePermissions?: RawSensitivePermissions;
+  accountPlan?: AccountPlan;
 };
+
+function freeSingleModulePermissions() {
+  return emptyModulePermissions().map((base) => ({
+    ...base,
+    canView: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey),
+    canCreate: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey),
+    canEdit: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey),
+    canArchive: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey),
+    canDelete: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey)
+  }));
+}
+
+function freeSingleSensitivePermissions(): SensitivePermissions {
+  return {
+    ...emptySensitivePermissions(),
+    canViewTenantPhone: true,
+    canViewTenantWechat: true,
+    canViewTenantIdNumber: true,
+    canViewTenantNotes: true,
+    canExportData: true,
+    canViewProfits: true,
+    canManageSettings: true
+  };
+}
 
 export function requireText(value: unknown, label: string) {
   const text = typeof value === "string" ? value.trim() : "";
@@ -203,9 +229,10 @@ export async function createCustomAccount(context: AccountRequestContext, input:
   if (!(await usernameAvailable(username))) throw new AccountApiError("登录账号已存在，请使用其他账号。", 409);
   if (!(await emailAvailable(email))) throw new AccountApiError("该邮箱已绑定其他账号，请使用其他邮箱。", 409);
 
-  const mode: PropertyAccessMode = input.propertyAccessMode === "all" ? "all" : "selected";
-  const permissions = normalizePermissions(input.modulePermissions);
-  const sensitivePermissions = normalizeSensitivePermissions(input.sensitivePermissions);
+  const accountPlan: AccountPlan = isFreeSinglePlan(input.accountPlan) ? FREE_SINGLE_PLAN : MANAGED_PLAN;
+  const mode: PropertyAccessMode = accountPlan === FREE_SINGLE_PLAN ? "all" : input.propertyAccessMode === "all" ? "all" : "selected";
+  const permissions = accountPlan === FREE_SINGLE_PLAN ? freeSingleModulePermissions() : normalizePermissions(input.modulePermissions);
+  const sensitivePermissions = accountPlan === FREE_SINGLE_PLAN ? freeSingleSensitivePermissions() : normalizeSensitivePermissions(input.sensitivePermissions);
   const status = input.status === "disabled" ? "disabled" : "active";
   const admin = getSupabaseAdmin();
 
@@ -214,7 +241,7 @@ export async function createCustomAccount(context: AccountRequestContext, input:
     password,
     email_confirm: true,
     ban_duration: status === "disabled" ? "876000h" : undefined,
-    user_metadata: { account_kind: "custom" }
+    user_metadata: { account_kind: "custom", account_plan: accountPlan }
   });
   if (authError || !authData.user) throw new AccountApiError("创建登录账号失败，请稍后重试。", 500);
 
@@ -222,10 +249,11 @@ export async function createCustomAccount(context: AccountRequestContext, input:
   try {
     const { error: profileError } = await admin.from("user_profiles").insert({
       auth_user_id: targetId,
-      workspace_owner_id: context.profile.workspace_owner_id,
+      workspace_owner_id: accountPlan === FREE_SINGLE_PLAN ? targetId : context.profile.workspace_owner_id,
       username,
       display_name: displayName,
       account_type: "custom",
+      account_plan: accountPlan,
       status,
       property_access_mode: mode,
       must_change_password: Boolean(input.mustChangePassword),
@@ -246,14 +274,16 @@ export async function createCustomAccount(context: AccountRequestContext, input:
 
     await savePermissionRows(targetId, permissions);
     await saveSensitiveRows(targetId, sensitivePermissions);
-    const propertyIds = await savePropertyAccess(targetId, context.profile.workspace_owner_id, mode, input.propertyIds || [], context.userId);
+    const propertyIds = accountPlan === FREE_SINGLE_PLAN
+      ? []
+      : await savePropertyAccess(targetId, context.profile.workspace_owner_id, mode, input.propertyIds || [], context.userId);
 
     await writeAuditLog(context, {
       actionType: "account_created",
       moduleKey: "accounts",
       entityType: "user_profile",
       entityId: targetId,
-      afterData: { username, displayName, email, status, propertyAccessMode: mode, propertyIds, permissions, sensitivePermissions, mustChangePassword: Boolean(input.mustChangePassword) },
+      afterData: { username, displayName, email, status, accountPlan, propertyAccessMode: mode, propertyIds, permissions, sensitivePermissions, mustChangePassword: Boolean(input.mustChangePassword) },
       description: `创建自定义账号：${displayName}`
     });
 
