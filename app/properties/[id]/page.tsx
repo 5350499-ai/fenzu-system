@@ -86,6 +86,7 @@ export default function PropertyDetailPage() {
   const [propertyEditorOpen, setPropertyEditorOpen] = useState(false);
   const [propertyForm, setPropertyForm] = useState<BusinessProperty>(emptyProperty());
   const [propertySaving, setPropertySaving] = useState(false);
+  const [expandedTenantNoteIds, setExpandedTenantNoteIds] = useState<Set<string>>(new Set());
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -341,7 +342,7 @@ export default function PropertyDetailPage() {
         <ScopedCardList title="租客" action="新增租客" onAdd={() => { setTenantForm(emptyTenant(propertyId)); setEditor("tenant"); }}>
           {scopedTenants.map((tenant) => {
             const latestPayment = scopedPayments.filter((payment) => payment.tenantId === tenant.id).sort((a, b) => (b.paymentDate || b.rentMonth || "").localeCompare(a.paymentDate || a.rentMonth || ""))[0];
-            return <CompactRecordCard key={tenant.id} title={tenant.name || "未命名租客"} status={tenant.status} tone={tenant.status === "在租" ? "green" : "amber"} note={tenant.notes} onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)}>
+            return <CompactRecordCard key={tenant.id} title={tenant.name || "未命名租客"} status={tenant.status} tone={tenant.status === "在租" ? "green" : "amber"} note={tenant.notes} noteExpanded={expandedTenantNoteIds.has(tenant.id)} onToggleNote={() => setExpandedTenantNoteIds((current) => { const next = new Set(current); if (next.has(tenant.id)) next.delete(tenant.id); else next.add(tenant.id); return next; })} onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)}>
               <CardField label="房间" value={scopedRooms.find((room) => room.id === tenant.roomId)?.name || ""} />
               <CardField label="当前月租" value={euro(tenant.monthlyRent)} />
               {tenant.moveInDate ? <CardField label="入住日期" value={tenant.moveInDate} /> : null}
@@ -605,11 +606,11 @@ function ScopedCardList({ title, action, onAdd, children }: { title: string; act
   return <ScopedModuleContext.Provider value={moduleKey}><section className="card panel compact-card-section"><div className="panel-header"><h2 className="panel-title">{title}</h2>{access.can(moduleKey, "create") ? <button className="btn primary" onClick={onAdd} type="button"><Plus size={17} /> {action}</button> : null}</div><div className="compact-card-list">{children}</div></section></ScopedModuleContext.Provider>;
 }
 
-function CompactRecordCard({ title, status, tone, note, onEdit, onDelete, children }: { title: string; status: string; tone?: string; note?: string; onEdit: () => void; onDelete: () => void; children: React.ReactNode }) {
+function CompactRecordCard({ title, status, tone, note, noteExpanded = false, onToggleNote, onEdit, onDelete, children }: { title: string; status: string; tone?: string; note?: string; noteExpanded?: boolean; onToggleNote?: () => void; onEdit: () => void; onDelete: () => void; children: React.ReactNode }) {
   return <article className="compact-record-card">
     <div className="compact-record-heading"><strong>{title}</strong><StatusBadge tone={tone === "danger" ? "red" : tone === "profit" ? "green" : tone as any}>{status}</StatusBadge></div>
     <div className="compact-record-grid">{children}</div>
-    {note?.trim() ? <p className="compact-record-note" title={note}>{note}</p> : null}
+    {note?.trim() ? note.length > 80 && onToggleNote ? <button className={`compact-record-note-toggle${noteExpanded ? " is-expanded" : ""}`} aria-expanded={noteExpanded} onClick={(event) => { event.stopPropagation(); onToggleNote(); }} type="button"><span>{note}</span><small>{noteExpanded ? "收起" : "展开"}</small></button> : <p className="compact-record-note" title={note}>{note}</p> : null}
     <RowActions onEdit={onEdit} onDelete={onDelete} />
   </article>;
 }

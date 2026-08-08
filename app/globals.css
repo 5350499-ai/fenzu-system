@@ -8431,9 +8431,66 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .room-finance-line .room-coverage-summary.red { color: var(--ui-color-danger, var(--red)); }
 .room-finance-line .room-coverage-summary.amber { color: var(--ui-color-warning, var(--amber)); }
 .room-finance-line .room-coverage-summary.green { color: var(--ui-color-success, var(--green)); }
+.finance-line .room-expiry-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box;
+  height: 26px !important;
+  min-height: 26px !important;
+  margin: 0;
+  padding: 0 8px !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+  transform: none;
+}
 .room-finance-line .room-monthly-rent {
   min-width: max-content;
   white-space: nowrap;
+}
+
+.room-detail-panel .room-core-detail-grid {
+  row-gap: var(--ui-space-1, 4px);
+}
+.room-detail-panel .room-core-detail-grid > .compact-detail-row {
+  padding-block: 2px;
+}
+
+.compact-record-note-toggle {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.compact-record-note-toggle > span {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.compact-record-note-toggle > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ui-color-info, var(--blue));
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: right;
+}
+.compact-record-note-toggle.is-expanded > span {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .room-finance-line > :nth-child(6) {
   display: inline-flex;
@@ -9098,4 +9155,27 @@ textarea:-webkit-autofill:focus,
   .room-finance-line > :nth-child(4),
   .room-finance-line > :nth-child(6) { justify-self: end; }
   .room-finance-line > :nth-child(5) { justify-self: start; }
+}
+
+/* Final mobile-safe alignment for the room expiry capsule. */
+.finance-line .room-expiry-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box;
+  height: 26px !important;
+  min-height: 26px !important;
+  margin: 0;
+  padding: 0 8px !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+  transform: none !important;
+}
+
+/* Keep only the room detail display rows compact; controls and lower actions are unchanged. */
+.room-detail-panel .room-core-detail-grid {
+  row-gap: var(--ui-space-1, 4px);
+}
+.room-detail-panel .room-core-detail-grid > .compact-detail-row {
+  padding-block: 2px;
 }

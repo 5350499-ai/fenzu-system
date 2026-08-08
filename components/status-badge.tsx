@@ -1,3 +1,3 @@
-export function StatusBadge({ children, tone }: { children: React.ReactNode; tone?: string }) {
-  return <span className={`badge ${tone || ""}`}>{children}</span>;
+export function StatusBadge({ children, tone, className }: { children: React.ReactNode; tone?: string; className?: string }) {
+  return <span className={`badge ${tone || ""} ${className || ""}`}>{children}</span>;
 }

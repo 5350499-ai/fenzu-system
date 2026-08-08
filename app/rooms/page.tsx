@@ -252,7 +252,7 @@ export default function RoomsPage() {
                   <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
                   <strong className="room-monthly-rent">月租 {euro(currentMonthlyRent)}</strong>
                   <span className={`room-coverage-summary ${expiry.tone}`}>{currentCoverageEnd ? `租金已覆盖至 ${currentCoverageEnd}` : "-"}</span>
-                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
+                  <StatusBadge className="room-expiry-badge" tone={expiry.tone}>{expiry.label}</StatusBadge>
                 </button>
                 {expanded ? (
                   <RoomDetail
