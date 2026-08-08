@@ -1,3 +1,8 @@
+## 2026-08-08 - Check-in occupant input and date order
+
+- Allow the occupant count field to be temporarily cleared while editing before submit validation, instead of immediately restoring `1`.
+- Reordered the check-in coverage start/end dates before payment day and total income; room management remains free of an occupant-count field.
+
 ## 2026-08-08 - Actual occupant count
 
 - Fixed the authorized tenant RPC return shape after adding `occupant_count`; the RPC now returns the complete `public.tenants` row and preserves the existing authorization and field masking rules.

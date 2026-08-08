@@ -996,7 +996,7 @@ export default function TenantsPage() {
               <TextField className="tenant-form-wide" label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
               <MoneyInput label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
               <MoneyInput label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
-              <div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount} onChange={(event) => setForm((current) => ({ ...current, occupantCount: event.target.value === "" ? 1 : Number(event.target.value) }))} /></div>
+              <div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount || ""} onChange={(event) => setForm((current) => ({ ...current, occupantCount: Number(event.target.value) }))} /></div>
               {!form.id ? <>
                 <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />
                 <MoneyInput label="本次新增押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />
