@@ -8403,6 +8403,67 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   }
 }
 
+/* Rooms: keep the summary meaningful without letting long labels create a second column overflow. */
+.room-finance-line {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) auto;
+  grid-template-areas:
+    "room room status"
+    "property rent rent"
+    "coverage coverage coverage";
+  min-height: 0;
+  gap: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
+  padding: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+}
+.room-finance-line > :nth-child(1) { grid-area: property; }
+.room-finance-line > :nth-child(2) { grid-area: room; }
+.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
+.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: start; }
+.room-finance-line > :nth-child(5) { display: none; }
+.room-finance-line > :nth-child(6) { grid-area: coverage; justify-self: start; }
+.room-finance-line .room-coverage-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ui-color-text-secondary, var(--muted));
+  font-size: var(--ui-font-size-secondary, 13px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-finance-line .room-coverage-summary.red { color: var(--ui-color-danger, var(--red)); }
+.room-finance-line .room-coverage-summary.amber { color: var(--ui-color-warning, var(--amber)); }
+.room-finance-line .room-coverage-summary.green { color: var(--ui-color-success, var(--green)); }
+
+.room-core-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.room-core-detail-grid > :nth-child(1),
+.room-core-detail-grid > :nth-child(7),
+.room-core-detail-grid > :nth-child(10) { grid-column: 1 / -1; }
+.room-core-detail-grid .room-coverage-field > strong {
+  overflow: visible;
+  text-align: left;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.room-core-detail-grid .room-note-field > strong {
+  overflow: visible;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .room-finance-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "room status"
+      "property property"
+      "rent rent"
+      "coverage coverage";
+  }
+  .room-finance-line > :nth-child(4) { justify-self: start; }
+  .room-core-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 640px) {
   .tenant-detail-panel .detail-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));

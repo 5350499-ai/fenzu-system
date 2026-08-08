@@ -30,7 +30,7 @@ import {
 import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
-import { coverageLabel, isCoverageExpired, latestCoverageForRoom, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
 import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -105,6 +105,24 @@ export default function RoomsPage() {
     getProperty: (room) => properties.find((property) => property.id === room.propertyId)?.name || ""
   }), [filteredRooms, properties]);
   const visibleRooms = pageRows(sortedRooms, page, pageSize);
+
+  useEffect(() => {
+    const roomId = new URLSearchParams(window.location.search).get("roomId");
+    if (!roomId) return;
+    const roomIndex = sortedRooms.findIndex((room) => room.id === roomId);
+    if (roomIndex < 0) return;
+    const targetPage = Math.floor(roomIndex / pageSize) + 1;
+    if (page !== targetPage) setPage(targetPage);
+    setExpandedRoomId(roomId);
+  }, [page, pageSize, sortedRooms]);
+
+  useEffect(() => {
+    if (!expandedRoomId) return;
+    const roomId = new URLSearchParams(window.location.search).get("roomId");
+    if (roomId !== expandedRoomId) return;
+    const timer = window.setTimeout(() => document.getElementById(`room-${roomId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+    return () => window.clearTimeout(timer);
+  }, [expandedRoomId]);
 
   function close() {
     setOpen(false);
@@ -214,8 +232,12 @@ export default function RoomsPage() {
             const currentContracts = contracts.filter((contract) => currentTenantIds.has(contract.tenantId) && isActiveContract(contract));
             const nearestContract = [...currentContracts].filter((contract) => contract.endDate).sort((a, b) => a.endDate.localeCompare(b.endDate))[0] || null;
             const displayStatus = roomOccupancyStatus(room, tenants);
-            const expiry = displayStatus.includes("已租") || displayStatus.includes("即将退租") ? getRoomExpiryInfo(nearestContract?.endDate) : { label: "-", tone: "info" as const };
-            const latestPayment = latestCoverageForRoom(room.id, payments);
+            const currentCoveragePayment = currentTenants
+              .map((tenant) => latestCoverageForTenant(tenant.id, payments))
+              .filter((payment): payment is BusinessRentPayment => Boolean(payment?.coverageEndDate))
+              .sort((a, b) => (a.coverageEndDate || "").localeCompare(b.coverageEndDate || ""))[0] || null;
+            const currentCoverageEnd = currentCoveragePayment?.coverageEndDate || "";
+            const expiry = currentCoverageEnd ? getCoverageExpiryInfo(currentCoverageEnd) : { label: "-", tone: "info" as const };
             const currentMonthlyRent = currentTenants.length
               ? currentTenants.reduce((total, tenant) => total + currentRentForTenant(tenant, payments), 0)
               : room.monthlyRent;
@@ -223,14 +245,14 @@ export default function RoomsPage() {
             const unpaid = displayStatus === "已租" ? roomUnpaidAmount(currentTenants, payments) : 0;
             const expanded = expandedRoomId === room.id;
             return (
-              <article className="finance-list-item" key={room.id}>
+              <article className="finance-list-item" id={`room-${room.id}`} key={room.id}>
                 <button className="finance-line room-finance-line" onClick={() => toggleRoom(room.id)} type="button">
                   <span className="room-property-name" title={property?.name || "-"}>{property?.name || "-"}</span>
-                  <span className="room-display-name" title={room.roomNumber || room.name}>{room.roomNumber || room.name}</span>
+                  <span className="room-display-name" title={`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name}`}>{`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name}`}</span>
                   <StatusBadge tone={roomTone(displayStatus)}>{displayStatus}</StatusBadge>
-                  <strong>{euro(currentMonthlyRent)}</strong>
-                  <strong className={unpaid > 0 ? "danger-text" : "muted"}>{unpaid > 0 ? `欠费${euro(unpaid)}` : "-"}</strong>
-                  <StatusBadge tone={expiry.tone}>{expiry.label}</StatusBadge>
+                  <strong className="room-rent-summary">当前月租 {euro(currentMonthlyRent)}</strong>
+                  <span className="room-unpaid-placeholder" aria-hidden="true" />
+                  <span className={`room-coverage-summary ${expiry.tone}`}>{currentCoverageEnd ? `租金已覆盖至 ${currentCoverageEnd} · ${expiry.label}` : "暂无有效租金覆盖"}</span>
                 </button>
                 {expanded ? (
                   <RoomDetail
@@ -242,7 +264,7 @@ export default function RoomsPage() {
                     historicalTenants={historicalTenants}
                     currentMonthlyRent={currentMonthlyRent}
                     currentDepositAmount={currentDepositAmount}
-                    coverageEnd={coverageLabel(latestPayment)}
+                    coverageEnd={currentCoverageEnd || "-"}
                     contractEndDate={nearestContract?.endDate || "-"}
                     contracts={contracts}
                     allPayments={payments}
@@ -366,16 +388,15 @@ function RoomDetail({
       <CompactDetailGroup className="room-core-detail-group">
         <CompactDetailGrid className="room-core-detail-grid">
         <DetailField label="房源" value={propertyName} />
-        <DetailField label="房间名称" value={room.name || "-"} />
-        <DetailField label="房间编号" value={room.roomNumber || "-"} />
+        <DetailField label="房间" value={`${room.roomNumber ? `${room.roomNumber} ` : ""}${room.name || "-"}`} />
+        <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
         <DetailField label="当前在租租客" value={`${currentTenants.length}人`} />
         <DetailField label="当前月租合计" value={euro(currentMonthlyRent)} />
         <DetailField label="当前押金合计" value={euro(currentDepositAmount)} />
-        <DetailField label="是否欠费" value={unpaid > 0 ? `欠费 ${euro(unpaid)}` : "否"} />
-        <DetailField label="租金已覆盖至" value={coverageEnd} />
-        <DetailField label="合同到期日期" value={contractEndDate} />
+        <DetailField className="room-coverage-field" label="租金已覆盖至" value={coverageEnd} wide />
         <DetailField label="到期提醒" value={expiryLabel} />
-        <DetailField label="备注" value={room.notes || "-"} />
+        <DetailField label="合同到期日期" value={contractEndDate} />
+        <DetailField className="room-note-field" label="备注" value={room.notes || "-"} wide />
         </CompactDetailGrid>
       </CompactDetailGroup>
       <div className="room-current-tenants">
@@ -390,7 +411,7 @@ function RoomDetail({
               <span>当前有效房租 {euro(currentRent)}</span>
               <span>押金 {euro(currentDepositForTenant(tenant, allDeposits))}</span>
               <span>入住 {contract?.startDate || "-"}</span>
-              <span>覆盖至 {coverageLabel(payment)}</span>
+              <span>覆盖至 {payment?.coverageEndDate || "-"}</span>
               <StatusBadge tone="green">{tenant.status}</StatusBadge>
             </Link>
           );
@@ -412,7 +433,7 @@ function RoomDetail({
                 return <Link className="room-current-tenant room-history-tenant" href={`/tenants?tenantId=${tenant.id}`} key={tenant.id}>
                   <strong>{tenant.name}</strong>
                   <span>入住 {contract?.startDate || tenant.moveInDate || "-"}</span>
-                  <span>覆盖至 {coverageLabel(payment)}</span>
+                  <span>覆盖至 {payment?.coverageEndDate || "-"}</span>
                   <StatusBadge tone="amber">{tenant.status}</StatusBadge>
                 </Link>;
               })}
@@ -439,8 +460,8 @@ function RoomDetail({
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return <CompactDetailRow label={label} value={value} />;
+function DetailField({ label, value, wide, className }: { label: string; value: string; wide?: boolean; className?: string }) {
+  return <CompactDetailRow className={className} label={label} value={value} wide={wide} />;
 }
 
 function paymentDepositAmount(payment: BusinessRentPayment, deposits: BusinessDeposit[]) {
@@ -508,13 +529,14 @@ function isActiveTenant(tenant: BusinessTenant) {
   return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
-function getRoomExpiryInfo(endDate?: string) {
+function getCoverageExpiryInfo(endDate?: string) {
   if (!endDate) return { label: "-", tone: "info" as const };
   const days = daysUntil(endDate);
-  if (days < 0) return { label: `已到期${Math.abs(days)}天`, tone: "red" as const };
-  if (days <= 30) return { label: `${days}天到期`, tone: "red" as const };
-  if (days <= 90) return { label: `${days}天到期`, tone: "amber" as const };
-  return { label: "-", tone: "info" as const };
+  if (days < 0) return { label: `已逾期${Math.abs(days)}天`, tone: "red" as const };
+  if (days === 0) return { label: "今日到期", tone: "red" as const };
+  if (days <= 30) return { label: `剩余${days}天`, tone: "red" as const };
+  if (days <= 90) return { label: `剩余${days}天`, tone: "amber" as const };
+  return { label: `剩余${days}天`, tone: "green" as const };
 }
 
 function daysUntil(date: string) {

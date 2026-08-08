@@ -675,3 +675,7 @@
 
 - Consolidated WebKit autofill styling into the global dark-control rule, including active/focus states, so autofilled text remains readable without Safari's pale background.
 - Removed the duplicate login-only autofill rule; authentication behavior and all form values remain unchanged.
+# 2026-08-08
+
+- 租金覆盖到期提醒现在跳转到对应房间，并通过房间 ID 自动定位和展开房间详情。
+- 房间列表与详情改为展示当前月租、真实租金覆盖结束日期及“今日到期／剩余／已逾期”状态；合同到期日期继续只保留合同语义。

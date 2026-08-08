@@ -333,7 +333,7 @@ function buildDashboardReminders({
         id: `rent-${tenant.id}`,
         title: fixedRentReminderTitle(roomLabel, stage, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
-        href: stage.level === "overdue" ? "/rent-payments?overdue=1" : "/rent-payments",
+        href: `/rooms?roomId=${encodeURIComponent(tenant.roomId)}`,
         tone: rentStageTone(stage.level),
         priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining),
         rentContext: {
