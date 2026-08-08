@@ -1230,13 +1230,13 @@ function TenantDetail({
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
         <DetailField label="入住人数" value={`${tenant.occupantCount}人`} />
+        <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
         <div className="tenant-amount-grid">
           <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
           <DetailField label="最近一次实收" value={euro(latestReceived)} />
           <DetailField label="押金标准" value={euro(tenant.depositAmount)} />
           <DetailField label="已收押金" value={euro(receivedDeposit)} />
         </div>
-        <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
         <DetailField className="tenant-coverage-field" label="租金已覆盖至" value={coverageEnd} />
         <div className="tenant-note-field">
           <DetailField label="备注" value={tenant.notes || "-"} />

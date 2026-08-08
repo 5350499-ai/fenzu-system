@@ -8404,6 +8404,22 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-template-columns: 1fr;
   }
 
+  .date-range-filter {
+    display: grid;
+    gap: var(--ui-space-3, 12px);
+  }
+
+  .date-range-inputs {
+    display: grid;
+    width: 100%;
+    gap: var(--ui-space-3, 12px);
+  }
+
+  .date-range-inputs > label {
+    width: 100%;
+    flex: none;
+  }
+
   .detail-grid,
   .ui-detail-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));

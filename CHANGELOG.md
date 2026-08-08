@@ -1,3 +1,9 @@
+## 2026-08-08 - Mobile tenant and expense filter density
+
+- Paired tenant payment day beside occupant count in the expanded tenant summary while keeping coverage dates complete.
+- Switched custom expense date inputs to a vertically stacked, full-width mobile layout with consistent filter spacing.
+- Preview only; no business logic, database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Mobile control and date layout fixes
 
 - Centered shared combobox clear buttons by removing inherited button padding and enforcing a stable circular flex/grid box.
