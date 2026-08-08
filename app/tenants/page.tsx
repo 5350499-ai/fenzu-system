@@ -43,7 +43,7 @@ import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
-import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
@@ -122,6 +122,7 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
+  const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -194,6 +195,8 @@ export default function TenantsPage() {
       setPartnersLoading(false);
       await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
       const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
+      const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
+      setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDetailTenantId(requestedTenantId);
       }
@@ -256,15 +259,18 @@ export default function TenantsPage() {
     const propertyVisible = propertyFilterId
       ? visible.filter((tenant) => tenant.propertyId === propertyFilterId)
       : visible;
-    if (!keyword) return propertyVisible;
-    return propertyVisible.filter((tenant) => {
+    const contractVisible = contractExpiringDays === null
+      ? propertyVisible
+      : propertyVisible.filter((tenant) => contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, contractExpiringDays)));
+    if (!keyword) return contractVisible;
+    return contractVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
       const displayStatus = tenantDisplayStatus(tenant, payments);
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
+  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -288,7 +294,7 @@ export default function TenantsPage() {
   }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
   const visibleTenants = pageRows(sortedTenants, page, pageSize);
-  const explicitTenantFilter = Boolean(query.trim() || propertyFilterId);
+  const explicitTenantFilter = Boolean(query.trim() || propertyFilterId || contractExpiringDays !== null);
   const retiredVisible = visibleTenants.filter((tenant) => isEndedTenantStatus(tenant.status));
   const currentVisible = visibleTenants.filter((tenant) => !isEndedTenantStatus(tenant.status));
   const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
@@ -916,7 +922,7 @@ export default function TenantsPage() {
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
-                    canCollectRent={access.can("rent_payments", "create") && strictCurrentRentalTenant(tenant)}
+                    canCollectRent={access.can("rent_payments", "create") && isCurrentRentalRelationship(tenant)}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewContractFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
@@ -1462,7 +1468,7 @@ function compareTenantStatus(
 }
 
 function tenantStatusRank(tenant: BusinessTenant, expiry: ReturnType<typeof fixedCoverageExpiryInfo>) {
-  if (!strictCurrentRentalTenant(tenant)) return isArchivedTenant(tenant) ? 4 : 3;
+  if (!isCurrentRentalRelationship(tenant)) return isArchivedTenant(tenant) ? 4 : 3;
   if (expiry.level === "red") return 0;
   if (expiry.level === "orange" || expiry.level === "yellow") return 1;
   return 2;
@@ -1542,7 +1548,7 @@ function syncRoomsAfterTenantChange(
   const touchedRoomIds = new Set([previousTenant?.roomId, nextTenant.roomId].filter(Boolean));
   return rooms.map((room) => {
     if (!touchedRoomIds.has(room.id)) return room;
-    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
     if (hasActiveTenant) return { ...room, status: "已租" };
     if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
     return room;
@@ -1552,15 +1558,11 @@ function syncRoomsAfterTenantChange(
 function syncRoomsAfterTenantRemoval(rooms: BusinessRoom[], tenants: BusinessTenant[], roomId: string) {
   return rooms.map((room) => {
     if (room.id !== roomId) return room;
-    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
     if (hasActiveTenant) return { ...room, status: "已租" };
     if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
     return room;
   });
-}
-
-function isActiveTenant(tenant: BusinessTenant) {
-  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function isArchivedTenant(tenant: BusinessTenant) {
@@ -1632,4 +1634,15 @@ function today() {
 
 function TextField({ label, value, onChange, required, className }: { label: string; value?: string; onChange: (value: string) => void; required?: boolean; className?: string }) {
   return <div className={`field${className ? ` ${className}` : ""}`}><label>{label}</label><input required={required} value={value || ""} onChange={(event) => onChange(event.target.value)} /></div>;
+}
+
+function isContractExpiringWithin(contract: BusinessContract, days: number) {
+  if (!contract.endDate || isEndedContract(contract)) return false;
+  const remaining = daysBetween(today(), contract.endDate);
+  return remaining >= 0 && remaining <= days;
+}
+
+function isEndedContract(contract: BusinessContract) {
+  const status = (contract.status || "").toLowerCase();
+  return ["已结束", "已归档", "已退租", "已作废", "作废", "ended", "archived", "void"].some((marker) => status.includes(marker.toLowerCase()));
 }

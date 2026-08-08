@@ -1,5 +1,5 @@
 import type { BusinessContract, BusinessDeposit, BusinessRentPayment, BusinessTenant } from "./business-data";
-import { isRentIncome, paymentCoverageEnd, paymentCoverageStart } from "./rent-coverage";
+import { isCurrentRentalRelationship, isRentIncome, paymentCoverageEnd, paymentCoverageStart } from "./rent-coverage";
 
 export type PaymentDelayLevel = "on-time" | "yellow" | "red";
 
@@ -300,7 +300,7 @@ export function calculateTenantPaymentPerformance(tenant: BusinessTenant, paymen
   const latePeriods = periods.filter((period) => period.delay.days > 0);
   const totalLateDays = periods.reduce((sum, period) => sum + period.delay.days, 0);
   const currentPayment = latestCoveragePayment(payments);
-  const currentOverdue = !/退租|归档/.test(tenant.status) && currentPayment && paymentCoverageEnd(currentPayment) < today
+  const currentOverdue = isCurrentRentalRelationship(tenant) && currentPayment && paymentCoverageEnd(currentPayment) < today
     && (currentPayment.paymentStatus?.includes("鏈敹") || Number(currentPayment.amountUnpaid || 0) > 0 || Number(currentPayment.amountPaid || 0) < Number(currentPayment.amountDue || 0))
     ? Math.max(0, dateDifference(today, paymentCoverageEnd(currentPayment)))
     : null;
@@ -329,7 +329,7 @@ function calculateTenantPaymentPerformanceLegacy(tenant: BusinessTenant, payment
   const latePeriods = periods.filter((period) => period.delay.days > 0);
   const totalLateDays = periods.reduce((sum, period) => sum + period.delay.days, 0);
   const currentPayment = latestCoveragePayment(payments);
-  const currentOverdue = !tenant.status.includes("已退租") && !tenant.status.includes("已归档") && currentPayment && paymentCoverageEnd(currentPayment) < today
+  const currentOverdue = isCurrentRentalRelationship(tenant) && currentPayment && paymentCoverageEnd(currentPayment) < today
     && (currentPayment.paymentStatus?.includes("未收") || Number(currentPayment.amountUnpaid || 0) > 0 || Number(currentPayment.amountPaid || 0) < Number(currentPayment.amountDue || 0))
     ? Math.max(0, dateDifference(today, paymentCoverageEnd(currentPayment)))
     : null;

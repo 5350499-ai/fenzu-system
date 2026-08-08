@@ -1,11 +1,11 @@
 import type { BusinessContract, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 
 export function paymentCoverageStart(payment: BusinessRentPayment) {
-  return payment.coverageStartDate || monthStart(payment.rentMonth);
+  return payment.coverageStartDate || "";
 }
 
 export function paymentCoverageEnd(payment: BusinessRentPayment) {
-  return payment.coverageEndDate || monthEnd(payment.rentMonth);
+  return payment.coverageEndDate || "";
 }
 
 export function latestCoveragePayment(payments: BusinessRentPayment[]) {
@@ -65,15 +65,27 @@ export function activeCoveragePaymentForRoom(roomId: string, payments: BusinessR
   return latestCoveragePayment(payments.filter((payment) => payment.roomId === roomId && isPaymentActiveOnDate(payment, today)));
 }
 
-export function isCurrentRentalTenant(tenant: BusinessTenant) {
+function legacyCurrentRentalTenant(tenant: BusinessTenant) {
   const status = tenant.status || "";
   if (["已退租", "已归档", "已结束", "非在租"].some((item) => status.includes(item))) return false;
   if (status.includes("空置") || status.includes("预定入住")) return false;
   return true;
 }
 
+/** Canonical current rental relationship: active or pending move-out only. */
+export function isCurrentRentalRelationship(tenant: BusinessTenant) {
+  const status = (tenant.status || "").trim();
+  if (!status) return false;
+  if (["已退租", "已归档", "已结束", "非在租", "空置", "预定入住", "预订入住", "预订中"].some((marker) => status.includes(marker))) return false;
+  return status.includes("在租") || status === "即将退租" || status === "欠租";
+}
+
+// Compatibility aliases retained for legacy imports and historical tests.
+export const isCurrentRentalTenant = isCurrentRentalRelationship;
+export const strictCurrentRentalTenant = isCurrentRentalRelationship;
+
 export function roomOccupancyStatus(room: BusinessRoom, tenants: BusinessTenant[]) {
-  if (tenants.some((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant))) return "已租";
+  if (tenants.some((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant))) return "已租";
   if (["维修中", "暂停出租", "已归档"].includes(room.status)) return room.status;
   return "空置";
 }
@@ -107,7 +119,7 @@ export function rentCollectionReminderStage(
   payment: BusinessRentPayment | null,
   today = todayString()
 ): RentCollectionReminderStage | null {
-  if (!isCurrentRentalTenant(tenant)) return null;
+  if (!isCurrentRentalRelationship(tenant)) return null;
   const coverageStage = rentCoverageReminderStage(payment, today);
   if (coverageStage?.level === "overdue") {
     return { ...coverageStage, reason: "coverage", daysPastPaymentDay: 0 };
@@ -147,12 +159,12 @@ export function rentCoverageReminderStage(
   if (daysRemaining < 0) {
     return { daysRemaining, overdueDays: Math.abs(daysRemaining), level: "overdue" };
   }
-  if (daysRemaining <= 3) return { daysRemaining, overdueDays: 0, level: "critical" };
-  if (daysRemaining <= 5) return { daysRemaining, overdueDays: 0, level: "urgent" };
+  if (daysRemaining === 0) return { daysRemaining, overdueDays: 0, level: "critical" };
+  if (daysRemaining <= 3) return { daysRemaining, overdueDays: 0, level: "urgent" };
   return { daysRemaining, overdueDays: 0, level: "upcoming" };
 }
 
-export function strictCurrentRentalTenant(tenant: BusinessTenant) {
+function legacyStrictCurrentRentalTenant(tenant: BusinessTenant) {
   const status = tenant.status || "";
   if (["\u5df2\u9000\u79df", "\u5df2\u5f52\u6863", "\u5df2\u7ed3\u675f", "\u975e\u5728\u79df", "\u7a7a\u7f6e", "\u9884\u5b9a\u5165\u4f4f"].some((item) => status.includes(item))) return false;
   return status.includes("\u5728\u79df");
@@ -163,7 +175,7 @@ export function fixedRentCollectionReminderStage(
   payment: BusinessRentPayment | null,
   today = todayString()
 ): RentCollectionReminderStage | null {
-  if (!strictCurrentRentalTenant(tenant)) return null;
+  if (!isCurrentRentalRelationship(tenant)) return null;
   const stage = rentCoverageReminderStageFixed(payment, today);
   return stage ? { ...stage, reason: "coverage", daysPastPaymentDay: 0 } : null;
 }
@@ -184,7 +196,7 @@ export function rentCoverageReminderStageFixed(
 }
 
 export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom[], contracts: BusinessContract[] = [], today = todayString()) {
-  if (!strictCurrentRentalTenant(tenant)) return false;
+  if (!isCurrentRentalRelationship(tenant)) return false;
   const room = rooms.find((item) => item.id === tenant.roomId);
   if (room?.status?.includes("\u7a7a\u7f6e")) return false;
   const linkedContracts = contracts.filter((contract) => contract.tenantId === tenant.id);
@@ -194,6 +206,13 @@ export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom
     return !contract.endDate || contract.endDate >= today;
   })) return false;
   return true;
+}
+
+/** Formal rent-reminder eligibility. Contract expiry is reported separately. */
+export function isCanonicalRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom[]) {
+  if (!isCurrentRentalRelationship(tenant)) return false;
+  const room = rooms.find((item) => item.id === tenant.roomId);
+  return !room || !["维修中", "暂停出租", "已归档"].includes(room.status);
 }
 
 export type CoverageExpiryInfo = {
@@ -209,7 +228,7 @@ export function fixedCoverageExpiryInfo(
   payment: BusinessRentPayment | null,
   today = todayString()
 ): CoverageExpiryInfo {
-  if (!strictCurrentRentalTenant(tenant)) {
+  if (!isCurrentRentalRelationship(tenant)) {
     return { daysRemaining: null, endDate: "", level: "normal", label: "", sortGroup: 5 };
   }
   const endDate = payment?.coverageEndDate || "";

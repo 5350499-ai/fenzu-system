@@ -36,7 +36,7 @@ import { localToday } from "@/lib/actual-move-out-date";
 import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
-import { fixedRentCollectionReminderStage, isCoverageExpired, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { fixedRentCollectionReminderStage, isCanonicalRentReminderTenant, isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, isCurrentRentalRelationship } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
@@ -317,7 +317,7 @@ function buildDashboardReminders({
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
 
   tenants
-    .filter((tenant) => isRentReminderTenant(tenant, rooms, contracts))
+    .filter((tenant) => isCanonicalRentReminderTenant(tenant, rooms))
     .map((tenant) => {
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
       return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
@@ -426,12 +426,12 @@ function buildReminderSummary({
 }) {
   const today = new Date();
   const unpaid = tenants.reduce((sum, tenant) => {
-    if (!strictCurrentRentalTenant(tenant)) return sum;
+    if (!isCurrentRentalRelationship(tenant)) return sum;
     const payment = latestCoverageForTenant(tenant.id, rentPayments);
     return sum + (payment && !waivedPaymentIds.has(payment.id) && isCoverageExpired(payment) ? rentCollectionRemaining(payment) : 0);
   }, 0);
   const rentDueCount = tenants.filter((tenant) => {
-    if (!isRentReminderTenant(tenant, rooms, contracts)) return false;
+    if (!isCanonicalRentReminderTenant(tenant, rooms)) return false;
     const payment = latestCoverageForTenant(tenant.id, rentPayments);
     const stage = fixedRentCollectionReminderStage(tenant, payment);
     return stage && stage.level !== "overdue";

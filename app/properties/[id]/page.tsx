@@ -37,6 +37,7 @@ import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
 import { sumOccupants } from "@/lib/tenant-occupancy";
+import { isCurrentRentalRelationship } from "@/lib/rent-coverage";
 import { Archive, ChevronDown, Download, Edit3, Eye, FileText, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { deletePropertyFile, downloadPropertyFile, formatFileSize as formatPropertyFileSize, loadPropertyFiles, openPropertyFile, PropertyFile, uploadPropertyFile } from "@/lib/property-files";
 import { useParams } from "next/navigation";
@@ -163,7 +164,7 @@ export default function PropertyDetailPage() {
   const scopedPayments = sortByRoomName(payments.filter((item) => item.propertyId === propertyId), scopedRooms);
   const scopedDeposits = sortByRoomName(deposits.filter((item) => item.propertyId === propertyId && !item.notes?.includes("[收租押金:")), scopedRooms);
   const scopedExpenses = sortByRoomName(expenses.filter((item) => item.propertyId === propertyId), scopedRooms);
-  const currentTenantCount = sumOccupants(scopedTenants.filter((item) => item.status === "在租"));
+  const currentTenantCount = sumOccupants(scopedTenants.filter(isCurrentRentalRelationship));
   const hasOverdue = scopedPayments.some((item) => item.isOverdue);
   const calculatedMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("thisMonth")) : null;
   const monthProfit = calculatedMonthProfit ? {
@@ -283,13 +284,6 @@ export default function PropertyDetailPage() {
     }
   }
 
-  useEffect(() => { if (loaded) saveBusinessData(roomKey, rooms).catch(console.error); }, [loaded, rooms]);
-  useEffect(() => { if (loaded) saveBusinessData(tenantKey, tenants).catch(console.error); }, [loaded, tenants]);
-  useEffect(() => { if (loaded) saveBusinessData(contractKey, contracts).catch(console.error); }, [contracts, loaded]);
-  useEffect(() => { if (loaded) saveBusinessData(rentPaymentKey, payments).catch(console.error); }, [loaded, payments]);
-  useEffect(() => { if (loaded) saveBusinessData(depositKey, deposits).catch(console.error); }, [deposits, loaded]);
-  useEffect(() => { if (loaded) saveBusinessData(expenseKey, expenses).catch(console.error); }, [expenses, loaded]);
-
   useEffect(() => {
     activeTabRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [tab]);
@@ -361,7 +355,7 @@ export default function PropertyDetailPage() {
             <CardField label="编号" value={room.roomNumber} />
             <CardField label="月租" value={euro(room.monthlyRent)} />
             <CardField label="押金" value={euro(room.depositAmount)} />
-            {scopedTenants.find((tenant) => tenant.roomId === room.id && tenant.status === "在租") ? <CardField label="当前租客" value={scopedTenants.find((tenant) => tenant.roomId === room.id && tenant.status === "在租")?.name || ""} /> : null}
+            {scopedTenants.find((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant)) ? <CardField label="当前租客" value={scopedTenants.find((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant))?.name || ""} /> : null}
           </CompactRecordCard>)}
         </ScopedCardList>
       ) : null}
@@ -370,7 +364,7 @@ export default function PropertyDetailPage() {
         <ScopedCardList title="租客" action="新增租客" onAdd={() => { setTenantForm(emptyTenant(propertyId)); setEditor("tenant"); }}>
           {scopedTenants.map((tenant) => {
             const latestPayment = scopedPayments.filter((payment) => payment.tenantId === tenant.id).sort((a, b) => (b.paymentDate || b.rentMonth || "").localeCompare(a.paymentDate || a.rentMonth || ""))[0];
-            return <CompactRecordCard key={tenant.id} title={tenant.name || "未命名租客"} status={tenant.status} tone={tenant.status === "在租" ? "green" : "amber"} note={tenant.notes} noteExpanded={expandedTenantNoteIds.has(tenant.id)} onToggleNote={() => setExpandedTenantNoteIds((current) => { const next = new Set(current); if (next.has(tenant.id)) next.delete(tenant.id); else next.add(tenant.id); return next; })} onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)}>
+            return <CompactRecordCard key={tenant.id} title={tenant.name || "未命名租客"} status={tenant.status} tone={isCurrentRentalRelationship(tenant) ? "green" : "amber"} note={tenant.notes} noteExpanded={expandedTenantNoteIds.has(tenant.id)} onToggleNote={() => setExpandedTenantNoteIds((current) => { const next = new Set(current); if (next.has(tenant.id)) next.delete(tenant.id); else next.add(tenant.id); return next; })} onEdit={() => { setTenantForm(tenant); setEditor("tenant"); }} onDelete={() => remove<BusinessTenant>(tenant.id, setTenants)}>
               <CardField label="房间" value={scopedRooms.find((room) => room.id === tenant.roomId)?.name || ""} />
               <CardField label="当前月租" value={euro(tenant.monthlyRent)} />
               {tenant.moveInDate ? <CardField label="入住日期" value={tenant.moveInDate} /> : null}
@@ -531,21 +525,27 @@ export default function PropertyDetailPage() {
           rooms={scopedRooms}
           tenants={scopedTenants}
           onClose={closeEditor}
-          onSave={() => {
-            if (editor === "room") upsert(roomForm, setRooms);
+          onSave={async () => {
+            if (editor === "room") {
+              const nextRooms = upsert(roomForm, rooms);
+              setRooms(nextRooms);
+              await saveBusinessData(roomKey, nextRooms);
+            }
             if (editor === "tenant") {
               const previousTenant = tenantForm.id ? tenants.find((tenant) => tenant.id === tenantForm.id) || null : null;
               const nextTenant = tenantForm.id ? tenantForm : { ...tenantForm, id: crypto.randomUUID() };
               const nextTenants = tenantForm.id
                 ? tenants.map((tenant) => (tenant.id === tenantForm.id ? nextTenant : tenant))
                 : [nextTenant, ...tenants];
+              const nextRooms = syncRoomsAfterTenantChange(rooms, nextTenants, previousTenant, nextTenant);
               setTenants(nextTenants);
-              setRooms(syncRoomsAfterTenantChange(rooms, nextTenants, previousTenant, nextTenant));
+              setRooms(nextRooms);
+              await Promise.all([saveBusinessData(tenantKey, nextTenants), saveBusinessData(roomKey, nextRooms)]);
             }
-            if (editor === "contract") upsert(contractForm, setContracts);
-            if (editor === "payment") upsert(paymentForm, setPayments);
-            if (editor === "deposit") upsert(depositForm, setDeposits);
-            if (editor === "expense") upsert(expenseForm, setExpenses);
+            if (editor === "contract") { const next = upsert(contractForm, contracts); setContracts(next); await saveBusinessData(contractKey, next); }
+            if (editor === "payment") { const next = upsert(paymentForm, payments); setPayments(next); await saveBusinessData(rentPaymentKey, next); }
+            if (editor === "deposit") { const next = upsert(depositForm, deposits); setDeposits(next); await saveBusinessData(depositKey, next); }
+            if (editor === "expense") { const next = upsert(expenseForm, expenses); setExpenses(next); await saveBusinessData(expenseKey, next); }
             closeEditor();
           }}
         />
@@ -571,13 +571,18 @@ function PropertyEditor(props: any) {
   const roomOptions = props.rooms.map((room: BusinessRoom) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }));
   const editorTitles: Record<string, string> = { room: "房间", tenant: "租客", contract: "合同", payment: "收租", deposit: "押金", expense: "支出" };
 
-  function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (props.editor === "tenant" && (!Number.isInteger(props.tenantForm.occupantCount) || props.tenantForm.occupantCount < 1)) {
       window.alert("入住人数请输入1或更大的正整数。");
       return;
     }
-    props.onSave();
+    try {
+      await props.onSave();
+      props.onClose();
+    } catch (error: any) {
+      window.alert(error?.message || "保存失败，请稍后重试。");
+    }
   }
 
   return (
@@ -711,8 +716,8 @@ function shortPropertyAddress(property: BusinessProperty) {
   return property.address || property.city || "-";
 }
 
-function upsert<T extends { id: string }>(record: T, setter: (updater: (current: T[]) => T[]) => void) {
-  setter((current) => record.id ? current.map((item) => item.id === record.id ? record : item) : [{ ...record, id: crypto.randomUUID() }, ...current]);
+function upsert<T extends { id: string }>(record: T, current: T[]) {
+  return record.id ? current.map((item) => item.id === record.id ? record : item) : [{ ...record, id: crypto.randomUUID() }, ...current];
 }
 
 function syncRoomsAfterTenantChange(
@@ -724,15 +729,11 @@ function syncRoomsAfterTenantChange(
   const touchedRoomIds = new Set([previousTenant?.roomId, nextTenant.roomId].filter(Boolean));
   return rooms.map((room) => {
     if (!touchedRoomIds.has(room.id)) return room;
-    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isActiveTenant(tenant));
+    const hasActiveTenant = tenants.some((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
     if (hasActiveTenant) return { ...room, status: "已租" };
     if (["已租", "预订中", "即将退租"].includes(room.status)) return { ...room, status: "空置" };
     return room;
   });
-}
-
-function isActiveTenant(tenant: BusinessTenant) {
-  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function emptyRoom(propertyId: string): BusinessRoom { return { id: "", propertyId, name: "", roomNumber: "", monthlyRent: 0, depositAmount: 0, status: "空置", notes: "" }; }

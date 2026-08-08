@@ -30,7 +30,7 @@ import {
 import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
-import { isCoverageExpired, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { sumOccupants } from "@/lib/tenant-occupancy";
 import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
@@ -174,7 +174,7 @@ export default function RoomsPage() {
     if (!window.confirm("确认把这个房间设为空置吗？\n当前在租租客会标记为已退租，合同会标记为已结束，历史收租记录会保留。")) return;
     setSaving(true);
     const nextRooms = rooms.map((item) => (item.id === room.id ? { ...item, status: "空置" } : item));
-    const nextTenants = tenants.map((tenant) => (tenant.roomId === room.id && isActiveTenant(tenant) ? { ...tenant, status: "已退租" } : tenant));
+    const nextTenants = tenants.map((tenant) => (tenant.roomId === room.id && isCurrentRentalRelationship(tenant) ? { ...tenant, status: "已退租" } : tenant));
     const nextContracts = contracts.map((contract) => (contract.roomId === room.id && contract.status !== "已结束" ? { ...contract, status: "已结束" } : contract));
     try {
       await saveBusinessData(roomKey, nextRooms);
@@ -227,7 +227,7 @@ export default function RoomsPage() {
         <div className="finance-list room-compact-list">
           {visibleRooms.map((room) => {
             const property = properties.find((item) => item.id === room.propertyId);
-            const currentTenants = tenants.filter((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant));
+            const currentTenants = tenants.filter((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
             const currentTenantIds = new Set(currentTenants.map((tenant) => tenant.id));
             const historicalTenants = tenants.filter((tenant) => tenant.roomId === room.id && !currentTenantIds.has(tenant.id));
             const currentContracts = contracts.filter((contract) => currentTenantIds.has(contract.tenantId) && isActiveContract(contract));
@@ -523,10 +523,6 @@ function latestActiveContractForTenant(tenantId: string, contracts: BusinessCont
   return [...contracts]
     .filter((contract) => contract.tenantId === tenantId && isActiveContract(contract))
     .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))[0] || null;
-}
-
-function isActiveTenant(tenant: BusinessTenant) {
-  return !["已退租", "空置", "已归档"].some((status) => tenant.status?.includes(status));
 }
 
 function getCoverageExpiryInfo(endDate?: string) {

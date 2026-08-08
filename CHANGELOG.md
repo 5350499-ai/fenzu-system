@@ -1,3 +1,11 @@
+## 2026-08-08 - Stability first-round business semantics
+
+- Unified formal current-rental checks around active and pending-move-out relationships; terminal, vacant and reserved statuses no longer count as current.
+- Formal rent reminders now use the latest valid payment coverage end date only; contract expiry remains a separate contract signal.
+- Removed the property-detail page's passive array-save effects so hidden or partially loaded business collections are not written back as empty data.
+- Protected debug routes from Production access, removed new-path A/B attribution defaults, and made Analytics/contract reminder links target the relevant tenant filter or tenant record.
+- Preview only; no database, schema, migration, business-data or Production changes.
+
 ## 2026-08-08 - Simplify property detail navigation
 
 - Reduced the visible property-detail tabs to Overview, Attachments and Notes while retaining the underlying modules and data reads used by the summary.

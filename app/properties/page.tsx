@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
 import { sumOccupants } from "@/lib/tenant-occupancy";
+import { isCurrentRentalRelationship } from "@/lib/rent-coverage";
 
 const emptyProperty: BusinessProperty = {
   id: "",
@@ -121,7 +122,7 @@ export default function PropertiesPage() {
               <div className="property-list-meta">
                 <span>{shortPropertyAddress(property)}</span>
                 <span>{rooms.filter((room) => room.propertyId === property.id).length} 间房间</span>
-                <span>{sumOccupants(tenants.filter((tenant) => tenant.propertyId === property.id && tenant.status === "在租"))} 人在租</span>
+                <span>{sumOccupants(tenants.filter((tenant) => tenant.propertyId === property.id && isCurrentRentalRelationship(tenant)))} 人在租</span>
               </div>
               <Link className="btn property-manage-link" href={`/properties/${property.id}`}>进入管理</Link>
             </article>

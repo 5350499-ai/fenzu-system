@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 const allowedEvents = /^[A-Z0-9_]+$/;
 
 export async function POST(request: Request) {
+  if (process.env.VERCEL_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const body = await request.json() as { event?: unknown; elapsedMs?: unknown; fileCount?: unknown; result?: unknown; name?: unknown };
     if (typeof body.event !== "string" || body.event.length > 80 || !allowedEvents.test(body.event)) return NextResponse.json({ ok: false }, { status: 400 });

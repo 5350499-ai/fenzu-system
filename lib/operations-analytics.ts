@@ -13,7 +13,7 @@ import {
   overdueReferenceAmount,
   paymentCoverageEnd,
   roomOccupancyStatus,
-  strictCurrentRentalTenant,
+  isCurrentRentalRelationship,
   todayString
 } from "./rent-coverage";
 import { compareOperationsRooms } from "./room-status-sort";
@@ -84,7 +84,7 @@ export type OperationsRoomStatusDistribution = {
 };
 
 export function calculateOperationsStats(scope: OperationsScope, today = todayString()): OperationsStats {
-  const activeTenants = scope.tenants.filter(strictCurrentRentalTenant);
+  const activeTenants = scope.tenants.filter(isCurrentRentalRelationship);
   const movedOutTenants = scope.tenants.filter((tenant) => tenant.status.includes("已退租"));
   const activeTenantIds = new Set(activeTenants.map((tenant) => tenant.id));
   const validContracts = scope.contracts.filter((contract) => !isVoided(contract.notes));
@@ -136,7 +136,7 @@ export function buildOperationsRooms(scope: OperationsScope, today = todayString
     .filter((room) => !isArchivedRoom(room))
     .map((room) => {
       const dynamicStatus = roomOccupancyStatus(room, scope.tenants);
-      const currentTenants = scope.tenants.filter((tenant) => tenant.roomId === room.id && strictCurrentRentalTenant(tenant));
+      const currentTenants = scope.tenants.filter((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
       const coverageEnds = currentTenants
         .map((tenant) => {
           const payment = latestCoverageForTenant(tenant.id, scope.payments);

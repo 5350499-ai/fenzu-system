@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
         <div className="operations-alert-links">
           <Link href="/rent-payments">待收租 {stats.rentDueTenants} 人</Link>
           <Link href="/rent-payments?overdue=1">欠租 {stats.overdueTenants} 人</Link>
-          <Link href="/tenants">30天内到期 {stats.expiringContracts} 份</Link>
+                  <Link href="/tenants?contractExpiring=30">30天内到期 {stats.expiringContracts} 份</Link>
           <Link href="/deposits">押金待处理 {stats.pendingDepositTenants} 人</Link>
           <Link href="/rooms?status=空置">空置 {stats.vacantRooms} 间</Link>
         </div>

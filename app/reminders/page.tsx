@@ -26,7 +26,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
-import { fixedRentCollectionReminderStage, isRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, strictCurrentRentalTenant } from "@/lib/rent-coverage";
+import { fixedRentCollectionReminderStage, isCanonicalRentReminderTenant, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, isCurrentRentalRelationship, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import Link from "next/link";
@@ -218,7 +218,7 @@ function buildReminders({
   const reminders: Reminder[] = [];
 
     tenants
-      .filter((tenant) => isRentReminderTenant(tenant, rooms, contracts))
+      .filter((tenant) => isCanonicalRentReminderTenant(tenant, rooms))
       .map((tenant) => {
         const payment = latestCoverageForTenant(tenant.id, payments);
         return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
@@ -259,7 +259,7 @@ function buildReminders({
         category: "合同30天内到期",
         title: `${tenant?.name || "租客"}合同${days < 0 ? `已到期${Math.abs(days)}天` : `还有${days}天到期`}`,
         description: `${propertyById.get(contract.propertyId)?.name || "房源"}｜${room?.roomNumber || room?.name || "-"}`,
-        href: "/tenants",
+        href: tenant ? `/tenants?tenantId=${encodeURIComponent(tenant.id)}` : "/tenants",
         tone: days < 0 ? "danger" : "warning",
         priority: 30_000 - days
       });
@@ -280,7 +280,7 @@ function buildReminders({
     });
 
   rooms
-    .filter((room) => room.status.includes("空置"))
+    .filter((room) => roomOccupancyStatus(room, tenants).includes("空置"))
     .forEach((room) => {
       reminders.push({
         id: `vacant-${room.id}`,

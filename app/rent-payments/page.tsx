@@ -41,7 +41,7 @@ import {
   RentPaymentFile,
   uploadRentPaymentFile
 } from "@/lib/rent-payment-files";
-import { isCoverageExpired, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
+import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
 import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -323,7 +323,7 @@ export default function RentPaymentsPage() {
   function chooseRoom(roomId: string) {
     setNewTenantName("");
     const room = rooms.find((item) => item.id === roomId);
-    const roomTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === roomId && tenant.status !== "已退房");
+    const roomTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === roomId && isCurrentRentalRelationship(tenant));
     const onlyTenant = roomTenants.length === 1 ? roomTenants[0] : null;
     const latest = onlyTenant ? latestCoverageForTenant(onlyTenant.id, payments) : null;
     const nextStart = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : form.coverageStartDate || todayString();
