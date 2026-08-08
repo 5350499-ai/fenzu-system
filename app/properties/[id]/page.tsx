@@ -600,7 +600,7 @@ function PropertyEditor(props: any) {
 }
 
 function RoomFields({ form, setForm }: { form: BusinessRoom; setForm: (updater: (current: BusinessRoom) => BusinessRoom) => void }) {
-  return <><Text label="房间名称" value={form.name} onChange={(name) => setForm((c) => ({ ...c, name }))} /><Text label="房间编号" value={form.roomNumber} onChange={(roomNumber) => setForm((c) => ({ ...c, roomNumber }))} /><NumberInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((c) => ({ ...c, monthlyRent }))} /><NumberInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((c) => ({ ...c, depositAmount }))} /><SearchableSelect label="状态" value={form.status} options={["空置", "已租", "预订中", "即将退租", "维修中", "暂停出租"].map((v) => ({ value: v, label: v }))} onChange={(status) => setForm((c) => ({ ...c, status: status as BusinessRoom["status"] }))} /><Note value={form.notes} onChange={(notes) => setForm((c) => ({ ...c, notes }))} /></>;
+  return <><Text label="房间名称" value={form.name} onChange={(name) => setForm((c) => ({ ...c, name }))} /><NumberInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((c) => ({ ...c, monthlyRent }))} /><NumberInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((c) => ({ ...c, depositAmount }))} /><SearchableSelect label="状态" value={form.status} options={["空置", "已租", "预订中", "即将退租", "维修中", "暂停出租"].map((v) => ({ value: v, label: v }))} onChange={(status) => setForm((c) => ({ ...c, status: status as BusinessRoom["status"] }))} /><Note value={form.notes} onChange={(notes) => setForm((c) => ({ ...c, notes }))} /></>;
 }
 
 function TenantFields({ form, setForm, roomOptions }: any) {

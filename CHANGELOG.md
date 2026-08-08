@@ -687,3 +687,8 @@
 - Property detail tenant notes now use the actual tenant-card toggle with a lower long-note threshold, per-card state, and full-text expansion/collapse.
 - Property detail room-linked tabs now use one natural room-name sort, with unlinked records kept after linked records and original order preserved as the tie-breaker.
 - Preview only; no database, business data, or Production changes.
+## 2026-08-08 - Hide room number editing fields
+
+- Hid the room number field from the standard add/edit room forms while retaining the underlying `roomNumber` model value and save behavior.
+- Room-name natural ordering and all existing room data remain unchanged.
+- Preview only; no database, schema, historical data, or Production changes.

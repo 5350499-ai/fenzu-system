@@ -300,7 +300,6 @@ export default function RoomsPage() {
             <form className="form-grid" onSubmit={submit}>
               <SearchableSelect label="所属房源" value={form.propertyId} options={properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.address} ${property.city}` }))} onChange={(propertyId) => setForm((current) => ({ ...current, propertyId }))} placeholder="搜索房源名称、地址、城市" />
               <TextField label="房间名称" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
-              <TextField label="房间编号" value={form.roomNumber} onChange={(roomNumber) => setForm((current) => ({ ...current, roomNumber }))} />
               <MoneyInput label="月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
               <MoneyInput label="押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
               <SearchableSelect label="房间状态" value={form.status} options={roomStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} />
