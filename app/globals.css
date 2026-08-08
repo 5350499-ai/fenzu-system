@@ -5409,19 +5409,6 @@ td:last-child {
   box-shadow: none;
 }
 
-.login-card .field input:-webkit-autofill,
-.login-card .field input:-webkit-autofill:hover,
-.login-card .field input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--ui-color-text-primary, var(--text));
-  caret-color: var(--ui-color-text-primary, var(--text));
-  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
-  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
-  border-color: var(--ui-color-border, var(--border));
-  background-color: var(--ui-color-surface, var(--surface));
-  background-image: none;
-  background-clip: padding-box;
-}
-
 @media (max-width: 980px) {
   .account-restore-skeleton {
     gap: 10px;
@@ -8958,21 +8945,34 @@ select:focus-visible,
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
 textarea:-webkit-autofill,
 textarea:-webkit-autofill:hover,
 textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
 .combobox input:-webkit-autofill,
 .combobox input:-webkit-autofill:hover,
 .combobox input:-webkit-autofill:focus,
+.combobox input:-webkit-autofill:active,
 .search-box input:-webkit-autofill,
 .search-box input:-webkit-autofill:hover,
-.search-box input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--ui-color-text-primary, var(--text));
+.search-box input:-webkit-autofill:focus,
+.search-box input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ui-color-text-primary, var(--text)) !important;
   caret-color: var(--ui-color-text-primary, var(--text));
-  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
-  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset;
-  border-color: var(--ui-color-border, var(--border));
-  background-color: var(--ui-color-surface, var(--surface));
-  background-image: none;
+  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset !important;
+  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset !important;
+  border-color: var(--ui-color-border, var(--border)) !important;
+  background-color: var(--ui-color-surface, var(--surface)) !important;
+  background-image: none !important;
   background-clip: padding-box;
+  -webkit-background-clip: padding-box;
+  transition: background-color 9999s ease-out 0s;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+.combobox input:-webkit-autofill:focus,
+.search-box input:-webkit-autofill:focus {
+  border-color: var(--ui-color-primary, var(--primary)) !important;
 }

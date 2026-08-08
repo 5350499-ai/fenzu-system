@@ -670,3 +670,8 @@
 - Tenant editing now reads and persists the current valid rent payment coverage start/end dates instead of editing contract start/end dates; historical payment amounts and contract dates remain unchanged.
 - Protected the mobile rent and expense transaction rows with a non-shrinking full-date column; only the middle description can ellipsize while amount and status remain intact.
 - No database schema, historical transaction, attachment, Backup V1, Restore V4, Storage, Google Drive, or Production changes.
+
+## 2026-08-08 - Login Safari autofill contrast correction (Preview)
+
+- Consolidated WebKit autofill styling into the global dark-control rule, including active/focus states, so autofilled text remains readable without Safari's pale background.
+- Removed the duplicate login-only autofill rule; authentication behavior and all form values remain unchanged.
