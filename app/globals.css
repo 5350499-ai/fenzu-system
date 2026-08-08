@@ -8834,6 +8834,24 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     grid-column: 1 / -1;
   }
 
+  /* Editing a tenant keeps the business order explicit without changing the
+     create-tenant flow: name/phone, contact, rent/deposit, occupancy/day,
+     coverage dates, status/source, then notes. */
+  .tenant-edit-form > .tenant-edit-name,
+  .tenant-edit-form > .tenant-edit-phone { order: 1; }
+  .tenant-edit-form > .tenant-edit-wechat { order: 2; }
+  .tenant-edit-form > .tenant-edit-monthly,
+  .tenant-edit-form > .tenant-edit-deposit { order: 3; }
+  .tenant-edit-form > .tenant-edit-occupant,
+  .tenant-edit-form > .tenant-edit-payment-day { order: 4; }
+  .tenant-edit-form > .tenant-edit-coverage-start,
+  .tenant-edit-form > .tenant-edit-coverage-end { order: 5; }
+  .tenant-edit-form > .tenant-edit-status,
+  .tenant-edit-form > .tenant-edit-source { order: 6; }
+  .tenant-edit-form > .tenant-edit-note { order: 7; }
+  .tenant-edit-form > p { order: 8; }
+  .tenant-edit-form > .modal-actions { order: 9; }
+
   /* Keep the expense summary as three compact information rows on phones. */
   .expense-core-detail-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

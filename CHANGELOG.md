@@ -1,3 +1,8 @@
+## 2026-08-08 - Occupant count display follow-up
+
+- Added the tenant detail read-only occupant count and displayed the current room occupant total alongside the rented status.
+- Restored the tenant edit form order so occupancy/payment day and coverage start/end remain paired on mobile.
+
 ## 2026-08-08 - Check-in occupant input and date order
 
 - Allow the occupant count field to be temporarily cleared while editing before submit validation, instead of immediately restoring `1`.
