@@ -4527,6 +4527,22 @@ td:last-child {
   grid-column: 1 / -1;
 }
 
+.property-detail-field-block {
+  display: block;
+}
+
+.property-detail-field-block > span,
+.property-detail-field-block > strong {
+  display: block;
+  text-align: left;
+}
+
+.property-detail-field-block > strong {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .property-management-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4652,6 +4668,10 @@ td:last-child {
 
 .tab-row-four {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.property-detail-tab-row {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 }
 
 .tab-placeholder {

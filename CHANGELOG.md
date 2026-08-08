@@ -1,3 +1,9 @@
+## 2026-08-08 - Simplify property detail navigation
+
+- Reduced the visible property-detail tabs to Overview, Attachments and Notes while retaining the underlying modules and data reads used by the summary.
+- Presented the full address and property note as left-aligned, full-width wrapping detail blocks.
+- Preview only; no database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Occupant count display follow-up
 
 - Added the tenant detail read-only occupant count and displayed the current room occupant total alongside the rented status.

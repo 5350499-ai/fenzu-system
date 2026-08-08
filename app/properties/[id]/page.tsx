@@ -175,7 +175,7 @@ export default function PropertyDetailPage() {
   const threeMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last3Months")) : null;
   const twelveMonthProfit = property ? calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, getDateRange("last12Months")) : null;
   const monthlyRows = property ? monthlyProfitRows(property.id, payments, expenses, deposits, 12) : [];
-  const visibleTabs = tabs.filter((item) => item.id === "overview" || item.id === "notes" || item.id === "attachments" && access.can("attachments") || item.id === "rooms" && access.can("rooms") || (item.id === "tenants" || item.id === "contracts") && access.can("tenants") || item.id === "payments" && access.can("rent_payments") || item.id === "deposits" && access.can("deposits") || item.id === "expenses" && access.can("expenses") || item.id === "profit" && access.can("profits") && access.canSensitive("canViewProfits"));
+  const visibleTabs = tabs.filter((item) => item.id === "overview" || item.id === "notes" || (item.id === "attachments" && access.can("attachments")));
 
   const roomOptions = scopedRooms.map((room) => ({
     value: room.id,
@@ -321,8 +321,8 @@ export default function PropertyDetailPage() {
         {detailsOpen ? <div className="property-details-grid">
           <DetailField label="城市" value={property.city || "-"} />
           <DetailField label="房东" value={property.landlordName || "-"} />
-          <DetailField className="wide" label="完整地址" value={property.address || "-"} />
-          <DetailField className="wide" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
+          <DetailField className="wide property-detail-field-block" label="完整地址" value={property.address || "-"} />
+          <DetailField className="wide property-detail-field-block" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
           <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
           <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts, scopedPayments) || "尚无入住记录"} />
         </div> : null}
@@ -336,11 +336,8 @@ export default function PropertyDetailPage() {
       </section>
 
       <div className="tabs">
-        <div className="tab-row tab-row-five">
-          {visibleTabs.slice(0, 5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
-        </div>
-        <div className="tab-row tab-row-five">
-          {visibleTabs.slice(5).map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
+        <div className="tab-row property-detail-tab-row">
+          {visibleTabs.map((item) => <button className={`tab-button ${tab === item.id ? "active" : ""}`} key={item.id} onClick={() => setTab(item.id)} ref={tab === item.id ? activeTabRef : null} type="button">{item.label}</button>)}
         </div>
       </div>
 
