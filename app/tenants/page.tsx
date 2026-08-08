@@ -797,13 +797,13 @@ export default function TenantsPage() {
             <h2 className="panel-title">租客列表</h2>
             <p className="muted">默认只显示一行核心信息，点击后展开详情和租客附件。</p>
           </div>
-          <div className="top-actions">
-            <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
-              {showArchived ? "隐藏归档" : "显示归档"}
-            </button>
+          <div className="top-actions tenant-top-actions">
             {access.can("tenants", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
               <Plus size={17} /> 新增租客
             </button> : null}
+            <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
+              {showArchived ? "隐藏归档" : "显示归档"}
+            </button>
           </div>
         </div>
 

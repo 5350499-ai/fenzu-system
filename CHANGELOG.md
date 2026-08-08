@@ -1,3 +1,9 @@
+## 2026-08-08 - Tenant action hierarchy and iOS date-range sizing
+
+- Made “新增租客” the primary left action and kept archive visibility as the compact right-side secondary action on mobile.
+- Added a shared WebKit-safe date-range control boundary so custom expense dates cannot retain an intrinsic width beyond their parent card.
+- Preview only; no business logic, database, schema, migration, business data or Production changes.
+
 ## 2026-08-08 - Global date-pair and form-boundary rules
 
 - Kept date-range controls consistently ordered as start then end; the tenant creation form now places coverage start/end together before payment day and attribution.

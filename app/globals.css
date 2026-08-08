@@ -2774,6 +2774,7 @@ td:last-child {
 .date-range-inputs > label {
   min-width: 0;
   flex: 1 1 0;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .date-range-inputs input {
@@ -2781,6 +2782,20 @@ td:last-child {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* WebKit date controls can retain an intrinsic width unless the control is
+   explicitly reset at the shared date-range boundary. */
+.date-range-inputs .date-range-control {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .date-range-summary {
@@ -8356,6 +8371,10 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   gap: var(--ui-space-2, 8px);
 }
 
+.tenant-top-actions {
+  min-width: 0;
+}
+
 .detail-grid,
 .ui-detail-grid {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -8449,6 +8468,20 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   .date-range-inputs > label {
     width: 100%;
     flex: none;
+  }
+
+  .tenant-top-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tenant-top-actions > .btn {
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    padding-inline: 8px;
   }
 
   .detail-grid,

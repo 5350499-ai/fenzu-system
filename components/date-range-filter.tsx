@@ -78,8 +78,8 @@ export function DateRangeFilter({
       </label>
       {preset === "custom" ? (
         <div className="date-range-inputs">
-          <label>开始日期<input aria-label="开始日期" type="date" value={startDate} max={endDate || undefined} onChange={(event) => onStartDateChange(event.target.value)} /></label>
-          <label>结束日期<input aria-label="结束日期" type="date" value={endDate} min={startDate || undefined} onChange={(event) => onEndDateChange(event.target.value)} /></label>
+          <label>开始日期<input className="date-range-control" aria-label="开始日期" type="date" value={startDate} max={endDate || undefined} onChange={(event) => onStartDateChange(event.target.value)} /></label>
+          <label>结束日期<input className="date-range-control" aria-label="结束日期" type="date" value={endDate} min={startDate || undefined} onChange={(event) => onEndDateChange(event.target.value)} /></label>
         </div>
       ) : null}
       {preset !== "all" && startDate && endDate ? <span className="date-range-summary">{startDate} 至 {endDate}</span> : null}
