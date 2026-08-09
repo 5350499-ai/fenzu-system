@@ -104,7 +104,7 @@ export default function RegisterPage() {
             <label>确认密码</label>
             <input name="confirm-password" type="password" autoComplete="new-password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} required disabled={verificationSent} />
           </div>
-          <p className="muted">免费使用：最多管理 5 套未归档房源，每套最多 10 间未归档房间。</p>
+          <p className="muted">免费使用：最多管理 5 套房源，每套最多 10 间房间。</p>
           {!verificationSent ? <button className="btn primary" type="submit" disabled={loading} aria-busy={loading}>{loading ? "正在创建账户..." : "注册免费账户"}</button> : null}
           {!verificationSent ? <Link className="login-forgot-link" href="/login">已有账户？去登录</Link> : null}
           {error ? <p className="danger-text" role="alert">{error}</p> : null}
