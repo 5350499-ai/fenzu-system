@@ -58,6 +58,9 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--ui-font-family-system, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif);
@@ -69,6 +72,7 @@ select,
 textarea {
   font: inherit;
   min-width: 0;
+  max-width: 100%;
 }
 
 button {
@@ -9296,6 +9300,97 @@ textarea:-webkit-autofill:focus,
 .combobox input:-webkit-autofill:focus,
 .search-box input:-webkit-autofill:focus {
   border-color: var(--ui-color-primary, var(--primary)) !important;
+}
+
+/* Mobile interaction foundation: keep every form control inside its own
+   layout column and let dialogs own the only scroll surface. */
+:where(.app-shell, .main, .card, .panel, form, .form-grid, .field, .ui-form-field,
+  .combobox-field, .combobox, .date-range-filter, .date-range-inputs,
+  .date-range-inputs > label, .modal-card, .data-center-sheet, .data-center-dialog) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:where(.form-grid, .check-in-form-grid, .tenant-form-grid, .date-range-inputs) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal-backdrop,
+.attachment-modal-backdrop,
+.data-center-sheet-backdrop,
+.data-center-dialog-backdrop {
+  z-index: 1100;
+  isolation: isolate;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+.modal-backdrop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  min-height: 100svh;
+}
+
+.modal-card {
+  width: min(860px, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.attachment-modal-backdrop .attachment-cleanup-confirm,
+.data-center-sheet,
+.data-center-dialog {
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  /* iOS Safari only zooms a focused text control when its computed type size
+     is below 16px. Keep the user's browser zoom available; remove the trigger. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea,
+  .combobox,
+  .combobox input,
+  .search-box input {
+    font-size: 16px;
+  }
+
+  .modal-backdrop {
+    display: flex;
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 359px) {
+  .modal-card .form-grid,
+  .modal-card .check-in-form-grid,
+  .modal-card .tenant-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Room list outer card: preserve the original three-row summary and only

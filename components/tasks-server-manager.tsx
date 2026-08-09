@@ -233,7 +233,7 @@ export function TasksServerManager() {
         </div>}
       </section>
 
-      {showForm ? <div className="modal-backdrop" role="presentation" onMouseDown={closeForm}>
+      {showForm ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
         <section className="card modal-card" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
           <div className="panel-header"><h2 className="panel-title">{editingId ? "编辑待办" : "新增待办"}</h2><button className="btn" type="button" onClick={closeForm}><X size={17} />关闭</button></div>
           <form className="form-grid" onSubmit={saveTask}>

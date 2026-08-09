@@ -155,7 +155,7 @@ export default function RemindersPage() {
           </section>
         ))}
       </div>
-      {waiveTarget ? <div className="modal-backdrop" onMouseDown={() => !waiving && setWaiveTarget(null)}>
+      {waiveTarget ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
         <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
           <h2 className="panel-title">确认放弃追缴</h2>
           <p>确认放弃追缴这笔欠租吗？该操作不会生成收入或支出，欠租历史仍会保留，但不会继续出现在提醒中心。</p>

@@ -1,3 +1,10 @@
+## 2026-08-09 - Mobile layout and modal interaction stability
+
+- Added a device-width, safe-area-aware viewport and shared mobile form sizing so controls shrink within cards; phone inputs use a 16px computed size to prevent iOS Safari focus zoom while browser zoom remains available.
+- Centralized modal scroll locking and made dialogs the single vertical scroll surface, with safe-area-aware dynamic viewport bounds and a modal layer above fixed navigation.
+- Hardened all standard create/edit/confirm backdrops so only a true click on the backdrop closes the dialog; interactions inside forms, selects and dialog content no longer trigger a backdrop close.
+- Preview only; no database, schema, migration, account, business-data or Production changes.
+
 ## 2026-08-09 - Free registration rate-limit diagnostics
 
 - Mapped Supabase email-send rate limiting to a clear Chinese 429 message instead of the generic account-creation failure.

@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { PwaRegister } from "./pwa-register";
 import { AccountAccessProvider } from "@/components/account-access";
 import { ClientErrorReporter } from "@/components/client-error-reporter";
 import { AttachmentUploadProgress } from "@/components/attachment-upload-progress";
 import { CacheRuntime } from "@/components/cache-runtime";
+import { ModalLayerManager } from "@/components/modal-layer-manager";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -35,6 +36,12 @@ export const metadata: Metadata = {
   }
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
+};
+
 export default function RootLayout({
   children
 }: Readonly<{
@@ -47,6 +54,7 @@ export default function RootLayout({
         <PwaRegister />
         <ClientErrorReporter />
         <AttachmentUploadProgress />
+        <ModalLayerManager />
         <AccountAccessProvider><CacheRuntime />{children}</AccountAccessProvider>
       </body>
     </html>

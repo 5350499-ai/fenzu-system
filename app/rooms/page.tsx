@@ -302,7 +302,7 @@ export default function RoomsPage() {
       </section>
 
       {open ? (
-        <div className="modal-backdrop" onMouseDown={close}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑房间" : "新增房间"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
             <form className="form-grid" onSubmit={submit}>

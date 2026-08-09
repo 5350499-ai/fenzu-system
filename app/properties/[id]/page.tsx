@@ -491,7 +491,7 @@ export default function PropertyDetailPage() {
         </section>
       ) : null}
 
-      {propertyEditorOpen ? <div className="modal-backdrop" onMouseDown={() => setPropertyEditorOpen(false)}>
+      {propertyEditorOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPropertyEditorOpen(false); }}>
         <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
           <div className="panel-header"><h2 className="panel-title">编辑房源</h2><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}><X size={17} /> 关闭</button></div>
           <form className="form-grid" onSubmit={saveProperty}>
@@ -586,7 +586,7 @@ function PropertyEditor(props: any) {
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={props.onClose}>
+    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
       <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-header">
           <h2 className="panel-title">编辑{editorTitles[props.editor]}</h2>

@@ -957,7 +957,7 @@ export default function TenantsPage() {
       </section>
 
       {open ? (
-        <div className="modal-backdrop" onMouseDown={close}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">{form.id ? "编辑租客" : "新增租客"}</h2>
@@ -1036,7 +1036,7 @@ export default function TenantsPage() {
       ) : null}
 
       {moveOutTenant ? (
-        <div className="modal-backdrop" onMouseDown={() => setMoveOutTenant(null)}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMoveOutTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">办理退租</h2>
@@ -1063,7 +1063,7 @@ export default function TenantsPage() {
       ) : null}
 
       {actualMoveOutDateEnabled && moveOutDateTenant ? (
-        <div className="modal-backdrop" onMouseDown={() => setMoveOutDateTenant(null)}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMoveOutDateTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">实际退租日期</h2>
@@ -1083,7 +1083,7 @@ export default function TenantsPage() {
       ) : null}
 
       {depositStatusTenant ? (
-        <div className="modal-backdrop" onMouseDown={() => setDepositStatusTenant(null)}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDepositStatusTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">修改押金状态</h2>
@@ -1106,7 +1106,7 @@ export default function TenantsPage() {
       ) : null}
 
       {createDepositTenant ? (
-        <div className="modal-backdrop" onMouseDown={() => setCreateDepositTenant(null)}>
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateDepositTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">建立押金管理记录</h2>

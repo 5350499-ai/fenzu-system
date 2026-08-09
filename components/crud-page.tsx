@@ -270,7 +270,7 @@ export function CrudPage({
       </section>
 
       {isFormOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={reset}>
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) reset(); }}>
           <section className="card modal-card" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <div>

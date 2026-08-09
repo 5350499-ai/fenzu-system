@@ -173,7 +173,7 @@ export default function ViewingAppointmentsPage() {
         })}</div></section>)}</div> : <p className="muted">暂无看房预约</p>}
       </section>
 
-      {open ? <div className="modal-backdrop" onMouseDown={close}><section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
+      {open ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑预约" : "新增预约"}</h2><button className="btn" type="button" onClick={close}><X size={17} /> 关闭</button></div>
         <form className="form-grid" onSubmit={submit}>
           <div className="field"><label>预约日期</label><input required type="date" value={form.appointmentDate} onChange={(event) => setForm((current) => ({ ...current, appointmentDate: event.target.value }))} /></div>

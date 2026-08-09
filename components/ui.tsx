@@ -74,7 +74,7 @@ export function LoadingOverlay({ label = "正在加载…" }: { label?: ReactNod
 
 export function ConfirmDialog({ open, title, description, confirmLabel = "确认", cancelLabel = "取消", onConfirm, onCancel }: { open: boolean; title: ReactNode; description?: ReactNode; confirmLabel?: ReactNode; cancelLabel?: ReactNode; onConfirm: () => void; onCancel: () => void }) {
   if (!open) return null;
-  return <div className="modal-backdrop ui-dialog-backdrop" role="presentation" onClick={onCancel}><section className="card modal-card ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title" onClick={(event) => event.stopPropagation()}><h2 id="ui-dialog-title" className="panel-title">{title}</h2>{description ? <p className="muted">{description}</p> : null}<div className="modal-actions"><SecondaryButton type="button" onClick={onCancel}>{cancelLabel}</SecondaryButton><DangerButton type="button" onClick={onConfirm}>{confirmLabel}</DangerButton></div></section></div>;
+  return <div className="modal-backdrop ui-dialog-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="card modal-card ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title" onClick={(event) => event.stopPropagation()}><h2 id="ui-dialog-title" className="panel-title">{title}</h2>{description ? <p className="muted">{description}</p> : null}<div className="modal-actions"><SecondaryButton type="button" onClick={onCancel}>{cancelLabel}</SecondaryButton><DangerButton type="button" onClick={onConfirm}>{confirmLabel}</DangerButton></div></section></div>;
 }
 
 export function Toast({ message, tone = "info" }: { message?: ReactNode; tone?: "success" | "warning" | "danger" | "info" }) {
