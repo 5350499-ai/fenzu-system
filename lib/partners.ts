@@ -34,6 +34,7 @@ export type PartnerWorkspaceData = {
   shares: PartnerPropertyShare[];
   properties: PartnerProperty[];
   nameHistory?: PartnerNameHistory[];
+  accountAlias?: string | null;
 };
 
 export type PartnerOption = { value: string; label: string };
@@ -51,6 +52,13 @@ export function buildPartnerDirectory(data: PartnerWorkspaceData) {
       directory[partner.legacyCode] = partner.displayName;
       directory[partner.legacyCode.toUpperCase()] = partner.displayName;
     }
+  }
+  const linked = data.partners.filter((partner) => partner.isActive && partner.linkedAccountId);
+  if (linked.length === 1) {
+    const member = linked[0];
+    directory["本人"] = member.displayName;
+    directory[member.linkedAccountId!] = member.displayName;
+    if (data.accountAlias) directory[data.accountAlias] = member.displayName;
   }
   return directory;
 }

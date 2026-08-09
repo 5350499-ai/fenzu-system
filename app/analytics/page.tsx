@@ -4,7 +4,6 @@ import { useAccountAccess } from "@/components/account-access";
 import { AppLayout } from "@/components/app-layout";
 import { OperationsContractFlowChart } from "@/components/operations-contract-flow-chart";
 import { OperationsRoomStatusChart } from "@/components/operations-room-status-chart";
-import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessContract,
@@ -38,6 +37,7 @@ import {
 import { todayString } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PropertyMultiSelect } from "@/components/property-multi-select";
 
 export default function AnalyticsPage() {
   const access = useAccountAccess();
@@ -47,7 +47,7 @@ export default function AnalyticsPage() {
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
-  const [propertyId, setPropertyId] = useState("all");
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const today = todayString();
 
   useEffect(() => {
@@ -65,11 +65,12 @@ export default function AnalyticsPage() {
       setContracts(loadedContracts);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
+      setSelectedPropertyIds(loadedProperties.map((property) => property.id));
     }
     load().catch((error) => window.alert(`加载经营统计失败：${error.message || error}`));
   }, [access.ready]);
 
-  const selectedProperties = propertyId === "all" ? properties : properties.filter((property) => property.id === propertyId);
+  const selectedProperties = properties.filter((property) => selectedPropertyIds.includes(property.id));
   const scope = useMemo(
     () => scopeForProperties(selectedProperties, rooms, tenants, contracts, payments, deposits),
     [contracts, deposits, payments, rooms, selectedProperties, tenants]
@@ -78,8 +79,8 @@ export default function AnalyticsPage() {
   const operationRooms = useMemo(() => buildOperationsRooms(scope, today), [scope, today]);
   const contractFlow = useMemo(() => calculateOperationsContractFlow(scope, today), [scope, today]);
   const roomStatusDistribution = useMemo(() => calculateOperationsRoomStatusDistribution(scope), [scope]);
-  const selectedProperty = properties.find((property) => property.id === propertyId);
-  const scopeLabel = propertyId === "all" ? "全部房源" : selectedProperty?.name || "当前房源";
+  const selectedProperty = selectedPropertyIds.length === 1 ? properties.find((property) => property.id === selectedPropertyIds[0]) : undefined;
+  const scopeLabel = selectedPropertyIds.length === properties.length && properties.length > 0 ? "全部房源" : selectedProperty?.name || `已选 ${selectedPropertyIds.length} 套房源`;
   const byProperty = useMemo(
     () => properties.map((property) => ({ property, stats: calculateOperationsStats(scopeForProperties([property], rooms, tenants, contracts, payments, deposits), today) })),
     [contracts, deposits, payments, properties, rooms, tenants, today]
@@ -94,12 +95,7 @@ export default function AnalyticsPage() {
             <p className="muted">截至今天：{today}</p>
           </div>
         </div>
-        <SearchableSelect
-          label="房源范围"
-          value={propertyId}
-          options={[{ value: "all", label: "全部房源" }, ...properties.map((property) => ({ value: property.id, label: property.name, description: `${property.city} · ${property.address}`, keywords: `${property.city} ${property.address}` }))]}
-          onChange={setPropertyId}
-        />
+        <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={setSelectedPropertyIds} />
       </section>
 
       <section className="operations-metric-group" aria-label={`${scopeLabel}租客统计`}>
@@ -192,7 +188,7 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {propertyId === "all" ? (
+      {selectedPropertyIds.length === properties.length && properties.length > 0 ? (
         <section className="card panel operations-property-panel">
           <div className="panel-header"><div><h2 className="panel-title">各房源经营概览</h2><p className="muted">仅显示运营状态，不包含收入、支出或利润。</p></div></div>
           <div className="operations-property-list">

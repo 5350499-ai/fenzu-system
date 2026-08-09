@@ -435,6 +435,7 @@ export default function TenantsPage() {
         try {
           const nextTenants = tenants.map((tenant) => tenant.id === form.id ? form : tenant);
           const nextRooms = syncRoomsAfterTenantChange(rooms, nextTenants, previousTenant, form);
+          const nextDeposits = syncTenantDepositRecord(form, deposits, partnerOptions[0]?.value || "");
           const tenantChanged = JSON.stringify(previousTenant) !== JSON.stringify(form);
           const roomsChanged = JSON.stringify(rooms) !== JSON.stringify(nextRooms);
           if (tenantChanged) {
@@ -442,6 +443,7 @@ export default function TenantsPage() {
             if (!savedTenantIds.includes(form.id)) throw new Error("租客资料保存失败");
           }
           if (roomsChanged) await saveBusinessData(roomKey, nextRooms);
+          if (JSON.stringify(deposits) !== JSON.stringify(nextDeposits)) await saveBusinessData(depositKey, nextDeposits);
           if (JSON.stringify(payments) !== JSON.stringify(nextPayments)) {
             const savedPaymentIds = await saveBusinessData(rentPaymentKey, nextPayments);
             if (!savedPaymentIds.includes(currentCoverage!.id)) throw new Error("租金覆盖日期保存失败");
@@ -468,6 +470,7 @@ export default function TenantsPage() {
           setTenants(loadedTenants);
           setRooms(loadedRooms);
           setContracts(loadedContracts);
+          setDeposits(nextDeposits);
           setTenants(nextTenants);
           setRooms(nextRooms);
           setPayments(nextPayments);
@@ -479,7 +482,7 @@ export default function TenantsPage() {
         return;
       }
 
-      const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID() };
+      const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID(), depositAmount: newPaymentDepositAmount };
       const next = form.id
         ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
         : [nextTenant, ...tenants];
@@ -1000,14 +1003,10 @@ export default function TenantsPage() {
               <TextField className="tenant-edit-name" label="姓名" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
               <TextField className="tenant-edit-phone" label="电话（可选）" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
               <TextField className="tenant-form-wide tenant-edit-wechat" label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
-              <MoneyInput className="tenant-edit-monthly" label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} />
-              <MoneyInput className="tenant-edit-deposit" label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
+              {form.id ? <MoneyInput className="tenant-edit-monthly" label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} /> : <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />}
               <div className="field tenant-edit-occupant"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount || ""} onChange={(event) => setForm((current) => ({ ...current, occupantCount: Number(event.target.value) }))} /></div>
-              {!form.id ? <>
-                <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />
-                <MoneyInput label="本次新增押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />
-                <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(newPaymentDepositAmount || 0))} /></div>
-              </> : null}
+              {form.id ? <MoneyInput className="tenant-edit-deposit" label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} /> : <MoneyInput label="押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />}
+              {!form.id ? <div className="field"><label>本次合计收入</label><input readOnly value={euro(Number(paymentForm.amountDue || 0) + Number(newPaymentDepositAmount || 0))} /></div> : null}
               {form.id ? <>
                 <div className="field tenant-edit-coverage-start"><label>租金覆盖开始日期</label><input required type="date" value={paymentForm.coverageStartDate || ""} onChange={(event) => updatePaymentMoney({ coverageStartDate: event.target.value })} /></div>
                 <div className="field tenant-edit-coverage-end"><label>租金覆盖结束日期</label><input required type="date" min={paymentForm.coverageStartDate || undefined} value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
@@ -1511,6 +1510,22 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
   if (!latestPayment) return "无收款";
   if (isCoverageExpired(latestPayment)) return "欠租";
   return tenant.status || "在租";
+}
+
+function syncTenantDepositRecord(tenant: BusinessTenant, deposits: BusinessDeposit[], attribution: string): BusinessDeposit[] {
+  const amount = Number(tenant.depositAmount || 0);
+  if (amount <= 0) return deposits;
+  const active = deposits.filter((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit));
+  if (active.some((deposit) => Number(deposit.amount || 0) > 0)) return deposits;
+  if (active.length) {
+    const target = active[0];
+    return deposits.map((deposit) => deposit.id === target.id ? { ...deposit, amount, receivedBy: deposit.receivedBy || attribution, paidBy: deposit.paidBy || attribution } : deposit);
+  }
+  return [{
+    id: crypto.randomUUID(), propertyId: tenant.propertyId, roomId: tenant.roomId, tenantId: tenant.id,
+    type: "收取", amount, status: "待退", transactionDate: today(), receivedBy: attribution, paidBy: attribution,
+    notes: `[租客押金:资料同步:${tenant.id}]`
+  }, ...deposits];
 }
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {

@@ -96,15 +96,18 @@ function isVoided(notes?: string) {
   return Boolean(notes?.includes("[已作废]") || notes?.toLowerCase().includes("[void]"));
 }
 
-function resolvePartner(value: string | undefined, partners: Partner[]) {
+function resolvePartner(value: string | undefined, partners: Partner[], accountAlias?: string | null) {
   const normalized = (value || "").trim();
   if (!normalized) return null;
   const upper = normalized.toUpperCase();
-  return partners.find((partner) =>
+  const direct = partners.find((partner) =>
     partner.id === normalized ||
     partner.displayName === normalized ||
     (partner.legacyCode || "").toUpperCase() === upper
-  ) || null;
+  );
+  if (direct) return direct;
+  if (partners.length === 1 && (normalized === "本人" || (accountAlias && normalized === accountAlias))) return partners[0];
+  return null;
 }
 
 function planForDate(shares: PartnerPropertyShare[], propertyId: string, date: string) {
@@ -155,16 +158,17 @@ function mergeRanges(ranges: Array<{ propertyId: string; startDate: string; endD
 }
 
 export function buildSettlement(
-  propertyId: string,
+  propertyId: string | string[],
   range: SettlementRange,
   properties: Array<{ id: string }>,
   partners: Partner[],
   shares: PartnerPropertyShare[],
   payments: BusinessRentPayment[],
-  expenses: BusinessExpense[]
+  expenses: BusinessExpense[],
+  accountAlias?: string | null
 ): SettlementResult {
   const invalidRange = !validDate(range.startDate) || !validDate(range.endDate) || range.startDate > range.endDate;
-  const propertyIds = propertyId === "all" ? properties.map((property) => property.id) : [propertyId];
+  const propertyIds = Array.isArray(propertyId) ? propertyId : propertyId === "all" ? properties.map((property) => property.id) : [propertyId];
   const segments: SettlementSegment[] = [];
   const stats = new Map<string, SettlementPartnerStat>();
   const unknownAttributions: string[] = [];
@@ -186,13 +190,13 @@ export function buildSettlement(
         if (stat) stat.profitEntitlement = roundMoney(stat.profitEntitlement + netProfit * share.percentage / 100);
       });
       segmentPayments.forEach((payment) => {
-        const partner = resolvePartner(payment.receivedBy, partners);
+        const partner = resolvePartner(payment.receivedBy, partners, accountAlias);
         if (!partner) { unknownAttributions.push(`income:${payment.id}`); return; }
         const stat = stats.get(partner.id)!;
         stat.collected = roundMoney(stat.collected + rentIncomeForPayment(payment));
       });
       segmentExpenses.forEach((expenseItem) => {
-        const partner = resolvePartner(expenseItem.paidBy, partners);
+        const partner = resolvePartner(expenseItem.paidBy, partners, accountAlias);
         if (!partner) { unknownAttributions.push(`expense:${expenseItem.id}`); return; }
         const stat = stats.get(partner.id)!;
         stat.advanced = roundMoney(stat.advanced + Number(expenseItem.amount || 0));

@@ -2,7 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
-import { getCurrentPropertySharePlan, getPartners, getPropertyPartnerShares, type PartnerPropertyShare, type PartnerWorkspaceData, validatePartnerPercentages } from "@/lib/partners";
+import { getCurrentPropertySharePlan, getPartners, getPropertyPartnerShares, invalidatePartnersCache, type PartnerPropertyShare, type PartnerWorkspaceData, validatePartnerPercentages } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { SectionCard } from "@/components/ui";
 import { CalendarClock, Edit3, Plus, Save, Trash2, UserRound, X } from "lucide-react";
@@ -83,7 +83,7 @@ export default function PartnersPage() {
 
   async function savePartner(id: string) {
     setWorking(true); setMessage("");
-    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ displayName: draftNames[id], sortOrder: Number(draftSortOrders[id] || 0) }) }); setEditingId(null); await reload(); setMessage("合伙人资料已保存"); }
+    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ displayName: draftNames[id], sortOrder: Number(draftSortOrders[id] || 0) }) }); await invalidatePartnersCache(); setEditingId(null); await reload(); setMessage("合伙人资料已保存"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "保存失败"); }
     finally { setWorking(false); }
   }

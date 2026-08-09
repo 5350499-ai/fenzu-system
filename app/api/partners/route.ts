@@ -58,6 +58,7 @@ export async function GET(request: Request) {
         effectiveTo: share.effective_to
       })),
       properties: (propertiesResult.data || []).map((property) => ({ id: property.id, name: property.name, address: property.address, city: property.city })),
+      accountAlias: context.profile.username || null,
       nameHistory: (historyResult.data || []).map((item) => ({ id: item.id, partnerId: item.partner_id, oldDisplayName: item.old_display_name, newDisplayName: item.new_display_name, changedAt: item.changed_at, changedByAccountId: item.changed_by_account_id }))
     });
   } catch (error) {

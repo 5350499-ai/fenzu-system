@@ -814,3 +814,10 @@
 - Added the login-page free-registration entry and kept the existing password-recovery flow unchanged.
 - Hardened the existing server-side free-plan property and room quota checks so `NULL` notes/status values are counted as active records; archived records remain excluded and restoration is still checked against the limit.
 - No new database migration, business-data mutation, financial calculation, or Production deployment is included in this Preview change.
+## 2026-08-09 - Deposit attribution and property-scope consistency
+
+- Fixed tenant deposit synchronization when a positive deposit is entered or changed from zero; zero remains a valid no-deposit state.
+- Reordered tenant and check-in money/date fields without changing stored business meanings.
+- Unified single-member attribution aliases and refreshed the partner cache after member-name changes.
+- Reused a strict property multi-select state across profit analysis, operations statistics, and partnership settlement; empty selection is no longer interpreted as all properties.
+- Kept the existing one-property-per-snapshot model while allowing a multi-property confirmation to create one accurate snapshot per selected property; calculations and details follow the selected set.
