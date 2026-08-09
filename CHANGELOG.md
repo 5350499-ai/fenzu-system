@@ -1,3 +1,9 @@
+## 2026-08-09 - Free-account verification and Safari session handoff
+
+- Public free-account registration now requires Supabase email confirmation, uses a trusted environment-aware callback, and keeps the registration page on a clear verification-sent state.
+- Fixed the Safari first-login session handoff so the verified password session remains available to the first dashboard load while server-side account/session validation remains enforced.
+- New visitors default to dark mode unless they have already saved a theme preference.
+
 ## 2026-08-08 - Complete expense detail text
 
 - Added the full expense category to expanded expense details.

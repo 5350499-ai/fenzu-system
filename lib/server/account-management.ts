@@ -10,7 +10,7 @@ import {
   type SensitivePermissions
 } from "@/lib/account-permissions";
 import { AccountApiError, type AccountRequestContext, type AccountProfileRow, revokeAllAppSessions, writeAuditLog } from "@/lib/server/account-auth";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-admin";
 import { isDeliverableAccountEmail, passwordValidationMessage } from "@/lib/password-security";
 import { FREE_SINGLE_PLAN, MANAGED_PLAN, isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 
@@ -217,6 +217,7 @@ export async function createPublicFreeSingleAccount(input: {
   password: unknown;
   passwordConfirmation: unknown;
   displayName?: unknown;
+  emailConfirmationRedirect: string;
 }) {
   const email = normalizeAccountEmail(input.email);
   const password = validatePassword(input.password, input.passwordConfirmation);
@@ -227,15 +228,26 @@ export async function createPublicFreeSingleAccount(input: {
   if (!(await emailAvailable(email))) throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409);
 
   const admin = getSupabaseAdmin();
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+  const authClient = getSupabasePublicServerClient();
+  const { data: authData, error: authError } = await authClient.auth.signUp({
     email,
     password,
-    // The account directory is the application authentication boundary. The
-    // registration API provisions it atomically and never accepts a plan from
-    // the browser, so immediate sign-in is safe and avoids a half-created UI.
-    email_confirm: true
+    // The application still provisions the account directory server-side and
+    // never accepts a plan from the browser. Supabase must confirm this email
+    // before the account can receive a usable password session.
+    options: { emailRedirectTo: input.emailConfirmationRedirect }
   });
   if (authError || !authData.user) throw new AccountApiError("创建免费账户失败，请稍后重试。", 500);
+
+  // A public free account must never silently bypass email confirmation.  When
+  // confirmation is disabled, signUp returns a session; roll that user back.
+  if (authData.session || authData.user.email_confirmed_at) {
+    await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined);
+    throw new AccountApiError("邮箱验证尚未启用，暂时无法注册。请联系管理员检查认证配置。", 503, "email_confirmation_required");
+  }
+  if (!authData.user.identities?.length) {
+    throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409, "email_exists");
+  }
 
   const targetId = authData.user.id;
   try {

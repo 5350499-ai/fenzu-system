@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import Link from "next/link";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 
 export default function LoginPage() {
@@ -15,15 +15,38 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [returnTo, setReturnTo] = useState("/");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("returnTo") || "/";
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("returnTo") || "/";
     if (requested.startsWith("/") && !requested.startsWith("//")) setReturnTo(requested);
+    setEmailVerified(params.get("verified") === "1");
+    setRegistered(params.get("registered") === "1");
   }, []);
 
   useEffect(() => {
-    if (access.authenticated && access.isServerVerified) router.replace(returnTo);
-  }, [access.authenticated, access.isServerVerified, returnTo, router]);
+    if (!emailVerified || !supabase) return;
+    const auth = supabase.auth;
+    let active = true;
+    const clearConfirmationSession = async () => {
+      clearAccountAccessSnapshot();
+      await auth.signOut({ scope: "local" }).catch(() => undefined);
+    };
+    void clearConfirmationSession();
+    const { data: listener } = auth.onAuthStateChange((event) => {
+      if (active && event === "SIGNED_IN") void clearConfirmationSession();
+    });
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [emailVerified]);
+
+  useEffect(() => {
+    if (!emailVerified && access.authenticated && access.isServerVerified) router.replace(returnTo);
+  }, [access.authenticated, access.isServerVerified, emailVerified, returnTo, router]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,15 +66,16 @@ export default function LoginPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (typeof payload?.error === "string") {
+          setError(payload.error);
+          return;
+        }
         setError("账号或密码错误。");
         return;
       }
       clearAccountAccessSnapshot();
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: payload.accessToken,
-        refresh_token: payload.refreshToken
-      });
-      if (sessionError) {
+      const session = await establishSupabaseSession({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+      if (!session) {
         setError("登录会话创建失败，请重试。");
         return;
       }
@@ -81,6 +105,8 @@ export default function LoginPage() {
           </div>
         </div>
         <form className="grid" onSubmit={submit} autoComplete="on">
+          {emailVerified ? <p className="success-text" role="status">邮箱验证成功，请使用邮箱和密码登录。</p> : null}
+          {registered ? <p className="success-text" role="status">验证邮件已发送，请前往邮箱完成验证后再登录。</p> : null}
           <div className="field">
             <label>登录账号或邮箱</label>
             <input name="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="请输入登录账号或邮箱" />

@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse } from "@/lib/server/account-auth";
 import { createPublicFreeSingleAccount } from "@/lib/server/account-management";
+import { emailConfirmationRedirectUrl } from "@/lib/auth-redirect";
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 15 * 60 * 1000;
@@ -35,9 +36,10 @@ export async function POST(request: Request) {
       email: body?.email,
       password: body?.password,
       passwordConfirmation: body?.passwordConfirmation,
-      displayName: body?.displayName
+      displayName: body?.displayName,
+      emailConfirmationRedirect: emailConfirmationRedirectUrl(request)
     });
-    return NextResponse.json({ ok: true, account: { email: account.email, displayName: account.displayName, accountPlan: "free_single" } }, { status: 201 });
+    return NextResponse.json({ ok: true, verificationRequired: true, account: { email: account.email, displayName: account.displayName, accountPlan: "free_single" } }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);
   }

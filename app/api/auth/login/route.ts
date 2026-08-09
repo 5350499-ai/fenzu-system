@@ -49,6 +49,9 @@ export async function POST(request: Request) {
       password
     });
     if (loginError || !authData.session || authData.user?.id !== identity.auth_user_id) {
+      if (loginError?.message.toLowerCase().includes("email not confirmed")) {
+        return NextResponse.json({ error: "请先前往邮箱完成验证，再登录系统。", code: "email_not_confirmed" }, { status: 403 });
+      }
       await writeAuditLog(null, { actionType: "login_failed", moduleKey: "auth", description: "账号登录失败", success: false });
       return NextResponse.json({ error: "账号或密码错误。" }, { status: 401 });
     }

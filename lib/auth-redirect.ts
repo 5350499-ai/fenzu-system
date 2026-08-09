@@ -51,3 +51,26 @@ export function recoveryRedirectUrl(request: Request) {
 
   return `${PRODUCTION_ORIGIN}/reset-password`;
 }
+
+/** Uses a trusted current deployment origin without pinning a temporary Preview URL. */
+export function emailConfirmationRedirectUrl(request: Request) {
+  const vercelEnvironment = process.env.VERCEL_ENV || "";
+  const configuredOrigin = process.env.AUTH_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (vercelEnvironment === "production") {
+    const origin = isAllowedPublicOrigin(configuredOrigin) ? validOrigin(configuredOrigin, false) : PRODUCTION_ORIGIN;
+    return `${origin || PRODUCTION_ORIGIN}/login?verified=1`;
+  }
+
+  const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.replace(/\/$/, "")}` : undefined;
+  if (vercelEnvironment === "preview" && isAllowedPublicOrigin(vercelOrigin)) {
+    return `${validOrigin(vercelOrigin, false)}/login?verified=1`;
+  }
+
+  const requestUrl = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
+  const requestOrigin = `${forwardedProto}://${forwardedHost || requestUrl.host}`;
+  if (isAllowedPublicOrigin(requestOrigin, true)) return `${validOrigin(requestOrigin, true)}/login?verified=1`;
+  if (isAllowedPublicOrigin(configuredOrigin, true)) return `${validOrigin(configuredOrigin, true)}/login?verified=1`;
+  return `${PRODUCTION_ORIGIN}/login?verified=1`;
+}

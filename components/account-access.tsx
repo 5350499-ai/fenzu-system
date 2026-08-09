@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { emptyModulePermissions, emptySensitivePermissions, type AccountModuleKey, type ModulePermission, type PermissionAction, type SensitivePermissionKey, type SensitivePermissions } from "@/lib/account-permissions";
-import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { clearEstablishedSupabaseSession, getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 
 type AccountAccessState = {
@@ -468,6 +468,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
 
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        clearEstablishedSupabaseSession();
         clearAccountAccessSnapshot();
         bootstrappedRef.current = true;
         commitState({ ...emptyState(), ready: true, authState: "unauthenticated" });

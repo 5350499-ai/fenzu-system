@@ -16,6 +16,27 @@ export const supabase = isSupabaseConfigured
   : null;
 
 let sessionRefreshRequest: Promise<Session | null> | null = null;
+let establishedSession: Session | null = null;
+
+/**
+ * Completes a password-login handoff before navigation. Safari can briefly
+ * report no persisted session immediately after setSession; this fallback is
+ * scoped to the same browser runtime and cleared on signout.
+ */
+export async function establishSupabaseSession(tokens: { accessToken: string; refreshToken: string }): Promise<Session | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.setSession({
+    access_token: tokens.accessToken,
+    refresh_token: tokens.refreshToken
+  });
+  if (error) throw error;
+  establishedSession = data.session || null;
+  return establishedSession;
+}
+
+export function clearEstablishedSupabaseSession() {
+  establishedSession = null;
+}
 
 /**
  * Returns a usable persisted Supabase session and coalesces refresh-token
@@ -27,7 +48,8 @@ export async function getValidSupabaseSession(forceRefresh = false): Promise<Ses
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
 
-  const session = data.session;
+  const session = data.session || establishedSession;
+  if (data.session) establishedSession = data.session;
   const expiresSoon = !session?.expires_at || session.expires_at <= Math.floor(Date.now() / 1000) + 60;
   if (!forceRefresh && session && !expiresSoon) return session;
   if (!session) return null;
@@ -41,5 +63,7 @@ export async function getValidSupabaseSession(forceRefresh = false): Promise<Ses
     });
   }
 
-  return sessionRefreshRequest;
+  const refreshed = await sessionRefreshRequest;
+  establishedSession = refreshed || null;
+  return refreshed;
 }

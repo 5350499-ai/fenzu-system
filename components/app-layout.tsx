@@ -69,7 +69,7 @@ const mobileItems = [
 export function AppLayout({ children, title, description }: { children: React.ReactNode; title: string; description?: string }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState("dark");
   const [loggingOut, setLoggingOut] = useState(false);
   const permissionRedirectRef = useRef("");
   const access = useAccountAccess();
@@ -90,7 +90,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
     const saved = window.localStorage.getItem("theme");
     const preferred = saved === "dark" || saved === "light"
       ? saved
-      : window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      : "dark";
     setTheme(preferred);
     document.documentElement.dataset.theme = preferred;
   }, []);
