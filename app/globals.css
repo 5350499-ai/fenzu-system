@@ -8198,8 +8198,11 @@ html:has(.modal-backdrop), body:has(.modal-backdrop),
 html:has(.attachment-modal-backdrop), body:has(.attachment-modal-backdrop),
 html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { overflow: hidden; }
 .modal-backdrop, .attachment-modal-backdrop, .data-center-sheet-backdrop { overscroll-behavior: contain; }
-.modal-backdrop { height: 100dvh; min-height: 100svh; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
-.modal-card { display: flex; flex-direction: column; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
+/* Keep the document locked behind a dialog while the dialog owns scrolling.
+   On narrow screens the backdrop becomes the one scroll surface, preventing
+   iOS from transferring a drag to the locked document and snapping it back. */
+.modal-backdrop { height: 100dvh; min-height: 100svh; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.modal-card { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
 .modal-card > .panel-header:first-child { position: sticky; top: -20px; z-index: 2; flex: 0 0 auto; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); }
 .modal-card > .panel-header:first-child .btn { min-height: var(--ui-touch-target, 44px); }
 .field input, .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
@@ -8221,8 +8224,8 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 
 @media (max-width: 640px) {
   .field input, .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
-  .modal-backdrop { align-items: flex-start; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
-  .modal-card { width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
+  .modal-backdrop { display: block; overflow-y: auto; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .modal-card { width: 100%; min-height: 0; max-height: none; margin: 0 auto; overflow: visible; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
   .tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
@@ -8232,6 +8235,18 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   .room-finance-line .room-property-name { font-size: var(--ui-font-size-secondary, 13px); }
   .check-in-attachment-item { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .check-in-attachment-item > select, .check-in-attachment-item > button { grid-column: 2; width: 100%; max-width: none; }
+}
+
+.page-back-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0 0 8px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-weight: 750;
 }
 
 /* UI Design System V1: effective shared foundation.

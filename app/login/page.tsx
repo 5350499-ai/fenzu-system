@@ -15,15 +15,16 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [returnTo, setReturnTo] = useState("/");
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [registered, setRegistered] = useState(false);
+  // Read confirmation flags during the first render. Waiting for useEffect
+  // allowed an implicit email-confirmation session to redirect to the home
+  // page before the login screen could clear it.
+  const [emailVerified] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("verified") === "1");
+  const [registered] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("registered") === "1");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get("returnTo") || "/";
     if (requested.startsWith("/") && !requested.startsWith("//")) setReturnTo(requested);
-    setEmailVerified(params.get("verified") === "1");
-    setRegistered(params.get("registered") === "1");
   }, []);
 
   useEffect(() => {

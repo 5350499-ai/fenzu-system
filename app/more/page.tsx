@@ -12,6 +12,7 @@ export default function MorePage() {
     if (!access.can(moduleKey)) return false;
     if (moduleKey === "profits") return access.canSensitive("canViewProfits");
     if (moduleKey === "partnership_settlement") return access.canSensitive("canViewPartnershipSettlement");
+    if (moduleKey === "audit_logs") return access.canSensitive("canViewAuditLogs");
     return true;
   };
   const items = navGroups.flatMap((group) => group.items).filter((item) => item.href !== "/" && canOpenModule(item.module as AccountModuleKey));

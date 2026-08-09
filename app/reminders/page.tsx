@@ -88,8 +88,8 @@ export default function RemindersPage() {
   }, [access.ready]);
 
   const reminders = useMemo(
-    () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits, waivedPaymentIds }),
-    [contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
+    () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits, waivedPaymentIds, includeBackupReminder: !access.isFreeSingle }),
+    [access.isFreeSingle, contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
   );
 
   async function waiveReminder() {
@@ -116,12 +116,12 @@ export default function RemindersPage() {
   }
 
   const grouped = useMemo(() => {
-    const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "空置房间", "备份提醒"];
+    const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "空置房间", ...(access.isFreeSingle ? [] : ["备份提醒"])];
     return groups.map((group) => ({
       title: group,
       items: reminders.filter((item) => item.category === group)
     }));
-  }, [reminders]);
+  }, [access.isFreeSingle, reminders]);
 
   return (
     <AppLayout title="提醒中心" description="系统自动生成的经营风险提醒，和手动待办分开管理。">
@@ -201,7 +201,8 @@ function buildReminders({
   contracts,
   payments,
   deposits,
-  waivedPaymentIds
+  waivedPaymentIds,
+  includeBackupReminder = true
 }: {
   properties: BusinessProperty[];
   rooms: BusinessRoom[];
@@ -210,6 +211,7 @@ function buildReminders({
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   waivedPaymentIds: Set<string>;
+  includeBackupReminder?: boolean;
 }) {
   const today = new Date();
   const propertyById = new Map(properties.map((item) => [item.id, item]));
@@ -223,7 +225,7 @@ function buildReminders({
         const payment = latestCoverageForTenant(tenant.id, payments);
         return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
     })
-    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id) && (stage!.level !== "overdue" || rentCollectionRemaining(payment!) > 0))
+    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id))
     .forEach(({ tenant, payment, stage }) => {
       if (!stage) return;
       const room = roomById.get(tenant.roomId);
@@ -293,7 +295,7 @@ function buildReminders({
       });
     });
 
-  reminders.push({
+  if (includeBackupReminder) reminders.push({
     id: "backup-reminder",
     category: "备份提醒",
     title: "建议定期导出数据备份",

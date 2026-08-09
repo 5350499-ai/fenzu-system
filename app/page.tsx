@@ -54,7 +54,7 @@ const shortcuts = [
   { title: "房间", href: "/rooms", icon: BedDouble, tone: "blue", module: "rooms" },
   { title: "结算", href: "/partnership-settlement", icon: HandCoins, tone: "blue", module: "partnership_settlement", sensitive: "canViewPartnershipSettlement" },
   { title: "更多", href: "/more", icon: MoreHorizontal, tone: "amber" }
-] satisfies Array<{ title: string; href: string; icon: typeof LogIn; tone: string; module?: AccountModuleKey; sensitive?: "canViewPartnershipSettlement" }>;
+] satisfies Array<{ title: string; href: string; icon: typeof LogIn; tone: string; module?: AccountModuleKey; sensitive?: "canViewPartnershipSettlement" | "canViewProfits" }>;
 
 type DashboardSnapshot = {
   properties: BusinessProperty[];
@@ -178,8 +178,8 @@ export default function DashboardPage() {
   }, 0), [rentPayments, tenants, waivedPaymentIds]);
   const dashboardTotals = { ...totals, unpaid: Math.max(0, totals.unpaid - waivedUnpaid) };
   const reminders = useMemo(
-    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds }),
-    [contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
+    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, includeBackupReminder: !access.isFreeSingle }),
+    [access.isFreeSingle, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
@@ -215,7 +215,10 @@ export default function DashboardPage() {
 
       <section className="card compact-shortcuts home-shortcuts">
         <div className="shortcut-grid compact-icon-grid">
-          {shortcuts.filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
+          {shortcuts.map((item) => access.isFreeSingle && item.title === "结算"
+            ? { ...item, href: "/property-profits", module: "profits" as AccountModuleKey, sensitive: "canViewProfits" as const }
+            : item
+          ).filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
             const Icon = item.icon;
             return (
               <Link className="shortcut-card compact-icon-card" href={item.href} key={item.title}>
@@ -300,7 +303,8 @@ function buildDashboardReminders({
   contracts,
   rentPayments,
   deposits,
-  waivedPaymentIds
+  waivedPaymentIds,
+  includeBackupReminder = true
 }: {
   properties: BusinessProperty[];
   rooms: BusinessRoom[];
@@ -309,6 +313,7 @@ function buildDashboardReminders({
   rentPayments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   waivedPaymentIds: Set<string>;
+  includeBackupReminder?: boolean;
 }) {
   const reminders: Reminder[] = [];
   const today = new Date();
@@ -322,7 +327,7 @@ function buildDashboardReminders({
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
       return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
     })
-    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id) && (stage!.level !== "overdue" || rentCollectionRemaining(payment!) > 0))
+    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id))
     .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
     .forEach(({ tenant, payment, stage }) => {
       if (!stage) return;
@@ -406,6 +411,16 @@ function buildDashboardReminders({
     });
   });
 
+  if (includeBackupReminder) {
+    reminders.push({
+      id: "backup-reminder",
+      title: "建议定期导出数据备份",
+      description: "点击进入设置页面导出 Excel 或 CSV",
+      href: "/settings",
+      tone: "info",
+      priority: 100
+    });
+  }
   return reminders.sort((a, b) => b.priority - a.priority);
 }
 

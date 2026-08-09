@@ -74,6 +74,7 @@ export function AppLayout({ children, title, description }: { children: React.Re
   const permissionRedirectRef = useRef("");
   const access = useAccountAccess();
   const routeModule = moduleForPath(pathname);
+  const backTarget = secondaryBackTarget(pathname);
   const canOpenModule = useCallback((moduleKey: AccountModuleKey) => {
     if (!access.can(moduleKey)) return false;
     if (moduleKey === "profits") return access.canSensitive("canViewProfits");
@@ -201,6 +202,10 @@ export function AppLayout({ children, title, description }: { children: React.Re
       <main className="main">
         <header className="topbar">
           <div>
+            {backTarget ? <button className="page-back-button" type="button" onClick={() => {
+              if (window.history.length > 1) router.back();
+              else router.push(backTarget);
+            }}>← 返回</button> : null}
             <h1 className="page-title">{title}</h1>
             {description ? <p className="page-desc">{description}</p> : null}
           </div>
@@ -277,5 +282,14 @@ function moduleForPath(pathname: string): AccountModuleKey | null {
   if (pathname.startsWith("/admin/attachments") || pathname.startsWith("/admin/google-attachment-migration")) return "attachments";
   if (pathname.startsWith("/accounts")) return "accounts";
   if (pathname.startsWith("/audit-logs")) return "audit_logs";
+  return null;
+}
+
+function secondaryBackTarget(pathname: string) {
+  if (pathname === "/data-center" || pathname === "/audit-logs") return "/settings";
+  if (pathname.startsWith("/settings/")) return "/settings";
+  if (pathname.startsWith("/properties/")) return "/properties";
+  if (pathname.startsWith("/property-profits/")) return "/property-profits";
+  if (pathname.startsWith("/partner-settlements/")) return "/partnership-settlement";
   return null;
 }

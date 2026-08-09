@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const modulePermissions = emptyModulePermissions().map((base) => {
       const row = byModule.get(base.moduleKey);
       if (freeSingle && isFreeSingleRestrictedModule(base.moduleKey)) return { ...base, canView: false, canCreate: false, canEdit: false, canArchive: false, canDelete: false };
+      if (freeSingle && base.moduleKey === "audit_logs") return { ...base, canView: true, canCreate: false, canEdit: false, canArchive: false, canDelete: false };
       return context.profile.account_type === "owner"
         ? { ...base, canView: true, canCreate: true, canEdit: true, canArchive: true, canDelete: true }
         : { moduleKey: base.moduleKey, canView: Boolean(row?.can_view), canCreate: Boolean(row?.can_create), canEdit: Boolean(row?.can_edit), canArchive: Boolean(row?.can_archive), canDelete: Boolean(row?.can_delete) };
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
       modulePermissions,
       sensitivePermissions: context.profile.account_type === "owner"
         ? Object.fromEntries(Object.keys(clientSensitivePermissions(null)).map((key) => [key, true]))
-        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle && isFreeSingleRestrictedSensitivePermission(key) ? false : value])),
+        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle ? (key === "canViewAuditLogs" ? true : (isFreeSingleRestrictedSensitivePermission(key) ? false : value)) : value])),
       propertyIds: (propertyResult.data || [])
         .map((row) => row.property_id)
         .filter((propertyId): propertyId is string => typeof propertyId === "string" && propertyId.length > 0)

@@ -1,3 +1,12 @@
+## 2026-08-09 - Free-account verification, personal tools, and mobile modal stability
+
+- Email confirmation now lands on a dedicated, session-clearing confirmation page before returning users to password login, avoiding the implicit-confirmation-session race that could send a new user to the dashboard with an invalid app session.
+- Free single-user accounts are labeled “普通用户”, retain a personal settlement shortcut through profit analysis, and can read only their own audit-log records; partner settlement remains unavailable.
+- Free users no longer receive archive-center or backup-export reminder entry points; business due/overdue coverage reminders remain active through the actual coverage end date.
+- Reworked mobile modal scrolling so the fixed dialog backdrop becomes the single iOS scroll surface; property and other shared create/edit dialogs can reach their bottom actions without body-scroll bounce.
+- Added consistent in-app back controls for accessible secondary pages. Free users retain local export only; the existing restore flow remains unavailable because it is an owner/cloud BeforeRestore capability.
+- Preview only; no database, schema, migration, business data or Production changes.
+
 ## 2026-08-09 - Free-account verification and Safari session handoff
 
 - Public free-account registration now requires Supabase email confirmation, uses a trusted environment-aware callback, and keeps the registration page on a clear verification-sent state.
