@@ -9,6 +9,7 @@ import {
   requirePropertyAccess
 } from "@/lib/server/account-auth";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
 
 type CheckInBody = {
   clientRequestId?: string;
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       || !body.propertyId || !uuidPattern.test(body.propertyId)
       || !body.roomId || !uuidPattern.test(body.roomId)
       || !body.tenantName?.trim()
-      || (!freeSingle && !receivedBy)
+      || !receivedBy
       || !validDate(body.paymentDate)
       || !validDate(body.coverageStartDate)
       || !validDate(body.coverageEndDate)
@@ -71,10 +72,13 @@ export async function POST(request: Request) {
     await requireModulePermission(context, "tenants", "create");
     await requireModulePermission(context, "rooms", "edit");
     await requireModulePermission(context, "rent_payments", "create");
-    if (depositAmount > 0) await requireModulePermission(context, "deposits", "create");
+    await requireModulePermission(context, "deposits", "create");
     await requirePropertyAccess(context, body.propertyId);
 
-    if (!freeSingle) {
+    let attribution = receivedBy;
+    if (freeSingle) {
+      attribution = freeSingleAttribution(await ensureFreeSingleMember(context));
+    } else {
     const { data: activePartners, error: partnersError } = await getSupabaseAdmin()
       .from("partners")
       .select("id,legacy_code")
@@ -107,7 +111,7 @@ export async function POST(request: Request) {
       p_deposit_status: body.depositStatus || "已收",
       p_payment_status: body.paymentStatus || "已收",
       p_payment_method: body.paymentMethod || "转账",
-      p_received_by: freeSingle ? "本人" : receivedBy,
+      p_received_by: attribution,
       p_notes: body.notes?.trim() || null
     });
 

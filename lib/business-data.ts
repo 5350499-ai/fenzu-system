@@ -568,6 +568,13 @@ export async function refreshBusinessData<T extends AnyRecord>(key: string, fall
   return value;
 }
 
+/** Invalidate dependent views after an RPC changes several business tables. */
+export async function invalidateBusinessData(keys: string[]) {
+  const scope = await getCacheScope();
+  const invalidated = [...new Set(keys.flatMap((key) => CACHE_INVALIDATION[key] || [key]))];
+  await cacheManager.invalidate(invalidated, scope);
+}
+
 export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
   const scope = await getCacheScope();
   const result = await saveBusinessDataToServer(key, value, options);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, parseJson, requireActiveAccount, requireSensitivePermission, writeAuditLog, AccountApiError } from "@/lib/server/account-auth";
+import { apiErrorResponse, parseJson, requireActiveAccount, requireSensitivePermission, writeAuditLog, AccountApiError, isFreeSingleAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { ensureFreeSingleMember } from "@/lib/server/free-single-member";
 
 function cleanName(value: unknown) {
   const name = String(value || "").trim();
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
     if (context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
+    if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;
     const [partnersResult, sharesResult, propertiesResult, historyResult] = await Promise.all([
@@ -65,7 +67,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const context = await requireActiveAccount(request, true);
+    const context = await requireActiveAccount(request);
+    if (isFreeSingleAccount(context)) {
+      await ensureFreeSingleMember(context);
+      throw new AccountApiError("免费版仅支持管理本人；新增成员为订阅功能。", 403, "free_single_member_limit");
+    }
+    if (context.profile.account_type !== "owner") throw new AccountApiError("没有权限管理合伙成员。", 403);
     const body = await parseJson(request) as Record<string, unknown>;
     const displayName = cleanName(body.displayName);
     const admin = getSupabaseAdmin();

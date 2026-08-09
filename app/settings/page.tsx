@@ -159,10 +159,10 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="设置" description="系统设置与 Backup &amp; Restore。">
-      {!access.isFreeSingle ? <section className="card panel settings-entry-card">
+      <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">合伙人管理</h2><p className="muted">管理合伙人姓名、状态及各房源利润比例。</p></div></div>
-        <Link className="btn primary settings-entry-button" href="/partners">打开合伙人管理</Link>
-      </section> : null}
+        <Link className="btn primary settings-entry-button" href="/partners">{access.isFreeSingle ? "打开成员管理" : "打开合伙人管理"}</Link>
+      </section>
 
       {access.isFreeSingle ? <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">数据导出</h2><p className="muted">将自己的结构化业务数据导出并保存到本地。</p></div></div>

@@ -239,6 +239,7 @@ export async function requireModulePermission(context: AccountRequestContext, mo
   if (isFreeSingleAccount(context) && isFreeSingleRestrictedModule(moduleKey)) {
     throw new AccountApiError("免费单人版不提供此功能。", 403);
   }
+  if (isFreeSingleAccount(context) && moduleKey === "partnership_settlement") return;
   if (context.profile.account_type === "owner") return;
   const column = action === "view" ? "can_view" : action === "create" ? "can_create" : action === "edit" ? "can_edit" : action === "archive" ? "can_archive" : "can_delete";
   const admin = getSupabaseAdmin();
@@ -250,6 +251,7 @@ export async function requireSensitivePermission(context: AccountRequestContext,
   if (isFreeSingleAccount(context) && isFreeSingleRestrictedSensitivePermission(permissionColumn)) {
     throw new AccountApiError("免费单人版不提供此功能。", 403);
   }
+  if (isFreeSingleAccount(context) && permissionColumn === "can_view_partnership_settlement") return;
   if (context.profile.account_type === "owner") return;
   const admin = getSupabaseAdmin();
   const { data } = await admin.from("user_sensitive_permissions").select(permissionColumn).eq("user_id", context.userId).maybeSingle();

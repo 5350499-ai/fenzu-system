@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess } from "@/lib/server/account-auth";
 import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-single";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -79,13 +80,14 @@ async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof require
   }
 }
 
-function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof requireActiveAccount>>, row: Record<string, unknown>) {
+async function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof requireActiveAccount>>, row: Record<string, unknown>) {
   if (!isFreeSingleAccount(context)) return row;
   const next = { ...row };
-  // Legacy finance columns remain non-null for backwards compatibility. New
-  // free-single records are explicitly self-managed, never fake A/B values.
-  if ("received_by" in next) next.received_by = "本人";
-  if ("paid_by" in next) next.paid_by = "本人";
+  const self = await ensureFreeSingleMember(context);
+  // Keep the established attribution model: a free account has one real,
+  // account-linked member instead of a fake A/B or display-only fallback.
+  if ("received_by" in next) next.received_by = freeSingleAttribution(self);
+  if ("paid_by" in next) next.paid_by = freeSingleAttribution(self);
   return next;
 }
 
@@ -120,7 +122,7 @@ export async function POST(request: Request) {
     const savedRows: Array<{ id: string }> = [];
 
     for (const operation of operations) {
-      const row = normalizeFreeSingleBusinessRow(context, operation.row || {});
+      const row = await normalizeFreeSingleBusinessRow(context, operation.row || {});
       const id = String(operation.id || row.id || "");
       if (!id) throw new AccountApiError("记录ID不能为空。", 400);
 
@@ -133,6 +135,7 @@ export async function POST(request: Request) {
         const { data, error } = await client.from(resource.table).insert(row).select("id");
         if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
         savedRows.push(...((data || []) as Array<{ id: string }>));
+        if (resource.table === "properties" && isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
         continue;
       }
 

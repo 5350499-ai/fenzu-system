@@ -170,7 +170,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     async function load() {
-      const activePartnerOptions = access.isFreeSingle ? [] : buildActivePartnerOptions(await getPartners());
+      const activePartnerOptions = buildActivePartnerOptions(await getPartners());
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -622,7 +622,7 @@ export default function TenantsPage() {
         setCreateDepositTenant(null);
         return;
       }
-      const defaultPartner = access.isFreeSingle ? "本人" : partnerOptions[0]?.value || "";
+      const defaultPartner = partnerOptions[0]?.value || "";
       if (!defaultPartner) throw new Error("没有可用的合伙人归属，请刷新后重试。");
       const nextDeposit: BusinessDeposit = {
         id: crypto.randomUUID(),
@@ -1017,7 +1017,7 @@ export default function TenantsPage() {
                 <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={paymentForm.coverageEndDate || ""} onChange={(event) => updatePaymentMoney({ coverageEndDate: event.target.value })} /></div>
               </> : null}
               <div className={`field ${form.id ? "tenant-edit-payment-day" : ""}`}><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
-              {!form.id && !access.isFreeSingle ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
+              {!form.id ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
               {form.id ? <SearchableSelect className="tenant-edit-status" label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {!form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               <TextField className={form.id ? "tenant-edit-source" : undefined} label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
@@ -1514,7 +1514,9 @@ function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayme
 }
 
 function tenantDepositStatus(tenant: BusinessTenant, deposits: BusinessDeposit[]) {
-  if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) return "未建立押金管理记录";
+  if (!deposits.some((deposit) => deposit.tenantId === tenant.id && !isVoidedDeposit(deposit))) {
+    return Number(tenant.depositAmount || 0) === 0 ? "无押金" : "未建立押金管理记录";
+  }
   return tenantDepositStorageStatus(tenant, deposits) === "已退" ? "押金已处理" : "押金待处理";
 }
 

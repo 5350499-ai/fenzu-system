@@ -36,7 +36,6 @@ export default function AuditLogsPage() {
       return;
     }
     const params = new URLSearchParams();
-    if (action) params.set("action", action);
     if (moduleKey) params.set("module", moduleKey);
     if (success) params.set("success", success);
     const response = await fetch("/api/audit-logs?" + params.toString(), {
@@ -49,7 +48,7 @@ export default function AuditLogsPage() {
     }
     setError("");
     setLogs(payload.logs || []);
-  }, [action, moduleKey, success]);
+  }, [moduleKey, success]);
 
   useEffect(() => {
     load().catch(() => undefined);
@@ -59,8 +58,8 @@ export default function AuditLogsPage() {
     <AppLayout title="操作日志" description="账号、安全与权限管理操作的追加式记录。">
       <section className="card panel audit-panel">
         <div className="filter-grid">
-          <input value={action} onChange={(event) => setAction(event.target.value)} placeholder="筛选操作类型" />
-          <input value={moduleKey} onChange={(event) => setModuleKey(event.target.value)} placeholder="筛选模块" />
+          <select value={action} onChange={(event) => setAction(event.target.value)}><option value="">全部操作</option><option value="新增">新增</option><option value="修改">修改</option><option value="删除">删除</option></select>
+          <select value={moduleKey} onChange={(event) => setModuleKey(event.target.value)}><option value="">全部模块</option>{Object.entries(moduleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           <select value={success} onChange={(event) => setSuccess(event.target.value)}>
             <option value="">全部结果</option>
             <option value="true">成功</option>
@@ -69,20 +68,46 @@ export default function AuditLogsPage() {
         </div>
         {error ? <p className="danger-text">{error}</p> : null}
         <div className="audit-list">
-          {logs.map((log) => (
+          {logs.filter((log) => !action || actionLabel(log.action_type) === action).map((log) => (
             <article className="audit-row" key={log.id}>
               <button type="button" onClick={() => setExpanded(expanded === log.id ? null : log.id)}>
-                <span><strong>{log.description}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "系统"}</small></span>
+                <span><strong>{businessDescription(log)}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "本人"}</small></span>
                 <span className={"badge " + (log.success ? "success" : "danger")}>{log.success ? "成功" : "失败"}</span>
               </button>
-              {expanded === log.id ? <div className="audit-detail"><p>模块：{log.module_key}｜操作：{log.action_type}</p><pre>{JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}</pre></div> : null}
+              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{safeSummary(log) ? <p>{safeSummary(log)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
             </article>
           ))}
-          {!logs.length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
+          {!logs.filter((log) => !action || actionLabel(log.action_type) === action).length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
         </div>
       </section>
     </AppLayout>
   );
+}
+
+const moduleLabels: Record<string, string> = { properties: "房源", rooms: "房间", tenants: "租客", contracts: "合同", rent_payments: "收款", expenses: "支出", deposits: "押金", reminders: "提醒", partners: "成员", partnership_settlement: "合伙结算", settings: "设置", auth: "账号", audit_logs: "操作日志", tasks: "待办", viewing_appointments: "看房预约" };
+function moduleLabel(value: string) { return moduleLabels[value] || "系统"; }
+function actionLabel(value: string) {
+  if (value === "insert" || value.startsWith("create") || value.includes("registered")) return "新增";
+  if (value === "update" || value.startsWith("rename") || value.startsWith("adjust") || value.startsWith("deactivate")) return "修改";
+  if (value === "delete" || value.startsWith("cancel")) return "删除";
+  if (value.includes("login")) return "登录";
+  if (value.includes("export")) return "导出";
+  if (value.includes("settlement")) return "结算";
+  return "操作";
+}
+function businessDescription(log: AuditLog) {
+  const action = actionLabel(log.action_type);
+  const module = moduleLabel(log.module_key);
+  const summary = safeSummary(log);
+  return summary ? `${action}${module} · ${summary}` : `${action}${module}`;
+}
+function safeSummary(log: AuditLog) {
+  const row = (log.after_data && typeof log.after_data === "object" ? log.after_data : log.before_data) as Record<string, unknown> | null;
+  if (!row) return "";
+  const text = [row.name, row.displayName, row.category, row.incomeItem].find((value) => typeof value === "string" && value.trim());
+  if (text) return String(text).slice(0, 80);
+  const amount = [row.amount, row.amountPaid, row.monthlyRent].find((value) => typeof value === "number" || (typeof value === "string" && value.trim()));
+  return amount === undefined ? "" : `€${Number(amount).toFixed(2)}`;
 }
 
 function formatTime(value: string) {

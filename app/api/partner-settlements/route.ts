@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
+import { apiErrorResponse, AccountApiError, isFreeSingleAccount, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { ensureFreeSingleMember } from "@/lib/server/free-single-member";
 import { buildSettlement, isVoided } from "@/lib/partner-settlement";
 import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import type { BusinessExpense, BusinessRentPayment } from "@/lib/business-data";
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
     await requireSensitivePermission(context, "can_view_partnership_settlement");
+    if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
     const admin = getSupabaseAdmin();
     const url = new URL(request.url);
     const batchId = url.searchParams.get("id");

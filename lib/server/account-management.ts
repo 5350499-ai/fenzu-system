@@ -34,11 +34,11 @@ export type AccountConfigurationInput = {
 export function freeSingleModulePermissions() {
   return emptyModulePermissions().map((base) => ({
     ...base,
-    canView: !["attachments", "partnership_settlement", "archive", "accounts"].includes(base.moduleKey),
-    canCreate: !["attachments", "partnership_settlement", "archive", "accounts"].includes(base.moduleKey),
-    canEdit: !["attachments", "partnership_settlement", "archive", "accounts"].includes(base.moduleKey),
-    canArchive: !["attachments", "partnership_settlement", "archive", "accounts"].includes(base.moduleKey),
-    canDelete: !["attachments", "partnership_settlement", "archive", "accounts"].includes(base.moduleKey)
+    canView: !["attachments", "archive", "accounts"].includes(base.moduleKey),
+    canCreate: !["attachments", "archive", "accounts"].includes(base.moduleKey),
+    canEdit: !["attachments", "archive", "accounts"].includes(base.moduleKey),
+    canArchive: !["attachments", "archive", "accounts"].includes(base.moduleKey),
+    canDelete: !["attachments", "archive", "accounts"].includes(base.moduleKey)
   }));
 }
 
@@ -51,6 +51,7 @@ export function freeSingleSensitivePermissions(): SensitivePermissions {
     canViewTenantNotes: true,
     canExportData: true,
     canViewProfits: true,
+    canViewPartnershipSettlement: true,
     canViewAuditLogs: true,
     canManageSettings: true
   };

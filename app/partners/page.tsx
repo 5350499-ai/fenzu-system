@@ -55,7 +55,7 @@ export default function PartnersPage() {
     }
   }
 
-  useEffect(() => { if (access.ready && access.isOwner) void reload(); }, [access.ready, access.isOwner]);
+  useEffect(() => { if (access.ready && (access.isOwner || access.isFreeSingle)) void reload(); }, [access.isFreeSingle, access.ready, access.isOwner]);
 
   const activePartners = useMemo(() => (data?.partners || []).filter((partner) => partner.isActive).sort((left, right) => left.sortOrder - right.sortOrder), [data]);
   const currentPlan = useMemo(() => data && selectedPropertyId ? getCurrentPropertySharePlan(data.shares, selectedPropertyId) : [], [data, selectedPropertyId]);
@@ -165,7 +165,17 @@ export default function PartnersPage() {
   }
 
   if (!access.ready) return <AppLayout title="合伙人管理"><section className="card panel"><p className="muted">正在检查登录状态…</p></section></AppLayout>;
-  if (!access.isOwner) return <AppLayout title="合伙人管理"><section className="card panel"><p className="muted">仅Owner可以管理合伙人和房源利润比例。</p></section></AppLayout>;
+  if (!access.isOwner && !access.isFreeSingle) return <AppLayout title="合伙人管理"><section className="card panel"><p className="muted">当前账号没有成员管理权限。</p></section></AppLayout>;
+  if (access.isFreeSingle) {
+    const self = activePartners[0];
+    return <AppLayout title="成员管理" description="免费版使用一名本人成员，所有业务归属和利润比例保持统一。">
+      <SectionCard className="partner-management-panel">
+        <div className="panel-header"><div><h2 className="panel-title">本人成员</h2><p className="muted">免费版仅支持 1 名成员，本人固定占比 100%。</p></div></div>
+        {loading ? <p className="muted">正在加载成员资料…</p> : self ? <div className="partner-management-row"><span className="partner-management-icon"><UserRound size={17} /></span><div className="partner-management-main">{editingId === self.id ? <input aria-label="成员名称" value={draftNames[self.id] ?? self.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [self.id]: event.target.value }))} /> : <strong>{self.displayName}</strong>}<span className="muted partner-management-meta">本人 · 100% · 当前唯一成员</span></div><div className="partner-management-actions">{editingId === self.id ? <><button className="btn compact" disabled={working} onClick={() => void savePartner(self.id)} type="button"><Save size={15} />保存</button><button className="btn compact" disabled={working} onClick={() => setEditingId(null)} type="button"><X size={15} />取消</button></> : <button className="btn compact" disabled={working} onClick={() => setEditingId(self.id)} type="button"><Edit3 size={15} />编辑名称</button>}</div></div> : <p className="error-text">未能加载本人成员，请刷新后重试。</p>}
+      </SectionCard>
+      <SectionCard className="partner-management-panel"><h2 className="panel-title">多人协作</h2><p className="muted">新增成员、调整多人比例和多人分账为订阅功能。升级后会直接沿用当前归属记录，无需迁移历史数据。</p><button className="btn" type="button" onClick={() => setMessage("新增成员为订阅功能；免费版可继续管理本人和 100% 比例。")}><Plus size={16} />新增成员</button>{message ? <p className="partner-feedback" role="status">{message}</p> : null}</SectionCard>
+    </AppLayout>;
+  }
 
   return (
     <AppLayout title="合伙人管理" description="管理合伙人姓名、状态及各房源利润比例。">

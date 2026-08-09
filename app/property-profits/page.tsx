@@ -3,7 +3,6 @@
 import { useAccountAccess } from "@/components/account-access";
 import { AppLayout } from "@/components/app-layout";
 import { ProfitBarChart } from "@/components/profit-bar-chart";
-import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
 import {
   BusinessDeposit,
@@ -44,7 +43,9 @@ export default function PropertyProfitsPage() {
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState("all");
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [pendingPropertyIds, setPendingPropertyIds] = useState<string[]>([]);
   const [monthlyMode, setMonthlyMode] = useState<"overview" | "year" | "custom">("overview");
   const [monthlyYear, setMonthlyYear] = useState(() => new Date().getFullYear());
   const [customStart, setCustomStart] = useState(() => firstDayOfCurrentMonth());
@@ -57,8 +58,8 @@ export default function PropertyProfitsPage() {
   const [expandedOccupancyProperties, setExpandedOccupancyProperties] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setExpandedOccupancyProperties(selectedPropertyId === "all" ? new Set() : new Set([selectedPropertyId]));
-  }, [selectedPropertyId]);
+    setExpandedOccupancyProperties(selectedPropertyIds.length === 1 ? new Set(selectedPropertyIds) : new Set());
+  }, [selectedPropertyIds]);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -82,40 +83,40 @@ export default function PropertyProfitsPage() {
   }, [access.ready]);
 
   const allTimeRange = useMemo(() => {
-    const scopedPayments = selectedPropertyId === "all" ? payments : payments.filter((payment) => payment.propertyId === selectedPropertyId);
-    const scopedExpenses = selectedPropertyId === "all" ? expenses : expenses.filter((expense) => expense.propertyId === selectedPropertyId);
+    const scopedPayments = selectedPropertyIds.length ? payments.filter((payment) => selectedPropertyIds.includes(payment.propertyId)) : payments;
+    const scopedExpenses = selectedPropertyIds.length ? expenses.filter((expense) => selectedPropertyIds.includes(expense.propertyId)) : expenses;
     const dates = [
       ...scopedPayments.filter((payment) => !isVoidedRecord(payment.notes)).map(paymentAccountingDate),
       ...scopedExpenses.filter((expense) => !isVoidedRecord(expense.notes)).map((expense) => expense.expenseMonth ? `${expense.expenseMonth.slice(0, 7)}-01` : "")
     ].filter(isDateString).sort();
     const end = todayDate();
     return getDateRange("custom", dates[0] && dates[0] <= end ? dates[0] : end, end);
-  }, [expenses, payments, selectedPropertyId]);
+  }, [expenses, payments, selectedPropertyIds]);
   const yearRange = useMemo(() => {
     const year = String(monthlyYear);
     return getDateRange("custom", `${year}-01-01`, `${year}-12-31`);
   }, [monthlyYear]);
   const customRange = useMemo(() => getDateRange("custom", appliedCustomStart, appliedCustomEnd), [appliedCustomEnd, appliedCustomStart]);
   const range = monthlyMode === "overview" ? allTimeRange : monthlyMode === "year" ? yearRange : customRange;
-  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyId, properties, tenants, contracts, payments, yearRange, customRange), [contracts, customRange, monthlyMode, payments, properties, selectedPropertyId, tenants, yearRange]);
+  const occupancyRange = useMemo(() => getOccupancyRange(monthlyMode, selectedPropertyIds, properties, tenants, contracts, payments, yearRange, customRange), [contracts, customRange, monthlyMode, payments, properties, selectedPropertyIds, tenants, yearRange]);
   const occupancySummary = useMemo(() => calculateOccupancySummary(
-    selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId),
-    selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId),
-    selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId),
+    selectedPropertyIds.length ? properties.filter((property) => selectedPropertyIds.includes(property.id)) : properties,
+    selectedPropertyIds.length ? rooms.filter((room) => selectedPropertyIds.includes(room.propertyId)) : rooms,
+    selectedPropertyIds.length ? tenants.filter((tenant) => selectedPropertyIds.includes(tenant.propertyId)) : tenants,
     contracts,
     payments,
     occupancyRange,
     todayDate()
-  ), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyId, tenants]);
+  ), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyIds, tenants]);
   const stats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range).sort((a, b) => a.netProfit - b.netProfit),
     [deposits, expenses, payments, properties, range, rooms, tenants]
   );
-  const selectedProperty = properties.find((property) => property.id === selectedPropertyId);
-  const visibleStats = selectedPropertyId === "all" ? stats : stats.filter((stat) => stat.property.id === selectedPropertyId);
-  const unassignedIncome = useMemo(() => selectedPropertyId === "all" ? calculateUnassignedIncome(payments, range) : 0, [payments, range, selectedPropertyId]);
+  const selectedProperty = selectedPropertyIds.length === 1 ? properties.find((property) => property.id === selectedPropertyIds[0]) : undefined;
+  const visibleStats = selectedPropertyIds.length ? stats.filter((stat) => selectedPropertyIds.includes(stat.property.id)) : stats;
+  const unassignedIncome = useMemo(() => selectedPropertyIds.length ? 0 : calculateUnassignedIncome(payments, range), [payments, range, selectedPropertyIds]);
   const totals = useMemo(() => calculateTotals(visibleStats, unassignedIncome), [unassignedIncome, visibleStats]);
-  const scopeLabel = selectedPropertyId === "all" ? "全部房源汇总" : selectedProperty?.name || "房源汇总";
+  const scopeLabel = !selectedPropertyIds.length ? "全部房源汇总" : selectedProperty ? selectedProperty.name : `已选 ${selectedPropertyIds.length} 套房源`;
   const availableYears = useMemo(() => {
     const years = new Set<number>([new Date().getFullYear()]);
     payments.forEach((payment) => { const value = payment.paymentDate || payment.rentMonth; if (value) years.add(Number(value.slice(0, 4))); });
@@ -124,10 +125,10 @@ export default function PropertyProfitsPage() {
     return [...years].filter(Number.isFinite).sort((a, b) => a - b);
   }, [deposits, expenses, payments]);
   const monthlyRows = useMemo(
-    () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, range, selectedPropertyId),
-    [deposits, expenses, payments, properties, range, rooms, selectedPropertyId, tenants]
+    () => buildGlobalMonthlyRows(properties, rooms, tenants, payments, expenses, deposits, range, selectedPropertyIds),
+    [deposits, expenses, payments, properties, range, rooms, selectedPropertyIds, tenants]
   );
-  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, payments, occupancyRange, selectedPropertyId), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyId, tenants]);
+  const monthlyOccupancyRows = useMemo(() => buildMonthlyOccupancyRows(properties, rooms, tenants, contracts, payments, occupancyRange, selectedPropertyIds), [contracts, occupancyRange, payments, properties, rooms, selectedPropertyIds, tenants]);
   const unifiedMonthlyRows = useMemo(() => {
     const occupancyByMonth = new Map(monthlyOccupancyRows.map((row) => [row.month, row]));
     const financialByMonth = new Map(monthlyRows.map((row) => [row.month, row]));
@@ -183,7 +184,7 @@ export default function PropertyProfitsPage() {
           </div>
         </div>
         <div className="filter-grid">
-          <SearchableSelect label="房源范围" value={selectedPropertyId} options={[{ value: "all", label: "全部房源" }, ...properties.map((property) => ({ value: property.id, label: property.name }))]} onChange={setSelectedPropertyId} />
+          <div className="field"><label>房源范围</label><button className="btn" type="button" onClick={() => { setPendingPropertyIds(selectedPropertyIds); setPropertyPickerOpen(true); }}>{!selectedPropertyIds.length ? "全部房源" : selectedPropertyIds.length === 1 ? selectedProperty?.name || "已选 1 套房源" : `已选 ${selectedPropertyIds.length} 套房源`}</button></div>
         </div>
       </section>
 
@@ -193,7 +194,7 @@ export default function PropertyProfitsPage() {
             <h2 className="panel-title">利润概览</h2>
             <p className="muted">{scopeLabel} · 收入、支出与净利润</p>
           </div>
-          {selectedPropertyId !== "all" ? <Link className="text-link" href={`/property-profits/${selectedPropertyId}`}>查看收入支出明细</Link> : null}
+          {selectedProperty ? <Link className="text-link" href={`/property-profits/${selectedProperty.id}`}>查看收入支出明细</Link> : null}
         </div>
         <ProfitBarChart income={totals.income} expense={totals.expense} netProfit={totals.netProfit} label={`${scopeLabel}收入、支出与净利润对比`} />
         <div className="profit-occupancy-summary">
@@ -273,6 +274,7 @@ export default function PropertyProfitsPage() {
         </div> : null}
       </section>
 
+      {propertyPickerOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPropertyPickerOpen(false); }}><section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}><div className="panel-header"><h2 className="panel-title">选择房源范围</h2><button className="btn compact" type="button" onClick={() => setPropertyPickerOpen(false)}>取消</button></div><label className="partner-participant"><input type="checkbox" checked={!pendingPropertyIds.length} onChange={(event) => setPendingPropertyIds(event.target.checked ? [] : properties.map((property) => property.id))} /><span>全部房源</span></label><div className="partner-participant-grid">{properties.map((property) => <label className="partner-participant" key={property.id}><input type="checkbox" checked={!pendingPropertyIds.length || pendingPropertyIds.includes(property.id)} onChange={(event) => setPendingPropertyIds((current) => { const base = current.length ? current : properties.map((item) => item.id); const next = event.target.checked ? [...new Set([...base, property.id])] : base.filter((id) => id !== property.id); return next.length === properties.length ? [] : next; })} /><span>{property.name}</span></label>)}</div><div className="modal-actions"><button className="btn" type="button" onClick={() => setPendingPropertyIds([])}>全选</button><button className="btn primary" type="button" onClick={() => { setSelectedPropertyIds(pendingPropertyIds); setPropertyPickerOpen(false); setHistoryPage(0); }}>确认</button></div></section></div> : null}
     </AppLayout>
   );
 }
@@ -314,7 +316,7 @@ function profitStatus(value: number) {
 
 function getOccupancyRange(
   mode: "overview" | "year" | "custom",
-  selectedPropertyId: string,
+  selectedPropertyIds: string[],
   properties: BusinessProperty[],
   tenants: BusinessTenant[],
   contracts: BusinessContract[],
@@ -324,7 +326,7 @@ function getOccupancyRange(
 ) {
   if (mode === "year") return yearRange;
   if (mode === "custom") return customRange;
-  const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
+  const scopedProperties = selectedPropertyIds.length ? properties.filter((property) => selectedPropertyIds.includes(property.id)) : properties;
   const dates = scopedProperties.map((property) => resolvePropertyOccupancyStart(property, tenants, contracts, payments)).filter(isDateString).sort();
   const end = endOfCurrentMonth();
   return { start: dates[0] && dates[0] <= end ? dates[0] : end, end };
@@ -337,7 +339,7 @@ function buildMonthlyOccupancyRows(
   contracts: BusinessContract[],
   payments: BusinessRentPayment[],
   dateRange: { start: string; end: string },
-  selectedPropertyId: string
+  selectedPropertyIds: string[]
 ) {
   if (!dateRange.start || !dateRange.end || dateRange.start > dateRange.end) return [];
   const rows: Array<{ month: string; monthLabel: string; rentedDays: number; availableDays: number; rate: number | null }> = [];
@@ -350,9 +352,9 @@ function buildMonthlyOccupancyRows(
     const monthLastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
     const monthStart = month === dateRange.start.slice(0, 7) ? dateRange.start : `${month}-01`;
     const monthEnd = month === dateRange.end.slice(0, 7) ? dateRange.end : `${month}-${String(monthLastDay).padStart(2, "0")}`;
-    const scopedRooms = selectedPropertyId === "all" ? rooms : rooms.filter((room) => room.propertyId === selectedPropertyId);
-    const scopedTenants = selectedPropertyId === "all" ? tenants : tenants.filter((tenant) => tenant.propertyId === selectedPropertyId);
-    const scopedProperties = selectedPropertyId === "all" ? properties : properties.filter((property) => property.id === selectedPropertyId);
+    const scopedRooms = selectedPropertyIds.length ? rooms.filter((room) => selectedPropertyIds.includes(room.propertyId)) : rooms;
+    const scopedTenants = selectedPropertyIds.length ? tenants.filter((tenant) => selectedPropertyIds.includes(tenant.propertyId)) : tenants;
+    const scopedProperties = selectedPropertyIds.length ? properties.filter((property) => selectedPropertyIds.includes(property.id)) : properties;
     const summary = calculateOccupancySummary(scopedProperties, scopedRooms, scopedTenants, contracts, payments, { start: monthStart, end: monthEnd }, todayDate());
     rows.push({ month, monthLabel: `${year}年${monthNumber}月`, rentedDays: summary.rentedDays, availableDays: summary.availableDays, rate: summary.rate });
   }
@@ -367,7 +369,7 @@ function buildGlobalMonthlyRows(
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
   dateRange: { start: string; end: string },
-  selectedPropertyId: string
+  selectedPropertyIds: string[]
 ) {
   const start = new Date(`${dateRange.start}T00:00:00`);
   const end = new Date(`${dateRange.end}T00:00:00`);
@@ -381,8 +383,8 @@ function buildGlobalMonthlyRows(
     const monthEndValue = month === dateRange.end.slice(0, 7) ? dateRange.end : `${month}-${String(monthEnd.getDate()).padStart(2, "0")}`;
     const range = getDateRange("custom", monthStart, monthEndValue);
     const stats = calculatePropertyProfits(properties, rooms, tenants, payments, expenses, deposits, range);
-    const visibleStats = selectedPropertyId === "all" ? stats : stats.filter((stat) => stat.property.id === selectedPropertyId);
-    const unassignedIncome = selectedPropertyId === "all" ? calculateUnassignedIncome(payments, range) : 0;
+    const visibleStats = selectedPropertyIds.length ? stats.filter((stat) => selectedPropertyIds.includes(stat.property.id)) : stats;
+    const unassignedIncome = selectedPropertyIds.length ? 0 : calculateUnassignedIncome(payments, range);
     const totals = calculateTotals(visibleStats, unassignedIncome);
     rows.push({ month, monthNumber, monthLabel: `${year}年${monthNumber}月`, income: totals.income, expense: totals.expense, netProfit: totals.netProfit });
   }

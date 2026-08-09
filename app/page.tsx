@@ -215,10 +215,7 @@ export default function DashboardPage() {
 
       <section className="card compact-shortcuts home-shortcuts">
         <div className="shortcut-grid compact-icon-grid">
-          {shortcuts.map((item) => access.isFreeSingle && item.title === "结算"
-            ? { ...item, href: "/property-profits", module: "profits" as AccountModuleKey, sensitive: "canViewProfits" as const }
-            : item
-          ).filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
+          {shortcuts.filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
             const Icon = item.icon;
             return (
               <Link className="shortcut-card compact-icon-card" href={item.href} key={item.title}>

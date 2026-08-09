@@ -1,3 +1,11 @@
+## 2026-08-09 - Free single-member attribution and workflow continuity
+
+- Free accounts now use the existing member and property-share model: one account-linked self member with a 100% share, rather than hidden or fabricated A/B attribution.
+- Restored visible attribution for check-in, tenant creation, rent payments, expenses, details, member management, and the true partnership-settlement entry; free accounts remain limited to one member.
+- Check-in now invalidates all dependent business caches before returning to tenant management; a zero deposit is displayed as no deposit instead of an uncreated deposit record.
+- Property-profit analysis now supports selecting any combination of properties, and audit-log display maps technical table/action codes to Chinese business wording.
+- Preview only; no database schema, migration, administrator data, test-account deletion, or Production changes.
+
 ## 2026-08-09 - Mobile layout and modal interaction stability
 
 - Added a device-width, safe-area-aware viewport and shared mobile form sizing so controls shrink within cards; phone inputs use a 16px computed size to prevent iOS Safari focus zoom while browser zoom remains available.
