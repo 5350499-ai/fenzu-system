@@ -92,6 +92,7 @@ export default function LoginPage() {
           <button className="btn primary" type="submit" disabled={loading} aria-busy={loading}>
           {loading ? "登录中..." : "登录系统"}
           </button>
+          <Link className="login-forgot-link" href="/register">注册免费账户</Link>
           <Link className="login-forgot-link" href="/forgot-password">忘记密码？</Link>
           {error ? <p className="danger-text">{error}</p> : null}
           <p className="muted">请输入登录账号或邮箱与密码。未登录用户不能访问系统页面。</p>

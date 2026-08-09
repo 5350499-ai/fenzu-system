@@ -6608,6 +6608,11 @@ td:last-child {
   text-decoration: none;
 }
 
+.login-forgot-link:hover,
+.login-forgot-link:focus-visible {
+  text-decoration: underline;
+}
+
 .password-security-page,
 .password-security-panel {
   width: min(100%, 560px);

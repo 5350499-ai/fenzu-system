@@ -54,9 +54,13 @@ async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof require
     const wasArchived = String(existing?.notes || "").startsWith("[已归档]");
     const willBeArchived = String(row.notes || "").startsWith("[已归档]");
     if (existing && (!wasArchived || willBeArchived)) return;
-    const { count, error } = await client.from("properties").select("id", { count: "exact", head: true }).eq("user_id", context.profile.workspace_owner_id).not("notes", "ilike", "[已归档]%");
+    const { data, error } = await client
+      .from("properties")
+      .select("id,notes")
+      .eq("user_id", context.profile.workspace_owner_id);
     if (error) throw new AccountApiError("无法检查免费版房源额度，请稍后重试。", 500);
-    if ((count || 0) >= FREE_SINGLE_PROPERTY_LIMIT) throw new AccountApiError("免费版最多可管理 5 套房源。", 409);
+    const activeCount = (data || []).filter((property) => !String(property.notes || "").startsWith("[已归档]")).length;
+    if (activeCount >= FREE_SINGLE_PROPERTY_LIMIT) throw new AccountApiError("免费版最多可管理 5 套房源。", 409);
   }
   if (resource.table === "rooms") {
     const wasArchived = String(existing?.status || "").includes("已归档");
@@ -64,9 +68,14 @@ async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof require
     if (existing && (!wasArchived || willBeArchived)) return;
     const propertyId = String(row.property_id || existing?.property_id || "");
     if (!propertyId) throw new AccountApiError("房间缺少所属房源。", 400);
-    const { count, error } = await client.from("rooms").select("id", { count: "exact", head: true }).eq("user_id", context.profile.workspace_owner_id).eq("property_id", propertyId).not("status", "ilike", "%已归档%");
+    const { data, error } = await client
+      .from("rooms")
+      .select("id,status")
+      .eq("user_id", context.profile.workspace_owner_id)
+      .eq("property_id", propertyId);
     if (error) throw new AccountApiError("无法检查免费版房间额度，请稍后重试。", 500);
-    if ((count || 0) >= FREE_SINGLE_ROOM_LIMIT) throw new AccountApiError("免费版每套房源最多可管理 10 间房间。", 409);
+    const activeCount = (data || []).filter((room) => !String(room.status || "").includes("已归档")).length;
+    if (activeCount >= FREE_SINGLE_ROOM_LIMIT) throw new AccountApiError("免费版每套房源最多可管理 10 间房间。", 409);
   }
 }
 

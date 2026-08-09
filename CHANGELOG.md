@@ -765,3 +765,9 @@
 - Free-single financial records use the internal self-managed value `本人` for legacy non-null attribution columns; the product UI does not show partner or attribution controls. No A/B default is introduced for new free-single data.
 - Free-local JSON/CSV/Excel export excludes attachment/provider paths, signed URLs, Google metadata, partnership and account/audit data.
 - Added migration `20260808110000_free_single_account_boundaries.sql`; it adds only `user_profiles.account_plan` and permission/RLS policy changes. No business data, attachment object, historical partner value or financial calculation was changed.
+## 2026-08-09 - Free single public registration preview
+
+- Added a public `/register` flow that server-provisions only an isolated `free_single` workspace with the fixed least-privilege module and sensitive-permission set; browsers cannot select a plan or another workspace.
+- Added the login-page free-registration entry and kept the existing password-recovery flow unchanged.
+- Hardened the existing server-side free-plan property and room quota checks so `NULL` notes/status values are counted as active records; archived records remain excluded and restoration is still checked against the limit.
+- No new database migration, business-data mutation, financial calculation, or Production deployment is included in this Preview change.

@@ -31,7 +31,7 @@ export type AccountConfigurationInput = {
   accountPlan?: AccountPlan;
 };
 
-function freeSingleModulePermissions() {
+export function freeSingleModulePermissions() {
   return emptyModulePermissions().map((base) => ({
     ...base,
     canView: !["attachments", "partnership_settlement", "audit_logs", "accounts"].includes(base.moduleKey),
@@ -42,7 +42,7 @@ function freeSingleModulePermissions() {
   }));
 }
 
-function freeSingleSensitivePermissions(): SensitivePermissions {
+export function freeSingleSensitivePermissions(): SensitivePermissions {
   return {
     ...emptySensitivePermissions(),
     canViewTenantPhone: true,
@@ -206,6 +206,77 @@ async function saveSensitiveRows(userId: string, permissions: SensitivePermissio
     .from("user_sensitive_permissions")
     .upsert({ user_id: userId, ...toDbSensitivePermissions(permissions) }, { onConflict: "user_id" });
   if (error) throw new AccountApiError("保存敏感权限失败。", 500);
+}
+
+/** Creates the only account type exposed through the public sign-up surface.
+ * The plan, workspace owner and permission set are server-controlled: no
+ * caller can supply a managed plan, a shared workspace, or attachment access.
+ */
+export async function createPublicFreeSingleAccount(input: {
+  email: unknown;
+  password: unknown;
+  passwordConfirmation: unknown;
+  displayName?: unknown;
+}) {
+  const email = normalizeAccountEmail(input.email);
+  const password = validatePassword(input.password, input.passwordConfirmation);
+  const username = normalizeLoginIdentifier(email);
+  const suppliedName = typeof input.displayName === "string" ? input.displayName.trim() : "";
+  const displayName = suppliedName || email.split("@")[0] || "新用户";
+  if (!(await usernameAvailable(username))) throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409);
+  if (!(await emailAvailable(email))) throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409);
+
+  const admin = getSupabaseAdmin();
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    // The account directory is the application authentication boundary. The
+    // registration API provisions it atomically and never accepts a plan from
+    // the browser, so immediate sign-in is safe and avoids a half-created UI.
+    email_confirm: true
+  });
+  if (authError || !authData.user) throw new AccountApiError("创建免费账户失败，请稍后重试。", 500);
+
+  const targetId = authData.user.id;
+  try {
+    const { error: profileError } = await admin.from("user_profiles").insert({
+      auth_user_id: targetId,
+      workspace_owner_id: targetId,
+      username,
+      display_name: displayName,
+      account_type: "custom",
+      account_plan: FREE_SINGLE_PLAN,
+      status: "active",
+      property_access_mode: "all",
+      must_change_password: false,
+      created_by: targetId,
+      updated_by: targetId
+    });
+    if (profileError) throw profileError;
+
+    const { error: identityError } = await admin.from("account_auth_identities").insert({
+      auth_user_id: targetId,
+      normalized_username: username,
+      auth_email: email,
+      is_internal_email: false
+    });
+    if (identityError) throw identityError;
+
+    await savePermissionRows(targetId, freeSingleModulePermissions());
+    await saveSensitiveRows(targetId, freeSingleSensitivePermissions());
+    await writeAuditLog(null, {
+      actionType: "free_single_registered",
+      moduleKey: "auth",
+      entityType: "user_profile",
+      entityId: targetId,
+      afterData: { accountPlan: FREE_SINGLE_PLAN, workspaceOwnerId: targetId },
+      description: "普通免费账户注册成功"
+    });
+    return { userId: targetId, email, displayName };
+  } catch (error) {
+    await admin.auth.admin.deleteUser(targetId).catch(() => undefined);
+    throw new AccountApiError("创建免费账户失败，已自动回滚登录账户。", 500);
+  }
 }
 
 async function savePropertyAccess(userId: string, ownerId: string, mode: PropertyAccessMode, propertyIds: string[], actorUserId: string) {
