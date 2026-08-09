@@ -14,7 +14,32 @@ export default function EmailConfirmedPage() {
     let cancelled = false;
     const finish = async () => {
       clearAccountAccessSnapshot();
-      await supabase?.auth.signOut({ scope: "local" }).catch(() => undefined);
+      if (supabase) {
+        const auth = supabase.auth;
+        let resolveAuthEvent: (() => void) | null = null;
+        const authEvent = new Promise<void>((resolve) => { resolveAuthEvent = resolve; });
+        const { data: listener } = auth.onAuthStateChange((event) => {
+          if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION") {
+            resolveAuthEvent?.();
+          }
+        });
+        try {
+          const code = new URLSearchParams(window.location.search).get("code");
+          if (code) {
+            await auth.exchangeCodeForSession(code).catch(() => undefined);
+          }
+          await Promise.race([
+            authEvent,
+            new Promise<void>((resolve) => window.setTimeout(resolve, 1500))
+          ]);
+          await auth.getSession().catch(() => undefined);
+        } finally {
+          listener.subscription.unsubscribe();
+          // The confirmation session proves the email, but must never become
+          // an application login. Password login creates the real session.
+          await auth.signOut({ scope: "local" }).catch(() => undefined);
+        }
+      }
       if (!cancelled) window.location.replace("/login?verified=1");
     };
     void finish();

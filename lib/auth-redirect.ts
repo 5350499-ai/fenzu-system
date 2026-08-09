@@ -27,6 +27,18 @@ export function recoveryRedirectUrl(request: Request) {
   const vercelEnvironment = process.env.VERCEL_ENV || "";
   const configuredOrigin = process.env.AUTH_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
+  const requestUrl = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
+  const requestOrigin = `${forwardedProto}://${forwardedHost || requestUrl.host}`;
+
+  // The host that the user actually visited is authoritative. VERCEL_URL can
+  // be absent or stale on Preview, while the forwarded host remains the
+  // current deployment's public URL.
+  if (isAllowedPublicOrigin(requestOrigin, true)) {
+    return `${validOrigin(requestOrigin, true)}/reset-password`;
+  }
+
   if (vercelEnvironment === "production") {
     const origin = isAllowedPublicOrigin(configuredOrigin) ? validOrigin(configuredOrigin, false) : PRODUCTION_ORIGIN;
     return `${origin || PRODUCTION_ORIGIN}/reset-password`;
@@ -35,14 +47,6 @@ export function recoveryRedirectUrl(request: Request) {
   const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.replace(/\/$/, "")}` : undefined;
   if (vercelEnvironment === "preview" && isAllowedPublicOrigin(vercelOrigin)) {
     return `${validOrigin(vercelOrigin, false)}/reset-password`;
-  }
-
-  const requestUrl = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
-  const requestOrigin = `${forwardedProto}://${forwardedHost || requestUrl.host}`;
-  if (isAllowedPublicOrigin(requestOrigin, true)) {
-    return `${validOrigin(requestOrigin, true)}/reset-password`;
   }
 
   if (isAllowedPublicOrigin(configuredOrigin, true)) {
@@ -56,6 +60,18 @@ export function recoveryRedirectUrl(request: Request) {
 export function emailConfirmationRedirectUrl(request: Request) {
   const vercelEnvironment = process.env.VERCEL_ENV || "";
   const configuredOrigin = process.env.AUTH_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
+  const requestUrl = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
+  const requestOrigin = `${forwardedProto}://${forwardedHost || requestUrl.host}`;
+
+  // Never let a missing/misconfigured Preview environment variable silently
+  // send a confirmation email to Production. The current trusted host wins.
+  if (isAllowedPublicOrigin(requestOrigin, true)) {
+    return `${validOrigin(requestOrigin, true)}/auth/confirmed`;
+  }
+
   if (vercelEnvironment === "production") {
     const origin = isAllowedPublicOrigin(configuredOrigin) ? validOrigin(configuredOrigin, false) : PRODUCTION_ORIGIN;
     return `${origin || PRODUCTION_ORIGIN}/auth/confirmed`;
@@ -66,11 +82,6 @@ export function emailConfirmationRedirectUrl(request: Request) {
     return `${validOrigin(vercelOrigin, false)}/auth/confirmed`;
   }
 
-  const requestUrl = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
-  const requestOrigin = `${forwardedProto}://${forwardedHost || requestUrl.host}`;
-  if (isAllowedPublicOrigin(requestOrigin, true)) return `${validOrigin(requestOrigin, true)}/auth/confirmed`;
   if (isAllowedPublicOrigin(configuredOrigin, true)) return `${validOrigin(configuredOrigin, true)}/auth/confirmed`;
   return `${PRODUCTION_ORIGIN}/auth/confirmed`;
 }

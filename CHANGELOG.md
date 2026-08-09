@@ -1,3 +1,10 @@
+## 2026-08-09 - Preview-safe email confirmation handoff
+
+- Registration now derives the email-confirmation callback from the trusted host that served the request, so Preview confirmation stays on that Preview instead of silently falling back to Production.
+- The confirmation page waits for Supabase URL-session processing, clears the temporary confirmation session, and sends the user to `/login?verified=1` for an explicit password login.
+- Registration now provides “我已完成验证” and “返回登录”; the verification check is bound to a short-lived signed server cookie and never auto-logs the user in.
+- Preview only; no database, schema, migration, business data or Production changes.
+
 ## 2026-08-09 - Free-account verification, personal tools, and mobile modal stability
 
 - Email confirmation now lands on a dedicated, session-clearing confirmation page before returning users to password login, avoiding the implicit-confirmation-session race that could send a new user to the dashboard with an invalid app session.

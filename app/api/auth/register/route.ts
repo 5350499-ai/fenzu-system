@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse } from "@/lib/server/account-auth";
 import { createPublicFreeSingleAccount } from "@/lib/server/account-management";
 import { emailConfirmationRedirectUrl } from "@/lib/auth-redirect";
+import { createVerificationTicket, PENDING_VERIFICATION_COOKIE, verificationTicketMaxAge } from "@/lib/server/verification-ticket";
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 15 * 60 * 1000;
@@ -39,7 +40,18 @@ export async function POST(request: Request) {
       displayName: body?.displayName,
       emailConfirmationRedirect: emailConfirmationRedirectUrl(request)
     });
-    return NextResponse.json({ ok: true, verificationRequired: true, account: { email: account.email, displayName: account.displayName, accountPlan: "free_single" } }, { status: 201 });
+    const response = NextResponse.json({ ok: true, verificationRequired: true, account: { email: account.email, displayName: account.displayName, accountPlan: "free_single" } }, { status: 201 });
+    const ticket = createVerificationTicket(account.userId, account.email);
+    if (ticket) {
+      response.cookies.set(PENDING_VERIFICATION_COOKIE, ticket, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: verificationTicketMaxAge
+      });
+    }
+    return response;
   } catch (error) {
     return apiErrorResponse(error);
   }
