@@ -1,3 +1,9 @@
+## 2026-08-09 - Free registration rate-limit diagnostics
+
+- Mapped Supabase email-send rate limiting to a clear Chinese 429 message instead of the generic account-creation failure.
+- Added safe server diagnostics for public signup Auth failures and cleanup when Supabase returns a newly created user together with an error.
+- No database, schema, migration, business data or Production changes.
+
 ## 2026-08-09 - Preview-safe email confirmation handoff
 
 - Registration now derives the email-confirmation callback from the trusted host that served the request, so Preview confirmation stays on that Preview instead of silently falling back to Production.

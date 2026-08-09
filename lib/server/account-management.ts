@@ -209,6 +209,32 @@ async function saveSensitiveRows(userId: string, permissions: SensitivePermissio
   if (error) throw new AccountApiError("保存敏感权限失败。", 500);
 }
 
+function publicSignupAuthError(error: unknown): AccountApiError {
+  const details = error as { message?: unknown; code?: unknown; status?: unknown };
+  const message = typeof details.message === "string" ? details.message : "";
+  const code = typeof details.code === "string" ? details.code : "";
+  const status = typeof details.status === "number" ? details.status : 0;
+  const normalized = `${code} ${message}`.toLowerCase();
+
+  console.error("[auth] public signup failed", {
+    stage: "supabase_signup",
+    status,
+    code: code || "unknown",
+    message: message || "unknown"
+  });
+
+  if (status === 429 || normalized.includes("over_email_send_rate_limit") || normalized.includes("rate limit")) {
+    return new AccountApiError("验证邮件发送过于频繁，请稍后再试。", 429, "email_rate_limited");
+  }
+  if (normalized.includes("redirect") && normalized.includes("allow")) {
+    return new AccountApiError("当前 Preview 的邮箱验证地址尚未获认证，请联系管理员检查 Supabase 回调配置。", 503, "redirect_not_allowed");
+  }
+  if (normalized.includes("email") && normalized.includes("invalid")) {
+    return new AccountApiError("请输入有效邮箱地址。", 400, "invalid_email");
+  }
+  return new AccountApiError("验证邮件暂时无法发送，请稍后重试。", 503, "email_send_failed");
+}
+
 /** Creates the only account type exposed through the public sign-up surface.
  * The plan, workspace owner and permission set are server-controlled: no
  * caller can supply a managed plan, a shared workspace, or attachment access.
@@ -238,7 +264,19 @@ export async function createPublicFreeSingleAccount(input: {
     // before the account can receive a usable password session.
     options: { emailRedirectTo: input.emailConfirmationRedirect }
   });
-  if (authError || !authData.user) throw new AccountApiError("创建免费账户失败，请稍后重试。", 500);
+  if (authError || !authData.user) {
+    if (authData.user?.id) {
+      await admin.auth.admin.deleteUser(authData.user.id).catch((cleanupError) => {
+        console.error("[auth] public signup cleanup failed", {
+          stage: "supabase_signup_cleanup",
+          userCreated: true,
+          message: cleanupError instanceof Error ? cleanupError.message : "unknown"
+        });
+      });
+    }
+    if (authError) throw publicSignupAuthError(authError);
+    throw new AccountApiError("验证邮件暂时无法发送，请稍后重试。", 503, "email_send_failed");
+  }
 
   // A public free account must never silently bypass email confirmation.  When
   // confirmation is disabled, signUp returns a session; roll that user back.
