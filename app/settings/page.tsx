@@ -27,6 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { backupReminderLabel, loadBackupReminderSettings, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { downloadFile } from "@/lib/download-adapter";
 import Link from "next/link";
@@ -56,8 +57,13 @@ export default function SettingsPage() {
     deposits: []
   });
   const [lastBackupAt, setLastBackupAt] = useState("");
+  const [backupReminderSettings, setBackupReminderSettings] = useState<BackupReminderSettings>(() => loadBackupReminderSettings(""));
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+
+  useEffect(() => {
+    if (access.ready && access.userId) setBackupReminderSettings(loadBackupReminderSettings(access.userId));
+  }, [access.ready, access.userId]);
 
   useEffect(() => {
     if (!access.ready) return;
@@ -189,6 +195,20 @@ export default function SettingsPage() {
       <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">账号安全</h2><p className="muted">查看当前账号邮箱状态并修改自己的密码。</p></div></div>
         <Link className="btn primary settings-entry-button" href="/settings/security">打开账号安全</Link>
+      </section>
+
+      <section className="card panel settings-entry-card">
+        <div className="panel-header"><div><h2 className="panel-title">数据备份提醒</h2><p className="muted">按最近一次成功导出备份的时间重新计算提醒周期。</p></div></div>
+        <div className="settings-list">
+          <label className="field"><span>提醒周期</span><select value={backupReminderSettings.frequency} onChange={(event) => {
+            const frequency = event.target.value as BackupReminderFrequency;
+            const next = { ...backupReminderSettings, frequency, firstEnabledAt: frequency === "never" ? backupReminderSettings.firstEnabledAt : (backupReminderSettings.frequency === "never" ? new Date().toISOString() : backupReminderSettings.firstEnabledAt) };
+            setBackupReminderSettings(next);
+            saveBackupReminderSettings(access.userId, next);
+          }}><option value="never">不提醒</option><option value="monthly">每月提醒</option><option value="quarterly">每3个月提醒</option><option value="halfYearly">每6个月提醒</option></select></label>
+          <div><span>备份提醒</span><strong>{backupReminderLabel(backupReminderSettings.frequency)}</strong></div>
+          <div><span>最近备份</span><strong>{backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt ? formatDateTime(backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt) : "暂无记录"}</strong></div>
+        </div>
       </section>
 
       <section className="card panel">

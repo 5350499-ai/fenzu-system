@@ -12,6 +12,7 @@ export type ContractAttachment = {
 export type BusinessProperty = {
   id: string;
   name: string;
+  createdAt?: string;
   address: string;
   city: string;
   occupancyTrackingStartDate?: string;
@@ -602,6 +603,7 @@ function propertyConfig(): TableConfig {
     fromDb: (row) => ({
       id: row.id,
       name: row.name || "",
+      createdAt: row.created_at || undefined,
       address: row.address || "",
       city: row.city || "",
       occupancyTrackingStartDate: row.occupancy_tracking_start_date || undefined,

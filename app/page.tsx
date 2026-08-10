@@ -44,6 +44,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
+import { defaultBackupReminderSettings, isBackupReminderDue, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   const [dataError, setDataError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [waivedPaymentIds, setWaivedPaymentIds] = useState<Set<string>>(new Set());
+  const [backupReminderSettings, setBackupReminderSettings] = useState<BackupReminderSettings>(() => defaultBackupReminderSettings());
 
   useEffect(() => {
     if (!access.ready || !access.authenticated) return;
@@ -104,6 +106,7 @@ export default function DashboardPage() {
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
       const scope = session.user.id;
+      setBackupReminderSettings(loadBackupReminderSettings(scope));
       const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
       if (memorySnapshot) applySnapshot(memorySnapshot);
       else setDataStatus("loading");
@@ -178,8 +181,8 @@ export default function DashboardPage() {
   }, 0), [rentPayments, tenants, waivedPaymentIds]);
   const dashboardTotals = { ...totals, unpaid: Math.max(0, totals.unpaid - waivedUnpaid) };
   const reminders = useMemo(
-    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, includeBackupReminder: !access.isFreeSingle }),
-    [access.isFreeSingle, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
+    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings }),
+    [backupReminderSettings, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
@@ -301,7 +304,7 @@ function buildDashboardReminders({
   rentPayments,
   deposits,
   waivedPaymentIds,
-  includeBackupReminder = true
+  backupReminderSettings
 }: {
   properties: BusinessProperty[];
   rooms: BusinessRoom[];
@@ -310,7 +313,7 @@ function buildDashboardReminders({
   rentPayments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
   waivedPaymentIds: Set<string>;
-  includeBackupReminder?: boolean;
+  backupReminderSettings: BackupReminderSettings;
 }) {
   const reminders: Reminder[] = [];
   const today = new Date();
@@ -408,7 +411,7 @@ function buildDashboardReminders({
     });
   });
 
-  if (includeBackupReminder) {
+  if (isBackupReminderDue(backupReminderSettings)) {
     reminders.push({
       id: "backup-reminder",
       title: "建议定期导出数据备份",
