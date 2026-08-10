@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type PropertyChoice = { id: string; name: string; createdAt?: string };
 
@@ -33,6 +34,40 @@ export function PropertyMultiSelect({
     if (!open) setPendingIds(selectedIds);
   }, [open, selectedIds]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow
+    };
+
+    // Render outside scroll/transform ancestors and preserve the page position
+    // while the viewport dialog owns touch scrolling.
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+
+    return () => {
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.left = previous.left;
+      body.style.right = previous.right;
+      body.style.width = previous.width;
+      body.style.overflow = previous.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
   const allIds = orderedProperties.map((property) => property.id);
   const allSelected = allIds.length > 0 && pendingIds.length === allIds.length && allIds.every((id) => pendingIds.includes(id));
   const summary = selectedIds.length === allIds.length && allIds.length > 0
@@ -50,7 +85,7 @@ export function PropertyMultiSelect({
   return <div className="field property-multi-select">
     <label>{label}</label>
     <button className="btn property-multi-select-trigger" type="button" onClick={() => setOpen(true)}>{summary}</button>
-    {open ? <div className="modal-backdrop property-multi-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+    {open ? createPortal(<div className="modal-backdrop property-multi-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section className="card modal-card property-multi-select-modal" role="dialog" aria-modal="true" aria-label="选择房源范围" onPointerDown={(event) => event.stopPropagation()}>
         <div className="panel-header"><h2 className="panel-title">选择房源范围</h2><button className="btn compact" type="button" onClick={() => setOpen(false)}>取消</button></div>
         <div className="property-multi-select-all">
@@ -61,6 +96,6 @@ export function PropertyMultiSelect({
         </div>
         <div className="modal-actions"><button className="btn" type="button" onClick={() => setPendingIds([])}>全部取消</button><button className="btn primary" type="button" onClick={() => { if (!pendingIds.length) { window.alert("请至少选择一个房源"); return; } onChange([...new Set(pendingIds)]); setOpen(false); }}>确认</button></div>
       </section>
-    </div> : null}
+    </div>, document.body) : null}
   </div>;
 }

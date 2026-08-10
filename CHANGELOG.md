@@ -821,3 +821,11 @@
 - Unified single-member attribution aliases and refreshed the partner cache after member-name changes.
 - Reused a strict property multi-select state across profit analysis, operations statistics, and partnership settlement; empty selection is no longer interpreted as all properties.
 - Kept the existing one-property-per-snapshot model while allowing a multi-property confirmation to create one accurate snapshot per selected property; calculations and details follow the selected set.
+
+## 2026-08-10 - Mobile UI governance and PropertyMultiSelect viewport fix (Preview)
+
+- Established `UI_DESIGN_SYSTEM.md` as the authoritative UI specification and made the project instructions require it before any frontend UI change; the previous standard filename now acts only as a compatibility pointer.
+- Consolidated shared mobile control tokens, separated checkbox/radio sizing from ordinary full-width controls, and removed a conflicting mobile modal override.
+- Rendered PropertyMultiSelect through a viewport portal with explicit background scroll-position preservation; its header/footer remain reachable while the property list owns touch scrolling.
+- Rebuilt the backup-reminder settings rows into a compact, aligned setting layout without changing reminder timing or export behavior.
+- No database schema, migration, business data, financial calculation, permission, account, or Production changes.

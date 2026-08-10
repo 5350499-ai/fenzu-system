@@ -1,4 +1,6 @@
-# UI Design Standard V1
+# UI Design Standard V1 — Deprecated compatibility pointer
+
+> Authoritative source: [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md). Do not add or change UI rules in this legacy file.
 
 ## Purpose
 

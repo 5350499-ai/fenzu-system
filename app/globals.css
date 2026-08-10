@@ -445,12 +445,23 @@ a {
   --ui-radius-pill: 999px;
   --ui-touch-target: 44px;
   --ui-form-control-height: 42px;
+  --ui-control-height: 42px;
+  --ui-control-height-mobile: 44px;
+  --ui-control-padding-inline: 12px;
   --ui-button-height: 42px;
   --ui-button-padding-inline: 14px;
   --ui-button-icon-size: 18px;
   --ui-button-icon-gap: 8px;
+  --ui-field-gap: 8px;
+  --ui-grid-gap: 16px;
+  --ui-page-padding-inline: 20px;
+  --ui-page-padding-inline-mobile: 14px;
   --ui-card-padding: 20px;
   --ui-card-padding-mobile: 14px;
+  --ui-modal-padding: 16px;
+  --ui-modal-max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  --ui-bottom-nav-clearance: calc(116px + env(safe-area-inset-bottom));
+  --ui-focus: 0 0 0 3px color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
 [data-theme="dark"] {
@@ -2412,7 +2423,7 @@ td:last-child {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--ui-grid-gap, 16px);
 }
 
 .form-grid > *,
@@ -2423,7 +2434,7 @@ td:last-child {
 
 .field {
   display: grid;
-  gap: 7px;
+  gap: var(--ui-field-gap, 8px);
 }
 
 .field label {
@@ -2432,7 +2443,7 @@ td:last-child {
   font-weight: 800;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea {
   display: block;
@@ -5496,7 +5507,7 @@ td:last-child {
   }
 
   .main {
-    padding: 18px 14px calc(116px + env(safe-area-inset-bottom));
+    padding: 18px var(--ui-page-padding-inline-mobile) var(--ui-bottom-nav-clearance);
   }
 
   .topbar {
@@ -7106,20 +7117,6 @@ td:last-child {
   .data-center-restore-table td { padding: 9px 6px; }
 }
 
-/* V1 UI foundation: shared visual language for existing screens. */
-:root {
-  --ui-radius-sm: 8px;
-  --ui-radius-md: 12px;
-  --ui-radius-lg: 16px;
-  --ui-control-height: 42px;
-  --ui-space-1: 4px;
-  --ui-space-2: 8px;
-  --ui-space-3: 12px;
-  --ui-space-4: 16px;
-  --ui-space-5: 20px;
-  --ui-focus: 0 0 0 3px color-mix(in srgb, var(--blue) 24%, transparent);
-}
-
 html,
 body,
 .app-shell,
@@ -7208,7 +7205,7 @@ body,
   line-height: 1.35;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
 .combobox {
@@ -8209,7 +8206,7 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .modal-card { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
 .modal-card > .panel-header:first-child { position: sticky; top: -20px; z-index: 2; flex: 0 0 auto; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); }
 .modal-card > .panel-header:first-child .btn { min-height: var(--ui-touch-target, 44px); }
-.field input, .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
 .tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
@@ -8227,9 +8224,9 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 .room-finance-line > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 @media (max-width: 640px) {
-  .field input, .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
+  .field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
   .modal-backdrop { display: block; overflow-y: auto; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
-  .modal-card { width: 100%; min-height: 0; max-height: none; margin: 0 auto; overflow: visible; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
+  .modal-card { width: 100%; min-height: 0; margin: 0 auto; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
   .tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
@@ -8283,7 +8280,7 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   line-height: var(--ui-line-height-normal, 1.45);
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
 .combobox,
@@ -8316,7 +8313,7 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   max-width: 100%;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
 .date-range-inputs input,
@@ -8332,7 +8329,7 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
   box-sizing: border-box;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
 .date-range-inputs input,
@@ -9166,7 +9163,7 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
     gap: var(--ui-space-1, 4px);
   }
 
-  .expense-form-grid .field input,
+  .expense-form-grid .field input:not([type="checkbox"]):not([type="radio"]),
   .expense-form-grid .field select,
   .expense-form-grid .combobox,
   .expense-form-grid .combobox input {
@@ -9351,8 +9348,12 @@ textarea:-webkit-autofill:focus,
 /* PropertyMultiSelect owns a bounded sheet: the header and actions stay
    visible while only the property choices scroll on narrow screens. */
 .property-multi-select-backdrop {
+  position: fixed;
+  inset: 0;
   z-index: 1200;
   overflow: hidden;
+  align-items: flex-start;
+  justify-content: center;
   touch-action: pan-y;
 }
 
@@ -9363,7 +9364,8 @@ textarea:-webkit-autofill:focus,
   max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-self: flex-start;
   overflow: hidden;
 }
 
@@ -9393,6 +9395,7 @@ textarea:-webkit-autofill:focus,
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   min-width: 0;
+  min-height: 0;
   max-height: min(60dvh, 28rem);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -9438,9 +9441,9 @@ input[type="radio"] {
 
 .backup-reminder-settings {
   display: grid;
-  gap: 14px;
+  gap: 0;
   min-width: 0;
-  padding: 4px 0 2px;
+  padding: var(--ui-space-1, 4px) 0 0;
 }
 
 .backup-reminder-settings .field,
@@ -9451,7 +9454,12 @@ input[type="radio"] {
 
 .backup-reminder-settings .field {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  align-items: center;
+  gap: var(--ui-space-3, 12px);
+  min-height: var(--ui-touch-target, 44px);
+  padding: var(--ui-space-3, 12px);
+  border-bottom: 1px solid var(--ui-color-border, var(--border));
 }
 
 .backup-reminder-settings .field select {
@@ -9464,13 +9472,29 @@ input[type="radio"] {
 
 .backup-reminder-settings > div {
   display: grid;
-  gap: 4px;
-  padding: 2px 0;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  align-items: center;
+  gap: var(--ui-space-3, 12px);
+  min-height: var(--ui-touch-target, 44px);
+  padding: var(--ui-space-3, 12px);
+  border-bottom: 1px solid var(--ui-color-border, var(--border));
+}
+
+.backup-reminder-settings .field > span,
+.backup-reminder-settings > div > span {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ui-color-text-secondary, var(--muted));
+  padding: 0;
+  font-size: var(--ui-font-size-secondary, 13px);
+  font-weight: var(--ui-font-weight-medium, 500);
 }
 
 .backup-reminder-settings > div > strong {
   min-width: 0;
   overflow-wrap: anywhere;
+  text-align: right;
 }
 
 /* Keep native selects aligned with the other controls in property editors
@@ -9557,7 +9581,7 @@ input[type="radio"] {
   }
 
   .property-multi-select-backdrop {
-    align-items: center;
+    align-items: flex-start;
     padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
 
@@ -9577,6 +9601,11 @@ input[type="radio"] {
   .property-multi-select-modal > .modal-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .backup-reminder-settings .field,
+  .backup-reminder-settings > div {
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  }
 }
 
 @media (max-width: 359px) {
@@ -9584,6 +9613,16 @@ input[type="radio"] {
   .modal-card .check-in-form-grid,
   .modal-card .tenant-form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .backup-reminder-settings .field,
+  .backup-reminder-settings > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ui-space-2, 8px);
+  }
+
+  .backup-reminder-settings > div > strong {
+    text-align: left;
   }
 }
 

@@ -240,3 +240,88 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 - Use content-driven grids: short fields may share a row, long property names and notes use the full row, and narrow screens fall back to one column before text becomes unreadable.
 - List summaries should use one to three effective rows. Empty fields do not reserve a visual row.
 - Dates, amounts and status badges remain intact with tabular numerals/nowrap where appropriate; long descriptions wrap or ellipsize according to their importance. Never reduce normal text size or scale content to create density.
+
+## 16. Mandatory UI preflight
+
+Before any frontend UI change, read this document and inspect the existing shared
+component or token first. New pages and component changes must reuse the shared
+tokens below. A different size, color, radius, spacing or responsive behavior is
+allowed only for a documented business reason; add that exception here before
+implementing it.
+
+`UI_DESIGN_SYSTEM.md` is the sole UI specification. `UI_DESIGN_STANDARD.md` is a
+historical compatibility pointer and must not receive new rules.
+
+## 17. Effective mobile layout contract
+
+### Page, safe area and navigation
+
+- Page content uses `--ui-page-padding-inline` (20px) on larger screens and
+  `--ui-page-padding-inline-mobile` (14px) on phones.
+- Cards use `--ui-card-padding` (20px) or `--ui-card-padding-mobile` (14px).
+- Mobile content reserves `--ui-bottom-nav-clearance`, including
+  `env(safe-area-inset-bottom)`, so the fixed bottom navigation never covers a
+  final field or action.
+- Use dynamic viewport units (`100dvh` with `100svh` fallback) for full-screen
+  surfaces. Do not use a document-relative position for a modal.
+
+### Typography and semantic colors
+
+- Page title / section title / card title: 24px / 18px / 16px.
+- Body / secondary / caption / button text: 14px / 13px / 12px / 14px.
+- Amounts use the existing amount tokens and tabular numerals.
+- Use only the existing semantic color tokens: background, surface,
+  surface-soft, border, primary text, secondary text, muted text, primary,
+  info, success, warning, danger, disabled and focus. Income and positive
+  profit use success; expense keeps normal text; negative profit uses danger.
+
+### Spacing, radius and cards
+
+- Spacing scale: 4, 8, 12, 16, 20, 24 and 32px (`--ui-space-1` through
+  `--ui-space-7`).
+- Label-to-control gap: `--ui-field-gap` (8px). Standard grid gap:
+  `--ui-grid-gap` (16px). Use the same scale for section and action gaps.
+- Radius scale: 8px small, 12px control, 16px card, 20px modal, and 999px pill.
+- A main card uses the shared surface, border and card padding. Do not create a
+  visually separate card system for a single page.
+
+## 18. Form-control contract
+
+- Text, number, date, select, combobox, search/select and textarea must be
+  allowed to shrink: `width:100%`, `max-width:100%`, `min-width:0` and
+  `box-sizing:border-box`.
+- Standard single-line visual height is `--ui-control-height` (42px); the
+  mobile touch target is `--ui-control-height-mobile` (44px). Mobile editable
+  controls use at least 16px text to avoid iPhone Safari focus zoom.
+- Standard controls share 12px radius, 12px horizontal padding, shared border,
+  surface background, focus treatment and disabled treatment. Textareas are the
+  intentional multi-line exception and use the same visual language.
+- Checkbox and radio are never ordinary full-width inputs. Their native visual
+  box is 18px; the associated label supplies the 44px touch target.
+- Grid and flex children containing controls must have `min-width:0`. Native
+  selects must not be allowed to keep an intrinsic width that breaks a grid.
+
+## 19. Modal and drawer contract
+
+- A modal backdrop is viewport-bound (`position:fixed; inset:0`) and sits above
+  the bottom navigation. It must not be positioned by page scroll or a parent
+  transform.
+- Opening a modal locks the background while preserving its scroll position.
+  The modal surface or a named internal list owns vertical scrolling.
+- The modal maximum height uses `--ui-modal-max-height` and safe-area insets.
+  Header and footer actions remain reachable; long middle content scrolls with
+  `overflow-y:auto`, `overscroll-behavior:contain`, `touch-action:pan-y` and
+  `-webkit-overflow-scrolling:touch`.
+- Do not set `touch-action:none` on an interactive scroll surface. Closing a
+  modal restores the prior page scroll position.
+
+## 20. Responsive and verification rules
+
+- Verify ordinary phone layouts at 320, 360, 375, 390, 393, 412 and 430px;
+  tablet and desktop must remain usable.
+- Use `minmax(0, 1fr)`, sensible grid fallbacks and wrapping/ellipsis rules
+  before reducing type size. Do not use `transform:scale()` to solve overflow.
+- Long critical detail text wraps; compact selector/list labels may use a
+  single-line ellipsis only when the full value remains available in detail.
+- For an interaction that depends on iOS Safari touch or the virtual viewport,
+  static browser checks are not a substitute for real-device acceptance.

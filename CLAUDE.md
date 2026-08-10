@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件是本项目的永久开发规范。以后每次开始开发前，都必须先阅读本文件，以及 `BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。
+本文件是本项目的永久开发规范。以后每次开始开发前，都必须先阅读本文件，以及 `BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。凡是新增、修改或重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局，还必须先阅读 `UI_DESIGN_SYSTEM.md`。
 
 ## 1. 项目定位
 
@@ -80,6 +80,7 @@
 - 再阅读 `BUSINESS_RULES.md`
 - 再阅读 `ARCHITECTURE.md`
 - 再阅读 `CHANGELOG.md`
+- 涉及任何前端 UI 时，再阅读 `UI_DESIGN_SYSTEM.md`
 
 然后只读取本次需求涉及的模块代码。
 
@@ -116,6 +117,10 @@
 4. `CHANGELOG.md`
 
 阅读完成后，依次理解项目开发规范、当前业务规则、项目架构和最近修改记录，再分析本次需求。
+
+### 前端 UI 强制规则
+
+任何新增、修改、重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局之前，必须先阅读并遵循 `UI_DESIGN_SYSTEM.md`。除非有明确业务理由并在规范中记录例外，否则不得自行创造新的尺寸、间距、字体、颜色、控件高度或响应式规则；必须优先复用现有 Design Tokens 与公共组件。
 
 ## 12. 最小读取与最小影响原则
 
