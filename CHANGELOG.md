@@ -835,3 +835,12 @@
 - Removed PropertyMultiSelect's duplicate document scroll lock so the global modal-layer manager is the sole lock owner; closing a property selector no longer restores a stale locked body snapshot.
 - Removed the overlapping CSS `:has()` document lock and made filter-grid fields explicitly full width, preventing native select intrinsic sizing from narrowing the settlement time-range control.
 - No database schema, migration, business data, financial calculation, permission, account, or Production changes.
+
+## 2026-08-10 - Full-site UI design-system convergence (Preview)
+
+- Promoted the existing UI design system from guidance to enforceable component contracts for fields, native/searchable/custom selects, filters, pagination, badges, buttons, checkbox/radio controls and modal scrolling.
+- Added a repeatable UI validation command and made the project development rules require it after frontend changes.
+- Unified searchable-select inner-control reset, native ownership selects, tap-select triggers, page-size selectors, labels and mobile control sizing so two-column forms no longer depend on intrinsic content width or nested input borders.
+- Rebuilt reminder rows around stable type, subject and status columns while preserving the existing reminder logic and actions.
+- Fixed free-single member-name saving by omitting the server-forbidden sort-order field, retaining the existing rename RPC, 100% share rule and one-member limit.
+- No database schema, migration, real business data, financial calculation, permission model, account record or Production deployment changed.

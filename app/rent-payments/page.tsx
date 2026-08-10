@@ -43,7 +43,7 @@ import {
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
 import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 type TapOption = {
   value: string;
@@ -753,6 +753,7 @@ function TapSelect({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerId = useId();
   const selected = options.find((option) => option.value === value);
   const resolvedClassName = className || (label.startsWith("房源") || label.startsWith("房间") || label.startsWith("租客") || label === "收款类型" ? "rent-form-wide" : "rent-form-half");
 
@@ -777,9 +778,9 @@ function TapSelect({
 
   return (
     <div className={`field tap-select-field ${resolvedClassName}`} ref={rootRef}>
-      <label>{label}</label>
+      <label htmlFor={triggerId}>{label}</label>
       <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
-        <button className="tap-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
+        <button id={triggerId} className="tap-select-trigger ui-custom-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
           <span>
             <strong>{selected?.label || placeholder}</strong>
             {selected?.description ? <small>{selected.description}</small> : null}

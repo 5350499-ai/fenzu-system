@@ -168,28 +168,29 @@ export default function RemindersPage() {
 }
 
 function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Reminder) => void }) {
-  if (item.rentContext?.paymentId && item.category === "欠费提醒") return <div className={`reminder-page-row ${item.tone}`}>
+  if (item.rentContext?.paymentId && item.category === "欠费提醒") return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
     <Link className="reminder-page-row-link" href={item.href}>
-      <StatusBadge tone="red">欠费提醒</StatusBadge>
-      <span className="reminder-page-rent-content"><strong>{item.rentContext.propertyLabel} · {item.rentContext.roomLabel}</strong><b className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b><small>{item.rentContext.tenantName} · 覆盖至：{item.rentContext.coverageEnd}</small></span>
+      <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
+      <span className="reminder-page-rent-content"><strong>{item.rentContext.propertyLabel} · {item.rentContext.roomLabel}</strong><small>{item.rentContext.tenantName} · 覆盖至：{item.rentContext.coverageEnd}</small></span>
+      <b className={`reminder-page-state reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b>
     </Link>
     <span className="reminder-rent-actions"><Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.rentContext.paymentId)}&overdue=1`}>登记补交</Link><button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button></span>
   </div>;
   return (
     <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
-      <StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge>
+      <span className="reminder-page-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge></span>
       {item.rentContext ? (
         <span className="reminder-page-rent-content">
           <strong>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}</strong>
-          <b className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b>
           <small>{item.rentContext.tenantName}｜覆盖至：{item.rentContext.coverageEnd}</small>
         </span>
       ) : (
-        <>
+        <span className="reminder-page-rent-content">
           <span>{item.title}</span>
           <small>{item.description}</small>
-        </>
+        </span>
       )}
+      {item.rentContext ? <b className={`reminder-page-state reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b> : <span className="reminder-page-state" aria-hidden="true" />}
     </Link>
   );
 }

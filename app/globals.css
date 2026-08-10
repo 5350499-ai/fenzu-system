@@ -452,6 +452,9 @@ a {
   --ui-button-padding-inline: 14px;
   --ui-button-icon-size: 18px;
   --ui-button-icon-gap: 8px;
+  --ui-check-control-size: 18px;
+  --ui-badge-height: 28px;
+  --ui-badge-padding-inline: 10px;
   --ui-field-gap: 8px;
   --ui-grid-gap: 16px;
   --ui-page-padding-inline: 20px;
@@ -1152,8 +1155,8 @@ a {
 
 .reminder-page-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(120px, 0.85fr);
-  gap: 8px;
+  grid-template-columns: minmax(78px, 78px) minmax(0, 1fr) minmax(72px, auto);
+  gap: var(--ui-space-2, 8px);
   align-items: center;
   min-height: 38px;
   border-bottom: 1px solid var(--border);
@@ -1166,7 +1169,8 @@ a {
 }
 
 .reminder-page-row span,
-.reminder-page-row small {
+.reminder-page-row small,
+.reminder-page-row strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2169,6 +2173,28 @@ a {
   text-align: right;
 }
 
+.reminder-page-kind {
+  display: flex;
+  width: 78px;
+  min-width: 78px;
+  justify-content: flex-start;
+}
+
+.reminder-page-kind .badge {
+  width: 100%;
+  justify-content: center;
+  padding-inline: var(--ui-space-1, 4px);
+}
+
+.reminder-page-state {
+  min-width: 72px;
+  justify-self: end;
+  text-align: right;
+  font-size: var(--ui-font-size-caption, 12px);
+  font-weight: var(--ui-font-weight-bold, 700);
+  white-space: nowrap;
+}
+
 .button-row {
   display: flex;
   align-items: center;
@@ -2604,15 +2630,15 @@ td:last-child {
 .tap-select-trigger {
   display: flex;
   width: 100%;
-  min-height: 50px;
+  min-height: var(--ui-form-control-height, 42px);
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--ui-radius-md, 12px);
   background: var(--surface);
   color: var(--text);
-  padding: 9px 12px;
+  padding: 0 var(--ui-control-padding-inline, 12px);
   text-align: left;
 }
 
@@ -3085,6 +3111,19 @@ td:last-child {
   text-align: right;
 }
 
+.pagination-size-select {
+  display: block;
+  min-width: 0;
+  min-height: var(--ui-form-control-height, 42px);
+  box-sizing: border-box;
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  background: var(--ui-color-surface, var(--surface));
+  color: var(--ui-color-text-primary, var(--text));
+  padding: 0 var(--ui-control-padding-inline, 12px);
+  font-size: var(--ui-font-size-body, 14px);
+}
+
 .partner-tag {
   justify-self: start;
   min-width: 24px;
@@ -3425,7 +3464,7 @@ td:last-child {
 .tenant-month-node small { font-size: 0.68rem; white-space: nowrap; }
 .tenant-month-year { color: var(--muted); font-size: 0.82rem; margin-top: -8px; }
 .tenant-month-chart-title { margin-top: 4px; }
-.tenant-rent-chart { min-height: 116px; display: flex; align-items: end; gap: 8px; overflow-x: auto; padding: 10px 8px 4px; border: 1px solid var(--border); border-radius: 12px; }
+.tenant-rent-chart { min-height: 116px; display: flex; align-items: flex-end; gap: 8px; overflow-x: auto; padding: 10px 8px 4px; border: 1px solid var(--border); border-radius: 12px; }
 .tenant-rent-bar { min-width: 48px; height: 100px; border: 0; background: transparent; display: grid; grid-template-rows: 22px 1fr 20px; align-items: end; justify-items: center; color: var(--muted); cursor: pointer; padding: 0 4px; }
 .tenant-rent-bar-value { font-size: 0.68rem; white-space: nowrap; }
 .tenant-rent-bar-fill { width: 22px; min-height: 8px; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: 0.75; }
@@ -3439,7 +3478,7 @@ td:last-child {
 .tenant-chart-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 0; color: var(--muted); font-size: .82rem; }
 .tenant-chart-latest { border: 1px solid var(--border); border-radius: 999px; background: transparent; color: inherit; padding: 4px 9px; font-size: .72rem; cursor: pointer; }
 .tenant-month-track { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: thin; padding: 12px 0 8px; }
-.tenant-month-track-inner { position: relative; display: flex; min-height: 92px; align-items: start; padding: 8px 12px; }
+.tenant-month-track-inner { position: relative; display: flex; min-height: 92px; align-items: flex-start; padding: 8px 12px; }
 .tenant-month-track-line { position: absolute; left: 30px; right: 30px; top: 27px; height: 2px; background: var(--border); }
 .tenant-month-node { flex: 0 0 64px; width: 64px; min-height: 74px; display: grid; justify-items: center; align-content: start; gap: 4px; position: relative; z-index: 1; border: 0; background: transparent; color: var(--muted); padding: 0 2px; cursor: pointer; }
 .tenant-month-node-dot { width: 18px; height: 18px; margin: 1px 0 1px; border: 3px solid var(--surface); border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 1px var(--border); }
@@ -5170,14 +5209,14 @@ td:last-child {
   padding-left: 12px;
 }
 
-.reminder-page-row:has(.reminder-rent-actions) {
+.reminder-page-row--actions {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
 }
 
 .reminder-page-row-link {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(78px, 78px) minmax(0, 1fr) minmax(72px, auto);
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -6511,7 +6550,7 @@ td:last-child {
 .partner-management-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; }
 .partner-delete-hint { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .muted-badge { color: var(--muted); border-color: var(--border); }
-.partner-add-row, .partner-share-save { display: flex; align-items: end; gap: 10px; }
+.partner-add-row, .partner-share-save { display: flex; align-items: flex-end; gap: 10px; }
 .partner-add-row input { flex: 1; min-width: 0; }
 .partner-share-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .partner-percent-input { display: flex; align-items: center; gap: 6px; }
@@ -7228,11 +7267,41 @@ body,
 }
 
 .badge,
-.ui-status-tag {
-  min-height: 28px;
-  padding-inline: 10px;
+.ui-status-tag,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ui-badge-height, 28px);
+  padding-inline: var(--ui-badge-padding-inline, 10px);
+  border: 1px solid var(--ui-color-border, var(--border));
   border-radius: 999px;
+  background: var(--ui-color-surface, var(--surface));
+  font-size: var(--ui-font-size-caption, 12px);
+  font-weight: var(--ui-font-weight-bold, 700);
   line-height: 1;
+}
+
+.status-badge.success {
+  border-color: color-mix(in srgb, var(--ui-color-success, var(--green)) 28%, var(--ui-color-border, var(--border)));
+  background: var(--ui-color-success-bg);
+  color: var(--ui-color-success, var(--green));
+}
+
+.badge.success {
+  border-color: color-mix(in srgb, var(--ui-color-success, var(--green)) 28%, var(--ui-color-border, var(--border)));
+  background: var(--ui-color-success-bg);
+  color: var(--ui-color-success, var(--green));
+}
+
+.badge.danger {
+  border-color: color-mix(in srgb, var(--ui-color-danger, var(--red)) 28%, var(--ui-color-border, var(--border)));
+  background: var(--ui-color-danger-bg);
+  color: var(--ui-color-danger, var(--red));
+}
+
+.status-badge.muted-badge {
+  color: var(--ui-color-text-muted, var(--muted));
 }
 
 .ui-page-header {
@@ -8269,7 +8338,8 @@ input[type="radio"] {
   gap: var(--ui-space-4, 16px);
 }
 
-.field label,
+.field > label,
+label.field > span,
 .ui-form-field > label {
   color: var(--ui-color-text-secondary, var(--muted));
   font-size: var(--ui-font-size-secondary, 13px);
@@ -8280,9 +8350,12 @@ input[type="radio"] {
 .field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
+.ui-control,
 .combobox,
+.tap-select-trigger,
 .search-box,
 .list-controls select,
+.pagination-size-select,
 .filter-grid input,
 .filter-grid select,
 .date-range-preset select,
@@ -8301,11 +8374,14 @@ input[type="radio"] {
 .form-grid > *,
 .filter-grid > *,
 .list-controls > *,
+.pagination > *,
 .date-range-filter,
 .date-range-inputs,
 .date-range-inputs > label,
 .combobox-field,
-.combobox {
+.combobox,
+.tap-select-field,
+.tap-select {
   min-width: 0;
   max-width: 100%;
 }
@@ -8313,11 +8389,14 @@ input[type="radio"] {
 .field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
+.ui-control,
 .date-range-inputs input,
 .filter-grid input,
 .filter-grid select,
 .list-controls select,
+.pagination-size-select,
 .combobox,
+.tap-select-trigger,
 .combobox input,
 .search-box input {
   width: 100%;
@@ -8329,9 +8408,11 @@ input[type="radio"] {
 .field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea,
+.ui-control,
 .date-range-inputs input,
 .date-range-preset select,
 .list-controls select,
+.pagination-size-select,
 .filter-grid input,
 .filter-grid select {
   padding: 10px 12px;
@@ -8343,15 +8424,39 @@ input[type="radio"] {
   padding: 0 12px;
 }
 
+.tap-select-trigger,
+.ui-custom-select-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--ui-form-control-height, 42px);
+  box-sizing: border-box;
+  border: 1px solid var(--ui-color-border, var(--border));
+  border-radius: var(--ui-radius-md, 12px);
+  background: var(--ui-color-surface, var(--surface));
+  color: var(--ui-color-text-primary, var(--text));
+  padding: 0 var(--ui-control-padding-inline, 12px);
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+}
+
+.field .combobox > .ui-combobox-input,
 .combobox input,
 .search-box input {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 40px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: inherit;
+  padding: 0;
   font-size: var(--ui-font-size-body, 14px);
   line-height: var(--ui-line-height-normal, 1.45);
+  box-shadow: none;
 }
 
 .search-box {
@@ -8366,6 +8471,20 @@ input[type="radio"] {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   align-items: stretch;
   gap: var(--ui-space-3, 12px);
+}
+
+.pagination {
+  flex-wrap: wrap;
+}
+
+.pagination .top-actions {
+  min-width: 0;
+}
+
+.pagination-size-select {
+  width: auto;
+  max-width: 100%;
+  padding: 0 var(--ui-control-padding-inline, 12px);
 }
 
 .filter-grid {
@@ -9437,13 +9556,13 @@ textarea:-webkit-autofill:focus,
 input[type="checkbox"],
 input[type="radio"] {
   box-sizing: border-box;
-  flex: 0 0 18px;
-  width: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  height: 18px;
-  min-height: 18px;
-  max-height: 18px;
+  flex: 0 0 var(--ui-check-control-size, 18px);
+  width: var(--ui-check-control-size, 18px);
+  min-width: var(--ui-check-control-size, 18px);
+  max-width: var(--ui-check-control-size, 18px);
+  height: var(--ui-check-control-size, 18px);
+  min-height: var(--ui-check-control-size, 18px);
+  max-height: var(--ui-check-control-size, 18px);
   margin: 0;
   padding: 0;
 }
@@ -9569,10 +9688,25 @@ input[type="radio"] {
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
   select,
   textarea,
+  .ui-control,
   .combobox,
   .combobox input,
+  .tap-select-trigger,
+  .pagination-size-select,
   .search-box input {
     font-size: 16px;
+  }
+
+  .field input:not([type="checkbox"]):not([type="radio"]),
+  .field select,
+  .ui-control,
+  .combobox,
+  .tap-select-trigger,
+  .pagination-size-select,
+  .list-controls select,
+  .filter-grid input,
+  .filter-grid select {
+    min-height: var(--ui-control-height-mobile, 44px);
   }
 
   .modal-backdrop {
@@ -9614,6 +9748,36 @@ input[type="radio"] {
   .backup-reminder-settings .field,
   .backup-reminder-settings > div {
     grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  }
+
+  .reminder-page-row,
+  .reminder-page-row-link {
+    grid-template-columns: minmax(72px, 72px) minmax(0, 1fr) minmax(64px, auto);
+  }
+
+  .reminder-page-kind {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .reminder-page-state {
+    min-width: 64px;
+  }
+
+  .reminder-page-row--actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reminder-rent-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 80px;
+  }
+
+  .reminder-rent-actions .btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
   }
 }
 

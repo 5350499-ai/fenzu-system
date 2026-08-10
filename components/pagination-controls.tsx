@@ -23,7 +23,7 @@ export function PaginationControls({
         <span className="muted">
           第 {page} / {totalPages} 页，共 {total} 条
         </span>
-        <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+        <select className="pagination-size-select" aria-label="每页显示条数" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
           <option value={10}>每页10条</option>
           <option value={15}>每页15条</option>
           <option value={20}>每页20条</option>

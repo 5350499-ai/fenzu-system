@@ -109,7 +109,7 @@
 
 ## 6.1 UI Design Standard V1
 
-项目级 UI 唯一规范为 `UI_DESIGN_SYSTEM.md`。本节仅保留架构摘要；任何前端 UI 任务在实现前必须先阅读并遵循该规范。
+项目级 UI 唯一规范为 `UI_DESIGN_SYSTEM.md`。本节仅保留架构摘要；任何前端 UI 任务在实现前必须先阅读并遵循该规范，并在完成后运行 `npm run validate:ui`。页面不得自行建立第二套 Form/Select/Modal 尺寸体系。
 
 全站业务页面遵循同一套产品级界面规范，新增页面不得另起一套卡片或金额样式。
 

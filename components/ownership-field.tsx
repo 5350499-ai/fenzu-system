@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 export type OwnershipMode = string;
 
 export function OwnershipField({
@@ -17,12 +19,15 @@ export function OwnershipField({
   optionsLoading?: boolean;
   onModeChange: (mode: OwnershipMode) => void;
 }) {
+  const inputId = useId();
   return (
     <>
       <div className={`field${className ? ` ${className}` : ""}`}>
-        <label>{label}</label>
+        <label htmlFor={inputId}>{label}</label>
         <select
+          className="ui-native-select"
           disabled={optionsLoading || !options.length}
+          id={inputId}
           value={mode}
           onChange={(event) => onModeChange(event.target.value as OwnershipMode)}
         >

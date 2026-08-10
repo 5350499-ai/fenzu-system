@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { getCurrentPropertySharePlan, getPartners, getPropertyPartnerShares, invalidatePartnersCache, type PartnerPropertyShare, type PartnerWorkspaceData, validatePartnerPercentages } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { partnerUpdatePayload } from "@/lib/partner-update";
 import { SectionCard } from "@/components/ui";
 import { CalendarClock, Edit3, Plus, Save, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -83,7 +84,18 @@ export default function PartnersPage() {
 
   async function savePartner(id: string) {
     setWorking(true); setMessage("");
-    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify({ displayName: draftNames[id], sortOrder: Number(draftSortOrders[id] || 0) }) }); await invalidatePartnersCache(); setEditingId(null); await reload(); setMessage("合伙人资料已保存"); }
+    const displayName = (draftNames[id] || "").trim();
+    if (!displayName) {
+      setMessage("成员名称不能为空");
+      setWorking(false);
+      return;
+    }
+    const payload = partnerUpdatePayload({
+      displayName,
+      isFreeSingle: access.isFreeSingle,
+      sortOrder: Number(draftSortOrders[id] || 0)
+    });
+    try { await request(`/api/partners/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); await invalidatePartnersCache(); setEditingId(null); await reload(); setMessage(access.isFreeSingle ? "成员名称已保存" : "合伙人资料已保存"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "保存失败"); }
     finally { setWorking(false); }
   }
@@ -171,9 +183,10 @@ export default function PartnersPage() {
     return <AppLayout title="成员管理" description="免费版使用一名本人成员，所有业务归属和利润比例保持统一。">
       <SectionCard className="partner-management-panel">
         <div className="panel-header"><div><h2 className="panel-title">本人成员</h2><p className="muted">免费版仅支持 1 名成员，本人固定占比 100%。</p></div></div>
-        {loading ? <p className="muted">正在加载成员资料…</p> : self ? <div className="partner-management-row"><span className="partner-management-icon"><UserRound size={17} /></span><div className="partner-management-main">{editingId === self.id ? <input aria-label="成员名称" value={draftNames[self.id] ?? self.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [self.id]: event.target.value }))} /> : <strong>{self.displayName}</strong>}<span className="muted partner-management-meta">本人 · 100% · 当前唯一成员</span></div><div className="partner-management-actions">{editingId === self.id ? <><button className="btn compact" disabled={working} onClick={() => void savePartner(self.id)} type="button"><Save size={15} />保存</button><button className="btn compact" disabled={working} onClick={() => setEditingId(null)} type="button"><X size={15} />取消</button></> : <button className="btn compact" disabled={working} onClick={() => setEditingId(self.id)} type="button"><Edit3 size={15} />编辑名称</button>}</div></div> : <p className="error-text">未能加载本人成员，请刷新后重试。</p>}
+        {loading ? <p className="muted">正在加载成员资料…</p> : self ? <div className="partner-management-row"><span className="partner-management-icon"><UserRound size={17} /></span><div className="partner-management-main">{editingId === self.id ? <input className="ui-control" aria-label="成员名称" value={draftNames[self.id] ?? self.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [self.id]: event.target.value }))} /> : <strong>{self.displayName}</strong>}<span className="muted partner-management-meta">本人 · 100% · 当前唯一成员</span></div><div className="partner-management-actions">{editingId === self.id ? <><button className="btn compact" disabled={working} onClick={() => void savePartner(self.id)} type="button"><Save size={15} />保存</button><button className="btn compact" disabled={working} onClick={() => setEditingId(null)} type="button"><X size={15} />取消</button></> : <button className="btn compact" disabled={working} onClick={() => setEditingId(self.id)} type="button"><Edit3 size={15} />编辑名称</button>}</div></div> : <p className="error-text">未能加载本人成员，请刷新后重试。</p>}
       </SectionCard>
-      <SectionCard className="partner-management-panel"><h2 className="panel-title">多人协作</h2><p className="muted">新增成员、调整多人比例和多人分账为订阅功能。升级后会直接沿用当前归属记录，无需迁移历史数据。</p><button className="btn" type="button" onClick={() => setMessage("新增成员为订阅功能；免费版可继续管理本人和 100% 比例。")}><Plus size={16} />新增成员</button>{message ? <p className="partner-feedback" role="status">{message}</p> : null}</SectionCard>
+      <SectionCard className="partner-management-panel"><h2 className="panel-title">多人协作</h2><p className="muted">新增成员、调整多人比例和多人分账为订阅功能。升级后会直接沿用当前归属记录，无需迁移历史数据。</p><button className="btn" type="button" onClick={() => setMessage("新增成员为订阅功能；免费版可继续管理本人和 100% 比例。")}><Plus size={16} />新增成员</button></SectionCard>
+      {message ? <p className="partner-feedback" role="status">{message}</p> : null}
     </AppLayout>;
   }
 
@@ -189,7 +202,7 @@ export default function PartnersPage() {
               return <div className="partner-management-row" key={partner.id}>
                 <span className="partner-management-icon"><UserRound size={17} /></span>
                 <div className="partner-management-main">
-                  {editingId === partner.id ? <input aria-label={`${partner.displayName}显示名称`} value={draftNames[partner.id] ?? partner.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [partner.id]: event.target.value }))} /> : <strong>{partner.displayName}</strong>}
+                  {editingId === partner.id ? <input className="ui-control" aria-label={`${partner.displayName}显示名称`} value={draftNames[partner.id] ?? partner.displayName} onChange={(event) => setDraftNames((current) => ({ ...current, [partner.id]: event.target.value }))} /> : <strong>{partner.displayName}</strong>}
                   <span className="muted partner-management-meta">{partner.legacyCode ? `兼容归属 ${partner.legacyCode}` : "新合伙人"} · 当前参与 {partner.currentPropertyCount} 套 · 未来参与 {partner.futurePropertyCount} 套</span>
                   {(data?.nameHistory || []).some((item) => item.partnerId === partner.id) ? <details className="partner-name-history"><summary>名称历史</summary>{(data?.nameHistory || []).filter((item) => item.partnerId === partner.id).map((item) => <p key={item.id} className="muted">{item.oldDisplayName} → {item.newDisplayName} · {new Date(item.changedAt).toLocaleString("zh-CN")}</p>)}</details> : null}
                 </div>

@@ -1,8 +1,8 @@
 # UI Design System V1
 
-状态：基础规范已建立，逐页面迁移尚未开始。
+状态：公共 Token、表单控件、Modal、筛选/分页、状态标签与移动端规则已进入执行阶段；历史页面按公共规则持续收敛。
 
-本规范保留现有分租管理系统的深色/浅色视觉方向，目标是减少未来新增页面的临时字号、颜色、圆角和间距决定。现有业务页面暂不批量迁移；迁移必须逐页验证，不改变业务逻辑。
+本规范保留现有分租管理系统的深色/浅色视觉方向，是项目唯一 UI 规范来源。公共 Token 和组件负责执行规范；页面不得另建一套控件尺寸。历史页面迁移必须逐页验证，不改变业务逻辑。
 
 ## 1. Design principles
 
@@ -228,7 +228,7 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 - Native selects, searchable selects, money/date inputs and search controls must use the shared control rules; textarea remains the intentional multi-line exception.
 - Detail grids are content-driven. They use two columns only when each column can preserve readable labels and values; at narrow widths they fall back to one column instead of creating single-character vertical labels.
 - Detail labels keep a readable minimum width, values use the remaining width, money uses tabular numerals and nowrap where required, and long text wraps normally rather than using `break-all`.
-- Filter controls use an auto-fit grid on larger screens and a single orderly column on narrow mobile screens. Height is unified; width remains content-dependent.
+- Filter controls use an auto-fit grid on larger screens and a single orderly column on narrow mobile screens. Height is unified; each control fills its assigned grid column and must not shrink to its text width.
 - Room cards use the same information grid at every breakpoint: room first, property second, status and amounts aligned, with secondary unpaid/expiry information retained without absolute positioning.
 - Modal overlays lock the page behind them. The modal surface owns vertical scrolling, uses dynamic viewport and safe-area insets, and keeps the header/close action reachable on mobile Safari.
 - This shared foundation is the effective baseline for new pages. Existing page-specific legacy rules remain only for compatibility and should not introduce new control dimensions.
@@ -329,3 +329,62 @@ historical compatibility pointer and must not receive new rules.
   single-line ellipsis only when the full value remains available in detail.
 - For an interaction that depends on iOS Safari touch or the virtual viewport,
   static browser checks are not a substitute for real-device acceptance.
+
+## 21. Enforceable component contracts
+
+### Field anatomy
+
+每个字段只允许采用以下结构之一：
+
+1. field 容器内使用 label + control；
+2. label.field 内使用 span + control；
+3. 公共 SearchableSelect / OwnershipField 等完整字段组件。
+
+Label 到控件固定使用 --ui-field-gap（8px），字段行列间距使用
+--ui-grid-gap（16px；紧凑手机业务表单可用 8px × 12px，但同一表单必须一致）。
+Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
+
+### Closed select appearance
+
+- Native select、SearchableSelect、Combobox 和自定义 Tap Select 关闭时只能看到一个主控件边框。
+- 图标、输入文字、placeholder、清除按钮和下拉箭头都属于主控件内部，不得再获得第二层边框、背景或圆角。
+- 下拉 panel 可以拥有独立边框；panel 只在展开状态出现。
+- SearchableSelect 必须使用 combobox 外壳承载边框，内部 input 必须透明、无边框、无额外 padding。
+- 自定义选择触发器统一使用共享控件高度、12px radius、12px 横向 padding 和全宽收缩规则。
+
+### Filter and pagination
+
+- 搜索、筛选 select、日期筛选和分页 page-size select 均使用标准单行控件规格。
+- 同一区域的 filter/select 不得因文字短而缩成窄框；filter grid 内必须占满自身列。
+- 分页 page-size select 可以按内容宽度显示，但高度、字体、边框、radius 和 padding 必须与筛选控件一致。
+
+### Badge and status list
+
+- Badge 标准视觉高度为 28px、12px 字号、10px 水平 padding、pill radius。
+- 同一移动端列表中的类型 Badge 必须使用稳定列宽；主体信息起点和尾部状态列不得随 Badge 文案长度漂移。
+- 长主体名称在紧凑列表中允许单行省略，但完整值必须可在详情中查看。
+
+### Buttons
+
+- 默认 Button 为 42px，手机触摸目标至少 44px；Compact Button 仅用于低层级行内操作，不得代替表单主操作。
+- 同一 action row 中相同层级按钮必须同高。确认/取消使用同一尺寸，只用颜色和层级区分。
+
+### Exceptions
+
+- Checkbox/Radio 本体固定 18px；44px 点击区域由 label 提供。
+- Textarea 是多行控件，不强制 42/44px 高度。
+- 数据展示行、Badge、图表控件和 Compact 行内操作不是普通表单控件，不应被强制为全宽。
+- 任何新例外必须先在本节记录业务原因，再写页面样式。
+
+## 22. UI change checklist
+
+每次新增或修改 UI 前必须按顺序执行：
+
+1. 阅读本文件；
+2. 查找同语义公共组件与 Token；
+3. 复用公共组件，禁止复制页面级 Select/Modal/Form primitive；
+4. 在 320、360、375、390、393、412、430px 检查收缩、滚动和底部安全区；
+5. 检查 light/dark、键盘 focus、disabled、error；
+6. 检查普通页面滚动、Modal 背景锁定和关闭后的滚动恢复；
+7. 确认没有新增 magic size、嵌套边框、checkbox/radio 放大或原生 select intrinsic width；
+8. 运行项目 UI 规范校验、TypeScript、Build 和 diff-check。

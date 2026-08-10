@@ -34,6 +34,7 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputId = useId();
   const listboxId = useId();
   const selected = options.find((option) => option.value === value);
   const visibleOptions = useMemo(() => {
@@ -110,9 +111,9 @@ export function SearchableSelect({
 
   return (
     <div className={`field combobox-field${className ? ` ${className}` : ""}`} ref={rootRef}>
-      <label>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <div
-        className={`combobox ${disabled ? "disabled" : ""}`}
+        className={`combobox ui-combobox-control ${disabled ? "disabled" : ""}`}
         onMouseDown={(event) => {
           if (!disabled && event.target === event.currentTarget) openMenu();
         }}
@@ -122,6 +123,8 @@ export function SearchableSelect({
       >
         <Search size={17} />
         <input
+          id={inputId}
+          className="ui-combobox-input"
           disabled={disabled}
           aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           aria-controls={open ? listboxId : undefined}
