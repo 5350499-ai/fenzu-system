@@ -9348,6 +9348,62 @@ textarea:-webkit-autofill:focus,
   -webkit-overflow-scrolling: touch;
 }
 
+/* PropertyMultiSelect owns a bounded sheet: the header and actions stay
+   visible while only the property choices scroll on narrow screens. */
+.property-multi-select-backdrop {
+  z-index: 1200;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.property-multi-select-modal {
+  width: min(100%, 520px);
+  max-width: calc(100vw - 16px);
+  height: min(42rem, calc(100vh - 16px));
+  height: min(42rem, calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px));
+  height: min(42rem, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px));
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.property-multi-select-modal > .panel-header:first-child {
+  position: static;
+  margin: 0 0 var(--ui-space-3, 12px);
+  padding: 0 0 var(--ui-space-3, 12px);
+  background: transparent;
+}
+
+.property-multi-select-modal .partner-participant-grid {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px;
+}
+
+.property-multi-select-modal .partner-participant {
+  min-width: 0;
+}
+
+.property-multi-select-modal .partner-participant span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.property-multi-select-modal > .modal-actions {
+  min-width: 0;
+  margin-top: var(--ui-space-3, 12px);
+  padding-top: var(--ui-space-3, 12px);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
 .attachment-modal-backdrop .attachment-cleanup-confirm,
 .data-center-sheet,
 .data-center-dialog {
@@ -9382,6 +9438,25 @@ textarea:-webkit-autofill:focus,
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
+  }
+
+  .property-multi-select-backdrop {
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .property-multi-select-modal {
+    width: 100%;
+    max-width: 100%;
+    height: min(42rem, calc(100vh - 16px));
+    height: min(42rem, calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px));
+    height: min(42rem, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px));
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    overflow: hidden;
+  }
+
+  .property-multi-select-modal > .modal-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

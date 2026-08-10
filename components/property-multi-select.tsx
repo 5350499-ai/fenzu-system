@@ -39,8 +39,8 @@ export function PropertyMultiSelect({
   return <div className="field property-multi-select">
     <label>{label}</label>
     <button className="btn property-multi-select-trigger" type="button" onClick={() => setOpen(true)}>{summary}</button>
-    {open ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <section className="card modal-card property-multi-select-modal" onMouseDown={(event) => event.stopPropagation()}>
+    {open ? <div className="modal-backdrop property-multi-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <section className="card modal-card property-multi-select-modal" role="dialog" aria-modal="true" aria-label="选择房源范围" onPointerDown={(event) => event.stopPropagation()}>
         <div className="panel-header"><h2 className="panel-title">选择房源范围</h2><button className="btn compact" type="button" onClick={() => setOpen(false)}>取消</button></div>
         <div className="partner-participant-grid">
           <label className="partner-participant"><input type="checkbox" checked={allSelected} onChange={() => setPendingIds(allSelected ? [] : allIds)} /><span>全部房源</span></label>
