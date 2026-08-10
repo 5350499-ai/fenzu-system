@@ -9419,6 +9419,98 @@ textarea:-webkit-autofill:focus,
   overflow-wrap: anywhere;
 }
 
+/* Keep native checkbox/radio controls compact even though ordinary form
+   controls use full-width, touch-sized mobile rules. The label remains the
+   large tap target. */
+input[type="checkbox"],
+input[type="radio"] {
+  box-sizing: border-box;
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.backup-reminder-settings {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 4px 0 2px;
+}
+
+.backup-reminder-settings .field,
+.backup-reminder-settings > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.backup-reminder-settings .field {
+  display: grid;
+  gap: 6px;
+}
+
+.backup-reminder-settings .field select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.backup-reminder-settings > div {
+  display: grid;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.backup-reminder-settings > div > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Keep native selects aligned with the other controls in property editors
+   and the other shared form grids, including iOS Safari's intrinsic sizing. */
+.form-grid .field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.form-grid .field > select,
+.form-grid .field > textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.property-multi-select-options .partner-participant {
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.property-multi-select-options .partner-participant input[type="checkbox"],
+.property-multi-select-all .partner-participant input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+}
+
+.property-multi-select-options .partner-participant span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .property-multi-select-modal > .modal-actions {
   min-width: 0;
   margin-top: var(--ui-space-3, 12px);
@@ -9478,6 +9570,7 @@ textarea:-webkit-autofill:focus,
   }
 
   .property-multi-select-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     max-height: min(60dvh, 24rem);
   }
 

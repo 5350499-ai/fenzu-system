@@ -199,7 +199,7 @@ export default function SettingsPage() {
 
       <section className="card panel settings-entry-card">
         <div className="panel-header"><div><h2 className="panel-title">数据备份提醒</h2><p className="muted">按最近一次成功导出备份的时间重新计算提醒周期。</p></div></div>
-        <div className="settings-list">
+        <div className="settings-list backup-reminder-settings">
           <label className="field"><span>提醒周期</span><select value={backupReminderSettings.frequency} onChange={(event) => {
             const frequency = event.target.value as BackupReminderFrequency;
             const next = { ...backupReminderSettings, frequency, firstEnabledAt: frequency === "never" ? backupReminderSettings.firstEnabledAt : (backupReminderSettings.frequency === "never" ? new Date().toISOString() : backupReminderSettings.firstEnabledAt) };
