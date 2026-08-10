@@ -8195,9 +8195,6 @@ input[type="radio"] {
 }
 
 /* Final precedence for the first-round UI sample fixes. */
-html:has(.modal-backdrop), body:has(.modal-backdrop),
-html:has(.attachment-modal-backdrop), body:has(.attachment-modal-backdrop),
-html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { overflow: hidden; }
 .modal-backdrop, .attachment-modal-backdrop, .data-center-sheet-backdrop { overscroll-behavior: contain; }
 /* Keep the document locked behind a dialog while the dialog owns scrolling.
    On narrow screens the backdrop becomes the one scroll surface, preventing
@@ -8378,6 +8375,18 @@ html:has(.data-center-sheet-backdrop), body:has(.data-center-sheet-backdrop) { o
 
 .filter-grid > * {
   min-width: 0;
+}
+
+/* Filter fields are normal full-width controls, even when a native select
+   would otherwise keep its intrinsic content width. */
+.filter-grid .field,
+.filter-grid .field > select,
+.filter-grid .field > input:not([type="checkbox"]):not([type="radio"]),
+.filter-grid .field > textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .list-controls > *,

@@ -34,40 +34,6 @@ export function PropertyMultiSelect({
     if (!open) setPendingIds(selectedIds);
   }, [open, selectedIds]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const body = document.body;
-    const scrollY = window.scrollY;
-    const previous = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow
-    };
-
-    // Render outside scroll/transform ancestors and preserve the page position
-    // while the viewport dialog owns touch scrolling.
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
-    body.style.overflow = "hidden";
-
-    return () => {
-      body.style.position = previous.position;
-      body.style.top = previous.top;
-      body.style.left = previous.left;
-      body.style.right = previous.right;
-      body.style.width = previous.width;
-      body.style.overflow = previous.overflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, [open]);
-
   const allIds = orderedProperties.map((property) => property.id);
   const allSelected = allIds.length > 0 && pendingIds.length === allIds.length && allIds.every((id) => pendingIds.includes(id));
   const summary = selectedIds.length === allIds.length && allIds.length > 0

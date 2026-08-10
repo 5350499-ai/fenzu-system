@@ -308,6 +308,10 @@ historical compatibility pointer and must not receive new rules.
   transform.
 - Opening a modal locks the background while preserving its scroll position.
   The modal surface or a named internal list owns vertical scrolling.
+- Ordinary pages are vertically scrollable whenever their content exceeds the
+  viewport. A scroll lock is modal-scoped only: the single global modal manager
+  applies it while at least one dialog exists, then restores both the previous
+  scroll position and all inline document styles when the final dialog closes.
 - The modal maximum height uses `--ui-modal-max-height` and safe-area insets.
   Header and footer actions remain reachable; long middle content scrolls with
   `overflow-y:auto`, `overscroll-behavior:contain`, `touch-action:pan-y` and

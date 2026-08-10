@@ -829,3 +829,9 @@
 - Rendered PropertyMultiSelect through a viewport portal with explicit background scroll-position preservation; its header/footer remain reachable while the property list owns touch scrolling.
 - Rebuilt the backup-reminder settings rows into a compact, aligned setting layout without changing reminder timing or export behavior.
 - No database schema, migration, business data, financial calculation, permission, account, or Production changes.
+
+## 2026-08-10 - Modal scroll-lock lifecycle correction (Preview)
+
+- Removed PropertyMultiSelect's duplicate document scroll lock so the global modal-layer manager is the sole lock owner; closing a property selector no longer restores a stale locked body snapshot.
+- Removed the overlapping CSS `:has()` document lock and made filter-grid fields explicitly full width, preventing native select intrinsic sizing from narrowing the settlement time-range control.
+- No database schema, migration, business data, financial calculation, permission, account, or Production changes.
