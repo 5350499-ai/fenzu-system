@@ -780,7 +780,7 @@ function TapSelect({
     <div className={`field tap-select-field ${resolvedClassName}`} ref={rootRef}>
       <label htmlFor={triggerId}>{label}</label>
       <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
-        <button id={triggerId} className="tap-select-trigger ui-custom-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
+        <button id={triggerId} className="tap-select-trigger ui-custom-select-trigger" data-ui-control="composite-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
           <span>
             <strong>{selected?.label || placeholder}</strong>
             {selected?.description ? <small>{selected.description}</small> : null}

@@ -6,18 +6,26 @@ const css = readFileSync(resolve(root, "app/globals.css"), "utf8");
 const guide = readFileSync(resolve(root, "UI_DESIGN_SYSTEM.md"), "utf8");
 const claude = readFileSync(resolve(root, "CLAUDE.md"), "utf8");
 const architecture = readFileSync(resolve(root, "ARCHITECTURE.md"), "utf8");
+const searchableSelect = readFileSync(resolve(root, "components/searchable-select.tsx"), "utf8");
+const ownershipField = readFileSync(resolve(root, "components/ownership-field.tsx"), "utf8");
 
 const required = [
   [guide, "--ui-control-height-mobile", "UI guide must define the mobile control height"],
   [guide, "Checkbox/Radio 本体固定 18px", "UI guide must isolate checkbox/radio sizing"],
   [guide, "关闭时只能看到一个主控件边框", "UI guide must forbid nested closed-control borders"],
+  [guide, "Single-line Control Contract", "UI guide must define the single-line control contract"],
+  [guide, "Composite Select Contract", "UI guide must define the composite select contract"],
   [claude, "UI_DESIGN_SYSTEM.md", "CLAUDE.md must require the UI guide"],
   [architecture, "UI_DESIGN_SYSTEM.md", "ARCHITECTURE.md must identify the UI guide"],
   [css, "--ui-check-control-size: 18px", "CSS must define the checkbox/radio token"],
   [css, "--ui-control-height-mobile: 44px", "CSS must define the mobile control token"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
+  [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
-  [css, ".modal-backdrop", "Modal surfaces must use the shared backdrop"]
+  [css, ".modal-backdrop", "Modal surfaces must use the shared backdrop"],
+  [searchableSelect, "data-ui-control=\"composite-select\"", "SearchableSelect must declare its outer border owner"],
+  [searchableSelect, "data-ui-composite-input", "SearchableSelect must identify its borderless inner input"],
+  [ownershipField, "data-ui-control=\"single-line-select\"", "OwnershipField must use the single-line select contract"]
 ];
 
 const failures = required
@@ -26,6 +34,25 @@ const failures = required
 
 if (/touch-action\s*:\s*none/i.test(css)) {
   failures.push("Global CSS must not disable touch scrolling with touch-action:none");
+}
+
+if (/\.field\s+input:not\(\[type=["']checkbox["']\]\):not\(\[type=["']radio["']\]\)(?!:not\(\.ui-combobox-input\))/i.test(css)) {
+  failures.push("Broad .field input rules must explicitly exclude .ui-combobox-input");
+}
+
+const compositeInputRule = css.match(/\.field\.combobox-field\s*>\s*\.combobox\.ui-combobox-control\s*>\s*\.ui-combobox-input[\s\S]*?\{([\s\S]*?)\}/i)?.[1] || "";
+for (const [pattern, message] of [
+  [/border\s*:\s*0\s*;/i, "Composite inner inputs must be borderless"],
+  [/border-radius\s*:\s*0\s*;/i, "Composite inner inputs must not draw a second radius"],
+  [/background\s*:\s*transparent\s*;/i, "Composite inner inputs must keep a transparent background"],
+  [/box-shadow\s*:\s*none\s*;/i, "Composite inner inputs must not draw a second focus shadow"],
+  [/min-height\s*:\s*0\s*;/i, "Composite inner inputs must not impose their own control height"]
+]) {
+  if (!pattern.test(compositeInputRule)) failures.push(message);
+}
+
+if (/(?:input|select)[^\{]*\{[^\}]*\bwidth\s*:\s*(?:fit-content|min-content|max-content)\b/is.test(css)) {
+  failures.push("Input/select controls must not use intrinsic content widths");
 }
 
 if (failures.length) {

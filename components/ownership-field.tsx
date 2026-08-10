@@ -22,10 +22,11 @@ export function OwnershipField({
   const inputId = useId();
   return (
     <>
-      <div className={`field${className ? ` ${className}` : ""}`}>
+      <div className={`field ui-ownership-field${className ? ` ${className}` : ""}`}>
         <label htmlFor={inputId}>{label}</label>
         <select
           className="ui-native-select"
+          data-ui-control="single-line-select"
           disabled={optionsLoading || !options.length}
           id={inputId}
           value={mode}

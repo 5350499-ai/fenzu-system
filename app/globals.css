@@ -2469,7 +2469,7 @@ td:last-child {
   font-weight: 800;
 }
 
-.field input:not([type="checkbox"]):not([type="radio"]),
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
 .field select,
 .field textarea {
   display: block;
@@ -7193,7 +7193,7 @@ body,
 }
 
 .btn:focus-visible,
-.field input:focus-visible,
+.field input:not(.ui-combobox-input):focus-visible,
 .field select:focus-visible,
 .field textarea:focus-visible,
 .combobox:focus-within,
@@ -7244,7 +7244,7 @@ body,
   line-height: 1.35;
 }
 
-.field input:not([type="checkbox"]):not([type="radio"]),
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
 .field select,
 .field textarea,
 .combobox {
@@ -8272,7 +8272,7 @@ input[type="radio"] {
 .modal-card { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
 .modal-card > .panel-header:first-child { position: sticky; top: -20px; z-index: 2; flex: 0 0 auto; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); }
 .modal-card > .panel-header:first-child .btn { min-height: var(--ui-touch-target, 44px); }
-.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input), .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
 .tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
@@ -8290,7 +8290,7 @@ input[type="radio"] {
 .room-finance-line > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 @media (max-width: 640px) {
-  .field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
+  .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input), .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
   .modal-backdrop { display: block; overflow-y: auto; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
   .modal-card { width: 100%; min-height: 0; margin: 0 auto; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
@@ -8347,10 +8347,11 @@ label.field > span,
   line-height: var(--ui-line-height-normal, 1.45);
 }
 
-.field input:not([type="checkbox"]):not([type="radio"]),
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
 .field select,
 .field textarea,
 .ui-control,
+.ui-native-select,
 .combobox,
 .tap-select-trigger,
 .search-box,
@@ -8386,10 +8387,11 @@ label.field > span,
   max-width: 100%;
 }
 
-.field input:not([type="checkbox"]):not([type="radio"]),
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
 .field select,
 .field textarea,
 .ui-control,
+.ui-native-select,
 .date-range-inputs input,
 .filter-grid input,
 .filter-grid select,
@@ -8405,10 +8407,11 @@ label.field > span,
   box-sizing: border-box;
 }
 
-.field input:not([type="checkbox"]):not([type="radio"]),
+.field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
 .field select,
 .field textarea,
 .ui-control,
+.ui-native-select,
 .date-range-inputs input,
 .date-range-preset select,
 .list-controls select,
@@ -8421,7 +8424,19 @@ label.field > span,
 .combobox {
   display: flex;
   align-items: center;
+  height: var(--ui-form-control-height, 42px);
   padding: 0 12px;
+}
+
+/* Single-line controls own one exact visual box. Native ownership selects use
+   this same geometry instead of relying on WebKit intrinsic sizing. */
+.field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.field > select,
+.ui-control:not(textarea),
+.ui-native-select {
+  height: var(--ui-form-control-height, 42px);
+  min-height: var(--ui-form-control-height, 42px);
+  padding-block: 0;
 }
 
 .tap-select-trigger,
@@ -8441,14 +8456,18 @@ label.field > span,
   line-height: var(--ui-line-height-normal, 1.45);
 }
 
-.field .combobox > .ui-combobox-input,
-.combobox input,
+.field.combobox-field > .combobox.ui-combobox-control > .ui-combobox-input,
+.combobox > [data-ui-composite-input],
 .search-box input {
+  -webkit-appearance: none;
   appearance: none;
+  flex: 1 1 auto;
+  height: 100%;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 40px;
+  min-height: 0;
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -8457,6 +8476,12 @@ label.field > span,
   font-size: var(--ui-font-size-body, 14px);
   line-height: var(--ui-line-height-normal, 1.45);
   box-shadow: none;
+  outline: 0;
+}
+
+.ui-combobox-control > svg,
+.ui-combobox-control > .icon-button {
+  flex: 0 0 auto;
 }
 
 .search-box {
@@ -9291,7 +9316,7 @@ label.field > span,
     gap: var(--ui-space-1, 4px);
   }
 
-  .expense-form-grid .field input:not([type="checkbox"]):not([type="radio"]),
+  .expense-form-grid .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
   .expense-form-grid .field select,
   .expense-form-grid .combobox,
   .expense-form-grid .combobox input {
@@ -9366,8 +9391,8 @@ label.field > span,
 
 /* Global form focus policy: one dark control surface, one subtle border.
    Safari/iOS otherwise combines the browser ring with the shared focus shadow. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.ui-combobox-input):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.ui-combobox-input):focus-visible,
 textarea:focus,
 textarea:focus-visible,
 select:focus,
@@ -9384,7 +9409,7 @@ select:focus-visible {
   border-color: var(--ui-color-primary, var(--primary));
 }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.ui-combobox-input):focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 .combobox:has(input:focus-visible),
@@ -9420,11 +9445,23 @@ textarea:-webkit-autofill:active,
   transition: background-color 9999s ease-out 0s;
 }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):-webkit-autofill:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.ui-combobox-input):-webkit-autofill:focus,
 textarea:-webkit-autofill:focus,
 .combobox input:-webkit-autofill:focus,
 .search-box input:-webkit-autofill:focus {
   border-color: var(--ui-color-primary, var(--primary)) !important;
+}
+
+/* WebKit autofill must not recreate an inner rounded field inside a composite
+   select. The outer combobox remains the sole border and focus owner. */
+.combobox.ui-combobox-control > .ui-combobox-input:-webkit-autofill,
+.combobox.ui-combobox-control > .ui-combobox-input:-webkit-autofill:hover,
+.combobox.ui-combobox-control > .ui-combobox-input:-webkit-autofill:focus,
+.combobox.ui-combobox-control > .ui-combobox-input:-webkit-autofill:active {
+  border: 0 !important;
+  border-radius: 0;
+  -webkit-box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset !important;
+  box-shadow: 0 0 0 1000px var(--ui-color-surface, var(--surface)) inset !important;
 }
 
 /* Mobile interaction foundation: keep every form control inside its own
@@ -9697,15 +9734,25 @@ input[type="radio"] {
     font-size: 16px;
   }
 
-  .field input:not([type="checkbox"]):not([type="radio"]),
+  .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
   .field select,
   .ui-control,
+  .ui-native-select,
   .combobox,
   .tap-select-trigger,
   .pagination-size-select,
   .list-controls select,
   .filter-grid input,
   .filter-grid select {
+    min-height: var(--ui-control-height-mobile, 44px);
+  }
+
+  .field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .field > select,
+  .ui-control:not(textarea),
+  .ui-native-select,
+  .combobox.ui-combobox-control {
+    height: var(--ui-control-height-mobile, 44px);
     min-height: var(--ui-control-height-mobile, 44px);
   }
 

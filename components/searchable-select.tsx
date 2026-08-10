@@ -114,6 +114,7 @@ export function SearchableSelect({
       <label htmlFor={inputId}>{label}</label>
       <div
         className={`combobox ui-combobox-control ${disabled ? "disabled" : ""}`}
+        data-ui-control="composite-select"
         onMouseDown={(event) => {
           if (!disabled && event.target === event.currentTarget) openMenu();
         }}
@@ -125,6 +126,7 @@ export function SearchableSelect({
         <input
           id={inputId}
           className="ui-combobox-input"
+          data-ui-composite-input
           disabled={disabled}
           aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           aria-controls={open ? listboxId : undefined}

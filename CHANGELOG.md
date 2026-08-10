@@ -1,3 +1,10 @@
+## 2026-08-10 - Composite form-control convergence (Preview)
+
+- Made the shared SearchableSelect shell the sole border and focus owner; its inner input is now explicitly excluded from broad field rules in normal, mobile and WebKit autofill states.
+- Aligned native ownership selectors and short custom select triggers with the shared single-line control height, width, padding and intrinsic-sizing contract.
+- Extended the UI design-system validation to reject nested composite-input borders, undeclared composite structure and intrinsic input/select widths.
+- Preview only; no database, schema, migration, business data or Production changes.
+
 ## 2026-08-09 - Free single-member attribution and workflow continuity
 
 - Free accounts now use the existing member and property-share model: one account-linked self member with a 100% share, rather than hidden or fabricated A/B attribution.

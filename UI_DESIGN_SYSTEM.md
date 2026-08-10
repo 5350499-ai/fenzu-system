@@ -388,3 +388,38 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 6. 检查普通页面滚动、Modal 背景锁定和关闭后的滚动恢复；
 7. 确认没有新增 magic size、嵌套边框、checkbox/radio 放大或原生 select intrinsic width；
 8. 运行项目 UI 规范校验、TypeScript、Build 和 diff-check。
+
+## 23. Single-line Control Contract
+
+- A standard editable single-line control uses the shared control tokens only:
+  `--ui-form-control-height` (42px), `--ui-control-height-mobile` (44px),
+  `--ui-radius-md` (12px), `--ui-control-padding-inline` (12px), the shared
+  border, surface, text and focus colors.
+- Every single-line control must be `width:100%`, `min-width:0`,
+  `max-width:100%` and `box-sizing:border-box`. Its grid or flex parent must
+  also allow shrinking with `min-width:0`.
+- Native input/select, SearchableSelect, ownership select and a short custom
+  select trigger must align to the same visual height. Textarea, file input,
+  checkbox/radio and a documented multi-line trigger are explicit exceptions.
+- Page CSS must not assign an intrinsic width (`auto`, `fit-content`,
+  `min-content` or `max-content`) to a normal form control.
+
+## 24. Composite Select Contract
+
+- A composite select declares its outer border owner with
+  `data-ui-control="composite-select"`. The outer element owns the only border,
+  radius, background, height and focus treatment visible while closed.
+- Its editable text element declares `data-ui-composite-input` and must remain
+  borderless, transparent, unrounded and shadowless in normal, selected,
+  empty, disabled, focus and WebKit autofill states.
+- Broad selectors such as `.field input` must explicitly exclude
+  `.ui-combobox-input`. New composite controls must not depend on source order
+  to undo a broad field rule.
+- Search/value text is a flexible `min-width:0` region. Search icon and clear
+  button are fixed-size internal affordances and must not change the outer
+  control height.
+- A native ownership selector declares
+  `data-ui-control="single-line-select"` and uses the same height, padding,
+  width and focus tokens as ordinary native selects.
+- Dropdown panels may own a separate border only while open. They are not part
+  of the closed control border count.
