@@ -23,6 +23,9 @@ const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "
 const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
 const propertyMultiSelect = readFileSync(resolve(root, "components/property-multi-select.tsx"), "utf8");
 const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
+const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8");
+const tenantArchive = readFileSync(resolve(root, "lib/tenant-archive.ts"), "utf8");
+const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -58,6 +61,9 @@ const required = [
   [guide, "Shared tenant contact contract", "UI guide must define the existing tenant contact mapping"],
   [claude, "UI_DESIGN_SYSTEM.md", "CLAUDE.md must require the UI guide"],
   [architecture, "UI_DESIGN_SYSTEM.md", "ARCHITECTURE.md must identify the UI guide"],
+  [guide, "Tenant history and archive viewing contract", "UI guide must define tenant history protection and archive modes"],
+  [claude, "Tenant history is immutable", "CLAUDE.md must define tenant history protection"],
+  [architecture, "Tenant deletion is fail-closed", "ARCHITECTURE.md must define server-side tenant deletion checks"],
   [css, "--ui-check-control-size: 18px", "CSS must define the checkbox/radio token"],
   [css, "--ui-control-height-mobile: 44px", "CSS must define the mobile control token"],
   [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
@@ -254,6 +260,23 @@ for (const page of ["app/check-in/page.tsx", "app/expenses/page.tsx", "app/rent-
 
 if (/sortKey === "status"|toggleSort\("status"/.test(tenantsPage)) {
   failures.push("Tenant list must not expose status as the record sorting control");
+}
+
+if (!tenantDelete.includes("tenantHasBusinessData") || !tenantDelete.includes("tenantDeleteBusinessDataMessage")) {
+  failures.push("Tenant permanent deletion must use the shared business-history guard");
+}
+if (!tenantDeleteApi.includes("assertTenantHasNoBusinessData") || !tenantDeleteApi.includes("dryRun")) {
+  failures.push("Tenant permanent deletion must have a server-side preflight and final recheck");
+}
+if (!tenantArchive.includes("filterTenantsByArchiveMode") || !tenantsPage.includes("filterTenantsByArchiveMode")) {
+  failures.push("Tenant normal/archive modes must share one archive filter primitive");
+}
+const tenantDeleteFunction = tenantsPage.match(/async function permanentlyDeleteTenant\([\s\S]*?\n  \}/)?.[0] || "";
+if (tenantDeleteFunction.includes("saveBusinessData(rentPaymentKey") || tenantDeleteFunction.includes("saveBusinessData(depositKey") || tenantDeleteFunction.includes("saveBusinessData(contractKey")) {
+  failures.push("Tenant permanent deletion must not delete historical child records");
+}
+if (!tenantsPage.includes("filterTenantsByArchiveMode(tenants, showArchived)")) {
+  failures.push("Tenant normal/archive modes must use mutually exclusive data sources");
 }
 
 if (failures.length) {

@@ -4,6 +4,7 @@ import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-s
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
 import { classifyBusinessDeleteError } from "@/lib/server/delete-error";
+import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -32,7 +33,7 @@ function existingLookupColumns(table: string) {
   const columns: Record<string, string> = {
     properties: "id,notes",
     rooms: "id,status,notes,property_id",
-    tenants: "id,status,property_id",
+    tenants: "id,status,property_id,room_id",
     contracts: "id,status,notes,property_id",
     rent_payments: "id,notes,property_id",
     viewing_appointments: "id,notes,property_id",
@@ -94,7 +95,7 @@ async function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof
 
 export async function POST(request: Request) {
   try {
-    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean };
+    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean; dryRun?: boolean };
     const paymentUpdateRequiresOwner = body.key === "business-rent-payments"
       && body.operations?.some((operation) => operation?.action === "update");
     const context = await requireActiveAccount(request, body.ownerOnly === true);
@@ -147,6 +148,14 @@ export async function POST(request: Request) {
 
       if (operation.action === "delete") {
         await requireModulePermission(context, resource.module, "delete");
+        if (resource.table === "tenants") {
+          await assertTenantHasNoBusinessData(context, before as { id: string; status?: string; room_id?: string | null });
+          if (body.dryRun === true) {
+            savedRows.push({ id });
+            continue;
+          }
+        }
+        if (body.dryRun === true) continue;
         const { error } = await client.from(resource.table).delete().eq("id", id);
         if (error) {
           const classified = classifyBusinessDeleteError(error);

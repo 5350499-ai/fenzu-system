@@ -631,3 +631,8 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   field. This contract applies only to cross-property query scope filters.
 - Pages must not create another property range selector or a single-select
   replacement for a query scope.
+
+## 43. Tenant history and archive viewing contract
+
+- Historical tenant business data must never be removed as a side effect of deleting a tenant. Permanent deletion is allowed only for a completely empty tenant shell; contracts, payments, deposits, settlements, attachments and other tenant-linked records make deletion ineligible.
+- Tenant management has two mutually exclusive modes: normal mode shows only unarchived tenants, while archive mode shows only archived tenants. Search, the shared `PropertyMultiSelect`, and applicable sorting continue to operate inside the active mode and must not merge the two datasets.

@@ -43,7 +43,6 @@ import {
 import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
-import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-files";
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
@@ -51,6 +50,8 @@ import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, spl
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
+import { getValidSupabaseSession } from "@/lib/supabase";
+import { filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -128,6 +129,7 @@ export default function TenantsPage() {
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [currentExpanded, setCurrentExpanded] = useState(false);
   const [deleteTenantTarget, setDeleteTenantTarget] = useState<BusinessTenant | null>(null);
+  const [deleteBlockedMessage, setDeleteBlockedMessage] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -222,11 +224,9 @@ export default function TenantsPage() {
   useEffect(() => {
     if (loaded && properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
   }, [loaded, properties, selectedPropertyIds.length]);
-
   useEffect(() => {
     setPage(1);
   }, [query, selectedPropertyIds]);
-
   useEffect(() => {
     setRetiredExpanded(false);
     setCurrentExpanded(false);
@@ -245,7 +245,7 @@ export default function TenantsPage() {
 
   const filteredTenants = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    const visible = tenants.filter((tenant) => showArchived || !isArchivedTenant(tenant));
+    const visible = filterTenantsByArchiveMode(tenants, showArchived);
     const propertyVisible = selectedPropertyIds.length
       ? visible.filter((tenant) => selectedPropertyIds.includes(tenant.propertyId))
       : [];
@@ -285,12 +285,12 @@ export default function TenantsPage() {
 
   const pagedTenants = pageRows(sortedTenants, page, pageSize);
   const visibleTenantGroups = splitTenantGroups(pagedTenants);
-  const retiredVisible = visibleTenantGroups.retired;
+  const retiredVisible = showArchived ? [] : visibleTenantGroups.retired;
   const currentVisible = visibleTenantGroups.current;
   const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
   const showRetiredExpanded = retiredExpanded;
   const visibleCurrentTenants = currentExpanded ? currentVisible : currentVisible.slice(0, 8);
-  const visibleTenants = [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
+  const visibleTenants = showArchived ? pagedTenants : [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
 
   function updateTenantSearch(value: string) {
     setQuery(value);
@@ -714,49 +714,15 @@ export default function TenantsPage() {
       // generic business writer computes deletes from its remote-id snapshot;
       // using a stale page/cache snapshot can leave a child row behind and
       // make the later tenant delete fail at the FK boundary.
-      const [freshTenants, freshContracts, freshPayments, freshDeposits, freshRooms] = await Promise.all([
-        refreshBusinessData<BusinessTenant>(tenantKey, tenants),
-        refreshBusinessData<BusinessContract>(contractKey, contracts),
-        refreshBusinessData<BusinessRentPayment>(rentPaymentKey, payments),
-        refreshBusinessData<BusinessDeposit>(depositKey, deposits),
-        refreshBusinessData<BusinessRoom>(roomKey, rooms)
-      ]);
+      const freshTenants = await refreshBusinessData<BusinessTenant>(tenantKey, tenants);
       const freshTenant = freshTenants.find((item) => item.id === tenant.id);
       if (!freshTenant) throw new Error("租客记录已不存在，请刷新页面。" );
-      const tenantContracts = freshContracts.filter((contract) => contract.tenantId === tenant.id);
-      const tenantContractIds = tenantContracts.map((contract) => contract.id);
-      const tenantPayments = freshPayments.filter((payment) => payment.tenantId === tenant.id);
-      const tenantPaymentIds = tenantPayments.map((payment) => payment.id);
-      const contractFilesToDelete = contractFiles.filter((file) => file.tenantId === tenant.id || tenantContractIds.includes(file.contractId || ""));
-      let paymentFilesToDelete: Awaited<ReturnType<typeof loadRentPaymentFiles>> = [];
-      try {
-        paymentFilesToDelete = await loadRentPaymentFiles(tenantPaymentIds);
-      } catch {
-        paymentFilesToDelete = [];
-      }
-
-      for (const file of contractFilesToDelete) await deleteContractFile(file);
-      for (const file of paymentFilesToDelete) await deleteRentPaymentFile(file);
-
       const nextTenants = freshTenants.filter((item) => item.id !== tenant.id);
-      const nextContracts = freshContracts.filter((contract) => contract.tenantId !== tenant.id);
-      const nextPayments = freshPayments.filter((payment) => payment.tenantId !== tenant.id);
-      const nextDeposits = freshDeposits.filter((deposit) => deposit.tenantId !== tenant.id);
-      const nextRooms = syncRoomsAfterTenantRemoval(freshRooms, nextTenants, freshTenant.roomId);
-
-      // Delete child records before deleting the tenant row, otherwise FK rules block the tenant delete.
-      await saveBusinessData(rentPaymentKey, nextPayments);
-      await saveBusinessData(depositKey, nextDeposits);
-      await saveBusinessData(contractKey, nextContracts);
+      // The server checks every tenant relation again. An allowed delete only
+      // removes the empty tenant shell; historical child data is never deleted.
       await saveBusinessData(tenantKey, nextTenants);
-      await saveBusinessData(roomKey, nextRooms);
 
       setTenants(nextTenants);
-      setContracts(nextContracts);
-      setPayments(nextPayments);
-      setDeposits(nextDeposits);
-      setRooms(nextRooms);
-      setContractFiles((current) => current.filter((file) => file.tenantId !== tenant.id && !tenantContractIds.includes(file.contractId || "")));
       setDetailTenantId("");
     } catch (error: any) {
       window.alert(error.message || "永久删除租客失败，请稍后重试。");
@@ -767,14 +733,31 @@ export default function TenantsPage() {
     }
   }
 
-  function requestPermanentDelete(tenant: BusinessTenant) {
+  async function requestPermanentDelete(tenant: BusinessTenant) {
     const permissionMessage = tenantDeletePermissionMessage(access.can("tenants", "delete"));
     if (permissionMessage) {
       window.alert(permissionMessage);
       return;
     }
-    setDeleteConfirmation("");
-    setDeleteTenantTarget(tenant);
+    setSaving(true);
+    setDeleteBlockedMessage("");
+    try {
+      const session = await getValidSupabaseSession();
+      if (!session) throw new Error("登录状态已失效，请重新登录。");
+      const response = await fetch("/api/business-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ key: "business-tenants", dryRun: true, operations: [{ action: "delete", id: tenant.id }] })
+      });
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error || "暂时无法确认该租客是否可以永久删除，请稍后重试。");
+      setDeleteConfirmation("");
+      setDeleteTenantTarget(tenant);
+    } catch (error) {
+      setDeleteBlockedMessage(error instanceof Error ? error.message : "暂时无法确认该租客是否可以永久删除，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function addTenantFile(uploadContext: { tenantId: string; contractId: string | null }, file: File) {
@@ -823,8 +806,8 @@ export default function TenantsPage() {
             {access.can("tenants", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
               <Plus size={17} /> 新增租客
             </button> : null}
-            <button className="btn" onClick={() => setShowArchived((current) => !current)} type="button">
-              {showArchived ? "隐藏归档" : "显示归档"}
+            <button className="btn" onClick={() => { setShowArchived((current) => !current); setPage(1); setDetailTenantId(""); setRetiredExpanded(false); setCurrentExpanded(false); }} type="button">
+              {showArchived ? "返回租客" : "显示归档"}
             </button>
           </div>
         </div>
@@ -854,10 +837,11 @@ export default function TenantsPage() {
         </div>
 
         <div className="finance-list tenant-compact-list">
+          {showArchived && sortedTenants.length ? <div className="tenant-status-group-title">归档租客（{sortedTenants.length}组）</div> : null}
           {currentVisible.length ? <div className="tenant-status-group-title">当前租客（{currentCount}组）</div> : null}
           {visibleTenants.map((tenant, index, pageTenants) => {
-            const retired = isEndedTenantStatus(tenant.status);
-            const previousRetired = index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
+            const retired = !showArchived && isEndedTenantStatus(tenant.status);
+            const previousRetired = !showArchived && index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
             const property = properties.find((item) => item.id === tenant.propertyId);
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant);
@@ -1131,6 +1115,16 @@ export default function TenantsPage() {
         </div>
       ) : null}
 
+      {deleteBlockedMessage ? (
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteBlockedMessage(""); }}>
+          <section className="card modal-card deposit-status-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-delete-blocked-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header"><h2 className="panel-title" id="tenant-delete-blocked-title">无法永久删除</h2><button className="btn" onClick={() => setDeleteBlockedMessage("")} type="button"><X size={17} /> 关闭</button></div>
+            <p className="muted">{deleteBlockedMessage}</p>
+            <div className="modal-actions"><button className="btn primary" onClick={() => setDeleteBlockedMessage("")} type="button">知道了</button></div>
+          </section>
+        </div>
+      ) : null}
+
       {deleteTenantTarget ? (
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setDeleteTenantTarget(null); setDeleteConfirmation(""); } }}>
           <section className="card modal-card deposit-status-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-delete-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -1138,7 +1132,7 @@ export default function TenantsPage() {
               <h2 className="panel-title" id="tenant-delete-title">永久删除租客</h2>
               <button className="btn" onClick={() => { setDeleteTenantTarget(null); setDeleteConfirmation(""); }} type="button"><X size={17} /> 关闭</button>
             </div>
-            <p className="muted">此操作不可恢复，将删除租客资料及其关联收款、押金、合同和附件。请输入 DELETE 继续。</p>
+            <p className="muted">仅允许删除完全没有业务数据的空壳租客。历史合同、收款、押金、结算和附件绝不会因删除租客而被清理。</p>
             <div className="field">
               <label htmlFor="tenant-delete-confirmation">确认文字</label>
               <input id="tenant-delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" />
@@ -1601,7 +1595,7 @@ function syncRoomsAfterTenantRemoval(rooms: BusinessRoom[], tenants: BusinessTen
 }
 
 function isArchivedTenant(tenant: BusinessTenant) {
-  return tenant.status === "已归档";
+  return isArchivedTenantStatus(tenant.status);
 }
 
 function getExpiryInfo(endDate?: string) {
