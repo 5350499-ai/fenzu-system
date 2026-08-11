@@ -438,6 +438,7 @@ a {
   --ui-space-5: 20px;
   --ui-space-6: 24px;
   --ui-space-7: 32px;
+  --ui-section-stack-gap: var(--ui-space-2);
   --ui-radius-sm: 8px;
   --ui-radius-md: 12px;
   --ui-radius-lg: 16px;
@@ -9862,8 +9863,11 @@ input[type="month"],
 input[type="time"] {
   -webkit-appearance: auto;
   appearance: auto;
+  display: block;
   --ui-date-content-height: var(--ui-form-control-height, 42px);
   box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   height: var(--ui-form-control-height, 42px);
   min-height: var(--ui-form-control-height, 42px);
   max-width: 100%;
@@ -9872,6 +9876,20 @@ input[type="time"] {
   font-size: var(--ui-font-size-body, 14px);
   line-height: var(--ui-date-content-height);
   font-variant-numeric: tabular-nums;
+}
+
+/* The Field Box Contract applies to the real control and its grid item. Native
+   WebKit date/time inputs otherwise retain an intrinsic inline width. */
+:where(.form-grid, .check-in-form-grid, .tenant-form-grid, .rent-payment-form-grid, .expense-form-grid, .date-range-inputs) > :is(.field, .combobox-field, .tap-select-field, .ui-form-field) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Direct page sections are a stack, not adjacent borders. Keep this at the
+   layout layer so every screen inherits one stable card-to-card separation. */
+.main > :is(section.card, section.panel, .ui-section-card) + :is(section.card, section.panel, .ui-section-card) {
+  margin-top: var(--ui-section-stack-gap, 8px);
 }
 
 input[type="date"]::-webkit-date-and-time-value,

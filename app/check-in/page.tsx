@@ -42,6 +42,7 @@ function createInitialForm() {
     roomId: "",
     tenantName: "",
     phone: "",
+    wechat: "",
     documentNumber: "",
     contractEndDate: "",
     amountPaid: 0,
@@ -162,6 +163,7 @@ export default function CheckInPage() {
           roomId: form.roomId,
           tenantName: form.tenantName,
           phone: form.phone,
+          wechat: form.wechat,
           documentNumber: form.documentNumber,
           rentAmount: form.amountPaid,
           depositAmount: form.depositAmount,
@@ -180,6 +182,7 @@ export default function CheckInPage() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "保存入住失败，本次没有产生任何记录。");
+      const contactSaveWarning = String(payload?.contactSaveWarning || "");
       const result = payload?.result as {
         tenantId: string;
         contractId: string;
@@ -197,7 +200,7 @@ export default function CheckInPage() {
         roomId: form.roomId,
         name: form.tenantName.trim(),
         phone: form.phone,
-        wechat: "",
+        wechat: form.wechat,
         source: "其他",
         monthlyRent: effectiveMonthlyRent,
         depositAmount: form.depositAmount,
@@ -271,7 +274,7 @@ export default function CheckInPage() {
       setAdvancedOpen(false);
       setAttachmentsOpen(false);
       setForm(createInitialForm());
-      setCompletionMessage(attachmentFailed ? "入住已保存，但附件上传失败，正在返回租客管理。" : "入住保存成功，正在返回租客管理。");
+      setCompletionMessage(contactSaveWarning || (attachmentFailed ? "入住已保存，但附件上传失败，正在返回租客管理。" : "入住保存成功，正在返回租客管理。"));
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
       submitLockRef.current = false;
@@ -315,10 +318,11 @@ export default function CheckInPage() {
           <TextField label="租客姓名" required value={form.tenantName} onChange={(tenantName) => setForm((current) => ({ ...current, tenantName }))} />
           <div className="field"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount || ""} onChange={(event) => setForm((current) => ({ ...current, occupantCount: Number(event.target.value) }))} /></div>
           <TextField label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-          <TextField label="证件号（可选）" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
+          <TextField label="WhatsApp / 其他" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
+          <TextField label="证件号" value={form.documentNumber} onChange={(documentNumber) => setForm((current) => ({ ...current, documentNumber }))} />
           <MoneyInput label="本次房租金额" value={form.amountPaid} onChange={(amountPaid) => setForm((current) => ({ ...current, amountPaid }))} />
           <MoneyInput label="本次押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
-          <div className="field"><label>每月缴费日（可选）</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
+          <div className="field"><label>每月缴费日</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
           <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
           <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate} onChange={(event) => setForm((current) => ({ ...current, coverageStartDate: event.target.value }))} /></div>
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
@@ -338,7 +342,7 @@ export default function CheckInPage() {
                   <input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} />
                 </div>
                 <div className="field compact-field">
-                  <label>合同结束日期（可选）</label>
+                  <label>合同结束日期</label>
                   <input type="date" value={form.contractEndDate} onChange={(event) => setForm((current) => ({ ...current, contractEndDate: event.target.value }))} />
                 </div>
                 <SearchableSelect label="押金状态" value={form.depositStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(depositStatus) => setForm((current) => ({ ...current, depositStatus }))} />

@@ -17,6 +17,7 @@ type CheckInBody = {
   roomId?: string;
   tenantName?: string;
   phone?: string;
+  wechat?: string;
   documentNumber?: string;
   rentAmount?: number;
   depositAmount?: number;
@@ -123,7 +124,21 @@ export async function POST(request: Request) {
       throw new AccountApiError("保存入住失败，本次没有产生任何记录。", 500);
     }
 
-    return NextResponse.json({ ok: true, result: data });
+    const tenantId = String((data as { tenantId?: string } | null)?.tenantId || "");
+    let contactSaveWarning = "";
+    if (tenantId && body.wechat?.trim()) {
+      // The check-in RPC predates the existing tenants.wechat column. Keep the
+      // financial/room transaction intact, then update only the tenant that
+      // this trusted RPC just created in the same workspace.
+      const { error: contactError } = await getSupabaseAdmin()
+        .from("tenants")
+        .update({ wechat: body.wechat.trim() })
+        .eq("id", tenantId)
+        .eq("user_id", context.profile.workspace_owner_id);
+      if (contactError) contactSaveWarning = "入住已完成，但 WhatsApp / 其他联系方式未保存，请到租客管理补充。";
+    }
+
+    return NextResponse.json({ ok: true, result: data, contactSaveWarning: contactSaveWarning || undefined });
   } catch (error) {
     return apiErrorResponse(error);
   }

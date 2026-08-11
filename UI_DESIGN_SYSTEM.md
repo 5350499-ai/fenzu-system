@@ -514,7 +514,53 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Tenant contact labels are presentation-only. The shared display label for the
   existing contact field is `WhatsApp / 其他`; its database key is unchanged.
 
-## 32. Tenant list time-sort contract
+## 32. Form Grid / Field Box Contract
+
+- A semantic form row uses `minmax(0, 1fr)` columns. Every field wrapper and
+  its visible single-line control uses `width:100%`, `min-width:0`,
+  `max-width:100%` and `box-sizing:border-box`.
+- Native `date`, `datetime-local`, `month` and `time` inputs are full-width
+  Field Box controls. Their WebKit intrinsic value width must never decide a
+  grid column width or make a date box narrower than an adjacent text/select
+  control.
+- Pages must not add local width, height, padding or `justify-self` overrides
+  to ordinary Field Box controls. Checkbox/radio and multiline textarea remain
+  explicit, documented exceptions.
+
+## 33. Section / Card Stack Gap Contract
+
+- Direct sibling page sections use `--ui-section-stack-gap` (8px) between
+  cards/panels. Borders must never touch or overlap because a page omitted a
+  local margin.
+- The stack gap belongs to the shared layout layer. Pages must not recreate it
+  with random per-section `margin-bottom` values.
+
+## 34. Tenant room-sort contract
+
+- The tenant `房间` sort uses the room's stable `room_number`, falling back to
+  its name only when no room number exists. It uses numeric natural collation
+  (`1, 2, 3, 10`; `A2, A10`) in both directions.
+- Records without a room assignment remain last in both ascending and
+  descending room sort. Status is only a room-sort tie-breaker.
+
+## 35. Shared tenant contact contract
+
+- The existing `tenants.wechat` field is the single persistence mapping for
+  the presentation label `WhatsApp / 其他`, including one-click check-in and
+  tenant create/edit. No parallel contact column may be introduced for this
+  label.
+- A plain optional field does not need a repeated `（可选）` suffix. Retain the
+  suffix only when optionality changes the business meaning, such as an
+  intentionally unlinked room or tenant relationship.
+
+## 36. Profit analysis information order
+
+- Property profit analysis is ordered as: statistics scope (date + property),
+  time controls, profit overview, property results, then monthly results.
+  Time controls and result output must be structurally separate so a user can
+  choose scope before seeing the result cards.
+
+## 37. Tenant list time-sort contract
 
 - The tenant list `时间` sort uses the immutable `tenants.created_at` mapping
   (`BusinessTenant.createdAt`), never `updated_at`, move-in date, coverage date

@@ -30,6 +30,20 @@ export function extractRoomNumber(value: string | undefined | null): number | nu
   return match ? Number(match[0]) : null;
 }
 
+/**
+ * Room labels are user-entered values.  Keep empty assignments at the end,
+ * while using the platform's numeric collation for labels such as 1, 2, 10
+ * and mixed values such as A2 / A10.
+ */
+export function compareRoomLabels(left: string | undefined | null, right: string | undefined | null) {
+  const leftValue = String(left || "").trim();
+  const rightValue = String(right || "").trim();
+  if (!leftValue && !rightValue) return 0;
+  if (!leftValue) return 1;
+  if (!rightValue) return -1;
+  return leftValue.localeCompare(rightValue, "zh-Hans-CN", { numeric: true, sensitivity: "base" });
+}
+
 export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], rooms: RoomLike[], options: {
   mode?: TenantSortMode;
   direction?: "asc" | "desc";
@@ -47,18 +61,22 @@ export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], r
     const rightEnded = isEndedTenantStatus(b.tenant.status);
     // Time is an explicit record-level sort: display status must not add a
     // hidden status ordering ahead of tenants.created_at.
-    if (mode !== "time" && leftEnded !== rightEnded) return leftEnded ? 1 : -1;
     const leftRoom = roomById.get(a.tenant.roomId || "");
     const rightRoom = roomById.get(b.tenant.roomId || "");
-    const leftRoomNumber = extractRoomNumber(leftRoom?.roomNumber || leftRoom?.name);
-    const rightRoomNumber = extractRoomNumber(rightRoom?.roomNumber || rightRoom?.name);
-    const roomCompare = leftRoomNumber === null && rightRoomNumber === null ? 0 : leftRoomNumber === null ? 1 : rightRoomNumber === null ? -1 : leftRoomNumber - rightRoomNumber;
-    let difference = mode === "room" ? roomCompare : 0;
+    const leftRoomLabel = leftRoom?.roomNumber || leftRoom?.name || "";
+    const rightRoomLabel = rightRoom?.roomNumber || rightRoom?.name || "";
+    const roomCompare = compareRoomLabels(leftRoomLabel, rightRoomLabel);
+    const roomMissing = !String(leftRoomLabel).trim() || !String(rightRoomLabel).trim();
+    // A room sort is primarily a room sort: status is only a tie-breaker. This
+    // also keeps a missing room assignment stable at the end in both directions.
+    if (mode !== "time" && mode !== "room" && leftEnded !== rightEnded) return leftEnded ? 1 : -1;
+    let difference = mode === "room" ? roomCompare * (roomMissing ? 1 : direction) : 0;
     if (!difference && mode === "rent") difference = (Number(a.tenant.monthlyRent) - Number(b.tenant.monthlyRent)) * direction;
     if (!difference && mode === "property") difference = compareText(options.getProperty?.(a.tenant) || "", options.getProperty?.(b.tenant) || "") * direction;
     if (!difference && mode === "expiry") difference = compareText(options.getExpiry?.(a.tenant) || "9999-12-31", options.getExpiry?.(b.tenant) || "9999-12-31") * direction;
     if (!difference && mode === "time") difference = compareText(a.tenant.createdAt || "", b.tenant.createdAt || "") * direction;
     if (!difference && mode === "priority") difference = ((options.getStatusRank?.(a.tenant) || 0) - (options.getStatusRank?.(b.tenant) || 0)) * direction;
+    if (!difference && mode === "room" && leftEnded !== rightEnded) difference = leftEnded ? 1 : -1;
     if (!difference && leftEnded) difference = compareDateDesc(a.tenant.actualMoveOutDate || a.tenant.updatedAt || a.tenant.createdAt || "", b.tenant.actualMoveOutDate || b.tenant.updatedAt || b.tenant.createdAt || "");
     if (!difference) difference = roomCompare;
     if (!difference) difference = compareText(a.tenant.name || "", b.tenant.name || "");

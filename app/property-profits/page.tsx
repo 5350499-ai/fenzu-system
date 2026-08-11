@@ -188,6 +188,28 @@ export default function PropertyProfitsPage() {
         </div>
       </section>
 
+      <section className="card panel profit-time-controls-panel">
+        <div className="panel-header">
+          <div><h2 className="panel-title">时间统计控制</h2><p className="muted">先选择时间范围，再查看当前范围内的经营结果。</p></div>
+        </div>
+        <div className="profit-period-switch" role="tablist" aria-label="利润时间模式">
+          {([['overview', '总览'], ['year', '按年'], ['custom', '自定义']] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? 'active' : ''}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => selectMonthlyMode(value)}>{label}</button>)}
+        </div>
+        {monthlyMode === 'custom' ? <div className="global-custom-range-controls">
+          <div className="field"><label>开始日期</label><input type="date" value={customStart} max={customEnd || undefined} onChange={(event) => setCustomStart(event.target.value)} /></div>
+          <div className="field"><label>结束日期</label><input type="date" value={customEnd} min={customStart || undefined} onChange={(event) => setCustomEnd(event.target.value)} /></div>
+          <div className="global-custom-range-actions"><button className="btn primary" type="button" onClick={applyCustomRange}>应用</button><button className="btn" type="button" onClick={resetCustomRange}>重置</button></div>
+          {customError ? <p className="form-error global-custom-range-error">{customError}</p> : null}
+        </div> : null}
+        {monthlyMode !== 'overview' ? <div className="global-monthly-controls">
+          {monthlyMode === 'year' ? <>
+            <button className="btn" type="button" disabled={monthlyYear <= availableYears[0]} onClick={() => setMonthlyYear((current) => Math.max(availableYears[0], current - 1))}>上一年</button>
+            <strong>{monthlyYear}年</strong>
+            <button className="btn" type="button" disabled={monthlyYear >= availableYears[availableYears.length - 1]} onClick={() => setMonthlyYear((current) => Math.min(availableYears[availableYears.length - 1], current + 1))}>下一年</button>
+          </> : <strong>{range.start} 至 {range.end}</strong>}
+        </div> : null}
+      </section>
+
       <section className="card profit-overview-card" aria-label={scopeLabel}>
         <div className="profit-overview-header">
           <div>
@@ -227,30 +249,14 @@ export default function PropertyProfitsPage() {
 
       <section className="card panel global-monthly-profit-panel">
         <div className="panel-header">
-          <div><h2 className="panel-title">按月经营统计</h2><p className="muted">{scopeLabel} · 收入、支出、利润与出租率</p></div>
+          <div><h2 className="panel-title">按月经营结果</h2><p className="muted">{scopeLabel} · 收入、支出、利润与出租率</p></div>
         </div>
-        <div className="profit-period-switch" role="tablist" aria-label="利润时间模式">
-          {([["overview", "总览"], ["year", "按年"], ["custom", "自定义"]] as const).map(([value, label]) => <button className={`tab-button ${monthlyMode === value ? "active" : ""}`} key={value} type="button" role="tab" aria-selected={monthlyMode === value} onClick={() => selectMonthlyMode(value)}>{label}</button>)}
-        </div>
-        {monthlyMode === "custom" ? <div className="global-custom-range-controls">
-          <div className="field"><label>开始日期</label><input type="date" value={customStart} max={customEnd || undefined} onChange={(event) => setCustomStart(event.target.value)} /></div>
-          <div className="field"><label>结束日期</label><input type="date" value={customEnd} min={customStart || undefined} onChange={(event) => setCustomEnd(event.target.value)} /></div>
-          <div className="global-custom-range-actions"><button className="btn primary" type="button" onClick={applyCustomRange}>应用</button><button className="btn" type="button" onClick={resetCustomRange}>重置</button></div>
-          {customError ? <p className="form-error global-custom-range-error">{customError}</p> : null}
-        </div> : null}
         <div className={`global-profit-overview-values ${monthlyMode === "custom" ? "custom-period-overview-values" : ""}`}>
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计收入" : "时间段收入"} value={euro(totals.income)} />
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计支出" : "时间段支出"} value={euro(totals.expense)} />
           <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计净利润" : "时间段净利润"} value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
           {monthlyMode === "custom" ? <div className="profit-secondary-metric custom-period-occupancy-metric"><span>时间段出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.availableDays > 0 ? `${occupancySummary.rentedDays}/${occupancySummary.availableDays} 房间日` : "暂无数据"}</small></div> : null}
         </div>
-        {monthlyMode !== "overview" ? <div className="global-monthly-controls">
-          {monthlyMode === "year" ? <>
-            <button className="btn" type="button" disabled={monthlyYear <= availableYears[0]} onClick={() => setMonthlyYear((current) => Math.max(availableYears[0], current - 1))}>上一年</button>
-            <strong>{monthlyYear}年</strong>
-            <button className="btn" type="button" disabled={monthlyYear >= availableYears[availableYears.length - 1]} onClick={() => setMonthlyYear((current) => Math.min(availableYears[availableYears.length - 1], current + 1))}>下一年</button>
-          </> : <strong>{range.start} 至 {range.end}</strong>}
-        </div> : null}
         <div className="global-monthly-list">
           {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
             <div className="unified-monthly-column unified-monthly-left">

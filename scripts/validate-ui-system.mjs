@@ -17,6 +17,8 @@ const paymentMethodPresets = readFileSync(resolve(root, "lib/payment-method-pres
 const tenantsPage = readFileSync(resolve(root, "app/tenants/page.tsx"), "utf8");
 const tenantSorting = readFileSync(resolve(root, "lib/tenant-sorting.ts"), "utf8");
 const businessData = readFileSync(resolve(root, "lib/business-data.ts"), "utf8");
+const checkInPage = readFileSync(resolve(root, "app/check-in/page.tsx"), "utf8");
+const propertyProfitsPage = readFileSync(resolve(root, "app/property-profits/page.tsx"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -42,11 +44,16 @@ const required = [
   [guide, "WebKit vertical alignment", "UI guide must define WebKit date-value alignment"],
   [guide, "Shared business preset contract", "UI guide must define shared business presets"],
   [guide, "Tenant list time-sort contract", "UI guide must define tenant record-time sorting"],
+  [guide, "Form Grid / Field Box Contract", "UI guide must define the Field Box contract"],
+  [guide, "Section / Card Stack Gap Contract", "UI guide must define the card stack gap"],
+  [guide, "Tenant room-sort contract", "UI guide must define natural tenant room sorting"],
+  [guide, "Shared tenant contact contract", "UI guide must define the existing tenant contact mapping"],
   [claude, "UI_DESIGN_SYSTEM.md", "CLAUDE.md must require the UI guide"],
   [architecture, "UI_DESIGN_SYSTEM.md", "ARCHITECTURE.md must identify the UI guide"],
   [css, "--ui-check-control-size: 18px", "CSS must define the checkbox/radio token"],
   [css, "--ui-control-height-mobile: 44px", "CSS must define the mobile control token"],
   [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
+  [css, "--ui-section-stack-gap", "CSS must define the shared section stack token"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
   [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
@@ -65,6 +72,7 @@ const required = [
   [paymentMethodPresets, "paymentMethodOptions", "Historical payment methods must have a non-destructive display compatibility helper"],
   [tenantsPage, 'label="时间"', "Tenant list must expose the record-time sort"],
   [tenantSorting, '"time"', "Tenant sorting must support the record-time mode"],
+  [tenantSorting, "compareRoomLabels", "Tenant room sorting must use natural labels"],
   [businessData, 'createdAt: row.created_at', "Tenant mappings must expose the immutable database creation time"]
 ];
 
@@ -128,6 +136,8 @@ if (!/input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\)[\s\S]*?font-size\
 const dateFieldRule = css.match(/input\[type="date"\],[\s\S]*?input\[type="time"\]\s*\{([\s\S]*?)\}/i)?.[1] || "";
 for (const [pattern, message] of [
   [/height\s*:\s*var\(--ui-form-control-height/i, "Date fields must use the shared desktop control height"],
+  [/width\s*:\s*100%/i, "Date fields must fill their Field Box width"],
+  [/min-width\s*:\s*0/i, "Date fields must be allowed to shrink inside a grid cell"],
   [/padding-block\s*:\s*0/i, "Date fields must not use vertical padding"],
   [/font-variant-numeric\s*:\s*tabular-nums/i, "Date fields must use stable tabular numerals"]
 ]) {
@@ -142,6 +152,27 @@ if (!/height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) 
 
 if (!/--ui-date-content-height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) {
   failures.push("Mobile date fields must give Safari's value tree the shared 44px content height");
+}
+
+if (!/\.main\s*>\s*:is\(section\.card, section\.panel, \.ui-section-card\)\s*\+\s*:is\(section\.card, section\.panel, \.ui-section-card\)/.test(css)) {
+  failures.push("Direct page card stacks must use the shared section gap contract");
+}
+
+if (!checkInPage.includes("wechat: form.wechat") || !checkInPage.includes('label="WhatsApp / 其他"')) {
+  failures.push("One-click check-in must reuse the existing tenant contact field and label");
+}
+
+if (/每月缴费日（可选）/.test(checkInPage) || /每月缴费日（可选）/.test(tenantsPage)) {
+  failures.push("Ordinary payment-day labels must not repeat a redundant optional suffix");
+}
+
+const profitScopeIndex = propertyProfitsPage.indexOf("profit-filter-panel");
+const profitTimeControlsIndex = propertyProfitsPage.indexOf("profit-time-controls-panel");
+const profitOverviewIndex = propertyProfitsPage.indexOf("profit-overview-card");
+const profitPropertiesIndex = propertyProfitsPage.indexOf("property-profit-panel");
+const profitMonthlyResultsIndex = propertyProfitsPage.indexOf("global-monthly-profit-panel");
+if (!(profitScopeIndex < profitTimeControlsIndex && profitTimeControlsIndex < profitOverviewIndex && profitOverviewIndex < profitPropertiesIndex && profitPropertiesIndex < profitMonthlyResultsIndex)) {
+  failures.push("Property profits must keep the scope-to-time-to-results information order");
 }
 
 for (const { path, source } of uiSources) {
