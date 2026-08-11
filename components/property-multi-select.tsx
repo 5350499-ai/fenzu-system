@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { allPropertyIds, isAllPropertyScope, togglePropertyScope } from "@/lib/property-scope";
 
-type PropertyChoice = { id: string; name: string; createdAt?: string };
+export type PropertyChoice = { id: string; name: string; createdAt?: string };
 
 export function PropertyMultiSelect({
   properties,
@@ -34,8 +35,8 @@ export function PropertyMultiSelect({
     if (!open) setPendingIds(selectedIds);
   }, [open, selectedIds]);
 
-  const allIds = orderedProperties.map((property) => property.id);
-  const allSelected = allIds.length > 0 && pendingIds.length === allIds.length && allIds.every((id) => pendingIds.includes(id));
+  const allIds = allPropertyIds(orderedProperties);
+  const allSelected = isAllPropertyScope(pendingIds, orderedProperties);
   const summary = selectedIds.length === allIds.length && allIds.length > 0
     ? "全部房源"
     : selectedIds.length === 0
@@ -45,7 +46,7 @@ export function PropertyMultiSelect({
         : `已选 ${selectedIds.length} 套房源`;
 
   function toggle(id: string) {
-    setPendingIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setPendingIds((current) => togglePropertyScope(current, id));
   }
 
   return <div className="field property-multi-select">

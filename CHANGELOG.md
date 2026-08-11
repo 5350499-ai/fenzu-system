@@ -881,3 +881,8 @@
 - Repaired the shared native date/time Field Box chain at the grid-cell and control appearance layers so Safari intrinsic sizing cannot shorten date frames.
 - Unified monthly and yearly profit-result responsive columns, preserving readable period/occupancy information and aligned financial metrics without changing calculations.
 - No database schema, migration, real business data, financial calculation, permission, account or Production changes.
+## 2026-08-11 - Shared property scope and tenant list safety (Preview)
+
+- Query/list/analytics/settlement property ranges now share `PropertyMultiSelect` and `lib/property-scope.ts`; business record attribution fields remain single-property fields.
+- Tenant filtering now supports all or multiple properties, with current tenants capped at eight collapsed rows by default and retired tenants collapsed by default.
+- Tenant permanent-delete preparation refreshes authoritative child snapshots before deletion. Delete API errors now distinguish permission denial from foreign-key references instead of reporting every failure as a permission error.

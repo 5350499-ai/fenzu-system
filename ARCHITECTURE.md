@@ -315,6 +315,12 @@ contract: period/occupancy receives the readable space, financial columns use
 compact aligned values, and the first-row baselines remain aligned. Layout
 changes must not alter the calculation or filtering layer.
 
+Cross-property query scope is one shared UI/data contract: pages use
+`components/property-multi-select.tsx` with `lib/property-scope.ts` for all,
+single, or multi-property filtering. Record attribution fields such as a
+tenant's or payment's `property_id` remain single-value business fields and
+are not range filters.
+
 - Why one CacheManager: one place owns cache versioning, account isolation, TTL, invalidation, cross-tab events and diagnostics, so new modules do not drift into incompatible cache behavior.
 - Why two layers: memory cache makes in-app navigation fast, while IndexedDB survives browser restarts without placing business records in localStorage.
 - Why SWR: cached data can render first and server reconciliation runs in the background, avoiding a blank page while still converging on current data.

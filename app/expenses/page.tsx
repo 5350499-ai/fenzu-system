@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
+import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
   BusinessExpense,
@@ -66,7 +67,7 @@ export default function ExpensesPage() {
   const [filesLoadError, setFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessExpense>(emptyExpense);
   const [open, setOpen] = useState(false);
-  const [propertyFilter, setPropertyFilter] = useState("");
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
   const [dateStart, setDateStart] = useState("");
@@ -150,12 +151,15 @@ export default function ExpensesPage() {
     () =>
       expenses.filter(
         (expense) =>
-          (!propertyFilter || expense.propertyId === propertyFilter) &&
+          selectedPropertyIds.includes(expense.propertyId) &&
           (!categoryFilter || expense.category === categoryFilter) &&
           isDateInRange(expense.paymentDate, { startDate: dateStart, endDate: dateEnd })
       ),
-    [categoryFilter, dateEnd, dateStart, expenses, propertyFilter]
+    [categoryFilter, dateEnd, dateStart, expenses, selectedPropertyIds]
   );
+  useEffect(() => {
+    if (properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+  }, [properties, selectedPropertyIds.length]);
   const filteredExpenseTotal = useMemo(
     () => filteredExpenses.reduce((total, expense) => total + Number(expense.amount || 0), 0),
     [filteredExpenses]
@@ -287,7 +291,7 @@ export default function ExpensesPage() {
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
-          <select value={propertyFilter} onChange={(event) => { setPropertyFilter(event.target.value); setPage(1); }}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
+          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
           <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categoryFilterOptions.map((category) => <option key={category} value={category}>{category}</option>)}</select>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
         </div>

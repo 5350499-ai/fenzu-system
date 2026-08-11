@@ -144,6 +144,10 @@ inline-size contract as ordinary controls; page-local date width fixes are
 not allowed. Monthly and yearly profit result rows must reuse the shared
 responsive Profit Result Row Contract in `UI_DESIGN_SYSTEM.md`.
 
+Cross-property query/list/analytics/settlement filters must reuse
+`PropertyMultiSelect` and `lib/property-scope.ts`; only a business record's
+single `property_id` attribution may remain a native single selector.
+
 - 所有代码修改完成后，必须先运行 `npm run build`。
 - 构建通过后，必须先部署到 Vercel Preview。
 - 未经用户明确验收，不得直接部署或 Promote 到 Production。

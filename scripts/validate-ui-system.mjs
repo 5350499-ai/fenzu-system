@@ -21,6 +21,8 @@ const checkInPage = readFileSync(resolve(root, "app/check-in/page.tsx"), "utf8")
 const propertyProfitsPage = readFileSync(resolve(root, "app/property-profits/page.tsx"), "utf8");
 const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "utf8");
 const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
+const propertyMultiSelect = readFileSync(resolve(root, "components/property-multi-select.tsx"), "utf8");
+const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -85,6 +87,12 @@ const required = [
   [cacheManager, "db.onversionchange", "IndexedDB cache must invalidate a connection on versionchange"],
   [cacheManager, "database connection is closing", "IndexedDB cache must recognize closing connection errors"],
   [cacheManager, "attempt < 2", "IndexedDB cache self-heal must have a single retry limit"]
+  ,[propertyMultiSelect, "PropertyMultiSelect", "Property scope filters must use the shared PropertyMultiSelect"],
+  [propertyScope, "isAllPropertyScope", "Property scope semantics must be shared"],
+  [tenantsPage, "selectedPropertyIds", "Tenant list must use the shared property scope state"],
+  [readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8"), "PropertyMultiSelect", "Expense list property scope must use the shared selector"],
+  [readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8"), "PropertyMultiSelect", "Rent payment list property scope must use the shared selector"],
+  [readFileSync(resolve(root, "app/partner-settlements/page.tsx"), "utf8"), "PropertyMultiSelect", "Settlement history property scope must use the shared selector"]
 ];
 
 const failures = required

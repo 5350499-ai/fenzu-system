@@ -613,3 +613,21 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   monthly operating results, profit overview, then property results and any
   remaining detail sections. This is presentation order only; it must not
   change financial calculation or filtering semantics.
+
+## 42. Property scope filter contract
+
+- Any query, list, analytics, profit or settlement range filter across
+  properties must use the shared `PropertyMultiSelect` component and the
+  shared `lib/property-scope.ts` semantics.
+- The default selection is every available property. A single selection and
+  any multi-property combination are both valid; applying the selection must
+  filter the data query, not only change the label.
+- `全部房源` means the concrete set of all available property IDs. It is not a
+  fake property ID and it must not be stored in business filter arrays.
+- Clearing the draft selection is allowed while editing, but applying an
+  empty range must be rejected with a clear user message and must not silently
+  revert to all properties. Reopening the selector must show the applied set.
+- A business record's own `property_id` attribution remains a single-value
+  field. This contract applies only to cross-property query scope filters.
+- Pages must not create another property range selector or a single-select
+  replacement for a query scope.

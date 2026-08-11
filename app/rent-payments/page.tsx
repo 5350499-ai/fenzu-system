@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
+import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { TapSelect } from "@/components/tap-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
@@ -92,7 +93,7 @@ export default function RentPaymentsPage() {
   const [form, setForm] = useState<BusinessRentPayment>(emptyPayment);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [propertyFilter, setPropertyFilter] = useState("");
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
@@ -243,11 +244,14 @@ export default function RentPaymentsPage() {
       const tenant = tenants.find((item) => item.id === payment.tenantId);
       const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.incomeType || "房租收入"} ${payment.incomeItem || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
       return (!keyword || text.includes(keyword)) &&
-        (!propertyFilter || payment.propertyId === propertyFilter) &&
+        selectedPropertyIds.includes(payment.propertyId) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, payments));
     });
-  }, [dateEnd, dateStart, overdueOnly, payments, properties, propertyFilter, query, rooms, tenants]);
+  }, [dateEnd, dateStart, overdueOnly, payments, properties, selectedPropertyIds, query, rooms, tenants]);
+  useEffect(() => {
+    if (properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+  }, [properties, selectedPropertyIds.length]);
   const filteredPaymentTotal = useMemo(
     () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment), 0),
     [filteredPayments]
@@ -575,7 +579,7 @@ export default function RentPaymentsPage() {
 
   function resetFilters() {
     setQuery("");
-    setPropertyFilter("");
+    setSelectedPropertyIds(properties.map((property) => property.id));
     setDatePreset("all");
     setDateStart("");
     setDateEnd("");
@@ -616,11 +620,11 @@ export default function RentPaymentsPage() {
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
-          <select value={propertyFilter} onChange={(event) => { setPropertyFilter(event.target.value); setPage(1); }}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.address ? `${property.name} · ${property.address}` : property.name}</option>)}</select>
+          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
           <label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
           <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => { setOverdueOnly((current) => !current); setPage(1); }} type="button">只看欠费</button>
-          {(query || propertyFilter || datePreset !== "all" || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
+          {(query || selectedPropertyIds.length !== properties.length || datePreset !== "all" || overdueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
         </div>
         <div className="filtered-total" aria-live="polite"><span>当前筛选收款合计</span><strong>{euro(filteredPaymentTotal)}</strong></div>
 

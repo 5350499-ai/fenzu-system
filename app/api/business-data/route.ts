@@ -3,6 +3,7 @@ import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requ
 import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-single";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
+import { classifyBusinessDeleteError } from "@/lib/server/delete-error";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -147,7 +148,11 @@ export async function POST(request: Request) {
       if (operation.action === "delete") {
         await requireModulePermission(context, resource.module, "delete");
         const { error } = await client.from(resource.table).delete().eq("id", id);
-        if (error) throw new AccountApiError("没有权限删除该记录。", 403);
+        if (error) {
+          const classified = classifyBusinessDeleteError(error);
+          console.error("[business-data] delete failed", { table: resource.table, id, code: error.code, message: error.message });
+          throw new AccountApiError(classified.message, classified.status, classified.code);
+        }
         continue;
       }
 

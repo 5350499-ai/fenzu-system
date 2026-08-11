@@ -5,6 +5,7 @@ import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
 import { compareSettlementHistory } from "@/lib/partner-settlement";
 import { MoneyValue } from "@/components/ui";
+import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { useEffect, useMemo, useState } from "react";
 
 type Batch = {
@@ -63,8 +64,8 @@ export default function PartnerSettlementHistoryPage() {
   const [state, setState] = useState<PageState>("loading");
   const [message, setMessage] = useState("");
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [properties, setProperties] = useState<Array<{ id: string; name: string }>>([]);
-  const [propertyId, setPropertyId] = useState("all");
+  const [properties, setProperties] = useState<Array<{ id: string; name: string; createdAt?: string }>>([]);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [status, setStatus] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -95,7 +96,11 @@ export default function PartnerSettlementHistoryPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const filtered = useMemo(() => batches.filter((batch) => (propertyId === "all" || batch.property_id === propertyId) && (status === "all" || batch.status === status) && (!startDate || batch.period_end >= startDate) && (!endDate || batch.period_start <= endDate)).sort((a, b) => compareSettlementHistory({ status: a.status, periodEnd: a.period_end, confirmedAt: a.confirmed_at, reversedAt: a.reversed_at }, { status: b.status, periodEnd: b.period_end, confirmedAt: b.confirmed_at, reversedAt: b.reversed_at })), [batches, endDate, propertyId, startDate, status]);
+  useEffect(() => {
+    if (properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+  }, [properties, selectedPropertyIds.length]);
+
+  const filtered = useMemo(() => batches.filter((batch) => selectedPropertyIds.includes(batch.property_id) && (status === "all" || batch.status === status) && (!startDate || batch.period_end >= startDate) && (!endDate || batch.period_start <= endDate)).sort((a, b) => compareSettlementHistory({ status: a.status, periodEnd: a.period_end, confirmedAt: a.confirmed_at, reversedAt: a.reversed_at }, { status: b.status, periodEnd: b.period_end, confirmedAt: b.confirmed_at, reversedAt: b.reversed_at })), [batches, endDate, selectedPropertyIds, startDate, status]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
 
@@ -106,7 +111,7 @@ export default function PartnerSettlementHistoryPage() {
 
   return <AppLayout title="结算历史" description="查看不可变结算快照及撤销状态。"><section className="card panel settlement-history-panel">
     <div className="panel-header"><div><h2 className="panel-title">结算历史</h2><p className="muted">已确认快照不会随合伙人改名或比例调整而改变。</p></div><a className="btn compact" href="/partnership-settlement">返回结算</a></div>
-    <div className="filter-grid"><div className="field"><label>房源筛选</label><select value={propertyId} onChange={(event) => { setPropertyId(event.target.value); setPage(1); }}><option value="all">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></div><div className="field"><label>状态</label><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="all">全部</option><option value="confirmed">已结算</option><option value="reversed">已撤销</option></select></div><div className="field"><label>开始日期</label><input type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); setPage(1); }} /></div><div className="field"><label>结束日期</label><input type="date" value={endDate} onChange={(event) => { setEndDate(event.target.value); setPage(1); }} /></div></div>
+    <div className="filter-grid"><PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} /><div className="field"><label>状态</label><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="all">全部</option><option value="confirmed">已结算</option><option value="reversed">已撤销</option></select></div><div className="field"><label>开始日期</label><input type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); setPage(1); }} /></div><div className="field"><label>结束日期</label><input type="date" value={endDate} onChange={(event) => { setEndDate(event.target.value); setPage(1); }} /></div></div>
     <div className="settlement-history-list">{visible.map((batch) => <SettlementHistoryCard key={batch.id} batch={batch} propertyName={properties.find((property) => property.id === batch.property_id)?.name || "房源名称未保存"} />)}{!filtered.length ? <p className="muted">暂无结算记录</p> : null}</div>
     {filtered.length > pageSize ? <div className="button-row"><button className="btn compact" type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>上一页</button><span className="muted">第 {page} / {pageCount} 页</span><button className="btn compact" type="button" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
   </section></AppLayout>;

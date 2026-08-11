@@ -52,6 +52,7 @@ import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/te
 import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
+import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -116,9 +117,7 @@ export default function TenantsPage() {
   const [newPaymentDepositAmount, setNewPaymentDepositAmount] = useState(0);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [propertyFilterId, setPropertyFilterId] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchBoxRef = useRef<HTMLDivElement>(null);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<TenantSortKey>("room");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
@@ -127,6 +126,7 @@ export default function TenantsPage() {
   const [detailTenantId, setDetailTenantId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
+  const [currentExpanded, setCurrentExpanded] = useState(false);
   const [deleteTenantTarget, setDeleteTenantTarget] = useState<BusinessTenant | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -220,25 +220,17 @@ export default function TenantsPage() {
   }, [access.isFreeSingle, contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
-    if (!searchOpen) return;
-
-    function closeSearchOnOutside(event: PointerEvent) {
-      const target = event.target;
-      if (target instanceof Node && searchBoxRef.current?.contains(target)) return;
-      setSearchOpen(false);
-    }
-
-    document.addEventListener("pointerdown", closeSearchOnOutside);
-    return () => document.removeEventListener("pointerdown", closeSearchOnOutside);
-  }, [searchOpen]);
+    if (loaded && properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+  }, [loaded, properties, selectedPropertyIds.length]);
 
   useEffect(() => {
     setPage(1);
-  }, [propertyFilterId, query]);
+  }, [query, selectedPropertyIds]);
 
   useEffect(() => {
     setRetiredExpanded(false);
-  }, [propertyFilterId, query, showArchived]);
+    setCurrentExpanded(false);
+  }, [query, selectedPropertyIds, showArchived, sortDirection, sortKey, contractExpiringDays]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
@@ -251,20 +243,12 @@ export default function TenantsPage() {
     return map;
   }, {}), [contractFiles]);
 
-  const propertyOptions = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
-    return properties.filter((property) => {
-      if (!keyword) return true;
-      return [property.name, property.address, property.city].join(" ").toLowerCase().includes(keyword);
-    });
-  }, [properties, query]);
-
   const filteredTenants = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     const visible = tenants.filter((tenant) => showArchived || !isArchivedTenant(tenant));
-    const propertyVisible = propertyFilterId
-      ? visible.filter((tenant) => tenant.propertyId === propertyFilterId)
-      : visible;
+    const propertyVisible = selectedPropertyIds.length
+      ? visible.filter((tenant) => selectedPropertyIds.includes(tenant.propertyId))
+      : [];
     const contractVisible = contractExpiringDays === null
       ? propertyVisible
       : propertyVisible.filter((tenant) => contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, contractExpiringDays)));
@@ -276,7 +260,7 @@ export default function TenantsPage() {
       const displayStatus = tenantDisplayStatus(tenant, payments);
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, propertyFilterId, query, rooms, showArchived, tenants]);
+  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, query, rooms, selectedPropertyIds, showArchived, tenants]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -301,32 +285,19 @@ export default function TenantsPage() {
 
   const pagedTenants = pageRows(sortedTenants, page, pageSize);
   const visibleTenantGroups = splitTenantGroups(pagedTenants);
-  const visibleTenants = [...visibleTenantGroups.current, ...visibleTenantGroups.retired];
-  const explicitTenantFilter = Boolean(query.trim() || propertyFilterId || contractExpiringDays !== null);
   const retiredVisible = visibleTenantGroups.retired;
   const currentVisible = visibleTenantGroups.current;
   const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
-  const showRetiredExpanded = retiredExpanded || (explicitTenantFilter && retiredVisible.length > 0 && currentVisible.length === 0);
-
-  function selectPropertyFilter(property: BusinessProperty) {
-    setPropertyFilterId(property.id);
-    setQuery(property.name);
-    setSearchOpen(false);
-  }
+  const showRetiredExpanded = retiredExpanded;
+  const visibleCurrentTenants = currentExpanded ? currentVisible : currentVisible.slice(0, 8);
+  const visibleTenants = [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
 
   function updateTenantSearch(value: string) {
     setQuery(value);
-    if (propertyFilterId) {
-      const selected = properties.find((property) => property.id === propertyFilterId);
-      if (value !== selected?.name) setPropertyFilterId("");
-    }
-    setSearchOpen(true);
   }
 
   function clearTenantSearch() {
     setQuery("");
-    setPropertyFilterId("");
-    setSearchOpen(false);
   }
 
   function close() {
@@ -739,9 +710,22 @@ export default function TenantsPage() {
     }
     setSaving(true);
     try {
-      const tenantContracts = contracts.filter((contract) => contract.tenantId === tenant.id);
+      // Deletion must be based on an authoritative, current snapshot. The
+      // generic business writer computes deletes from its remote-id snapshot;
+      // using a stale page/cache snapshot can leave a child row behind and
+      // make the later tenant delete fail at the FK boundary.
+      const [freshTenants, freshContracts, freshPayments, freshDeposits, freshRooms] = await Promise.all([
+        refreshBusinessData<BusinessTenant>(tenantKey, tenants),
+        refreshBusinessData<BusinessContract>(contractKey, contracts),
+        refreshBusinessData<BusinessRentPayment>(rentPaymentKey, payments),
+        refreshBusinessData<BusinessDeposit>(depositKey, deposits),
+        refreshBusinessData<BusinessRoom>(roomKey, rooms)
+      ]);
+      const freshTenant = freshTenants.find((item) => item.id === tenant.id);
+      if (!freshTenant) throw new Error("租客记录已不存在，请刷新页面。" );
+      const tenantContracts = freshContracts.filter((contract) => contract.tenantId === tenant.id);
       const tenantContractIds = tenantContracts.map((contract) => contract.id);
-      const tenantPayments = payments.filter((payment) => payment.tenantId === tenant.id);
+      const tenantPayments = freshPayments.filter((payment) => payment.tenantId === tenant.id);
       const tenantPaymentIds = tenantPayments.map((payment) => payment.id);
       const contractFilesToDelete = contractFiles.filter((file) => file.tenantId === tenant.id || tenantContractIds.includes(file.contractId || ""));
       let paymentFilesToDelete: Awaited<ReturnType<typeof loadRentPaymentFiles>> = [];
@@ -754,11 +738,11 @@ export default function TenantsPage() {
       for (const file of contractFilesToDelete) await deleteContractFile(file);
       for (const file of paymentFilesToDelete) await deleteRentPaymentFile(file);
 
-      const nextTenants = tenants.filter((item) => item.id !== tenant.id);
-      const nextContracts = contracts.filter((contract) => contract.tenantId !== tenant.id);
-      const nextPayments = payments.filter((payment) => payment.tenantId !== tenant.id);
-      const nextDeposits = deposits.filter((deposit) => deposit.tenantId !== tenant.id);
-      const nextRooms = syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId);
+      const nextTenants = freshTenants.filter((item) => item.id !== tenant.id);
+      const nextContracts = freshContracts.filter((contract) => contract.tenantId !== tenant.id);
+      const nextPayments = freshPayments.filter((payment) => payment.tenantId !== tenant.id);
+      const nextDeposits = freshDeposits.filter((deposit) => deposit.tenantId !== tenant.id);
+      const nextRooms = syncRoomsAfterTenantRemoval(freshRooms, nextTenants, freshTenant.roomId);
 
       // Delete child records before deleting the tenant row, otherwise FK rules block the tenant delete.
       await saveBusinessData(rentPaymentKey, nextPayments);
@@ -846,11 +830,10 @@ export default function TenantsPage() {
         </div>
 
         <div className="list-controls">
-          <div className="tenant-search-box search-box" ref={searchBoxRef}>
+          <div className="tenant-search-box search-box">
             <input
               autoComplete="off"
               onChange={(event) => updateTenantSearch(event.target.value)}
-              onFocus={() => setSearchOpen(true)}
               placeholder={access.isFreeSingle ? "搜索姓名、电话、联系方式、房源、房间" : "搜索姓名、电话、联系方式、房源、房间、租客附件"}
               value={query}
             />
@@ -859,30 +842,8 @@ export default function TenantsPage() {
                 <X size={15} />
               </button>
             ) : null}
-            {searchOpen ? (
-              <div className="tenant-property-menu" role="listbox">
-                {propertyOptions.length ? (
-                  propertyOptions.map((property) => (
-                    <button
-                      className="tenant-property-option"
-                      key={property.id}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        selectPropertyFilter(property);
-                      }}
-                      type="button"
-                    >
-                      <strong title={property.name}>{compactPropertyName(property.name)}</strong>
-                      <span title={property.address || property.city || "-"}>{property.address || property.city || "-"}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="tenant-property-empty">没有匹配的房源</div>
-                )}
-              </div>
-            ) : null}
           </div>
+          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
           <div className="sort-pills">
             <SortButton active={sortKey === "room"} direction={sortDirection} label="房间" onClick={() => toggleSort("room")} />
             <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
@@ -893,6 +854,7 @@ export default function TenantsPage() {
         </div>
 
         <div className="finance-list tenant-compact-list">
+          {currentVisible.length ? <div className="tenant-status-group-title">当前租客（{currentCount}组）</div> : null}
           {visibleTenants.map((tenant, index, pageTenants) => {
             const retired = isEndedTenantStatus(tenant.status);
             const previousRetired = index > 0 && isEndedTenantStatus(pageTenants[index - 1].status);
@@ -917,7 +879,6 @@ export default function TenantsPage() {
             const expanded = detailTenantId === tenant.id;
             return (
               <Fragment key={tenant.id}>
-                {index === 0 && !retired ? <div className="tenant-status-group-title">当前租客（{currentCount}组）</div> : null}
                 {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
                 {!retired || showRetiredExpanded ? <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`}>
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
@@ -989,6 +950,8 @@ export default function TenantsPage() {
               </Fragment>
             );
           })}
+          {retiredVisible.length > 0 && !showRetiredExpanded ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded(true)} aria-expanded={false}>已退租租客（{retiredCount}组） <span>展开</span></button></div> : null}
+          {currentVisible.length > 8 ? <div className="tenant-list-group-actions"><button className="btn compact" type="button" onClick={() => setCurrentExpanded((current) => !current)}>{currentExpanded ? "收起当前租客" : `展开更多（还有 ${currentVisible.length - 8} 条）`}</button></div> : null}
         </div>
 
         <PaginationControls page={page} pageSize={pageSize} total={filteredTenants.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
