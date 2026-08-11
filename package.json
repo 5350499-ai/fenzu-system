@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:ui-interactions": "node --experimental-strip-types --test tests/dropdown-gesture.test.ts tests/tenant-move-out.test.ts tests/tenant-delete.test.ts tests/property-scope.test.ts tests/business-delete-error.test.ts tests/expense-type-presets.test.ts tests/payment-method-presets.test.ts tests/tenant-sorting.test.ts tests/cache-indexeddb-lifecycle.test.ts",
+    "test:ui-interactions": "node --experimental-strip-types --test tests/dropdown-gesture.test.ts tests/tenant-move-out.test.ts tests/tenant-delete.test.ts tests/tenant-reminder.test.ts tests/property-scope.test.ts tests/business-delete-error.test.ts tests/expense-type-presets.test.ts tests/payment-method-presets.test.ts tests/tenant-sorting.test.ts tests/cache-indexeddb-lifecycle.test.ts",
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs"
   },

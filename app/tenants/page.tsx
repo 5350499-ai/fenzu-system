@@ -51,7 +51,7 @@ import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/te
 import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
-import { filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
+import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -125,6 +125,7 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
+  const [deepLinkTenantId, setDeepLinkTenantId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [currentExpanded, setCurrentExpanded] = useState(false);
@@ -206,6 +207,8 @@ export default function TenantsPage() {
       const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
       setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
+        setDeepLinkTenantId(requestedTenantId);
+        setShowArchived(archiveModeForTenantDeepLink(repairedTenants, requestedTenantId) === true);
         setDetailTenantId(requestedTenantId);
       }
       setLoaded(true);
@@ -291,6 +294,19 @@ export default function TenantsPage() {
   const showRetiredExpanded = retiredExpanded;
   const visibleCurrentTenants = currentExpanded ? currentVisible : currentVisible.slice(0, 8);
   const visibleTenants = showArchived ? pagedTenants : [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
+
+  useEffect(() => {
+    if (!loaded || !deepLinkTenantId) return;
+    const targetIndex = sortedTenants.findIndex((tenant) => tenant.id === deepLinkTenantId);
+    if (targetIndex < 0) return;
+    const targetPage = Math.floor(targetIndex / pageSize) + 1;
+    if (page !== targetPage) {
+      setPage(targetPage);
+      return;
+    }
+    setDetailTenantId(deepLinkTenantId);
+    setDeepLinkTenantId("");
+  }, [deepLinkTenantId, loaded, page, pageSize, sortedTenants]);
 
   function updateTenantSearch(value: string) {
     setQuery(value);

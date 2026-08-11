@@ -1,5 +1,15 @@
 import type { BusinessContract, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 
+function isArchivedTenantValue(status = "") {
+  return status === "\u5df2\u5f52\u6863" || status.toLowerCase() === "archived";
+}
+
+function unresolvedRentAmount(payment: BusinessRentPayment) {
+  const due = Number(payment.amountDue || 0);
+  const paid = Number(payment.amountPaid || 0);
+  return due > 0 ? Math.max(due - paid, 0) : Math.max(Number(payment.amountUnpaid || 0), 0);
+}
+
 export function paymentCoverageStart(payment: BusinessRentPayment) {
   return payment.coverageStartDate || "";
 }
@@ -206,6 +216,52 @@ export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom
     return !contract.endDate || contract.endDate >= today;
   })) return false;
   return true;
+}
+
+/**
+ * Rent-debt reminders survive tenant archiving. Current tenants retain the
+ * existing collection-reminder behavior; archived tenants are eligible only
+ * when the coverage is actually overdue and an amount remains unresolved.
+ */
+export function fixedTenantRentDebtReminderStage(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  today = todayString()
+): RentCollectionReminderStage | null {
+  if (!payment) return null;
+  const stage = rentCoverageReminderStageFixed(payment, today);
+  if (!stage) return null;
+  if (isArchivedTenantValue(tenant.status)) {
+    return stage.level === "overdue" && unresolvedRentAmount(payment) > 0
+      ? { ...stage, reason: "coverage", daysPastPaymentDay: 0 }
+      : null;
+  }
+  if (!isCurrentRentalRelationship(tenant)) return null;
+  return { ...stage, reason: "coverage", daysPastPaymentDay: 0 };
+}
+
+export function hasUnresolvedTenantRentDebt(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  today = todayString()
+) {
+  return Boolean(
+    payment
+    && isRentIncome(payment)
+    && !isVoided(payment.notes)
+    && isCoverageExpired(payment, today)
+    && unresolvedRentAmount(payment) > 0
+    && (isCurrentRentalRelationship(tenant) || isArchivedTenantValue(tenant.status))
+  );
+}
+
+export function shouldShowTenantRentReminder(
+  tenant: BusinessTenant,
+  payment: BusinessRentPayment | null,
+  waivedPaymentIds: ReadonlySet<string>,
+  today = todayString()
+) {
+  return Boolean(payment && !waivedPaymentIds.has(payment.id) && fixedTenantRentDebtReminderStage(tenant, payment, today));
 }
 
 /** Formal rent-reminder eligibility. Contract expiry is reported separately. */

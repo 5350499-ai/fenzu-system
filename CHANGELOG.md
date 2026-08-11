@@ -886,3 +886,8 @@
 - Query/list/analytics/settlement property ranges now share `PropertyMultiSelect` and `lib/property-scope.ts`; business record attribution fields remain single-property fields.
 - Tenant filtering now supports all or multiple properties, with current tenants capped at eight collapsed rows by default and retired tenants collapsed by default.
 - Tenant permanent-delete preparation refreshes authoritative child snapshots before deletion. Delete API errors now distinguish permission denial from foreign-key references instead of reporting every failure as a permission error.
+
+## 2026-08-11 - Tenant reminder navigation and archived debt continuity (Preview)
+
+- Tenant-subject rent, contract and deposit reminders now navigate by stable tenant ID; archived tenant deep links automatically open the archive view and the tenant detail.
+- Unresolved overdue debt remains reminder-eligible after archive and disappears only through the existing payment or waiver action. No historical business data or database structure changed.

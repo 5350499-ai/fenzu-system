@@ -146,6 +146,11 @@ inline-size contract as ordinary controls; page-local date width fixes are
 not allowed. Monthly and yearly profit result rows must reuse the shared
 responsive Profit Result Row Contract in `UI_DESIGN_SYSTEM.md`.
 
+Tenant reminders must use stable tenant IDs for tenant-subject navigation.
+Archiving is only a visibility/management state: it must not settle, waive,
+delete, or recompute historical debt or financial records. Unresolved debt must
+continue to generate reminders until an explicit payment/waiver action.
+
 Cross-property query/list/analytics/settlement filters must reuse
 `PropertyMultiSelect` and `lib/property-scope.ts`; only a business record's
 single `property_id` attribution may remain a native single selector.

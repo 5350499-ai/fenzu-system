@@ -25,6 +25,8 @@ const propertyMultiSelect = readFileSync(resolve(root, "components/property-mult
 const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
 const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8");
 const tenantArchive = readFileSync(resolve(root, "lib/tenant-archive.ts"), "utf8");
+const reminderNavigation = readFileSync(resolve(root, "lib/reminder-navigation.ts"), "utf8");
+const rentCoverage = readFileSync(resolve(root, "lib/rent-coverage.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 
 function sourceFiles(directory) {
@@ -96,6 +98,10 @@ const required = [
   ,[propertyMultiSelect, "PropertyMultiSelect", "Property scope filters must use the shared PropertyMultiSelect"],
   [propertyScope, "isAllPropertyScope", "Property scope semantics must be shared"],
   [tenantsPage, "selectedPropertyIds", "Tenant list must use the shared property scope state"],
+  [reminderNavigation, "tenantReminderHref", "Tenant reminders must use a stable tenant navigation helper"],
+  [rentCoverage, "fixedTenantRentDebtReminderStage", "Tenant debt reminders must remain eligible for archived unresolved debt"],
+  [rentCoverage, "hasUnresolvedTenantRentDebt", "Tenant debt status must distinguish unresolved debt from archive state"],
+  [rentCoverage, "shouldShowTenantRentReminder", "Tenant reminder visibility must respect explicit waiver actions"],
   [readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8"), "PropertyMultiSelect", "Expense list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8"), "PropertyMultiSelect", "Rent payment list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/partner-settlements/page.tsx"), "utf8"), "PropertyMultiSelect", "Settlement history property scope must use the shared selector"]
@@ -277,6 +283,14 @@ if (tenantDeleteFunction.includes("saveBusinessData(rentPaymentKey") || tenantDe
 }
 if (!tenantsPage.includes("filterTenantsByArchiveMode(tenants, showArchived)")) {
   failures.push("Tenant normal/archive modes must use mutually exclusive data sources");
+}
+if (!tenantsPage.includes("setShowArchived(isArchivedTenantStatus(requestedTenant?.status || \"\"))")) {
+  if (!tenantsPage.includes("archiveModeForTenantDeepLink(repairedTenants, requestedTenantId)")) {
+    failures.push("Tenant deep links must enter archive mode for archived tenants");
+  }
+}
+if (/href:\s*`\/rooms\?roomId=\$\{encodeURIComponent\(tenant\.roomId\)\}`/.test(dashboardPage)) {
+  failures.push("Dashboard tenant reminders must not navigate by room ID");
 }
 
 if (failures.length) {

@@ -36,8 +36,10 @@ import { localToday } from "@/lib/actual-move-out-date";
 import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
-import { fixedRentCollectionReminderStage, isCanonicalRentReminderTenant, isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, isCurrentRentalRelationship } from "@/lib/rent-coverage";
+import { fixedRentCollectionReminderStage, fixedTenantRentDebtReminderStage, hasUnresolvedTenantRentDebt, isCanonicalRentReminderTenant, isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, shouldShowTenantRentReminder } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
+import { isArchivedTenantStatus } from "@/lib/tenant-archive";
+import { tenantReminderHref } from "@/lib/reminder-navigation";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -325,12 +327,12 @@ function buildDashboardReminders({
   const tenantById = new Map(tenants.map((item) => [item.id, item]));
 
   tenants
-    .filter((tenant) => isCanonicalRentReminderTenant(tenant, rooms))
+    .filter((tenant) => isCanonicalRentReminderTenant(tenant, rooms) || isArchivedTenantStatus(tenant.status))
     .map((tenant) => {
       const payment = latestCoverageForTenant(tenant.id, rentPayments);
-      return { tenant, payment, stage: fixedRentCollectionReminderStage(tenant, payment) };
+      return { tenant, payment, stage: fixedTenantRentDebtReminderStage(tenant, payment) };
     })
-    .filter(({ payment, stage }) => Boolean(stage) && Boolean(payment) && !waivedPaymentIds.has(payment!.id))
+    .filter(({ tenant, payment, stage }) => Boolean(stage) && shouldShowTenantRentReminder(tenant, payment, waivedPaymentIds))
     .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
     .forEach(({ tenant, payment, stage }) => {
       if (!stage) return;
@@ -341,7 +343,7 @@ function buildDashboardReminders({
         id: `rent-${tenant.id}`,
         title: fixedRentReminderTitle(roomLabel, stage, amount),
         description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
-        href: `/rooms?roomId=${encodeURIComponent(tenant.roomId)}`,
+        href: tenantReminderHref(tenant.id),
         tone: rentStageTone(stage.level),
         priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining),
         rentContext: {
@@ -365,7 +367,7 @@ function buildDashboardReminders({
         id: `contract-${contract.id}`,
         title: `${tenant?.name || "租客"}合同${days < 0 ? `已到期${Math.abs(days)}天` : `还有${days}天到期`}`,
         description: room?.name || contract.endDate || "合同到期提醒",
-        href: "/tenants",
+        href: tenant ? tenantReminderHref(tenant.id) : "/tenants",
         tone: "danger",
         priority: 30_000 - days
       });
@@ -391,7 +393,7 @@ function buildDashboardReminders({
         id: `deposit-${deposit.id}`,
         title: `${tenant?.name || "租客"}押金待处理`,
         description: euro(deposit.amount),
-        href: "/deposits",
+        href: tenant ? tenantReminderHref(tenant.id) : "/deposits",
         tone: "info",
         priority: 10_000
       });
@@ -444,9 +446,8 @@ function buildReminderSummary({
 }) {
   const today = new Date();
   const unpaid = tenants.reduce((sum, tenant) => {
-    if (!isCurrentRentalRelationship(tenant)) return sum;
     const payment = latestCoverageForTenant(tenant.id, rentPayments);
-    return sum + (payment && !waivedPaymentIds.has(payment.id) && isCoverageExpired(payment) ? rentCollectionRemaining(payment) : 0);
+    return sum + (payment && !waivedPaymentIds.has(payment.id) && hasUnresolvedTenantRentDebt(tenant, payment) ? rentCollectionRemaining(payment) : 0);
   }, 0);
   const rentDueCount = tenants.filter((tenant) => {
     if (!isCanonicalRentReminderTenant(tenant, rooms)) return false;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 // @ts-expect-error test runner imports the TypeScript module directly.
 import { emptyTenantBusinessDataSummary, isTenantDeleteConfirmed, tenantDeleteBusinessDataMessage, tenantDeletePermissionMessage, tenantHasBusinessData, TENANT_DELETE_CONFIRMATION } from "../lib/tenant-delete.ts";
 // @ts-expect-error test runner imports the TypeScript module directly.
-import { filterTenantsByArchiveMode } from "../lib/tenant-archive.ts";
+import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode } from "../lib/tenant-archive.ts";
 
 assert.equal(isTenantDeleteConfirmed(TENANT_DELETE_CONFIRMATION), true);
 assert.equal(isTenantDeleteConfirmed(" DELETE "), true);
@@ -21,5 +21,7 @@ assert.match(tenantDeleteBusinessDataMessage("已退租"), /历史业务数据/)
 const tenantRows = [{ id: "current", status: "在租" }, { id: "moved-out", status: "已退租" }, { id: "archived", status: "已归档" }];
 assert.deepEqual(filterTenantsByArchiveMode(tenantRows, false).map((tenant) => tenant.id), ["current", "moved-out"]);
 assert.deepEqual(filterTenantsByArchiveMode(tenantRows, true).map((tenant) => tenant.id), ["archived"]);
+assert.equal(archiveModeForTenantDeepLink(tenantRows, "archived"), true);
+assert.equal(archiveModeForTenantDeepLink(tenantRows, "current"), false);
 
 console.log("tenant delete confirmation and history protection tests passed");

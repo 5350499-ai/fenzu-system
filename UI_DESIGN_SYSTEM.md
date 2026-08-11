@@ -636,3 +636,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - Historical tenant business data must never be removed as a side effect of deleting a tenant. Permanent deletion is allowed only for a completely empty tenant shell; contracts, payments, deposits, settlements, attachments and other tenant-linked records make deletion ineligible.
 - Tenant management has two mutually exclusive modes: normal mode shows only unarchived tenants, while archive mode shows only archived tenants. Search, the shared `PropertyMultiSelect`, and applicable sorting continue to operate inside the active mode and must not merge the two datasets.
+
+## 44. Tenant reminder and archive contract
+
+- Archiving is a visibility/management state, not a financial or lease-settlement action. It must not change historical payments, debt, contracts, deposits, move-out history, profit, statistics or settlement records.
+- Unresolved tenant debt remains eligible for reminders across current, moved-out and archived tenant states until an explicit supported business action settles it or waives collection.
+- A tenant-subject reminder must navigate by stable `tenant_id` to the tenant detail, never by the tenant's mutable room assignment. This includes archived tenants; the tenant page must enter its archive mode for a deep link when necessary.
