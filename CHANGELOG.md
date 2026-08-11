@@ -916,3 +916,9 @@
 - Move-out ends the rental relationship only. It does not settle debt or automatically mute an unarchived unresolved debt reminder.
 - Debt facts, collection state and reminder presentation are documented as separate concerns; the current compatibility helpers apply the temporary policy bridge pending the dedicated Reminder Engine.
 - No database schema, migration, RLS, permission, real business data, financial formula, account or Production change.
+## 2026-08-11 - Unified Reminder Engine (Preview)
+
+- Added a pure shared Reminder Engine that aggregates rent debt/collection, contract expiry, deposit return, moving-out room, vacant room, and due backup reminders from the same business snapshot and RentPeriodState facts.
+- Migrated the dashboard and reminder center to consume that shared effective collection, including stable IDs, stable subject navigation, and action metadata; the reminder center retains its existing collection/waiver API actions.
+- Added engine fixtures for archive, move-out, waiver, zero-value overdue events, payment-specific waiver, contracts, deposits, room reminders, backup, sorting, and summary consistency.
+- Preview only; no database, schema, migration, RLS, permissions, or business data changes.

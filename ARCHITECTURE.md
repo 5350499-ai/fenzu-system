@@ -403,6 +403,30 @@ Pages and domain helpers must not independently recompute rent debt from
 coverage dates, payment status, remaining amounts and waiver IDs. They must use
 `getRentPeriodState` (or its explicit compatibility wrapper in
 `lib/rent-coverage.ts`) so the same payment period has one definition.
+
+## Reminder Engine Contract
+
+`lib/reminder-engine.ts` is the only aggregation boundary for operational
+reminders. It is a pure function over a business snapshot, RentPeriodState,
+payment-specific waiver facts and maintenance settings. It returns stable
+`ReminderItem` records with a semantic `type`, stable ID, entity IDs,
+navigation target and available action metadata. It does not mutate data,
+perform API calls, or decide UI layout.
+
+The dashboard and reminder center must consume the same effective collection;
+they may choose different presentation density, but may not construct their own
+rent, contract, deposit, room, or backup reminder rules. Tenant-subject
+reminders navigate through the shared tenant navigation helper. Room-subject
+reminders carry their room ID. Reminder IDs use type plus the stable business
+entity or period ID, never an array index or display text.
+
+Debt State remains separate from Reminder State: archive mutes daily
+tenant-bound reminders without settling debt; a moved-out but unarchived tenant
+with an open historical debt can still produce a debt reminder; waiver and a
+settled collection remove only their relevant period reminder. Future rent
+collection reminders are limited to current tenancies. The Reminder Engine may
+describe `collect` and `waive` actions, while their implementation remains in
+the existing action/API layer until the separate Action Tree Root phase.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

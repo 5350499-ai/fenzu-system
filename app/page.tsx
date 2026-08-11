@@ -34,19 +34,17 @@ import {
 import { euro } from "@/lib/format";
 import { localToday } from "@/lib/actual-move-out-date";
 import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
-import { pendingDepositReturnRecords } from "@/lib/deposit-return-reminders";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
-import { fixedRentCollectionReminderStage, fixedTenantRentDebtReminderStage, hasUnresolvedTenantRentDebt, isCanonicalRentReminderTenant, isCoverageExpired, latestCoverageForTenant, overdueReferenceAmount, paymentCoverageEnd, roomOccupancyStatus, shouldShowTenantRentReminder } from "@/lib/rent-coverage";
+import { isCoverageExpired, latestCoverageForTenant } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
-import { isArchivedTenantStatus } from "@/lib/tenant-archive";
-import { tenantReminderHref } from "@/lib/reminder-navigation";
+import { buildEffectiveReminders, summarizeEffectiveReminders } from "@/lib/reminder-engine";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
-import { defaultBackupReminderSettings, isBackupReminderDue, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { defaultBackupReminderSettings, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
@@ -186,13 +184,13 @@ export default function DashboardPage() {
   }, 0), [rentPayments, tenants, waivedPaymentIds]);
   const dashboardTotals = { ...totals, unpaid: Math.max(0, totals.unpaid - waivedUnpaid) };
   const reminders = useMemo(
-    () => buildDashboardReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings }),
-    [backupReminderSettings, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
+    () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: !access.isFreeSingle }),
+    [access.isFreeSingle, backupReminderSettings, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
-    () => buildReminderSummary({ rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds }),
-    [contracts, deposits, rentPayments, rooms, tenants, waivedPaymentIds]
+    () => summarizeEffectiveReminders(reminders).text,
+    [reminders]
   );
   const today = localToday();
   const pendingAppointments = useMemo(() => [...viewingAppointments]
@@ -283,244 +281,4 @@ export default function DashboardPage() {
 
     </AppLayout>
   );
-}
-
-type Reminder = {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  tone: "danger" | "warning" | "yellow" | "green" | "info";
-  priority: number;
-  rentContext?: {
-    propertyLabel: string;
-    roomLabel: string;
-    tenantName: string;
-    coverageEnd: string;
-    statusLabel: string;
-  };
-};
-
-function buildDashboardReminders({
-  properties,
-  rooms,
-  tenants,
-  contracts,
-  rentPayments,
-  deposits,
-  waivedPaymentIds,
-  backupReminderSettings
-}: {
-  properties: BusinessProperty[];
-  rooms: BusinessRoom[];
-  tenants: BusinessTenant[];
-  contracts: BusinessContract[];
-  rentPayments: BusinessRentPayment[];
-  deposits: BusinessDeposit[];
-  waivedPaymentIds: Set<string>;
-  backupReminderSettings: BackupReminderSettings;
-}) {
-  const reminders: Reminder[] = [];
-  const today = new Date();
-  const propertyById = new Map(properties.map((item) => [item.id, item]));
-  const roomById = new Map(rooms.map((item) => [item.id, item]));
-  const tenantById = new Map(tenants.map((item) => [item.id, item]));
-
-  tenants
-    .filter((tenant) => isCanonicalRentReminderTenant(tenant, rooms) || isArchivedTenantStatus(tenant.status))
-    .map((tenant) => {
-      const payment = latestCoverageForTenant(tenant.id, rentPayments);
-      return { tenant, payment, stage: fixedTenantRentDebtReminderStage(tenant, payment) };
-    })
-    .filter(({ tenant, payment, stage }) => Boolean(stage) && shouldShowTenantRentReminder(tenant, payment, waivedPaymentIds))
-    .sort((a, b) => rentStagePriority(b.stage?.level) - rentStagePriority(a.stage?.level))
-    .forEach(({ tenant, payment, stage }) => {
-      if (!stage) return;
-      const room = roomById.get(tenant.roomId);
-      const amount = stage.level === "overdue" ? rentCollectionRemaining(payment!) : overdueReferenceAmount(payment, tenant);
-      const roomLabel = room?.roomNumber || room?.name || tenant.name || "租客";
-      reminders.push({
-        id: `rent-${tenant.id}`,
-        title: fixedRentReminderTitle(roomLabel, stage, amount),
-        description: `${tenant.name || "未命名租客"}｜覆盖至 ${payment ? paymentCoverageEnd(payment) : "-"}`,
-        href: tenantReminderHref(tenant.id),
-        tone: rentStageTone(stage.level),
-        priority: rentStagePriority(stage.level) + (stage.level === "overdue" ? amount : 10 - stage.daysRemaining),
-        rentContext: {
-          propertyLabel: compactReminderPropertyName(propertyById.get(tenant.propertyId)?.name),
-          roomLabel: compactReminderRoomName(room),
-          tenantName: tenant.name || "未命名租客",
-          coverageEnd: payment ? paymentCoverageEnd(payment) : "-",
-          statusLabel: fixedRentReminderStatus(stage, amount)
-        }
-      });
-    });
-
-  contracts
-    .map((contract) => ({ contract, days: daysUntil(contract.endDate, today) }))
-    .filter(({ days }) => days <= 30)
-    .sort((a, b) => a.days - b.days)
-    .forEach(({ contract, days }) => {
-      const tenant = tenantById.get(contract.tenantId);
-      const room = roomById.get(contract.roomId);
-      reminders.push({
-        id: `contract-${contract.id}`,
-        title: `${tenant?.name || "租客"}合同${days < 0 ? `已到期${Math.abs(days)}天` : `还有${days}天到期`}`,
-        description: room?.name || contract.endDate || "合同到期提醒",
-        href: tenant ? tenantReminderHref(tenant.id) : "/tenants",
-        tone: "danger",
-        priority: 30_000 - days
-      });
-    });
-
-  rooms
-    .filter((room) => room.status.includes("即将退租"))
-    .forEach((room) => {
-      reminders.push({
-        id: `moving-${room.id}`,
-        title: `${room.name} 即将退租`,
-        description: propertyById.get(room.propertyId)?.name || "房间状态提醒",
-        href: "/rooms",
-        tone: "warning",
-        priority: 20_000
-      });
-    });
-
-  pendingDepositReturnRecords(deposits, tenants)
-    .forEach((deposit) => {
-      const tenant = tenantById.get(deposit.tenantId);
-      reminders.push({
-        id: `deposit-${deposit.id}`,
-        title: `${tenant?.name || "租客"}押金待处理`,
-        description: euro(deposit.amount),
-        href: tenant ? tenantReminderHref(tenant.id) : "/deposits",
-        tone: "info",
-        priority: 10_000
-      });
-    });
-
-  const vacantByProperty = rooms
-    .filter((room) => roomOccupancyStatus(room, tenants).includes("空置"))
-    .reduce<Record<string, number>>((map, room) => {
-      map[room.propertyId] = (map[room.propertyId] || 0) + 1;
-      return map;
-    }, {});
-  Object.entries(vacantByProperty).forEach(([propertyId, count]) => {
-    reminders.push({
-      id: `vacant-${propertyId}`,
-      title: `${propertyById.get(propertyId)?.name || "房源"}空置${count}间`,
-      description: "点击查看房间状态",
-      href: "/rooms?status=空置",
-      tone: "warning",
-      priority: 1_000 + count
-    });
-  });
-
-  if (isBackupReminderDue(backupReminderSettings)) {
-    reminders.push({
-      id: "backup-reminder",
-      title: "建议定期导出数据备份",
-      description: "点击进入设置页面导出 Excel 或 CSV",
-      href: "/settings",
-      tone: "info",
-      priority: 100
-    });
-  }
-  return reminders.sort((a, b) => b.priority - a.priority);
-}
-
-function buildReminderSummary({
-  rooms,
-  tenants,
-  contracts,
-  rentPayments,
-  deposits,
-  waivedPaymentIds
-}: {
-  rooms: BusinessRoom[];
-  tenants: BusinessTenant[];
-  contracts: BusinessContract[];
-  rentPayments: BusinessRentPayment[];
-  deposits: BusinessDeposit[];
-  waivedPaymentIds: Set<string>;
-}) {
-  const today = new Date();
-  const unpaid = tenants.reduce((sum, tenant) => {
-    const payment = latestCoverageForTenant(tenant.id, rentPayments);
-    return sum + (payment && !waivedPaymentIds.has(payment.id) && hasUnresolvedTenantRentDebt(tenant, payment) ? rentCollectionRemaining(payment) : 0);
-  }, 0);
-  const rentDueCount = tenants.filter((tenant) => {
-    if (!isCanonicalRentReminderTenant(tenant, rooms)) return false;
-    const payment = latestCoverageForTenant(tenant.id, rentPayments);
-    const stage = fixedRentCollectionReminderStage(tenant, payment);
-    return stage && stage.level !== "overdue";
-  }).length;
-  const expiringCount = contracts.filter((contract) => {
-    const days = daysUntil(contract.endDate, today);
-    return days <= 30;
-  }).length;
-  const abnormalDeposits = pendingDepositReturnRecords(deposits, tenants).length;
-  const vacantRooms = rooms.filter((room) => roomOccupancyStatus(room, tenants).includes("空置")).length;
-  const parts = [];
-  if (unpaid > 0) parts.push(`欠费${euro(unpaid)}`);
-  if (rentDueCount > 0) parts.push(`待收租${rentDueCount}`);
-  if (expiringCount > 0) parts.push(`快到期${expiringCount}`);
-  if (abnormalDeposits > 0) parts.push(`押金异常${abnormalDeposits}`);
-  if (vacantRooms > 0) parts.push(`空置${vacantRooms}`);
-  return parts.length ? parts.join("｜") : "暂无待处理提醒";
-}
-
-function fixedRentReminderStatus(stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
-  if (stage.overdueDays > 0) return `\u5df2\u903e\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
-  if (stage.daysRemaining === 0) return "\u4eca\u65e5\u5230\u671f";
-  if (stage.level === "urgent") return `\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
-  return `\u5269\u4f59${stage.daysRemaining}\u5929`;
-}
-
-function compactReminderPropertyName(name?: string) {
-  const value = (name || "").replace(/\s+/g, "").trim();
-  return value ? value.slice(0, 7) + (value.length > 7 ? "..." : "") : "房源";
-}
-
-function compactReminderRoomName(room?: BusinessRoom) {
-  const value = (room?.name || room?.roomNumber || "").trim();
-  if (!value) return "房间";
-  const number = room?.roomNumber?.trim() || value.match(/^\d{1,4}/)?.[0] || "";
-  if (!number) return value.slice(0, 10) + (value.length > 10 ? "..." : "");
-  const description = value.slice(value.indexOf(number) + number.length).trim();
-  return description ? `${number} ${description.slice(0, 6)}` : number;
-}
-
-function fixedRentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
-  if (stage.overdueDays > 0) return `${room}\u5df2\u903e\u671f${stage.overdueDays}\u5929 ${euro(amount)}`;
-  if (stage.daysRemaining === 0) return `${room}\u4eca\u65e5\u5230\u671f`;
-  if (stage.level === "urgent") return `${room}\u5373\u5c06\u5230\u671f${stage.daysRemaining}\u5929`;
-  return `${room}\u5269\u4f59${stage.daysRemaining}\u5929`;
-}
-
-function rentReminderTitle(room: string, stage: ReturnType<typeof fixedRentCollectionReminderStage> & {}, amount: number) {
-  if (stage.overdueDays > 0) return `${room}已欠费${stage.overdueDays}天 ${euro(amount)}`;
-  if (stage.daysPastPaymentDay === 0) return `${room}今天是缴费日，请提醒交下期房租`;
-  return `${room}已过缴费日${stage.daysPastPaymentDay}天，仍未收到下期房租`;
-}
-
-function rentStagePriority(level?: string) {
-  if (level === "overdue") return 50_000;
-  if (level === "critical") return 45_000;
-  if (level === "urgent") return 42_000;
-  if (level === "upcoming") return 40_000;
-  return 0;
-}
-
-function rentStageTone(level: string): Reminder["tone"] {
-  if (level === "overdue" || level === "critical") return "danger";
-  if (level === "urgent") return "yellow";
-  return "green";
-}
-
-function daysUntil(date: string, from: Date) {
-  if (!date) return Number.MAX_SAFE_INTEGER;
-  const target = new Date(`${date}T00:00:00`);
-  const start = new Date(from.toISOString().slice(0, 10) + "T00:00:00");
-  return Math.ceil((target.getTime() - start.getTime()) / 86400000);
 }

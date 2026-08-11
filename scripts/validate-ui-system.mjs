@@ -27,9 +27,12 @@ const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8
 const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8");
 const tenantArchive = readFileSync(resolve(root, "lib/tenant-archive.ts"), "utf8");
 const reminderNavigation = readFileSync(resolve(root, "lib/reminder-navigation.ts"), "utf8");
+const reminderEngine = readFileSync(resolve(root, "lib/reminder-engine.ts"), "utf8");
 const rentCoverage = readFileSync(resolve(root, "lib/rent-coverage.ts"), "utf8");
 const rentPeriodState = readFileSync(resolve(root, "lib/rent-period-state.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
+const dashboardRuntime = dashboardPage.split("/* Retired page-local reminder builders")[0];
+const remindersRuntime = remindersPage.split("/* Retired page-local reminder builder")[0];
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -101,6 +104,13 @@ const required = [
   [propertyScope, "isAllPropertyScope", "Property scope semantics must be shared"],
   [tenantsPage, "selectedPropertyIds", "Tenant list must use the shared property scope state"],
   [reminderNavigation, "tenantReminderHref", "Tenant reminders must use a stable tenant navigation helper"],
+  [reminderEngine, "buildEffectiveReminders", "A shared Reminder Engine must build the effective reminder collection"],
+  [reminderEngine, "getRentPeriodState", "Reminder debt candidates must consume RentPeriodState"],
+  [reminderEngine, "navigationTarget", "Reminder items must include a stable navigation target"],
+  [reminderEngine, "availableActions", "Reminder items must expose shared action metadata"],
+  [reminderEngine, '${type}:${payment.id}', "Debt reminder IDs must be payment-specific and stable"],
+  [dashboardRuntime, "buildEffectiveReminders", "Dashboard runtime must consume the shared Reminder Engine"],
+  [remindersRuntime, "buildEffectiveReminders", "Reminder center runtime must consume the shared Reminder Engine"],
   [guide, "Archive vs Debt Contract", "UI guide must define archive versus debt presentation behavior"],
   [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
   [rentCoverage, 'state.lifecycle === "archived"', "Archived tenant debt reminders must be muted by the compatibility policy bridge"],

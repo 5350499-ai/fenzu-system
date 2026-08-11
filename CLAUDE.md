@@ -120,6 +120,17 @@
 
 
 Tenant history is immutable with respect to tenant deletion: permanent delete is only for an empty shell, while any tenant-linked business history blocks it and must remain intact. Tenant management normal mode and archive mode are separate datasets; archive mode must not append archived rows to normal rows.
+
+### Reminder Engine rule
+
+Before adding or changing any operational reminder, read `BUSINESS_RULES.md`,
+`ARCHITECTURE.md`, `lib/rent-period-state.ts`, and `lib/reminder-engine.ts`.
+Pages must reuse `buildEffectiveReminders`; they must not add page-local
+reminder builders or infer debt/reminder state from coverage dates, payment
+amounts, waiver IDs, archive state, or display text. A reminder must carry its
+stable subject ID, navigation target, and action metadata from the shared
+engine. Archive only mutes daily reminder presentation; it never settles a
+debt. Move-out does not suppress an unresolved historical debt reminder.
 ### 前端 UI 强制规则
 
 任何新增、修改、重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局之前，必须先阅读并遵循 `UI_DESIGN_SYSTEM.md`。Select、Combobox、Dropdown、Listbox 必须复用公共 `DropdownListbox` 手势与滚动归属契约，禁止页面在 `pointerdown/touchstart` 直接选择选项。除非有明确业务理由并在规范中记录例外，否则不得自行创造新的尺寸、间距、字体、颜色、控件高度或响应式规则；必须优先复用现有 Design Tokens 与公共组件。前端 UI 修改完成后必须运行 `npm run validate:ui` 和现有交互测试，不得绕过公共控件、Checkbox/Radio 和 Modal 生命周期约束。
