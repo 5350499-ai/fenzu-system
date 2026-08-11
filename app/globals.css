@@ -6384,7 +6384,7 @@ td:last-child {
 
 .unified-monthly-row {
   display: grid;
-  grid-template-columns: minmax(0, 42fr) minmax(0, 29fr) minmax(0, 29fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, .9fr) minmax(0, .9fr);
   gap: 8px;
   min-height: 0;
   padding: 9px 10px;
@@ -6394,7 +6394,7 @@ td:last-child {
 .unified-monthly-column {
   display: grid;
   grid-template-rows: minmax(0, auto) minmax(0, auto);
-  align-items: baseline;
+  align-items: stretch;
   gap: 6px;
   min-width: 0;
 }
@@ -6410,7 +6410,7 @@ td:last-child {
 .unified-monthly-status {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 6px;
   white-space: nowrap;
 }
@@ -6430,6 +6430,14 @@ td:last-child {
 .unified-monthly-occupancy small {
   min-width: 0;
   white-space: nowrap;
+}
+
+.unified-monthly-head,
+.unified-monthly-income,
+.unified-monthly-net {
+  min-height: 1.35em;
+  display: flex;
+  align-items: baseline;
 }
 
 .unified-monthly-metric,
@@ -6455,6 +6463,9 @@ td:last-child {
 
 .unified-monthly-metric b {
   color: var(--text);
+  margin-left: auto;
+  min-width: 0;
+  text-align: right;
 }
 
 .unified-monthly-occupancy {
@@ -6500,8 +6511,8 @@ td:last-child {
 
 @media (max-width: 640px) {
   .unified-monthly-row {
-    grid-template-columns: minmax(0, 43fr) minmax(0, 28.5fr) minmax(0, 28.5fr);
-    gap: 7px;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, .9fr) minmax(0, .9fr);
+    gap: 6px;
     padding: 8px 9px;
   }
 
@@ -6519,16 +6530,26 @@ td:last-child {
 
   .unified-monthly-metric,
   .unified-monthly-status {
-    gap: 4px;
+    gap: 3px;
   }
 
   .unified-monthly-occupancy {
-    gap: 2px;
+    display: block;
+    line-height: 1.3;
   }
 
   .unified-monthly-occupancy span,
   .unified-monthly-occupancy small {
+    display: block;
     font-size: 10px;
+    white-space: normal;
+    line-height: 1.3;
+  }
+
+  .unified-monthly-metric {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
   }
 }
 /* Dynamic partner management */
@@ -9861,8 +9882,8 @@ input[type="date"],
 input[type="datetime-local"],
 input[type="month"],
 input[type="time"] {
-  -webkit-appearance: auto;
-  appearance: auto;
+  -webkit-appearance: none;
+  appearance: none;
   display: block;
   --ui-date-content-height: var(--ui-form-control-height, 42px);
   box-sizing: border-box;
@@ -9898,14 +9919,22 @@ input[type="time"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--form-row-gap, 16px) var(--form-column-gap, 16px);
   width: 100%;
+  inline-size: 100%;
   min-width: 0;
+  min-inline-size: 0;
   max-width: 100%;
+  max-inline-size: 100%;
+  justify-self: stretch;
 }
 
 .form-grid-row > * {
   width: 100%;
+  inline-size: 100%;
   min-width: 0;
+  min-inline-size: 0;
   max-width: 100%;
+  max-inline-size: 100%;
+  justify-self: stretch;
 }
 
 .form-grid-row--single {

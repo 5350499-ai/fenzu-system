@@ -875,3 +875,9 @@
 - Reordered property-profit presentation to scope, time controls, monthly operating results, profit overview and property results without changing financial calculations.
 - Added design-system and static validation guards for semantic rows, full-width native date controls and the property-profit information order.
 - No database schema, migration, real business data, financial calculation, permission, account or Production changes.
+
+## 2026-08-11 - Native date Field Box stretch and profit result-row layout (Preview)
+
+- Repaired the shared native date/time Field Box chain at the grid-cell and control appearance layers so Safari intrinsic sizing cannot shorten date frames.
+- Unified monthly and yearly profit-result responsive columns, preserving readable period/occupancy information and aligned financial metrics without changing calculations.
+- No database schema, migration, real business data, financial calculation, permission, account or Production changes.

@@ -310,6 +310,11 @@ add local native-date sizing overrides. This keeps WebKit intrinsic date sizing
 from changing a Form Grid column and ensures a newly inserted field cannot
 move an unrelated later field.
 
+Profit monthly and yearly result rows also share one responsive result-row
+contract: period/occupancy receives the readable space, financial columns use
+compact aligned values, and the first-row baselines remain aligned. Layout
+changes must not alter the calculation or filtering layer.
+
 - Why one CacheManager: one place owns cache versioning, account isolation, TTL, invalidation, cross-tab events and diagnostics, so new modules do not drift into incompatible cache behavior.
 - Why two layers: memory cache makes in-app navigation fast, while IndexedDB survives browser restarts without placing business records in localStorage.
 - Why SWR: cached data can render first and server reconciliation runs in the background, avoiding a blank page while still converging on current data.

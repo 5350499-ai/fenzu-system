@@ -585,6 +585,28 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   for semantically paired business fields. Reuse the shared row and Date Field
   contracts so the rule applies globally.
 
+## 40. Native Date Field Box Contract
+
+- The outer date Field Box and its Form Grid cell must share the same stretch
+  contract as text, number and select controls. The shared rule owns both
+  physical and logical width, including the wrapper/cell, not only the WebKit
+  date-value pseudo-elements.
+- Native date/time controls use the shared CSS box model and neutralized native
+  appearance so Safari cannot paint a shorter intrinsic-width frame. The
+  WebKit date edit tree remains governed by the existing vertical-centering
+  rules; page CSS must not override it.
+
+## 41. Profit Result Row Contract
+
+- Monthly and yearly operating-result rows use the same responsive three-column
+  primitive: the period/occupancy column receives the largest share, the
+  income/expense column stays compact with labels and amounts aligned, and the
+  net-profit/status column remains readable.
+- The period heading and first metric share a common first-row baseline. The
+  occupancy detail may wrap within its left column, but it must not be hidden
+  or truncated to make room for amounts. This contract applies at 320px–430px
+  mobile widths without global font shrinking or horizontal overflow.
+
 ## 39. Property-profit information order
 
 - Property profit analysis always renders: statistics scope, time controls,

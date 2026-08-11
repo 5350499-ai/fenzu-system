@@ -49,6 +49,8 @@ const required = [
   [guide, "Form Grid / Field Box Contract", "UI guide must define the Field Box contract"],
   [guide, "Semantic Form Row and Date Field Box Contract", "UI guide must define semantic form rows and full-width date boxes"],
   [guide, "Property-profit information order", "UI guide must define the property-profit information order"],
+  [guide, "Profit Result Row Contract", "UI guide must define the shared profit result-row contract"],
+  [guide, "Native Date Field Box Contract", "UI guide must define the outer native date Field Box contract"],
   [guide, "Section / Card Stack Gap Contract", "UI guide must define the card stack gap"],
   [guide, "Tenant room-sort contract", "UI guide must define natural tenant room sorting"],
   [guide, "Shared tenant contact contract", "UI guide must define the existing tenant contact mapping"],
@@ -59,6 +61,7 @@ const required = [
   [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
   [css, "--ui-section-stack-gap", "CSS must define the shared section stack token"],
   [css, ".form-grid-row", "CSS must define the shared semantic form-row primitive"],
+  [css, "grid-template-columns: minmax(0, 1.7fr)", "Profit result rows must give the period column readable space"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
   [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
@@ -156,6 +159,7 @@ for (const [pattern, message] of [
   [/min-inline-size\s*:\s*0/i, "Date fields must be allowed to shrink inline inside a grid cell"],
   [/max-inline-size\s*:\s*100%/i, "Date fields must not exceed their Field Box inline size"],
   [/justify-self\s*:\s*stretch/i, "Date fields must stretch across their Field Box"],
+  [/-webkit-appearance\s*:\s*none/i, "Date fields must neutralize intrinsic native appearance at the shared contract"],
   [/padding-block\s*:\s*0/i, "Date fields must not use vertical padding"],
   [/font-variant-numeric\s*:\s*tabular-nums/i, "Date fields must use stable tabular numerals"]
 ]) {
@@ -171,6 +175,19 @@ if (!/height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) 
 if (!/--ui-date-content-height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) {
   failures.push("Mobile date fields must give Safari's value tree the shared 44px content height");
 }
+
+const formRowRule = css.match(/\.form-grid-row\s*\{([\s\S]*?)\}/i)?.[1] || "";
+const formRowChildRule = css.match(/\.form-grid-row\s*>\s*\*\s*\{([\s\S]*?)\}/i)?.[1] || "";
+for (const [source, message] of [
+  [formRowRule, "Semantic form rows must define logical inline sizing"],
+  [formRowChildRule, "Semantic form row children must stretch their grid cell"]
+]) {
+  if (!/inline-size\s*:\s*100%/i.test(source) || !/min-inline-size\s*:\s*0/i.test(source) || !/justify-self\s*:\s*stretch/i.test(source)) failures.push(message);
+}
+
+const profitResultRule = css.match(/\.unified-monthly-row\s*\{([\s\S]*?)\}/i)?.[1] || "";
+if (!/1\.7fr[\s\S]*?\.9fr[\s\S]*?\.9fr/i.test(profitResultRule)) failures.push("Monthly and yearly profit results must use the shared readable three-column contract");
+if (!/\.unified-monthly-occupancy[\s\S]*?white-space\s*:\s*normal/i.test(css)) failures.push("Profit result occupancy details must be allowed to wrap instead of being truncated");
 
 if (!/\.main\s*>\s*:is\(section\.card, section\.panel, \.ui-section-card\)\s*\+\s*:is\(section\.card, section\.panel, \.ui-section-card\)/.test(css)) {
   failures.push("Direct page card stacks must use the shared section gap contract");
