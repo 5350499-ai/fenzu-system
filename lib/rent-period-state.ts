@@ -54,6 +54,40 @@ export type OpenRentDebtPeriodsInput = Omit<RentPeriodStateInput, "payment"> & {
   payments: BusinessRentPayment[];
 };
 
+export type RentPeriodReconciliationReason =
+  | "excluded-tenant-mismatch"
+  | "excluded-non-rent-income"
+  | "closed-void"
+  | "excluded-invalid-coverage"
+  | "closed-waived"
+  | "closed-settled"
+  | "not-yet-overdue"
+  | "open-overdue"
+  | "latest-current-period";
+
+export type RentPeriodReconciliationEntry = {
+  paymentId: string;
+  state: RentPeriodState;
+  reason: RentPeriodReconciliationReason;
+  isLatestPeriod: boolean;
+  isOpenDebtPeriod: boolean;
+};
+
+/**
+ * Read-only accounting trace for one tenant. It is intentionally a pure domain
+ * helper: fixtures can explain exactly why a payment is latest, open, closed,
+ * or excluded without creating a production debug surface.
+ */
+export type TenantRentStateReconciliation = {
+  tenantId: string;
+  businessToday: string;
+  latestPeriod: RentPeriodState;
+  openDebtPeriods: RentPeriodState[];
+  closedPeriodIds: string[];
+  entries: RentPeriodReconciliationEntry[];
+  expectedReminderIds: string[];
+};
+
 const ARCHIVED_STATUS = "\u5df2\u5f52\u6863";
 const ENDED_MARKERS = ["\u5df2\u9000\u79df", "\u5df2\u7ed3\u675f", "\u975e\u5728\u79df", "moved_out", "ended"];
 const NOT_CURRENT_MARKERS = [...ENDED_MARKERS, "\u7a7a\u7f6e", "\u9884\u5b9a\u5165\u4f4f", "\u9884\u7ea6\u5165\u4f4f"];
@@ -134,12 +168,15 @@ export function getRentPeriodState({
  */
 export function latestValidRentPeriodPayment(payments: BusinessRentPayment[]) {
   return [...payments]
-    .filter(isValidRentPeriodPayment)
+    // "Latest" is a coverage-timeline concept.  A legacy/non-rent row may be
+    // valid ledger data, but it cannot become the current coverage period
+    // without a valid coverage end date.
+    .filter((payment) => isValidRentPeriodPayment(payment) && hasValidCoveragePeriod(payment))
     .sort(compareLatestRentPeriods)[0] || null;
 }
 
 export function getLatestRentPeriodState({ payments, ...input }: LatestRentPeriodStateInput) {
-  return getRentPeriodState({ ...input, payment: latestValidRentPeriodPayment(payments) });
+  return inspectTenantRentState({ payments, ...input }).latestPeriod;
 }
 
 /**
@@ -150,11 +187,49 @@ export function getLatestRentPeriodState({ payments, ...input }: LatestRentPerio
  * own state. Records are oldest-first so callers have deterministic history.
  */
 export function getOpenRentDebtPeriodStates({ payments, ...input }: OpenRentDebtPeriodsInput) {
-  return [...payments]
-    .filter(isValidRentPeriodPayment)
-    .map((payment) => getRentPeriodState({ ...input, payment }))
-    .filter((state) => state.hasOpenDebtFollowUp)
-    .sort((left, right) => compareOpenDebtPeriods(left, right));
+  return inspectTenantRentState({ payments, ...input }).openDebtPeriods;
+}
+
+export function inspectTenantRentState({
+  tenant,
+  payments,
+  today = rentPeriodToday(),
+  waivedPaymentIds = new Set<string>()
+}: OpenRentDebtPeriodsInput): TenantRentStateReconciliation {
+  const provisional = payments.map((payment) => {
+    const state = getRentPeriodState({ tenant, payment, today, waivedPaymentIds });
+    return { payment, state };
+  });
+  const eligible = provisional.filter(({ payment }) => isEligibleTenantRentPeriod(payment, tenant.id));
+  const latestPayment = latestValidRentPeriodPayment(eligible.map(({ payment }) => payment));
+  const entries = provisional.map(({ payment, state }) => {
+    const isLatestPeriod = payment.id === latestPayment?.id;
+    const isOpenDebtPeriod = isEligibleTenantRentPeriod(payment, tenant.id) && state.hasOpenDebtFollowUp;
+    return {
+      paymentId: payment.id,
+      state,
+      isLatestPeriod,
+      isOpenDebtPeriod,
+      reason: reconcileRentPeriodReason(payment, state, tenant.id, isLatestPeriod) satisfies RentPeriodReconciliationReason
+    };
+  });
+  const openDebtPeriods = entries
+    .filter((entry) => entry.isOpenDebtPeriod)
+    .map((entry) => entry.state)
+    .sort(compareOpenDebtPeriods);
+  const latestPeriod = getRentPeriodState({ tenant, payment: latestPayment, today, waivedPaymentIds });
+  const closedPeriodIds = entries
+    .filter((entry) => entry.reason === "closed-waived" || entry.reason === "closed-void" || entry.reason === "closed-settled")
+    .map((entry) => entry.paymentId);
+  return {
+    tenantId: tenant.id,
+    businessToday: today,
+    latestPeriod,
+    openDebtPeriods,
+    closedPeriodIds,
+    entries,
+    expectedReminderIds: openDebtPeriods.flatMap((state) => state.paymentId ? [`rent_debt:${state.paymentId}`] : [])
+  };
 }
 
 export function classifyRentPeriodTenantLifecycle(status = ""): RentPeriodTenantLifecycle {
@@ -179,6 +254,10 @@ export function isRentPeriodVoided(payment: Pick<BusinessRentPayment, "paymentSt
 
 export function isValidRentPeriodPayment(payment: BusinessRentPayment) {
   return isRentPeriodRentIncome(payment) && !isRentPeriodVoided(payment);
+}
+
+export function isEligibleTenantRentPeriod(payment: BusinessRentPayment, tenantId: string) {
+  return payment.tenantId === tenantId && isValidRentPeriodPayment(payment) && hasValidCoveragePeriod(payment);
 }
 
 export function rentPeriodRemainingAmount(payment?: Pick<BusinessRentPayment, "amountDue" | "amountPaid" | "amountUnpaid"> | null) {
@@ -231,6 +310,33 @@ function compareOpenDebtPeriods(left: RentPeriodState, right: RentPeriodState) {
   return left.coverageEndDate.localeCompare(right.coverageEndDate)
     || left.coverageStartDate.localeCompare(right.coverageStartDate)
     || (left.paymentId || "").localeCompare(right.paymentId || "");
+}
+
+function reconcileRentPeriodReason(payment: BusinessRentPayment, state: RentPeriodState, tenantId: string, isLatestPeriod: boolean): RentPeriodReconciliationReason {
+  if (!payment.tenantId || payment.tenantId !== tenantId) return "excluded-tenant-mismatch";
+  if (!isRentPeriodRentIncome(payment)) return "excluded-non-rent-income";
+  if (isRentPeriodVoided(payment)) return "closed-void";
+  if (!hasValidCoveragePeriod(payment)) return "excluded-invalid-coverage";
+  if (state.waived) return "closed-waived";
+  if (state.hasOpenDebtFollowUp) return "open-overdue";
+  if (state.isExpired && state.remainingAmount <= 0 && !state.isZeroAmountOverdueEvent) return "closed-settled";
+  if (isLatestPeriod) return "latest-current-period";
+  return "not-yet-overdue";
+}
+
+function hasValidCoveragePeriod(payment: BusinessRentPayment) {
+  const end = payment.coverageEndDate || "";
+  const start = payment.coverageStartDate || "";
+  if (!isIsoCalendarDate(end)) return false;
+  // Legacy rows may omit the start while preserving a reliable coverage end.
+  return !start || (isIsoCalendarDate(start) && start <= end);
+}
+
+function isIsoCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function toCents(value: unknown) {

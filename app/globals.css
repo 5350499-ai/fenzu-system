@@ -1190,6 +1190,44 @@ a {
   white-space: nowrap;
 }
 
+/* Payment-backed rent reminders reserve a dedicated identity/facts column.
+   Their coverage end must be readable, so they do not keep the unused third
+   status column that non-rent rows use. */
+.reminder-page-row:has(.rent-reminder-display),
+.reminder-page-row-link:has(.rent-reminder-display) {
+  grid-template-columns: minmax(78px, 78px) minmax(0, 1fr);
+}
+
+/* Rent reminder business facts use the shared two-line display contract.
+   Coverage end is a primary decision field and must never be ellipsized. */
+.rent-reminder-display {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rent-reminder-display strong,
+.rent-reminder-display small,
+.reminder-item.rent-reminder .rent-reminder-display small {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.rent-reminder-display strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.rent-reminder-display small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .reminder-page-row span {
   font-size: 13px;
   font-weight: 850;

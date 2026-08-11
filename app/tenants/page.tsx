@@ -43,8 +43,9 @@ import {
 import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
-import { coverageLabel, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
+import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { getTenantRentDisplay, type TenantRentDisplay } from "@/lib/tenant-rent-state-display";
+import { rentPeriodToday } from "@/lib/rent-period-state";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
@@ -150,6 +151,7 @@ export default function TenantsPage() {
   const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDateValue, setMoveOutDateValue] = useState("");
   const [moveOutDepositStatus, setMoveOutDepositStatus] = useState<"待退" | "已退">("待退");
+  const businessToday = rentPeriodToday();
   const [depositStatusTenant, setDepositStatusTenant] = useState<BusinessTenant | null>(null);
   const [depositStatusValue, setDepositStatusValue] = useState<"待退" | "已退">("待退");
   const [createDepositTenant, setCreateDepositTenant] = useState<BusinessTenant | null>(null);
@@ -291,11 +293,11 @@ export default function TenantsPage() {
         tenant,
         payments: payments.filter((payment) => payment.tenantId === tenant.id),
         waivedPaymentIds,
-        today: localToday()
+        today: businessToday
       }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contractExpiringDays, contracts, effectivePropertyIds, effectiveQuery, filesByContract, filesByTenant, payments, properties, rooms, showArchived, tenants, waivedPaymentIds]);
+  }, [businessToday, contractExpiringDays, contracts, effectivePropertyIds, effectiveQuery, filesByContract, filesByTenant, payments, properties, rooms, showArchived, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -313,9 +315,9 @@ export default function TenantsPage() {
       tenant,
       payments: payments.filter((payment) => payment.tenantId === tenant.id),
       waivedPaymentIds,
-      today: localToday()
+      today: businessToday
     })])
-  ), [payments, tenants, waivedPaymentIds]);
+  ), [businessToday, payments, tenants, waivedPaymentIds]);
 
   const sortedTenants = useMemo(() => {
     return sortTenantsByRoomAndStatus(filteredTenants, rooms, {
@@ -971,7 +973,7 @@ export default function TenantsPage() {
                 {expanded ? (
                   <TenantDetail
                     contract={contract}
-                    coverageEnd={coverageLabel(latestCoverageForTenant(tenant.id, payments))}
+                    coverageEnd={rentDisplay.state.coverageEndDate || "-"}
                     coverageExpiry={expiryInfo.label}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}

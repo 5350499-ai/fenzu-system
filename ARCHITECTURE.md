@@ -452,6 +452,16 @@ open debt periods for debt reminders and the latest period for future rent
 collection. Tenant list must consume both: current coverage status plus a
 visible historical-debt indicator when an older open debt exists.
 
+`inspectTenantRentState` is the read-only reconciliation boundary used by
+fixtures and domain consumers. It returns one `businessToday`, selected latest
+period, payment-specific open/closed periods, readable inclusion/exclusion
+reasons and expected debt reminder IDs. Reminder Engine consumes its open debt
+output; tenant presentation consumes both latest coverage and open-debt summary.
+Neither surface may re-compare coverage dates, waiver facts, or payment amounts.
+The shared rent reminder display formatter renders identity on line one and
+full coverage-end/status/amount facts on line two for both dashboard and the
+reminder center.
+
 Tenant reminder deep links resolve by stable `tenantId`. The shared deep-link
 plan must make the target archive mode, page and collapsed group visible before
 the mounted tenant card is scrolled into the safe visible viewport.

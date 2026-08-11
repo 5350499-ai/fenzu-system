@@ -936,3 +936,11 @@
 - Tenant list now retains the current expiry state and visibly marks a historical open debt when needed; void and payment-specific waiver close only their own period.
 - Reminder tenant links now resolve archive mode, pagination and collapsed groups before expanding and scrolling the mounted target card into the safe visible area.
 - No database, schema, migration, RLS, permissions, real business data, financial calculation formula or Production change.
+
+## 2026-08-11 - Rent coverage reconciliation and reminder display contract (Preview)
+
+- Added the pure `inspectTenantRentState` reconciliation trace: one Madrid business date, coverage-chronology latest period, payment-specific open/closed debt periods, explicit exclusion reasons and expected reminder IDs.
+- Reminder Engine now consumes that reconciled debt output; tenant status consumes the same latest/open-debt result. Invalid coverage records cannot become a current coverage period.
+- Added a 28-scenario golden rent-state matrix, including the Aug 5/Aug 10 regressions, zero-value debt, waiver/void/settlement, archive/move-out, re-let history and coverage chronology conflicts.
+- Dashboard and reminder-center rent cards now share a two-line presentation contract that keeps the full coverage end visible.
+- No database, schema, migration, RLS, permissions, real business data, financial formula or Production change.

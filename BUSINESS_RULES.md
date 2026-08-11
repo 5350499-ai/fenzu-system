@@ -108,6 +108,24 @@ waivable but is not automatically discarded because a newer period exists.
 Unlinked duplicate/overlapping payment rows cannot safely be assumed to be
 superseded without a separate product decision.
 
+### Rent State Contract
+
+- `Latest Rent Period` answers current coverage only. It is selected by valid
+  coverage end, then coverage start, then immutable entry-time tie breakers;
+  `createdAt` never outranks a later coverage end.
+- `Open Debt Periods` are independent, payment-specific expired events. They
+  close only through that payment's settled collection, void, or waiver. A
+  later payment does not silently close an older debt.
+- `coverageEnd` is inclusive: coverage ending on `businessToday` is due today,
+  not overdue. Overdue begins on the following Madrid business day.
+- A valid zero-amount overdue period remains an open event until its own void
+  or waiver; it is not discarded merely because its remaining amount is zero.
+- Archive mutes daily reminders only. Move-out ends tenancy only. Neither
+  changes rent facts or closes an open debt.
+- Rent reminder UI must display payment-owned tenant, property, room and the
+  full coverage end in a dedicated second facts line; that date must not be
+  hidden by single-line ellipsis.
+
 - 所有经营提醒必须从共享 Reminder Engine 生成。首页只能展示同一有效提醒集合的摘要，提醒中心展示完整列表；两者不得分别重算业务规则或使用不一致的总数。
 - 欠费提醒以 RentPeriodState 的事实和当前追缴状态为准；归档只静默日常租客型提醒，不结清债务；退租不自动静默未处理的历史欠费；waiver 和补交结清只使对应 payment/rent period 的提醒失效。
 - 每个提醒必须使用稳定的 type + 业务实体/期间 ID，并携带主体导航和可用操作元数据。租客主体提醒优先使用 tenant_id，不得依靠房间名称或展示文案导航。

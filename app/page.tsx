@@ -38,6 +38,7 @@ import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, g
 import { isCoverageExpired, latestCoverageForTenant } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { buildEffectiveReminders, summarizeEffectiveReminders } from "@/lib/reminder-engine";
+import { buildRentReminderDisplay } from "@/lib/rent-reminder-display";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -240,24 +241,19 @@ export default function DashboardPage() {
         </button>
         {remindersOpen ? (
           <div className="reminder-list">
-            {visibleReminders.length ? visibleReminders.map((item) => (
-              <Link className={`reminder-item ${item.tone}${item.rentContext ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
-                {item.rentContext ? (
-                  <>
-                    <span className="reminder-rent-head">
-                      <strong>{item.rentContext.tenantName}</strong>
-                      <em className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</em>
-                    </span>
-                    <small>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}｜覆盖至：{item.rentContext.coverageEnd}</small>
-                  </>
+            {visibleReminders.length ? visibleReminders.map((item) => {
+              const rentDisplay = buildRentReminderDisplay(item);
+              return <Link className={`reminder-item ${item.tone}${rentDisplay ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
+                {rentDisplay ? (
+                  <span className="rent-reminder-display"><strong>{rentDisplay.primaryLine}</strong><small>{rentDisplay.secondaryLine}</small></span>
                 ) : (
                   <>
                     <span>{item.title}</span>
                     <small>{item.description}</small>
                   </>
                 )}
-              </Link>
-            )) : <p className="muted">暂无需要处理的提醒。</p>}
+              </Link>;
+            }) : <p className="muted">暂无需要处理的提醒。</p>}
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
           </div>
         ) : null}

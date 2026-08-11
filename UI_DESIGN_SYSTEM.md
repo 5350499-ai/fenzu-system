@@ -646,3 +646,13 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Archive, restore archive and move-out must not change the debt amount, historical payment facts, waiver facts or collection state. A waiver closes only the payment-specific follow-up; it does not rewrite the historical payment or create financial entries.
 - A tenant-subject reminder must navigate by stable `tenant_id` to the tenant detail, never by the tenant's mutable room assignment. This includes archived tenants; the tenant page must enter its archive mode for a deep link when necessary.
 - A rent-debt reminder must place the tenant name in its primary visual line and the payment-owned property/room context in the supporting line, so users can distinguish historical tenants from a room's current occupant.
+
+## 45. Rent Reminder Display Contract
+
+- Dashboard cards and reminder-center rows must reuse the shared rent reminder
+  formatter. They render identity (`tenant | property | room`) first, followed
+  by a separate facts line containing the full `coverageEnd`, period status and
+  amount where relevant.
+- Coverage end is a primary operating fact. Rent reminder UI must wrap rather
+  than truncate it with a single-line ellipsis; action buttons occupy their own
+  row/space and never compete with coverage facts.

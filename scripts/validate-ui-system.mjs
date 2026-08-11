@@ -33,6 +33,7 @@ const rentPeriodState = readFileSync(resolve(root, "lib/rent-period-state.ts"), 
 const tenantRentStateDisplay = readFileSync(resolve(root, "lib/tenant-rent-state-display.ts"), "utf8");
 const tenantDeepLink = readFileSync(resolve(root, "lib/tenant-deep-link.ts"), "utf8");
 const reminderEntityConsistency = readFileSync(resolve(root, "lib/reminder-entity-consistency.ts"), "utf8");
+const rentReminderDisplay = readFileSync(resolve(root, "lib/rent-reminder-display.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 const dashboardRuntime = dashboardPage.split("/* Retired page-local reminder builders")[0];
 const remindersRuntime = remindersPage.split("/* Retired page-local reminder builder")[0];
@@ -108,18 +109,23 @@ const required = [
   [tenantsPage, "selectedPropertyIds", "Tenant list must use the shared property scope state"],
   [reminderNavigation, "tenantReminderHref", "Tenant reminders must use a stable tenant navigation helper"],
   [reminderEngine, "buildEffectiveReminders", "A shared Reminder Engine must build the effective reminder collection"],
-  [reminderEngine, "getRentPeriodState", "Reminder debt candidates must consume RentPeriodState"],
+  [reminderEngine, "inspectTenantRentState", "Reminder debt candidates must consume the shared reconciled RentPeriodState output"],
   [reminderEngine, "navigationTarget", "Reminder items must include a stable navigation target"],
   [reminderEngine, "availableActions", "Reminder items must expose shared action metadata"],
   [reminderEngine, "propertyId: payment.propertyId", "Payment-backed reminders must preserve the payment property ID"],
   [reminderEngine, "roomId: payment.roomId", "Payment-backed reminders must preserve the payment room ID"],
   [tenantsPage, "getTenantRentDisplay", "Tenant rent labels must use the shared RentPeriodState presentation adapter"],
   [tenantsPage, "const loadedPayments = await refreshBusinessData<BusinessRentPayment>", "Tenant rent status must load the current authoritative payment snapshot instead of a cache-first copy"],
-  [tenantRentStateDisplay, "getLatestRentPeriodState", "Tenant rent display must consume the shared RentPeriodState"],
-  [tenantRentStateDisplay, "getOpenRentDebtPeriodStates", "Tenant rent display must disclose historical open debt from the shared domain selector"],
+  [tenantRentStateDisplay, "inspectTenantRentState", "Tenant rent display must consume the shared reconciled RentPeriodState"],
   [rentPeriodState, "getOpenRentDebtPeriodStates", "Rent period domain must expose payment-specific open debt periods"],
   [rentPeriodState, "Europe/Madrid", "Rent period today must use the shared business-local calendar"],
-  [reminderEngine, "getOpenRentDebtPeriodStates", "Reminder debt candidates must consume open debt periods rather than only latest coverage"],
+  [reminderEngine, "inspectTenantRentState", "Reminder debt candidates must consume open debt periods rather than only latest coverage"],
+  [rentPeriodState, "inspectTenantRentState", "Rent domain must expose a read-only reconciliation inspector"],
+  [rentPeriodState, "rentPeriodToday", "Rent period selectors must use the shared businessToday source"],
+  [tenantsPage, "rentPeriodToday", "Tenant rent display must use the shared businessToday source"],
+  [rentReminderDisplay, "覆盖至", "Rent reminder display must include the coverage end fact"],
+  [rentReminderDisplay, "secondaryLine", "Rent reminder display must expose a shared second business-facts line"],
+  [css, ".rent-reminder-display", "Rent reminder UI must use the shared two-line display contract"],
   [tenantsPage, "planTenantDeepLink", "Tenant deep links must use the shared visibility plan"],
   [tenantsPage, "scrollIntoView", "Tenant deep links must scroll the mounted target into view"],
   [tenantDeepLink, "tenantDeepLinkScrollTargetId", "Tenant deep-link helper must expose a stable scroll target"],
@@ -131,6 +137,7 @@ const required = [
   [dashboardRuntime, "buildEffectiveReminders", "Dashboard runtime must consume the shared Reminder Engine"],
   [remindersRuntime, "buildEffectiveReminders", "Reminder center runtime must consume the shared Reminder Engine"],
   [guide, "Archive vs Debt Contract", "UI guide must define archive versus debt presentation behavior"],
+  [guide, "Rent Reminder Display Contract", "UI guide must define the two-line rent reminder presentation contract"],
   [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
   [rentCoverage, 'state.lifecycle === "archived"', "Archived tenant debt reminders must be muted by the compatibility policy bridge"],
   [rentCoverage, "fixedTenantRentDebtReminderStage", "Tenant debt reminder staging must remain in the compatibility bridge pending Reminder Engine"],
