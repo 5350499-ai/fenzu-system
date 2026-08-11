@@ -155,6 +155,18 @@ Cross-property query/list/analytics/settlement filters must reuse
 `PropertyMultiSelect` and `lib/property-scope.ts`; only a business record's
 single `property_id` attribution may remain a native single selector.
 
+### Rent / Debt Domain Contract
+
+`lib/rent-period-state.ts` is the required pure selector for a rent period's
+coverage, overdue state, due/paid/remaining values, historical debt fact,
+payment-specific waiver and current collection/reminder eligibility inputs.
+New tenant, rent-payment, dashboard, reminder, profit or analytics code must
+not recreate these rules from raw coverage dates, amounts or audit-log waiver
+IDs. A waiver is append-only, payment-specific and non-financial: it never
+rewrites the original payment or creates income/expense; €0.00 overdue events
+remain waiver-eligible. Archive and move-out are lifecycle states, not an
+automatic debt settlement. Reminder display remains a separate derived layer.
+
 - 所有代码修改完成后，必须先运行 `npm run build`。
 - 构建通过后，必须先部署到 Vercel Preview。
 - 未经用户明确验收，不得直接部署或 Promote 到 Production。

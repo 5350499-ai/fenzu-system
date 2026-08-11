@@ -1,4 +1,6 @@
 import type { BusinessContract, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
+// @ts-expect-error Node's strip-types test runner needs an explicit TypeScript extension here.
+import { getRentPeriodState, latestValidRentPeriodPayment, rentPeriodDayDifference, rentPeriodToday } from "./rent-period-state.ts";
 
 function isArchivedTenantValue(status = "") {
   return status === "\u5df2\u5f52\u6863" || status.toLowerCase() === "archived";
@@ -19,9 +21,7 @@ export function paymentCoverageEnd(payment: BusinessRentPayment) {
 }
 
 export function latestCoveragePayment(payments: BusinessRentPayment[]) {
-  return [...payments]
-    .filter(isValidCoveragePayment)
-    .sort((a, b) => paymentEntryTimestamp(b).localeCompare(paymentEntryTimestamp(a)))[0] || null;
+  return latestValidRentPeriodPayment(payments);
 }
 
 export function latestCoverageForTenant(tenantId: string, payments: BusinessRentPayment[]) {
@@ -228,15 +228,11 @@ export function fixedTenantRentDebtReminderStage(
   payment: BusinessRentPayment | null,
   today = todayString()
 ): RentCollectionReminderStage | null {
+  const state = getRentPeriodState({ tenant, payment, today });
+  if (!state.reminderEligibleByCurrentPolicy || !state.reminderStage) return null;
   if (!payment) return null;
   const stage = rentCoverageReminderStageFixed(payment, today);
   if (!stage) return null;
-  if (isArchivedTenantValue(tenant.status)) {
-    return stage.level === "overdue" && unresolvedRentAmount(payment) > 0
-      ? { ...stage, reason: "coverage", daysPastPaymentDay: 0 }
-      : null;
-  }
-  if (!isCurrentRentalRelationship(tenant)) return null;
   return { ...stage, reason: "coverage", daysPastPaymentDay: 0 };
 }
 
@@ -245,14 +241,8 @@ export function hasUnresolvedTenantRentDebt(
   payment: BusinessRentPayment | null,
   today = todayString()
 ) {
-  return Boolean(
-    payment
-    && isRentIncome(payment)
-    && !isVoided(payment.notes)
-    && isCoverageExpired(payment, today)
-    && unresolvedRentAmount(payment) > 0
-    && (isCurrentRentalRelationship(tenant) || isArchivedTenantValue(tenant.status))
-  );
+  const state = getRentPeriodState({ tenant, payment, today });
+  return state.hasUnresolvedHistoricalDebt && (state.lifecycle === "current" || state.lifecycle === "archived");
 }
 
 export function shouldShowTenantRentReminder(
@@ -261,7 +251,7 @@ export function shouldShowTenantRentReminder(
   waivedPaymentIds: ReadonlySet<string>,
   today = todayString()
 ) {
-  return Boolean(payment && !waivedPaymentIds.has(payment.id) && fixedTenantRentDebtReminderStage(tenant, payment, today));
+  return getRentPeriodState({ tenant, payment, today, waivedPaymentIds }).reminderEligibleByCurrentPolicy;
 }
 
 /** Formal rent-reminder eligibility. Contract expiry is reported separately. */
@@ -314,9 +304,8 @@ export function isRentIncome(payment: BusinessRentPayment) {
 
 /** A waiver closes a generated overdue rent event, not only a positive balance. */
 export function isWaivableRentCollectionEvent(payment: BusinessRentPayment | null, today = todayString()) {
-  if (!payment || !isRentIncome(payment) || isVoided(payment.notes)) return false;
-  if (payment.paymentStatus?.includes("\u5df2\u4f5c\u5e9f") || payment.paymentStatus?.toLowerCase().includes("void")) return false;
-  return Boolean(payment.coverageEndDate && isCoverageExpired(payment, today));
+  if (!payment) return false;
+  return getRentPeriodState({ tenant: { id: payment.tenantId || "", status: "\u5728\u79df" }, payment, today }).canWaive;
 }
 
 function isValidCoveragePayment(payment: BusinessRentPayment) {
@@ -349,13 +338,11 @@ export function monthEnd(month?: string) {
 }
 
 export function todayString() {
-  return new Date().toISOString().slice(0, 10);
+  return rentPeriodToday();
 }
 
 function dateDifference(target: string, from: string) {
-  const targetDate = new Date(`${target}T12:00:00`);
-  const fromDate = new Date(`${from}T12:00:00`);
-  return Math.round((targetDate.getTime() - fromDate.getTime()) / 86400000);
+  return rentPeriodDayDifference(target, from);
 }
 
 function isVoided(notes?: string) {

@@ -902,3 +902,10 @@
 
 - Reminder center now refreshes current business sources and waiver actions before rendering the reminder count/list, preventing processed reminders from flashing during revalidation.
 - Waiving a reminder also invalidates the dashboard's derived reminder cache so the home summary cannot reuse the old reminder snapshot. No business data or calculation rules changed.
+
+## 2026-08-11 - Rent period and debt domain root
+
+- Added the pure `lib/rent-period-state.ts` selector as the shared payment-period source for coverage, expiry, normalized remaining balance, immutable historical debt facts, payment-specific waiver state and current collection/reminder eligibility inputs.
+- Routed legacy coverage selection, remaining-balance and waiver/reminder compatibility helpers through the new selector without rewriting dashboard, reminder, tenant or profit pages.
+- Added fixture-only state-matrix tests, including zero-balance waiver, payment-specific waiver isolation, archived/moved-out history, voided records, multiple periods, decimal amounts and calendar boundaries.
+- No database schema, migration, RLS, permission, real business data, financial formula, account or Production change.

@@ -377,6 +377,27 @@ The user-facing attachment model is now four categories: property, tenant, incom
 Property-level files use the additive `property_files` table and private `property-files` bucket. This structure does not alter Backup V1 or Restore V4. The property detail page reuses the existing upload, view, download, and delete security path.
 
 Attachment archives remain independent from data Backup/Restore. The ZIP has human-readable four-category paths and retains `manifest.json` with stable attachment IDs, business relationships, provider information, checksums, and actual archive paths. Cleanup filters the same four categories; moved-out tenant cleanup only targets tenant attachments, and Google Drive originals are never automatically deleted.
+
+## Rent / Debt Domain Contract
+
+`lib/rent-period-state.ts` is the pure, payment-specific source of truth for
+rent-period facts and collection state. It selects the latest valid rent period
+and exposes coverage dates, expiry/overdue values, normalized due/paid/remaining
+amounts, historical debt facts, payment-specific waiver state and the current
+policy's reminder eligibility inputs.
+
+The contract separates immutable facts from current handling: a waiver is read
+from the append-only audit-log projection, applies only to its `rent_payment_id`,
+does not alter the original payment, and creates neither income nor expense.
+An expired zero-balance period remains a historical event and may be waived;
+remaining balance is not a precondition for waiver. Tenant archive or move-out
+does not rewrite historical debt facts. Reminder presentation remains a separate
+derived concern and will consume this state through the future Reminder Engine.
+
+Pages and domain helpers must not independently recompute rent debt from
+coverage dates, payment status, remaining amounts and waiver IDs. They must use
+`getRentPeriodState` (or its explicit compatibility wrapper in
+`lib/rent-coverage.ts`) so the same payment period has one definition.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。

@@ -1,8 +1,7 @@
 import type { BusinessRentPayment } from "./business-data";
+// @ts-expect-error Node's strip-types test runner needs an explicit TypeScript extension here.
+import { rentPeriodRemainingAmount } from "./rent-period-state.ts";
 
 export function rentCollectionRemaining(payment: BusinessRentPayment) {
-  const due = Number(payment.amountDue || 0);
-  const paid = Number(payment.amountPaid || 0);
-  if (due > 0) return Math.max(due - paid, 0);
-  return Math.max(Number(payment.amountUnpaid || 0), 0);
+  return rentPeriodRemainingAmount(payment);
 }
