@@ -2498,32 +2498,9 @@ td:last-child {
   padding: 10px 12px;
 }
 
-.field input[type="month"],
 .field input[type="file"] {
   -webkit-appearance: none;
   appearance: none;
-}
-
-.field input[type="date"] {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  overflow: hidden;
-  line-height: normal;
-  background-clip: padding-box;
-}
-
-.field input[type="date"]::-webkit-date-and-time-value {
-  min-width: 0;
-  text-align: left;
-}
-
-.field input[type="date"]::-webkit-calendar-picker-indicator {
-  flex: 0 0 auto;
-  max-width: 22px;
-  margin: 0;
 }
 
 .field textarea {
@@ -5882,15 +5859,6 @@ td:last-child {
 
   .tap-select {
     overflow: visible;
-  }
-
-  .field input[type="date"] {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding-right: 10px;
   }
 
   .top-actions {
@@ -9894,6 +9862,7 @@ input[type="month"],
 input[type="time"] {
   -webkit-appearance: auto;
   appearance: auto;
+  --ui-date-content-height: var(--ui-form-control-height, 42px);
   box-sizing: border-box;
   height: var(--ui-form-control-height, 42px);
   min-height: var(--ui-form-control-height, 42px);
@@ -9901,7 +9870,7 @@ input[type="time"] {
   padding-block: 0;
   padding-inline: var(--ui-control-padding-inline, 12px);
   font-size: var(--ui-font-size-body, 14px);
-  line-height: var(--ui-line-height-normal, 1.45);
+  line-height: var(--ui-date-content-height);
   font-variant-numeric: tabular-nums;
 }
 
@@ -9912,8 +9881,26 @@ input[type="time"]::-webkit-date-and-time-value {
   min-width: 0;
   margin: 0;
   padding: 0;
-  line-height: inherit;
+  min-height: var(--ui-date-content-height);
+  line-height: var(--ui-date-content-height);
   text-align: left;
+}
+
+/* Safari keeps date text inside its own WebKit edit tree. These rules belong
+   to the Date Field Contract, not individual pages, so the native value uses
+   the same vertical rhythm as every other single-line control. */
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+input[type="month"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  margin: 0;
+  padding: 0;
+  min-height: var(--ui-date-content-height);
+  line-height: var(--ui-date-content-height);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator,
@@ -9936,11 +9923,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   input[type="datetime-local"],
   input[type="month"],
   input[type="time"] {
+    --ui-date-content-height: var(--ui-control-height-mobile, 44px);
     height: var(--ui-control-height-mobile, 44px);
     min-height: var(--ui-control-height-mobile, 44px);
     padding-block: 0;
     padding-inline: var(--ui-control-padding-inline, 12px);
-    line-height: var(--ui-line-height-normal, 1.45);
+    line-height: var(--ui-date-content-height);
   }
 }
 

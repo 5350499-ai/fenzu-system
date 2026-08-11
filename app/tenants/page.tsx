@@ -25,6 +25,7 @@ import {
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
+  refreshBusinessData,
   rentPaymentKey,
   roomKey,
   saveBusinessData,
@@ -536,7 +537,18 @@ export default function TenantsPage() {
             notes: `[收租押金:${nextPayment.id}]`
           }, ...deposits]
         : deposits;
-      await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败");
+      const saved = await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败");
+      // New rows receive their immutable created_at on the server. Re-read it
+      // instead of inventing a client time so the explicit 时间 sort is correct
+      // immediately after a successful tenant creation.
+      if (saved) {
+        try {
+          setTenants(await refreshBusinessData<BusinessTenant>(tenantKey, next));
+        } catch {
+          // The successful optimistic list remains visible; a later route
+          // load will still obtain the authoritative server creation time.
+        }
+      }
     } catch (error: any) {
       window.alert(error.message || "保存租客、收款或附件失败，请稍后重试。");
       return;
@@ -822,7 +834,7 @@ export default function TenantsPage() {
               autoComplete="off"
               onChange={(event) => updateTenantSearch(event.target.value)}
               onFocus={() => setSearchOpen(true)}
-              placeholder={access.isFreeSingle ? "搜索姓名、电话、微信、房源、房间" : "搜索姓名、电话、微信、房源、房间、租客附件"}
+              placeholder={access.isFreeSingle ? "搜索姓名、电话、联系方式、房源、房间" : "搜索姓名、电话、联系方式、房源、房间、租客附件"}
               value={query}
             />
             {query ? (
@@ -859,7 +871,7 @@ export default function TenantsPage() {
             <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
             <SortButton active={sortKey === "rent"} direction={sortDirection} label="月租" onClick={() => toggleSort("rent")} />
             <SortButton active={sortKey === "property"} direction={sortDirection} label="房源" onClick={() => toggleSort("property")} />
-            <SortButton active={sortKey === "status"} direction={sortDirection} label="状态" onClick={() => toggleSort("status")} />
+            <SortButton active={sortKey === "time"} direction={sortDirection} label="时间" onClick={() => toggleSort("time")} />
           </div>
         </div>
 
@@ -1007,8 +1019,8 @@ export default function TenantsPage() {
                 placeholder="先选房源，再搜索房间名称、编号"
               />
               <TextField className="tenant-edit-name" label="姓名" required value={form.name} onChange={(name) => setForm((current) => ({ ...current, name }))} />
-              <TextField className="tenant-edit-phone" label="电话（可选）" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
-              <TextField className="tenant-form-wide tenant-edit-wechat" label="WhatsApp / 微信（可选）" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
+              <TextField className="tenant-edit-phone" label="电话" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
+              <TextField className="tenant-form-wide tenant-edit-wechat" label="WhatsApp / 其他" value={form.wechat} onChange={(wechat) => setForm((current) => ({ ...current, wechat }))} />
               {form.id ? <MoneyInput className="tenant-edit-monthly" label="当前月租" value={form.monthlyRent} onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))} /> : <MoneyInput label="本次房租金额" value={paymentForm.amountDue} onChange={(amountDue) => updatePaymentMoney({ amountDue, paymentStatus: amountDue > 0 ? "已收" : paymentForm.paymentStatus })} />}
               <div className="field tenant-edit-occupant"><label>入住人数</label><input inputMode="numeric" min="1" step="1" type="number" value={form.occupantCount || ""} onChange={(event) => setForm((current) => ({ ...current, occupantCount: Number(event.target.value) }))} /></div>
               {form.id ? <MoneyInput className="tenant-edit-deposit" label="押金标准 / 应收押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} /> : <MoneyInput label="押金" value={newPaymentDepositAmount} onChange={setNewPaymentDepositAmount} />}
@@ -1025,7 +1037,7 @@ export default function TenantsPage() {
               {!form.id ? <OwnershipField options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} /> : null}
               {form.id ? <SearchableSelect className="tenant-edit-status" label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
               {!form.id ? <SearchableSelect label="状态" value={form.status} options={tenantStatuses.map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, status }))} /> : null}
-              <TextField className={form.id ? "tenant-edit-source" : undefined} label="来源（可选）" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
+              <TextField className={form.id ? "tenant-edit-source" : undefined} label="来源" value={form.source} onChange={(source) => setForm((current) => ({ ...current, source }))} />
               <div className="field tenant-form-wide tenant-edit-note">
                 <label>备注</label>
                 <textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
@@ -1256,7 +1268,7 @@ function TenantDetail({
         </div>
         {detailsOpen ? <>
           <DetailField label="电话" value={tenant.phone || "-"} />
-          <DetailField label="WhatsApp / 微信" value={tenant.wechat || "-"} />
+          <DetailField label="WhatsApp / 其他" value={tenant.wechat || "-"} />
           <DetailField label="入住日期" value={contract?.startDate || "-"} />
           <DetailField label="合同到期" value={contract?.endDate || "-"} />
           <DetailField label="来源" value={tenant.source || "-"} />

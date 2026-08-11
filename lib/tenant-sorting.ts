@@ -1,4 +1,4 @@
-export type TenantSortMode = "room" | "expiry" | "rent" | "property" | "status" | "priority";
+export type TenantSortMode = "room" | "expiry" | "rent" | "property" | "time" | "priority";
 
 type TenantLike = {
   id: string;
@@ -45,7 +45,9 @@ export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], r
   return tenants.map((tenant, index) => ({ tenant, index })).sort((a, b) => {
     const leftEnded = isEndedTenantStatus(a.tenant.status);
     const rightEnded = isEndedTenantStatus(b.tenant.status);
-    if (leftEnded !== rightEnded) return leftEnded ? 1 : -1;
+    // Time is an explicit record-level sort: display status must not add a
+    // hidden status ordering ahead of tenants.created_at.
+    if (mode !== "time" && leftEnded !== rightEnded) return leftEnded ? 1 : -1;
     const leftRoom = roomById.get(a.tenant.roomId || "");
     const rightRoom = roomById.get(b.tenant.roomId || "");
     const leftRoomNumber = extractRoomNumber(leftRoom?.roomNumber || leftRoom?.name);
@@ -55,7 +57,8 @@ export function sortTenantsByRoomAndStatus<T extends TenantLike>(tenants: T[], r
     if (!difference && mode === "rent") difference = (Number(a.tenant.monthlyRent) - Number(b.tenant.monthlyRent)) * direction;
     if (!difference && mode === "property") difference = compareText(options.getProperty?.(a.tenant) || "", options.getProperty?.(b.tenant) || "") * direction;
     if (!difference && mode === "expiry") difference = compareText(options.getExpiry?.(a.tenant) || "9999-12-31", options.getExpiry?.(b.tenant) || "9999-12-31") * direction;
-    if (!difference && (mode === "status" || mode === "priority")) difference = ((options.getStatusRank?.(a.tenant) || 0) - (options.getStatusRank?.(b.tenant) || 0)) * direction;
+    if (!difference && mode === "time") difference = compareText(a.tenant.createdAt || "", b.tenant.createdAt || "") * direction;
+    if (!difference && mode === "priority") difference = ((options.getStatusRank?.(a.tenant) || 0) - (options.getStatusRank?.(b.tenant) || 0)) * direction;
     if (!difference && leftEnded) difference = compareDateDesc(a.tenant.actualMoveOutDate || a.tenant.updatedAt || a.tenant.createdAt || "", b.tenant.actualMoveOutDate || b.tenant.updatedAt || b.tenant.createdAt || "");
     if (!difference) difference = roomCompare;
     if (!difference) difference = compareText(a.tenant.name || "", b.tenant.name || "");

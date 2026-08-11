@@ -489,3 +489,35 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   autofill 状态也不得降低字号。
 - 此契约只能由共享全局 CSS 实现。页面不得使用 `user-scalable=no`、
   `maximum-scale=1` 或其它禁用浏览器无障碍缩放的方式规避 iPhone Safari zoom。
+
+### WebKit vertical alignment
+
+- The shared Date Field Contract is the sole owner of `date`, `datetime-local`,
+  `month` and `time` control geometry. It sets `padding-block:0`, the shared
+  control height and a date-content line height equal to that height.
+- Safari renders the visible value inside a WebKit date edit tree. The shared
+  rules for `::-webkit-date-and-time-value`, `::-webkit-datetime-edit` and
+  `::-webkit-datetime-edit-fields-wrapper` must use that same content height
+  and zero vertical padding. Page CSS must not override date `appearance`,
+  height, line-height or vertical padding.
+- Static checks establish the shared contract; the final visual centering of a
+  native WebKit date value still requires real iPhone Safari acceptance.
+
+## 31. Shared business preset contract
+
+- Repeated business choices have one source of truth in `lib/`. Payment method
+  entry presets use `PAYMENT_METHOD_PRESETS`: `现金`, `转账`, `其他`.
+- Historical stored values remain readable and editable. A form may append its
+  current stored value to the displayed options only when that value is not in
+  the shared entry presets; it must never rewrite historical data merely to
+  match a new preset list.
+- Tenant contact labels are presentation-only. The shared display label for the
+  existing contact field is `WhatsApp / 其他`; its database key is unchanged.
+
+## 32. Tenant list time-sort contract
+
+- The tenant list `时间` sort uses the immutable `tenants.created_at` mapping
+  (`BusinessTenant.createdAt`), never `updated_at`, move-in date, coverage date
+  or client-side time.
+- `时间 ↑` means oldest record first and `时间 ↓` means newest record first.
+  Status remains a display/filter concern, not a substitute time-sort control.

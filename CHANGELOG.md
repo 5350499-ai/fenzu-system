@@ -860,3 +860,10 @@
 - Removed the redundant native confirmation that blocked the visible move-out dialog, added stale-state validation and duplicate-submit protection, and retained the established tenant/room/contract/deposit update rules without creating refund expenses.
 - Expanded the UI design-system contract, static UI validation and focused interaction tests for dropdown gestures and move-out state transitions.
 - No database schema, migration, real business data, financial calculation, permission, account or Production changes.
+
+## 2026-08-11 - Shared date controls, payment presets and tenant record-time sort (Preview)
+
+- Consolidated all native date/time inputs under one WebKit-aware Date Field Contract, removing legacy field-level appearance and line-height overrides that conflicted with native vertical alignment.
+- Centralized new-entry payment presets as 现金、转账、其他 while retaining non-destructive display/edit compatibility for historical Bizum values.
+- Simplified tenant contact labels and added a tenant-list 时间 sort backed by the immutable `tenants.created_at` mapping.
+- No database schema, migration, real business data, financial calculation, permission, account or Production changes.

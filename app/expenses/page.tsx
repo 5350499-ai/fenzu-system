@@ -36,10 +36,10 @@ import { euro } from "@/lib/format";
 import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
+import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const emptyExpense: BusinessExpense = {
   id: "",
   propertyId: "",
@@ -352,7 +352,7 @@ export default function ExpensesPage() {
               <div className="field"><label>支出日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, expenseMonth: event.target.value.slice(0, 7) }))} /></div>
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
               <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
-              <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethodOptions(form.paymentMethod || "转账")} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!expensePartnerOptions.length} placeholder={expensePartnerOptions.length ? undefined : "暂无可用成员"} options={expensePartnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               {!access.isFreeSingle ? <p className="muted" style={{ gridColumn: "1 / -1" }}>支出保存后，可在支出详情中逐个添加附件；添加附件不会覆盖已有文件。</p> : null}

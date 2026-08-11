@@ -36,6 +36,8 @@ export type BusinessRoom = {
 
 export type BusinessTenant = {
   id: string;
+  /** Immutable tenants.created_at, used for user-visible record-time sorting. */
+  createdAt?: string;
   propertyId: string;
   roomId: string;
   name: string;
@@ -188,6 +190,7 @@ const tableConfigs: Record<string, TableConfig> = {
     order: "created_at",
     fromDb: (row) => ({
       id: row.id,
+      createdAt: row.created_at || "",
       propertyId: row.property_id || "",
       roomId: row.room_id || "",
       name: row.name || "",

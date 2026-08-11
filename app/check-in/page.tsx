@@ -29,6 +29,7 @@ import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
+import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -323,7 +324,7 @@ export default function CheckInPage() {
           <div className="field"><label>租金覆盖结束日期</label><input required type="date" value={form.coverageEndDate} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div>
           <OwnershipField className="check-in-ownership" options={partnerOptions} optionsLoading={partnersLoading} mode={ownershipMode} onModeChange={setOwnershipMode} />
           <SearchableSelect label="收款状态" value={form.paymentStatus} options={["已收", "未收"].map((status) => ({ value: status, label: status }))} onChange={(paymentStatus) => setForm((current) => ({ ...current, paymentStatus }))} />
-          <SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+          <SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethodOptions(form.paymentMethod)} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
           <div className="field collapsible-attachments" style={{ gridColumn: "1 / -1" }}>
             <button className="btn soft attachment-toggle" type="button" onClick={() => setAdvancedOpen((current) => !current)}>

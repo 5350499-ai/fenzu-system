@@ -13,6 +13,10 @@ const tapSelect = readFileSync(resolve(root, "components/tap-select.tsx"), "utf8
 const rentPayments = readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8");
 const expensePage = readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8");
 const expenseTypePresets = readFileSync(resolve(root, "lib/expense-type-presets.ts"), "utf8");
+const paymentMethodPresets = readFileSync(resolve(root, "lib/payment-method-presets.ts"), "utf8");
+const tenantsPage = readFileSync(resolve(root, "app/tenants/page.tsx"), "utf8");
+const tenantSorting = readFileSync(resolve(root, "lib/tenant-sorting.ts"), "utf8");
+const businessData = readFileSync(resolve(root, "lib/business-data.ts"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -35,6 +39,9 @@ const required = [
   [guide, "Nested Scroll Ownership", "UI guide must define nested scroll ownership"],
   [guide, "iOS Editable-Control Font Size Contract", "UI guide must define iOS editable-control sizing"],
   [guide, "Date Field Contract", "UI guide must define the shared date-field contract"],
+  [guide, "WebKit vertical alignment", "UI guide must define WebKit date-value alignment"],
+  [guide, "Shared business preset contract", "UI guide must define shared business presets"],
+  [guide, "Tenant list time-sort contract", "UI guide must define tenant record-time sorting"],
   [claude, "UI_DESIGN_SYSTEM.md", "CLAUDE.md must require the UI guide"],
   [architecture, "UI_DESIGN_SYSTEM.md", "ARCHITECTURE.md must identify the UI guide"],
   [css, "--ui-check-control-size: 18px", "CSS must define the checkbox/radio token"],
@@ -53,7 +60,12 @@ const required = [
   [tapSelect, "DropdownListbox", "TapSelect must reuse the shared listbox primitive"],
   [searchableSelect, "DropdownListbox", "SearchableSelect must reuse the shared listbox primitive"],
   [expensePage, "EXPENSE_TYPE_PRESETS", "Expense entry must use the shared type presets"],
-  [expenseTypePresets, '["房租", "电费", "其他"]', "Expense type presets must remain compact and shared"]
+  [expenseTypePresets, '["房租", "电费", "其他"]', "Expense type presets must remain compact and shared"],
+  [paymentMethodPresets, '["现金", "转账", "其他"]', "Payment method presets must remain compact and shared"],
+  [paymentMethodPresets, "paymentMethodOptions", "Historical payment methods must have a non-destructive display compatibility helper"],
+  [tenantsPage, 'label="时间"', "Tenant list must expose the record-time sort"],
+  [tenantSorting, '"time"', "Tenant sorting must support the record-time mode"],
+  [businessData, 'createdAt: row.created_at', "Tenant mappings must expose the immutable database creation time"]
 ];
 
 const failures = required
@@ -62,6 +74,14 @@ const failures = required
 
 if (/touch-action\s*:\s*none/i.test(css)) {
   failures.push("Global CSS must not disable touch scrolling with touch-action:none");
+}
+
+if (/\.field\s+input\[type="date"\][\s\S]{0,500}?(?:appearance\s*:\s*none|line-height\s*:\s*normal)/i.test(css)) {
+  failures.push("Date fields must not retain legacy field-level appearance or line-height overrides");
+}
+
+if (!/::-webkit-datetime-edit[\s\S]*?--ui-date-content-height/is.test(css) || !/::-webkit-datetime-edit-fields-wrapper[\s\S]*?--ui-date-content-height/is.test(css)) {
+  failures.push("Date fields must align Safari's WebKit edit tree through the shared date-content height");
 }
 
 if (/\.field\s+input:not\(\[type=["']checkbox["']\]\):not\(\[type=["']radio["']\]\)(?!:not\(\.ui-combobox-input\))/i.test(css)) {
@@ -120,10 +140,29 @@ if (!/height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) 
   failures.push("Date fields must use the shared mobile control height");
 }
 
+if (!/--ui-date-content-height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) {
+  failures.push("Mobile date fields must give Safari's value tree the shared 44px content height");
+}
+
 for (const { path, source } of uiSources) {
   if (/<(?:input|textarea|select)[\s\S]{0,700}style=\{\{[^}]*fontSize\s*:\s*(?:1[0-5]|[0-9])(?:px)?/i.test(source)) {
     failures.push(`Editable controls must not use an inline font size below 16px: ${path.replace(root, "")}`);
   }
+}
+
+for (const { path, source } of uiSources) {
+  if (/\bBizum\b/.test(source)) {
+    failures.push(`Pages must not hard-code the retired Bizum payment preset: ${path.replace(root, "")}`);
+  }
+}
+
+for (const page of ["app/check-in/page.tsx", "app/expenses/page.tsx", "app/rent-payments/page.tsx", "app/properties/[id]/page.tsx"]) {
+  const source = readFileSync(resolve(root, page), "utf8");
+  if (!source.includes("paymentMethodOptions")) failures.push(`Payment form must use shared payment presets: ${page}`);
+}
+
+if (/sortKey === "status"|toggleSort\("status"/.test(tenantsPage)) {
+  failures.push("Tenant list must not expose status as the record sorting control");
 }
 
 if (failures.length) {

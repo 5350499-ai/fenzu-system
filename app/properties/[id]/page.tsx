@@ -34,6 +34,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
+import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { calculatePropertyProfit, getDateRange, monthlyProfitRows } from "@/lib/profit";
 import { isValidOccupancyDate, resolvePropertyOccupancyStart } from "@/lib/room-occupancy";
 import { sumOccupants } from "@/lib/tenant-occupancy";
@@ -626,7 +627,7 @@ function PaymentFields({ form, setForm, roomOptions, tenantOptions, tenants }: a
       return { ...next, amountUnpaid, isOverdue: amountUnpaid > 0 };
     });
   }
-  return <><SearchableSelect label="房间" value={form.roomId} options={roomOptions} onChange={(roomId) => setForm((c: BusinessRentPayment) => ({ ...c, roomId, tenantId: "" }))} /><SearchableSelect label="租客" value={form.tenantId} options={tenantOptions} onChange={(tenantId) => { const tenant = tenants.find((t: BusinessTenant) => t.id === tenantId); updateMoney({ tenantId, amountDue: tenant?.monthlyRent || form.amountDue, amountPaid: 0 }); }} /><Text label="月份" value={form.rentMonth} onChange={(rentMonth) => setForm((c: BusinessRentPayment) => ({ ...c, rentMonth }))} /><NumberInput label="应收金额" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} /><NumberInput label="已收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /><Text label="未收金额" value={String(form.amountUnpaid)} readOnly onChange={() => {}} /><SearchableSelect label="付款方式" value={form.paymentMethod} options={["现金", "转账", "Bizum", "其他"].map((v) => ({ value: v, label: v }))} onChange={(paymentMethod) => setForm((c: BusinessRentPayment) => ({ ...c, paymentMethod: paymentMethod as BusinessRentPayment["paymentMethod"] }))} /><Note value={form.notes} onChange={(notes) => setForm((c: BusinessRentPayment) => ({ ...c, notes }))} /></>;
+  return <><SearchableSelect label="房间" value={form.roomId} options={roomOptions} onChange={(roomId) => setForm((c: BusinessRentPayment) => ({ ...c, roomId, tenantId: "" }))} /><SearchableSelect label="租客" value={form.tenantId} options={tenantOptions} onChange={(tenantId) => { const tenant = tenants.find((t: BusinessTenant) => t.id === tenantId); updateMoney({ tenantId, amountDue: tenant?.monthlyRent || form.amountDue, amountPaid: 0 }); }} /><Text label="月份" value={form.rentMonth} onChange={(rentMonth) => setForm((c: BusinessRentPayment) => ({ ...c, rentMonth }))} /><NumberInput label="应收金额" value={form.amountDue} onChange={(amountDue) => updateMoney({ amountDue })} /><NumberInput label="已收金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /><Text label="未收金额" value={String(form.amountUnpaid)} readOnly onChange={() => {}} /><SearchableSelect label="付款方式" value={form.paymentMethod} options={paymentMethodOptions(form.paymentMethod)} onChange={(paymentMethod) => setForm((c: BusinessRentPayment) => ({ ...c, paymentMethod: paymentMethod as BusinessRentPayment["paymentMethod"] }))} /><Note value={form.notes} onChange={(notes) => setForm((c: BusinessRentPayment) => ({ ...c, notes }))} /></>;
 }
 
 function DepositFields({ form, setForm, roomOptions, tenantOptions, tenants }: any) {

@@ -33,6 +33,7 @@ import {
 import { euro } from "@/lib/format";
 import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import {
   deleteRentPaymentFile,
   downloadRentPaymentFile,
@@ -67,7 +68,6 @@ const emptyPayment: BusinessRentPayment = {
   notes: ""
 };
 
-const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "续交房租", "赔偿收入", "其他收入"];
 
 function defaultCoverageEnd(startDate: string) {
@@ -713,7 +713,7 @@ export default function RentPaymentsPage() {
               <div className="field rent-payment-date-field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>
               {isRentPayment(form) ? <div className="field"><label>租金覆盖开始日期</label><input required type="date" value={form.coverageStartDate || ""} onChange={(event) => { const coverageStartDate = event.target.value; setForm((current) => ({ ...current, coverageStartDate, coverageEndDate: !current.coverageEndDate || current.coverageEndDate < coverageStartDate ? defaultCoverageEnd(coverageStartDate) : current.coverageEndDate })); }} /></div> : null}
               {isRentPayment(form) ? <div className="field"><label>租金覆盖结束日期</label><input required type="date" min={form.coverageStartDate || undefined} value={form.coverageEndDate || ""} onChange={(event) => setForm((current) => ({ ...current, coverageEndDate: event.target.value }))} /></div> : null}
-              <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethods.map((method) => ({ value: method, label: method }))} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
+              <TapSelect label="付款方式" value={form.paymentMethod} options={paymentMethodOptions(form.paymentMethod)} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
                <OwnershipField options={ownershipOptions} mode={ownershipMode} onModeChange={setOwnershipMode} />
               <TapSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已收取"} options={["已收取", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
               {!form.id && !access.isFreeSingle ? <div className="field rent-new-attachments" style={{ gridColumn: "1 / -1" }}><label>附件（可选）</label><input type="file" multiple onChange={(event) => setPendingFiles(Array.from(event.target.files || []))} /><span className="muted">可先选择文件，保存收款后自动上传。</span></div> : null}
