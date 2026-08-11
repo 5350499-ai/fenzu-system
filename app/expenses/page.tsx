@@ -35,10 +35,10 @@ import {
 import { euro } from "@/lib/format";
 import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const categories = ["房租", "押金", "电费", "水费", "燃气", "网络", "物业", "维修", "装修", "家具", "家电", "清洁", "其他"];
 const paymentMethods = ["现金", "转账", "Bizum", "其他"];
 const emptyExpense: BusinessExpense = {
   id: "",
@@ -139,6 +139,12 @@ export default function ExpensesPage() {
     map[file.expenseId] = [...(map[file.expenseId] || []), file];
     return map;
   }, {}), [files]);
+  // Filters retain every historical category; only the entry datalist is
+  // intentionally compact.
+  const categoryFilterOptions = useMemo(
+    () => Array.from(new Set([...EXPENSE_TYPE_PRESETS, ...expenses.map((expense) => expense.category.trim()).filter(Boolean)])),
+    [expenses]
+  );
 
   const filteredExpenses = useMemo(
     () =>
@@ -282,7 +288,7 @@ export default function ExpensesPage() {
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
           <select value={propertyFilter} onChange={(event) => { setPropertyFilter(event.target.value); setPage(1); }}><option value="">全部房源</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
-          <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
+          <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categoryFilterOptions.map((category) => <option key={category} value={category}>{category}</option>)}</select>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
         </div>
         <div className="filtered-total" aria-live="polite"><span>当前筛选支出合计</span><strong>{euro(filteredExpenseTotal)}</strong></div>
@@ -478,7 +484,7 @@ function CategoryInput({ value, onChange }: { value: string; onChange: (value: s
         onChange={(event) => onChange(event.target.value)}
       />
       <datalist id="expense-category-options">
-        {categories.map((category) => <option key={category} value={category} />)}
+        {EXPENSE_TYPE_PRESETS.map((category) => <option key={category} value={category} />)}
       </datalist>
     </div>
   );

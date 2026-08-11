@@ -162,7 +162,7 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 
 - Input、Select、Textarea、Date、Time、Number、Currency 使用统一控件风格。
 - 默认控件高度：42px；移动端有效点击区域目标：至少 44px。
-- 正文输入字号不低于 14px，避免 iPhone Safari 因过小文字触发非必要放大。
+- 桌面正文输入字号不低于 14px；`≤640px` 的真实可编辑控件必须不低于 16px，避免 iPhone Safari 因过小文字触发自动放大。
 - Label 使用 Secondary/Caption 语义，错误信息使用 Danger，helper 使用 Muted。
 - Focus 使用 `--ui-color-focus`；disabled 必须清晰体现不可编辑。
 - 金额输入允许合法的 0，不得用 falsy 判断代替空值判断。
@@ -473,3 +473,19 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   手势/边框结构；业务页面只可控制字段跨度和业务内容。
 - `npm run validate:ui` 与交互测试是合并前强制门槛；grep 不能替代 tap-vs-swipe、
   nested scroll 和 duplicate-submit 的真实状态机测试。
+
+## 30. Date Field Contract
+
+- `date`、`datetime-local`、`month` 与 `time` 都是标准单行控件：桌面使用
+  `--ui-form-control-height`（42px），移动端使用
+  `--ui-control-height-mobile`（44px）。它们与同一 FormRow 的普通输入框
+  共享 padding、radius、border、字号和 label rhythm。
+- Date Field 使用 `padding-block:0`、共享 line-height 与 `tabular-nums`，避免
+  WebKit 内部日期值因纵向 padding 或 intrinsic metrics 偏上/偏下。不要在页面
+  CSS 单独设置 date control 的 height、padding 或 font-size。
+- 在 `≤640px` 时，所有真实可获得编辑焦点的 `input`、`textarea`、`select` 以及
+  composite control 内部 input 的最终 computed `font-size` 必须不小于 16px。
+  该规则必须落在实际 HTML element 上，而非仅由外层容器继承；focus 和 WebKit
+  autofill 状态也不得降低字号。
+- 此契约只能由共享全局 CSS 实现。页面不得使用 `user-scalable=no`、
+  `maximum-scale=1` 或其它禁用浏览器无障碍缩放的方式规避 iPhone Safari zoom。

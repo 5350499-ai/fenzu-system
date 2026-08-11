@@ -11,6 +11,8 @@ const ownershipField = readFileSync(resolve(root, "components/ownership-field.ts
 const dropdownListbox = readFileSync(resolve(root, "components/dropdown-listbox.tsx"), "utf8");
 const tapSelect = readFileSync(resolve(root, "components/tap-select.tsx"), "utf8");
 const rentPayments = readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8");
+const expensePage = readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8");
+const expenseTypePresets = readFileSync(resolve(root, "lib/expense-type-presets.ts"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -32,10 +34,12 @@ const required = [
   [guide, "Mobile Dropdown Gesture Contract", "UI guide must define mobile dropdown gesture ownership"],
   [guide, "Nested Scroll Ownership", "UI guide must define nested scroll ownership"],
   [guide, "iOS Editable-Control Font Size Contract", "UI guide must define iOS editable-control sizing"],
+  [guide, "Date Field Contract", "UI guide must define the shared date-field contract"],
   [claude, "UI_DESIGN_SYSTEM.md", "CLAUDE.md must require the UI guide"],
   [architecture, "UI_DESIGN_SYSTEM.md", "ARCHITECTURE.md must identify the UI guide"],
   [css, "--ui-check-control-size: 18px", "CSS must define the checkbox/radio token"],
   [css, "--ui-control-height-mobile: 44px", "CSS must define the mobile control token"],
+  [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
   [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
@@ -47,7 +51,9 @@ const required = [
   [dropdownListbox, "onTouchMove", "DropdownListbox must distinguish touch scrolling"],
   [dropdownListbox, "event.preventDefault()", "DropdownListbox must contain boundary overscroll"],
   [tapSelect, "DropdownListbox", "TapSelect must reuse the shared listbox primitive"],
-  [searchableSelect, "DropdownListbox", "SearchableSelect must reuse the shared listbox primitive"]
+  [searchableSelect, "DropdownListbox", "SearchableSelect must reuse the shared listbox primitive"],
+  [expensePage, "EXPENSE_TYPE_PRESETS", "Expense entry must use the shared type presets"],
+  [expenseTypePresets, '["房租", "电费", "其他"]', "Expense type presets must remain compact and shared"]
 ];
 
 const failures = required
@@ -95,8 +101,29 @@ for (const { path, source } of uiSources) {
 }
 
 const mobileRules = css.match(/@media\s*\(max-width:\s*640px\)[\s\S]*$/i)?.[0] || "";
-if (!/input:not\([^\}]*font-size\s*:\s*16px/is.test(mobileRules)) {
-  failures.push("Mobile editable controls must have a 16px font size");
+if (!/input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\)[\s\S]*?font-size\s*:\s*var\(--ui-editable-font-size-mobile,\s*16px\)\s*!important/is.test(mobileRules)) {
+  failures.push("The actual mobile editable elements must enforce the 16px font token");
+}
+
+const dateFieldRule = css.match(/input\[type="date"\],[\s\S]*?input\[type="time"\]\s*\{([\s\S]*?)\}/i)?.[1] || "";
+for (const [pattern, message] of [
+  [/height\s*:\s*var\(--ui-form-control-height/i, "Date fields must use the shared desktop control height"],
+  [/padding-block\s*:\s*0/i, "Date fields must not use vertical padding"],
+  [/font-variant-numeric\s*:\s*tabular-nums/i, "Date fields must use stable tabular numerals"]
+]) {
+  if (!pattern.test(dateFieldRule)) failures.push(message);
+}
+
+const finalMobileContract = css.slice(css.lastIndexOf("/* The focused HTML element itself"));
+const mobileDateFieldRule = finalMobileContract.match(/input\[type="date"\],[\s\S]*?input\[type="time"\]\s*\{([\s\S]*?)\}/i)?.[1] || "";
+if (!/height\s*:\s*var\(--ui-control-height-mobile/i.test(mobileDateFieldRule)) {
+  failures.push("Date fields must use the shared mobile control height");
+}
+
+for (const { path, source } of uiSources) {
+  if (/<(?:input|textarea|select)[\s\S]{0,700}style=\{\{[^}]*fontSize\s*:\s*(?:1[0-5]|[0-9])(?:px)?/i.test(source)) {
+    failures.push(`Editable controls must not use an inline font size below 16px: ${path.replace(root, "")}`);
+  }
 }
 
 if (failures.length) {

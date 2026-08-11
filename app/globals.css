@@ -448,6 +448,7 @@ a {
   --ui-control-height: 42px;
   --ui-control-height-mobile: 44px;
   --ui-control-padding-inline: 12px;
+  --ui-editable-font-size-mobile: 16px;
   --ui-button-height: 42px;
   --ui-button-padding-inline: 14px;
   --ui-button-icon-size: 18px;
@@ -9760,7 +9761,7 @@ input[type="radio"] {
 
   /* iOS Safari only zooms a focused text control when its computed type size
      is below 16px. Keep the user's browser zoom available; remove the trigger. */
-  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea,
   .ui-control,
@@ -9881,6 +9882,65 @@ input[type="radio"] {
 
   .backup-reminder-settings > div > strong {
     text-align: left;
+  }
+}
+
+/* Final editable and date-field contracts. These rules deliberately live after
+   legacy page styles so the element that actually receives focus cannot fall
+   below Safari's 16px zoom threshold. They preserve pinch zoom accessibility. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  box-sizing: border-box;
+  height: var(--ui-form-control-height, 42px);
+  min-height: var(--ui-form-control-height, 42px);
+  max-width: 100%;
+  padding-block: 0;
+  padding-inline: var(--ui-control-padding-inline, 12px);
+  font-size: var(--ui-font-size-body, 14px);
+  line-height: var(--ui-line-height-normal, 1.45);
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+  text-align: left;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  align-self: center;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  /* The focused HTML element itself—not an outer field—must be 16px or more. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: var(--ui-editable-font-size-mobile, 16px) !important;
+  }
+
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"] {
+    height: var(--ui-control-height-mobile, 44px);
+    min-height: var(--ui-control-height-mobile, 44px);
+    padding-block: 0;
+    padding-inline: var(--ui-control-padding-inline, 12px);
+    line-height: var(--ui-line-height-normal, 1.45);
   }
 }
 
