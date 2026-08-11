@@ -30,6 +30,8 @@ const reminderNavigation = readFileSync(resolve(root, "lib/reminder-navigation.t
 const reminderEngine = readFileSync(resolve(root, "lib/reminder-engine.ts"), "utf8");
 const rentCoverage = readFileSync(resolve(root, "lib/rent-coverage.ts"), "utf8");
 const rentPeriodState = readFileSync(resolve(root, "lib/rent-period-state.ts"), "utf8");
+const tenantRentStateDisplay = readFileSync(resolve(root, "lib/tenant-rent-state-display.ts"), "utf8");
+const reminderEntityConsistency = readFileSync(resolve(root, "lib/reminder-entity-consistency.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 const dashboardRuntime = dashboardPage.split("/* Retired page-local reminder builders")[0];
 const remindersRuntime = remindersPage.split("/* Retired page-local reminder builder")[0];
@@ -108,6 +110,13 @@ const required = [
   [reminderEngine, "getRentPeriodState", "Reminder debt candidates must consume RentPeriodState"],
   [reminderEngine, "navigationTarget", "Reminder items must include a stable navigation target"],
   [reminderEngine, "availableActions", "Reminder items must expose shared action metadata"],
+  [reminderEngine, "propertyId: payment.propertyId", "Payment-backed reminders must preserve the payment property ID"],
+  [reminderEngine, "roomId: payment.roomId", "Payment-backed reminders must preserve the payment room ID"],
+  [tenantsPage, "getTenantRentDisplay", "Tenant rent labels must use the shared RentPeriodState presentation adapter"],
+  [tenantRentStateDisplay, "getLatestRentPeriodState", "Tenant rent display must consume the shared RentPeriodState"],
+  [reminderEntityConsistency, "validateReminderEntityConsistency", "Reminder entity consistency must have a reusable invariant checker"],
+  [reminderEntityConsistency, "payment-tenant-mismatch", "Reminder consistency must verify payment-to-tenant identity"],
+  [reminderEntityConsistency, "payment-room-mismatch", "Reminder consistency must verify payment-owned room context"],
   [reminderEngine, '${type}:${payment.id}', "Debt reminder IDs must be payment-specific and stable"],
   [dashboardRuntime, "buildEffectiveReminders", "Dashboard runtime must consume the shared Reminder Engine"],
   [remindersRuntime, "buildEffectiveReminders", "Reminder center runtime must consume the shared Reminder Engine"],

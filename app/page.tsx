@@ -245,10 +245,10 @@ export default function DashboardPage() {
                 {item.rentContext ? (
                   <>
                     <span className="reminder-rent-head">
-                      <strong>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}</strong>
+                      <strong>{item.rentContext.tenantName}</strong>
                       <em className={`reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</em>
                     </span>
-                    <small>{item.rentContext.tenantName}｜覆盖至：{item.rentContext.coverageEnd}</small>
+                    <small>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}｜覆盖至：{item.rentContext.coverageEnd}</small>
                   </>
                 ) : (
                   <>

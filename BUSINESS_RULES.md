@@ -93,6 +93,8 @@
 
 ### Reminder Contract
 
+- Payment-backed rent reminders identify their tenant, property and room from the payment's stable foreign keys. A current room occupant or mutable tenant room assignment must never rewrite the historical reminder subject. The tenant list uses the same RentPeriodState and payment-specific waiver facts for its rent labels.
+
 - 所有经营提醒必须从共享 Reminder Engine 生成。首页只能展示同一有效提醒集合的摘要，提醒中心展示完整列表；两者不得分别重算业务规则或使用不一致的总数。
 - 欠费提醒以 RentPeriodState 的事实和当前追缴状态为准；归档只静默日常租客型提醒，不结清债务；退租不自动静默未处理的历史欠费；waiver 和补交结清只使对应 payment/rent period 的提醒失效。
 - 每个提醒必须使用稳定的 type + 业务实体/期间 ID，并携带主体导航和可用操作元数据。租客主体提醒优先使用 tenant_id，不得依靠房间名称或展示文案导航。

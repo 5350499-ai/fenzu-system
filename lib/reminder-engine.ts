@@ -102,8 +102,12 @@ export function buildEffectiveReminders(snapshot: ReminderSnapshot): ReminderIte
   const tenantById = new Map(snapshot.tenants.map((item) => [item.id, item]));
   const reminders: ReminderDraft[] = [];
 
-  for (const tenant of snapshot.tenants) {
-    const payment = latestValidRentPeriodPayment(snapshot.rentPayments.filter((item) => item.tenantId === tenant.id));
+  for (const listedTenant of snapshot.tenants) {
+    const payment = latestValidRentPeriodPayment(snapshot.rentPayments.filter((item) => item.tenantId === listedTenant.id));
+    // A rent payment is the immutable subject link for a period reminder.
+    // Do not infer its tenant, room or property from current room occupancy.
+    const tenant = payment ? tenantById.get(payment.tenantId) : undefined;
+    if (!tenant) continue;
     const state = getRentPeriodState({ tenant, payment, today, waivedPaymentIds });
     const stage = state.reminderStage;
     if (!payment || !stage || state.lifecycle === "archived") continue;
@@ -114,12 +118,12 @@ export function buildEffectiveReminders(snapshot: ReminderSnapshot): ReminderIte
     const isFutureCollectionReminder = !state.isExpired && state.lifecycle === "current";
     if (!isDebtReminder && !isFutureCollectionReminder) continue;
 
-    const room = roomById.get(tenant.roomId);
+    const room = roomById.get(payment.roomId);
     const amount = isDebtReminder ? state.remainingAmount : referenceRentAmount(payment, tenant);
     const type: ReminderType = isDebtReminder ? "rent_debt" : "rent_collection";
     const category: ReminderCategory = isDebtReminder ? "欠费提醒" : "收租提醒";
     const navigationTarget: ReminderNavigationTarget = {
-      kind: "tenant", href: tenantReminderHref(tenant.id), tenantId: tenant.id, roomId: tenant.roomId, propertyId: tenant.propertyId, paymentId: payment.id
+      kind: "tenant", href: tenantReminderHref(payment.tenantId), tenantId: payment.tenantId, roomId: payment.roomId, propertyId: payment.propertyId, paymentId: payment.id
     };
     const statusLabel = rentReminderStatus(stage, amount);
     reminders.push({
@@ -132,9 +136,9 @@ export function buildEffectiveReminders(snapshot: ReminderSnapshot): ReminderIte
       priority: rentStagePriority(stage) + (isDebtReminder ? amount : 10 - (state.coverageDaysRemaining || 0)),
       href: navigationTarget.href,
       navigationTarget,
-      tenantId: tenant.id,
-      roomId: tenant.roomId,
-      propertyId: tenant.propertyId,
+      tenantId: payment.tenantId,
+      roomId: payment.roomId,
+      propertyId: payment.propertyId,
       paymentId: payment.id,
       dueDate: payment.coverageEndDate,
       daysRemaining: state.coverageDaysRemaining ?? undefined,
@@ -146,7 +150,7 @@ export function buildEffectiveReminders(snapshot: ReminderSnapshot): ReminderIte
       ] : [],
       rentContext: {
         paymentId: payment.id,
-        propertyLabel: compactPropertyName(propertyById.get(tenant.propertyId)?.name),
+        propertyLabel: compactPropertyName(propertyById.get(payment.propertyId)?.name),
         roomLabel: compactRoomName(room),
         tenantName: tenant.name || "未命名租客",
         coverageEnd: paymentCoverageEnd(payment) || "-",

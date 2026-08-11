@@ -922,3 +922,10 @@
 - Migrated the dashboard and reminder center to consume that shared effective collection, including stable IDs, stable subject navigation, and action metadata; the reminder center retains its existing collection/waiver API actions.
 - Added engine fixtures for archive, move-out, waiver, zero-value overdue events, payment-specific waiver, contracts, deposits, room reminders, backup, sorting, and summary consistency.
 - Preview only; no database, schema, migration, RLS, permissions, or business data changes.
+
+## 2026-08-11 - Reminder entity consistency (Preview)
+
+- Bound payment-backed rent reminders to the payment's immutable tenant, property and room IDs, so moved-out or re-let rooms cannot rewrite an old debt's subject or navigation context.
+- Migrated tenant-list rent labels to the shared RentPeriodState presentation adapter, including payment-specific waiver facts; reminder cards now lead with the tenant name and retain property/room as supporting context.
+- Added a fixture/dev entity-consistency inspector covering re-lets, moved-out tenants, similar names, multiple periods, waiver isolation, voids, archived tenants and zero-value overdue events.
+- No database, schema, migration, RLS, permissions, or business data changes.

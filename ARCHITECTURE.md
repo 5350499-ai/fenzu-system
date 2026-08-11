@@ -420,6 +420,15 @@ reminders navigate through the shared tenant navigation helper. Room-subject
 reminders carry their room ID. Reminder IDs use type plus the stable business
 entity or period ID, never an array index or display text.
 
+Payment-backed rent reminders use the payment as their immutable entity root:
+`payment.tenantId`, `payment.propertyId` and `payment.roomId` must flow through
+the reminder, its navigation target and its display context unchanged. The
+engine must never use current room occupancy or a tenant's mutable current
+room/property to reinterpret a historical payment. `validateReminderEntityConsistency`
+is the fixture/dev invariant checker for this chain. Tenant-list rent status
+presentation consumes the same `RentPeriodState` and payment-specific waiver
+facts, so an expired coverage period is not independently relabeled as debt.
+
 Debt State remains separate from Reminder State: archive mutes daily
 tenant-bound reminders without settling debt; a moved-out but unarchived tenant
 with an open historical debt can still produce a debt reminder; waiver and a

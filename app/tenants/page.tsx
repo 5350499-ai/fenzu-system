@@ -43,7 +43,8 @@ import {
 import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
-import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
+import { coverageLabel, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
+import { getTenantRentDisplay, type TenantRentDisplay } from "@/lib/tenant-rent-state-display";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
@@ -52,6 +53,7 @@ import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tena
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
+import { resolveTenantReminderTarget } from "@/lib/reminder-navigation";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -108,6 +110,7 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [contracts, setContracts] = useState<BusinessContract[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
+  const [waivedPaymentIds, setWaivedPaymentIds] = useState<Set<string>>(new Set());
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [contractFiles, setContractFiles] = useState<ContractFile[]>([]);
   const [contractFilesLoadState, setContractFilesLoadState] = useState<AttachmentLoadState>("loading");
@@ -198,12 +201,20 @@ export default function TenantsPage() {
       }
       setTenants(repairedTenants);
       setContracts(loadedContracts);
-      setPayments(loadedPayments);
-      setDeposits(loadedDeposits);
+       const session = await getValidSupabaseSession();
+       if (session) {
+         const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+         if (response.ok) {
+           const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
+           setWaivedPaymentIds(new Set((payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[]));
+         }
+       }
+       setPayments(loadedPayments);
+       setDeposits(loadedDeposits);
       setPartnerOptions(activePartnerOptions);
       setPartnersLoading(false);
       if (!access.isFreeSingle) await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
-      const requestedTenantId = new URLSearchParams(window.location.search).get("tenantId") || "";
+       const requestedTenantId = resolveTenantReminderTarget(`${window.location.pathname}${window.location.search}`, repairedTenants)?.id || "";
       const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
       setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
@@ -260,10 +271,15 @@ export default function TenantsPage() {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
-      const displayStatus = tenantDisplayStatus(tenant, payments);
+      const displayStatus = getTenantRentDisplay({
+        tenant,
+        payments: payments.filter((payment) => payment.tenantId === tenant.id),
+        waivedPaymentIds,
+        today: localToday()
+      }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, query, rooms, selectedPropertyIds, showArchived, tenants]);
+  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, query, rooms, selectedPropertyIds, showArchived, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -276,15 +292,24 @@ export default function TenantsPage() {
     ])
   ), [payments, tenants]);
 
+  const tenantRentDisplayById = useMemo(() => new Map(
+    tenants.map((tenant) => [tenant.id, getTenantRentDisplay({
+      tenant,
+      payments: payments.filter((payment) => payment.tenantId === tenant.id),
+      waivedPaymentIds,
+      today: localToday()
+    })])
+  ), [payments, tenants, waivedPaymentIds]);
+
   const sortedTenants = useMemo(() => {
     return sortTenantsByRoomAndStatus(filteredTenants, rooms, {
       mode: sortKey,
       direction: sortDirection,
       getProperty: (tenant) => properties.find((item) => item.id === tenant.propertyId)?.name || "",
-      getExpiry: (tenant) => latestCoverageForTenant(tenant.id, payments)?.coverageEndDate || "",
-      getStatusRank: (tenant) => tenantStatusRank(tenant, fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments)))
+      getExpiry: (tenant) => tenantRentDisplayById.get(tenant.id)?.expiry.endDate || "",
+      getStatusRank: (tenant) => tenantStatusRank(tenant, tenantRentDisplayById.get(tenant.id)?.expiry)
     });
-  }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
+  }, [filteredTenants, properties, rooms, sortDirection, sortKey, tenantRentDisplayById]);
 
   const pagedTenants = pageRows(sortedTenants, page, pageSize);
   const visibleTenantGroups = splitTenantGroups(pagedTenants);
@@ -862,9 +887,10 @@ export default function TenantsPage() {
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant);
             const contract = latestContractForTenant(tenant.id, contracts);
-            const displayStatus = tenantDisplayStatus(tenant, payments);
+            const rentDisplay = tenantRentDisplayById.get(tenant.id) || getTenantRentDisplay({ tenant, payments: [], waivedPaymentIds });
+            const displayStatus = rentDisplay.displayStatus;
             const depositStatus = tenantDepositStatus(tenant, deposits);
-            const expiryInfo = fixedCoverageExpiryInfo(tenant, latestCoverageForTenant(tenant.id, payments));
+            const expiryInfo = rentDisplay.expiry;
             const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
             const paymentPerformance = tenantPaymentPerformanceById.get(tenant.id);
             const paymentPerformanceHasPeriods = Boolean(paymentPerformance?.periods.length);
@@ -1452,8 +1478,8 @@ function SortButton({ active, direction, label, onClick }: { active: boolean; di
 function compareTenantPriority(
   left: BusinessTenant,
   right: BusinessTenant,
-  leftExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
-  rightExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  leftExpiry: TenantRentDisplay["expiry"],
+  rightExpiry: TenantRentDisplay["expiry"],
   leftProperty: string,
   rightProperty: string,
   rooms: BusinessRoom[]
@@ -1480,8 +1506,8 @@ function compareTenantProperty(left: BusinessTenant, right: BusinessTenant, left
 function compareTenantStatus(
   left: BusinessTenant,
   right: BusinessTenant,
-  leftExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
-  rightExpiry: ReturnType<typeof fixedCoverageExpiryInfo>,
+  leftExpiry: TenantRentDisplay["expiry"],
+  rightExpiry: TenantRentDisplay["expiry"],
   payments: BusinessRentPayment[]
 ) {
   const leftRank = tenantStatusRank(left, leftExpiry);
@@ -1494,8 +1520,9 @@ function compareTenantStatus(
   return leftEnd.localeCompare(rightEnd);
 }
 
-function tenantStatusRank(tenant: BusinessTenant, expiry: ReturnType<typeof fixedCoverageExpiryInfo>) {
+function tenantStatusRank(tenant: BusinessTenant, expiry?: TenantRentDisplay["expiry"]) {
   if (!isCurrentRentalRelationship(tenant)) return isArchivedTenant(tenant) ? 4 : 3;
+  if (!expiry) return 2;
   if (expiry.level === "red") return 0;
   if (expiry.level === "orange" || expiry.level === "yellow") return 1;
   return 2;
@@ -1532,13 +1559,6 @@ function tenantTone(status: string) {
   return "green";
 }
 
-function tenantDisplayStatus(tenant: BusinessTenant, payments: BusinessRentPayment[]) {
-  if (tenant.status.includes("退") || tenant.status.includes("归档")) return tenant.status;
-  const latestPayment = latestCoverageForTenant(tenant.id, payments);
-  if (!latestPayment) return "无收款";
-  if (isCoverageExpired(latestPayment)) return "欠租";
-  return tenant.status || "在租";
-}
 
 function syncTenantDepositRecord(tenant: BusinessTenant, deposits: BusinessDeposit[], attribution: string): BusinessDeposit[] {
   const amount = Number(tenant.depositAmount || 0);

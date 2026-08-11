@@ -195,7 +195,7 @@ function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Remind
   if (item.rentContext?.paymentId && item.availableActions.includes("waive")) return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
     <Link className="reminder-page-row-link" href={item.href}>
       <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
-      <span className="reminder-page-rent-content"><strong>{item.rentContext.propertyLabel} · {item.rentContext.roomLabel}</strong><small>{item.rentContext.tenantName} · 覆盖至：{item.rentContext.coverageEnd}</small></span>
+      <span className="reminder-page-rent-content"><strong>{item.rentContext.tenantName}</strong><small>{item.rentContext.propertyLabel} · {item.rentContext.roomLabel} · 覆盖至：{item.rentContext.coverageEnd}</small></span>
       <b className={`reminder-page-state reminder-rent-status ${item.tone}`}>{item.rentContext.statusLabel}</b>
     </Link>
     <span className="reminder-rent-actions">{item.availableActions.includes("collect") ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.rentContext.paymentId)}&overdue=1`}>登记补交</Link> : null}{item.availableActions.includes("waive") ? <button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button> : null}</span>
@@ -205,8 +205,8 @@ function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Remind
       <span className="reminder-page-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge></span>
       {item.rentContext ? (
         <span className="reminder-page-rent-content">
-          <strong>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}</strong>
-          <small>{item.rentContext.tenantName}｜覆盖至：{item.rentContext.coverageEnd}</small>
+          <strong>{item.rentContext.tenantName}</strong>
+          <small>{item.rentContext.propertyLabel}｜{item.rentContext.roomLabel}｜覆盖至：{item.rentContext.coverageEnd}</small>
         </span>
       ) : (
         <span className="reminder-page-rent-content">
