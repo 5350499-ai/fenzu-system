@@ -18,7 +18,7 @@ import {
   getInitialRentPayments,
   getInitialRooms,
   getInitialTenants,
-  loadBusinessData,
+  refreshBusinessData,
   propertyKey,
   rentPaymentKey,
   roomKey,
@@ -31,6 +31,8 @@ import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { tenantReminderHref } from "@/lib/reminder-navigation";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { cacheManager } from "@/lib/cache/cache-manager";
+import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -64,30 +66,52 @@ export default function RemindersPage() {
   const [waiveTarget, setWaiveTarget] = useState<Reminder | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
   const [waiving, setWaiving] = useState(false);
+  const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     if (!access.ready) return;
+    let active = true;
+    setDataStatus("loading");
+    setLoadError("");
     async function load() {
-      const loadedProperties = access.can("properties") ? await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
-      const loadedRooms = access.can("rooms") ? await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
-      const loadedTenants = access.can("tenants") ? await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
+      try {
+      const loadedProperties = access.can("properties") ? await refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : [];
+      const loadedRooms = access.can("rooms") ? await refreshBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : [];
+      const loadedTenants = access.can("tenants") ? await refreshBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : [];
+      const loadedContracts = access.can("tenants") ? await refreshBusinessData<BusinessContract>(contractKey, getInitialContracts()) : [];
+      const loadedPayments = access.can("rent_payments") ? await refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : [];
+      const loadedDeposits = access.can("deposits") ? await refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : [];
+      if (!active) return;
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setTenants(loadedTenants);
-      setContracts(access.can("tenants") ? await loadBusinessData<BusinessContract>(contractKey, getInitialContracts()) : []);
-      setPayments(access.can("rent_payments") ? await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : []);
-      setDeposits(access.can("deposits") ? await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : []);
+      setContracts(loadedContracts);
+      setPayments(loadedPayments);
+      setDeposits(loadedDeposits);
       const session = await getValidSupabaseSession();
-      if (session) {
+      if (!session) throw new Error("Session expired");
+      {
         const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
-        if (response.ok) {
+        if (!response.ok) throw new Error("Reminder state load failed");
+        {
           const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
           setWaivedPaymentIds(new Set((payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[]));
         }
       }
+      if (!active) return;
+      setDataStatus("ready");
+      } catch (error) {
+        if (!active) return;
+        console.error("[reminders] data load failed", error);
+        setLoadError("Reminder center failed to load. Please retry.");
+        setDataStatus("error");
+      }
     }
     load().catch((error) => window.alert(`加载提醒中心失败：${error.message || error}`));
-  }, [access.ready]);
+    return () => { active = false; };
+  }, [access.ready, access.permissionVersion, loadAttempt]);
 
   const reminders = useMemo(
     () => buildReminders({ properties, rooms, tenants, contracts, payments, deposits, waivedPaymentIds, includeBackupReminder: !access.isFreeSingle }),
@@ -108,6 +132,11 @@ export default function RemindersPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "放弃追缴失败。");
       setWaivedPaymentIds((current) => new Set([...current, waiveTarget.rentContext!.paymentId]));
+      try {
+        await cacheManager.invalidate([DASHBOARD_CACHE_KEY], session.user.id);
+      } catch (cacheError) {
+        console.error("[reminders] derived dashboard cache invalidation failed", cacheError);
+      }
       setWaiveTarget(null);
       setWaiveReason("");
     } catch (error: any) {
@@ -124,6 +153,17 @@ export default function RemindersPage() {
       items: reminders.filter((item) => item.category === group)
     }));
   }, [access.isFreeSingle, reminders]);
+
+  if (dataStatus !== "ready") {
+    return (
+      <AppLayout title={"\u63d0\u9192\u4e2d\u5fc3"} description={"\u6b63\u5728\u8bfb\u53d6\u6700\u65b0\u63d0\u9192\u3002"}>
+        <section className="card panel">
+          <p className={dataStatus === "error" ? "danger-text" : "muted"}>{dataStatus === "error" ? loadError : "\u6b63\u5728\u8bfb\u53d6\u6700\u65b0\u63d0\u9192\u2026"}</p>
+          {dataStatus === "error" ? <button className="btn" type="button" onClick={() => setLoadAttempt((current) => current + 1)}>\u91cd\u65b0\u52a0\u8f7d</button> : null}
+        </section>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="提醒中心" description="系统自动生成的经营风险提醒，和手动待办分开管理。">

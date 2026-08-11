@@ -897,3 +897,8 @@
 - Valid overdue rent reminders can now be waived even when the recorded remaining amount is €0.00; the waiver remains an audit action and does not change payment or ledger amounts.
 - Rent collection coverage start/end dates now use one shared semantic two-column row in the collection and reminder follow-up form.
 - Added regression validation for zero-balance waiver eligibility and the fixed coverage-date row. No database schema, migration, RLS, permission, real business data or Production changes.
+
+## 2026-08-11 - Reminder authoritative refresh (Preview)
+
+- Reminder center now refreshes current business sources and waiver actions before rendering the reminder count/list, preventing processed reminders from flashing during revalidation.
+- Waiving a reminder also invalidates the dashboard's derived reminder cache so the home summary cannot reuse the old reminder snapshot. No business data or calculation rules changed.

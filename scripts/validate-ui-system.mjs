@@ -21,6 +21,7 @@ const checkInPage = readFileSync(resolve(root, "app/check-in/page.tsx"), "utf8")
 const propertyProfitsPage = readFileSync(resolve(root, "app/property-profits/page.tsx"), "utf8");
 const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "utf8");
 const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
+const remindersPage = readFileSync(resolve(root, "app/reminders/page.tsx"), "utf8");
 const propertyMultiSelect = readFileSync(resolve(root, "components/property-multi-select.tsx"), "utf8");
 const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
 const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8");
@@ -102,6 +103,10 @@ const required = [
   [rentCoverage, "fixedTenantRentDebtReminderStage", "Tenant debt reminders must remain eligible for archived unresolved debt"],
   [rentCoverage, "hasUnresolvedTenantRentDebt", "Tenant debt status must distinguish unresolved debt from archive state"],
   [rentCoverage, "shouldShowTenantRentReminder", "Tenant reminder visibility must respect explicit waiver actions"],
+  [remindersPage, "refreshBusinessData", "Reminder center must refresh authoritative business sources"],
+  [remindersPage, "dataStatus !== \"ready\"", "Reminder center must gate first render until authoritative state is ready"],
+  [remindersPage, "DASHBOARD_CACHE_KEY", "Reminder mutation must identify the dashboard derived cache"],
+  [remindersPage, "cacheManager.invalidate", "Reminder mutation must invalidate derived reminder cache"],
   [readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8"), "PropertyMultiSelect", "Expense list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8"), "PropertyMultiSelect", "Rent payment list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/partner-settlements/page.tsx"), "utf8"), "PropertyMultiSelect", "Settlement history property scope must use the shared selector"]

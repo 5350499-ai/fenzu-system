@@ -350,6 +350,13 @@ Tenant-subject reminders navigate by stable `tenant_id` to the tenant detail,
 including archived tenants. Archive does not settle or remove debt: unresolved
 tenant debt remains reminder-eligible until a supported payment or waiver action.
 
+Reminder derived state is authoritative-state-first: a cache snapshot known to
+be stale must not render as valid operating reminders while waiver or payment
+state is still being revalidated. Reminder pages may show loading until current
+business sources and waiver actions are available. Mutations that change a
+reminder must invalidate the affected derived reminder caches together with the
+client state update.
+
 Attachment handling is intentionally independent from Backup V1 and Restore V4. The business-data JSON remains database-only; attachment export produces a separate ZIP for local archiving. Attachment Restore V1 was cancelled as a product direction and its UI, APIs and server implementation were removed.
 
 - Export V2 keeps `manifest.json` as the machine-readable index and uses human-readable paths such as `附件归档/房源/<房源>/<房间>/<租客>/合同/` and `附件归档/房源/<房源>/房屋支出/`.
