@@ -428,6 +428,9 @@ room/property to reinterpret a historical payment. `validateReminderEntityConsis
 is the fixture/dev invariant checker for this chain. Tenant-list rent status
 presentation consumes the same `RentPeriodState` and payment-specific waiver
 facts, so an expired coverage period is not independently relabeled as debt.
+When a tenant list is opened, its rent-status snapshot must be refreshed from
+the same authoritative business source as the Reminder Engine; a cache-first
+payment copy must not become an independent period interpretation.
 
 Debt State remains separate from Reminder State: archive mutes daily
 tenant-bound reminders without settling debt; a moved-out but unarchived tenant

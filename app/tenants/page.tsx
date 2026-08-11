@@ -186,12 +186,15 @@ export default function TenantsPage() {
   useEffect(() => {
     async function load() {
       const activePartnerOptions = buildActivePartnerOptions(await getPartners());
-      const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
-      const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
-      const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
-      const loadedContracts = await loadBusinessData<BusinessContract>(contractKey, getInitialContracts());
-      const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
-      const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      // The rent-status list and Reminder Engine must derive from the same
+      // authoritative snapshot. A cache-first payment set can otherwise show a
+      // different current period from the debt reminder for the same tenant.
+      const loadedProperties = await refreshBusinessData<BusinessProperty>("business-properties", getInitialProperties());
+      const loadedRooms = await refreshBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
+      const loadedTenants = await refreshBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
+      const loadedContracts = await refreshBusinessData<BusinessContract>(contractKey, getInitialContracts());
+      const loadedPayments = await refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments());
+      const loadedDeposits = await refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       const repairedTenants = repairMissingTenantMonthlyRents(loadedTenants, loadedPayments);

@@ -114,6 +114,7 @@ const required = [
   [reminderEngine, "propertyId: payment.propertyId", "Payment-backed reminders must preserve the payment property ID"],
   [reminderEngine, "roomId: payment.roomId", "Payment-backed reminders must preserve the payment room ID"],
   [tenantsPage, "getTenantRentDisplay", "Tenant rent labels must use the shared RentPeriodState presentation adapter"],
+  [tenantsPage, "const loadedPayments = await refreshBusinessData<BusinessRentPayment>", "Tenant rent status must load the current authoritative payment snapshot instead of a cache-first copy"],
   [tenantRentStateDisplay, "getLatestRentPeriodState", "Tenant rent display must consume the shared RentPeriodState"],
   [tenantRentStateDisplay, "getOpenRentDebtPeriodStates", "Tenant rent display must disclose historical open debt from the shared domain selector"],
   [rentPeriodState, "getOpenRentDebtPeriodStates", "Rent period domain must expose payment-specific open debt periods"],
