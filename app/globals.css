@@ -3118,6 +3118,16 @@ td:last-child {
   text-align: right;
 }
 
+/* Reminder deep links scroll the tenant card below the mobile safe area and
+   retain a calm visual confirmation without relying on a timer. */
+.tenant-deep-link-target {
+  scroll-margin-block-start: calc(var(--ui-space-6) + env(safe-area-inset-top));
+}
+
+.tenant-deep-link-target:not(.tenant-card-expanded) .tenant-card-toggle {
+  background: var(--surface-hover);
+}
+
 .pagination-size-select {
   display: block;
   min-width: 0;

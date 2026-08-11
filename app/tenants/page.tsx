@@ -53,6 +53,7 @@ import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tena
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
+import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
 import { resolveTenantReminderTarget } from "@/lib/reminder-navigation";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
@@ -129,6 +130,7 @@ export default function TenantsPage() {
   const [pageSize, setPageSize] = useState(15);
   const [detailTenantId, setDetailTenantId] = useState("");
   const [deepLinkTenantId, setDeepLinkTenantId] = useState("");
+  const [focusedTenantId, setFocusedTenantId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [currentExpanded, setCurrentExpanded] = useState(false);
@@ -141,6 +143,7 @@ export default function TenantsPage() {
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [ownershipMode, setOwnershipMode] = useState<string>("");
   const contractFilesRequestRef = useRef(0);
+  const tenantRowRefs = useRef(new Map<string, HTMLElement>());
   const moveOutSubmissionGuardRef = useRef(createMoveOutSubmissionGuard());
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDate, setMoveOutDate] = useState(localToday());
@@ -257,11 +260,21 @@ export default function TenantsPage() {
     return map;
   }, {}), [contractFiles]);
 
+  // A reminder deep link may arrive while a user preference would otherwise
+  // hide its subject. Keep that preference intact, but temporarily make the
+  // exact tenant visible until the user next changes a list control.
+  const activeDeepLinkTenantId = deepLinkTenantId || focusedTenantId;
+  const activeDeepLinkTenant = activeDeepLinkTenantId ? tenants.find((tenant) => tenant.id === activeDeepLinkTenantId) || null : null;
+  const effectivePropertyIds = activeDeepLinkTenant?.propertyId && !selectedPropertyIds.includes(activeDeepLinkTenant.propertyId)
+    ? [...selectedPropertyIds, activeDeepLinkTenant.propertyId]
+    : selectedPropertyIds;
+  const effectiveQuery = activeDeepLinkTenant ? "" : query;
+
   const filteredTenants = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
+    const keyword = effectiveQuery.trim().toLowerCase();
     const visible = filterTenantsByArchiveMode(tenants, showArchived);
-    const propertyVisible = selectedPropertyIds.length
-      ? visible.filter((tenant) => selectedPropertyIds.includes(tenant.propertyId))
+    const propertyVisible = effectivePropertyIds.length
+      ? visible.filter((tenant) => effectivePropertyIds.includes(tenant.propertyId))
       : [];
     const contractVisible = contractExpiringDays === null
       ? propertyVisible
@@ -279,7 +292,7 @@ export default function TenantsPage() {
       }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [contractExpiringDays, contracts, filesByContract, filesByTenant, payments, properties, query, rooms, selectedPropertyIds, showArchived, tenants, waivedPaymentIds]);
+  }, [contractExpiringDays, contracts, effectivePropertyIds, effectiveQuery, filesByContract, filesByTenant, payments, properties, rooms, showArchived, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -322,22 +335,31 @@ export default function TenantsPage() {
 
   useEffect(() => {
     if (!loaded || !deepLinkTenantId) return;
-    const targetIndex = sortedTenants.findIndex((tenant) => tenant.id === deepLinkTenantId);
-    if (targetIndex < 0) return;
-    const targetPage = Math.floor(targetIndex / pageSize) + 1;
-    if (page !== targetPage) {
-      setPage(targetPage);
+    const plan = planTenantDeepLink({ tenantId: deepLinkTenantId, tenants, sortedTenants, pageSize });
+    if (!plan) return;
+    if (page !== plan.page) {
+      setPage(plan.page);
       return;
     }
-    setDetailTenantId(deepLinkTenantId);
+    if (plan.expandCurrent) setCurrentExpanded(true);
+    if (plan.expandRetired) setRetiredExpanded(true);
+    setDetailTenantId(plan.tenant.id);
+    setFocusedTenantId(plan.tenant.id);
     setDeepLinkTenantId("");
-  }, [deepLinkTenantId, loaded, page, pageSize, sortedTenants]);
+  }, [deepLinkTenantId, loaded, page, pageSize, sortedTenants, tenants]);
+
+  useEffect(() => {
+    if (!focusedTenantId || detailTenantId !== focusedTenantId || !visibleTenants.some((tenant) => tenant.id === focusedTenantId)) return;
+    tenantRowRefs.current.get(focusedTenantId)?.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+  }, [detailTenantId, focusedTenantId, visibleTenants]);
 
   function updateTenantSearch(value: string) {
+    setFocusedTenantId("");
     setQuery(value);
   }
 
   function clearTenantSearch() {
+    setFocusedTenantId("");
     setQuery("");
   }
 
@@ -379,6 +401,7 @@ export default function TenantsPage() {
   }
 
   function toggleSort(nextKey: TenantSortKey) {
+    setFocusedTenantId("");
     if (nextKey === sortKey) {
       setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
     } else {
@@ -847,7 +870,7 @@ export default function TenantsPage() {
             {access.can("tenants", "create") ? <button className="btn primary" disabled={!loaded || saving} onClick={() => openTenantForm()} type="button">
               <Plus size={17} /> 新增租客
             </button> : null}
-            <button className="btn" onClick={() => { setShowArchived((current) => !current); setPage(1); setDetailTenantId(""); setRetiredExpanded(false); setCurrentExpanded(false); }} type="button">
+            <button className="btn" onClick={() => { setFocusedTenantId(""); setShowArchived((current) => !current); setPage(1); setDetailTenantId(""); setRetiredExpanded(false); setCurrentExpanded(false); }} type="button">
               {showArchived ? "返回租客" : "显示归档"}
             </button>
           </div>
@@ -867,7 +890,7 @@ export default function TenantsPage() {
               </button>
             ) : null}
           </div>
-          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
+          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setFocusedTenantId(""); setSelectedPropertyIds(ids); setPage(1); }} />
           <div className="sort-pills">
             <SortButton active={sortKey === "room"} direction={sortDirection} label="房间" onClick={() => toggleSort("room")} />
             <SortButton active={sortKey === "expiry"} direction={sortDirection} label="到期日" onClick={() => toggleSort("expiry")} />
@@ -906,7 +929,14 @@ export default function TenantsPage() {
             return (
               <Fragment key={tenant.id}>
                 {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
-                {!retired || showRetiredExpanded ? <article className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}`}>
+                {!retired || showRetiredExpanded ? <article
+                  className={`finance-list-item${expanded ? " tenant-card-expanded" : ""}${focusedTenantId === tenant.id ? " tenant-deep-link-target" : ""}`}
+                  id={tenantDeepLinkScrollTargetId(tenant.id)}
+                  ref={(node) => {
+                    if (node) tenantRowRefs.current.set(tenant.id, node);
+                    else tenantRowRefs.current.delete(tenant.id);
+                  }}
+                >
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
@@ -916,12 +946,14 @@ export default function TenantsPage() {
                     {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
                   </strong>
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge></span>
+                  {rentDisplay.hasHistoricalOpenDebt ? <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge></span> : null}
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                   <span className="tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
                   </span>
                 <span className="tenant-mobile-meta">
                   <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
                   {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
+                  {rentDisplay.hasHistoricalOpenDebt ? <StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge> : null}
                   <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                 </span>
@@ -980,7 +1012,7 @@ export default function TenantsPage() {
           {currentVisible.length > 8 ? <div className="tenant-list-group-actions"><button className="btn compact" type="button" onClick={() => setCurrentExpanded((current) => !current)}>{currentExpanded ? "收起当前租客" : `展开更多（还有 ${currentVisible.length - 8} 条）`}</button></div> : null}
         </div>
 
-        <PaginationControls page={page} pageSize={pageSize} total={filteredTenants.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+        <PaginationControls page={page} pageSize={pageSize} total={filteredTenants.length} onPageChange={(nextPage) => { setFocusedTenantId(""); setPage(nextPage); }} onPageSizeChange={(size) => { setFocusedTenantId(""); setPageSize(size); setPage(1); }} />
       </section>
 
       {open ? (

@@ -31,6 +31,7 @@ const reminderEngine = readFileSync(resolve(root, "lib/reminder-engine.ts"), "ut
 const rentCoverage = readFileSync(resolve(root, "lib/rent-coverage.ts"), "utf8");
 const rentPeriodState = readFileSync(resolve(root, "lib/rent-period-state.ts"), "utf8");
 const tenantRentStateDisplay = readFileSync(resolve(root, "lib/tenant-rent-state-display.ts"), "utf8");
+const tenantDeepLink = readFileSync(resolve(root, "lib/tenant-deep-link.ts"), "utf8");
 const reminderEntityConsistency = readFileSync(resolve(root, "lib/reminder-entity-consistency.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 const dashboardRuntime = dashboardPage.split("/* Retired page-local reminder builders")[0];
@@ -114,6 +115,14 @@ const required = [
   [reminderEngine, "roomId: payment.roomId", "Payment-backed reminders must preserve the payment room ID"],
   [tenantsPage, "getTenantRentDisplay", "Tenant rent labels must use the shared RentPeriodState presentation adapter"],
   [tenantRentStateDisplay, "getLatestRentPeriodState", "Tenant rent display must consume the shared RentPeriodState"],
+  [tenantRentStateDisplay, "getOpenRentDebtPeriodStates", "Tenant rent display must disclose historical open debt from the shared domain selector"],
+  [rentPeriodState, "getOpenRentDebtPeriodStates", "Rent period domain must expose payment-specific open debt periods"],
+  [rentPeriodState, "Europe/Madrid", "Rent period today must use the shared business-local calendar"],
+  [reminderEngine, "getOpenRentDebtPeriodStates", "Reminder debt candidates must consume open debt periods rather than only latest coverage"],
+  [tenantsPage, "planTenantDeepLink", "Tenant deep links must use the shared visibility plan"],
+  [tenantsPage, "scrollIntoView", "Tenant deep links must scroll the mounted target into view"],
+  [tenantDeepLink, "tenantDeepLinkScrollTargetId", "Tenant deep-link helper must expose a stable scroll target"],
+  [css, ".tenant-deep-link-target", "Tenant deep-link target must reserve a shared safe-area scroll margin"],
   [reminderEntityConsistency, "validateReminderEntityConsistency", "Reminder entity consistency must have a reusable invariant checker"],
   [reminderEntityConsistency, "payment-tenant-mismatch", "Reminder consistency must verify payment-to-tenant identity"],
   [reminderEntityConsistency, "payment-room-mismatch", "Reminder consistency must verify payment-owned room context"],

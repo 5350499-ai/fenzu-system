@@ -929,3 +929,10 @@
 - Migrated tenant-list rent labels to the shared RentPeriodState presentation adapter, including payment-specific waiver facts; reminder cards now lead with the tenant name and retain property/room as supporting context.
 - Added a fixture/dev entity-consistency inspector covering re-lets, moved-out tenants, similar names, multiple periods, waiver isolation, voids, archived tenants and zero-value overdue events.
 - No database, schema, migration, RLS, permissions, or business data changes.
+
+## 2026-08-11 - Rent period consistency and tenant deep-link focus (Preview)
+
+- Split current coverage selection from payment-specific historical open-debt selection. Current coverage now follows coverage chronology, while valid unresolved expired periods remain separate reminder subjects.
+- Tenant list now retains the current expiry state and visibly marks a historical open debt when needed; void and payment-specific waiver close only their own period.
+- Reminder tenant links now resolve archive mode, pagination and collapsed groups before expanding and scrolling the mounted target card into the safe visible area.
+- No database, schema, migration, RLS, permissions, real business data, financial calculation formula or Production change.

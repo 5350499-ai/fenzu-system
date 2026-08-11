@@ -50,6 +50,10 @@ export type LatestRentPeriodStateInput = Omit<RentPeriodStateInput, "payment"> &
   payments: BusinessRentPayment[];
 };
 
+export type OpenRentDebtPeriodsInput = Omit<RentPeriodStateInput, "payment"> & {
+  payments: BusinessRentPayment[];
+};
+
 const ARCHIVED_STATUS = "\u5df2\u5f52\u6863";
 const ENDED_MARKERS = ["\u5df2\u9000\u79df", "\u5df2\u7ed3\u675f", "\u975e\u5728\u79df", "moved_out", "ended"];
 const NOT_CURRENT_MARKERS = [...ENDED_MARKERS, "\u7a7a\u7f6e", "\u9884\u5b9a\u5165\u4f4f", "\u9884\u7ea6\u5165\u4f4f"];
@@ -123,15 +127,34 @@ export function getRentPeriodState({
   };
 }
 
-/** Select the same latest valid period used by legacy coverage callers. */
+/**
+ * Select the current/latest coverage period, not merely the most recently
+ * entered record. Coverage end/start are the business timeline; entry time is
+ * only a stable tie-breaker for otherwise equivalent legacy records.
+ */
 export function latestValidRentPeriodPayment(payments: BusinessRentPayment[]) {
   return [...payments]
     .filter(isValidRentPeriodPayment)
-    .sort((left, right) => rentPeriodEntryTimestamp(right).localeCompare(rentPeriodEntryTimestamp(left)))[0] || null;
+    .sort(compareLatestRentPeriods)[0] || null;
 }
 
 export function getLatestRentPeriodState({ payments, ...input }: LatestRentPeriodStateInput) {
   return getRentPeriodState({ ...input, payment: latestValidRentPeriodPayment(payments) });
+}
+
+/**
+ * Return every payment-specific historical debt event that remains open.
+ * This deliberately does not collapse an older unpaid period just because a
+ * newer coverage period exists: a later rent payment can cover a new period
+ * while an earlier debt remains collectible. A payment waiver closes only its
+ * own state. Records are oldest-first so callers have deterministic history.
+ */
+export function getOpenRentDebtPeriodStates({ payments, ...input }: OpenRentDebtPeriodsInput) {
+  return [...payments]
+    .filter(isValidRentPeriodPayment)
+    .map((payment) => getRentPeriodState({ ...input, payment }))
+    .filter((state) => state.hasOpenDebtFollowUp)
+    .sort((left, right) => compareOpenDebtPeriods(left, right));
 }
 
 export function classifyRentPeriodTenantLifecycle(status = ""): RentPeriodTenantLifecycle {
@@ -167,7 +190,16 @@ export function rentPeriodRemainingAmount(payment?: Pick<BusinessRentPayment, "a
 }
 
 export function rentPeriodToday() {
-  return new Date().toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return year && month && day ? `${year}-${month}-${day}` : new Date().toISOString().slice(0, 10);
 }
 
 export function rentPeriodDayDifference(target: string, from: string) {
@@ -186,6 +218,19 @@ function coverageReminderStage(daysRemaining: number | null): RentPeriodReminder
 
 function rentPeriodEntryTimestamp(payment: BusinessRentPayment) {
   return payment.createdAt || payment.paymentDate || payment.rentMonth || "";
+}
+
+function compareLatestRentPeriods(left: BusinessRentPayment, right: BusinessRentPayment) {
+  return (right.coverageEndDate || "").localeCompare(left.coverageEndDate || "")
+    || (right.coverageStartDate || "").localeCompare(left.coverageStartDate || "")
+    || rentPeriodEntryTimestamp(right).localeCompare(rentPeriodEntryTimestamp(left))
+    || right.id.localeCompare(left.id);
+}
+
+function compareOpenDebtPeriods(left: RentPeriodState, right: RentPeriodState) {
+  return left.coverageEndDate.localeCompare(right.coverageEndDate)
+    || left.coverageStartDate.localeCompare(right.coverageStartDate)
+    || (left.paymentId || "").localeCompare(right.paymentId || "");
 }
 
 function toCents(value: unknown) {

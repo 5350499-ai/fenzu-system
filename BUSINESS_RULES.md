@@ -95,6 +95,19 @@
 
 - Payment-backed rent reminders identify their tenant, property and room from the payment's stable foreign keys. A current room occupant or mutable tenant room assignment must never rewrite the historical reminder subject. The tenant list uses the same RentPeriodState and payment-specific waiver facts for its rent labels.
 
+### Current coverage and historical open debt
+
+Current coverage and historical open debt are separate business facts. The
+latest coverage period is selected by coverage timeline, while each valid
+expired payment remains an independent open-debt period until that same
+payment is settled, voided or waived. A later coverage period does not silently
+settle an older debt. When current coverage is upcoming and an older debt stays
+open, the tenant view must show both facts and the debt reminder must reference
+the old payment ID. A zero-amount overdue period follows the same rule: it is
+waivable but is not automatically discarded because a newer period exists.
+Unlinked duplicate/overlapping payment rows cannot safely be assumed to be
+superseded without a separate product decision.
+
 - 所有经营提醒必须从共享 Reminder Engine 生成。首页只能展示同一有效提醒集合的摘要，提醒中心展示完整列表；两者不得分别重算业务规则或使用不一致的总数。
 - 欠费提醒以 RentPeriodState 的事实和当前追缴状态为准；归档只静默日常租客型提醒，不结清债务；退租不自动静默未处理的历史欠费；waiver 和补交结清只使对应 payment/rent period 的提醒失效。
 - 每个提醒必须使用稳定的 type + 业务实体/期间 ID，并携带主体导航和可用操作元数据。租客主体提醒优先使用 tenant_id，不得依靠房间名称或展示文案导航。
@@ -183,9 +196,9 @@
 ## 当前租金覆盖期（2026-07-22）
 
 - 每笔收款永久保留其原始收款日期、房租、押金、实收、覆盖开始日期、覆盖结束日期和备注；新增收入不得覆盖、拼接或改写较早的历史收款。
-- 租客当前覆盖开始、当前覆盖结束、租金已覆盖至、到期提醒和剩余天数只读取该租客最后一次录入的有效房租收款。最后一次录入按不可随普通编辑改变的收款创建时间排序，不按覆盖结束日期最大值判断。
+- 租客当前覆盖开始、当前覆盖结束、租金已覆盖至、到期提醒和剩余天数读取该租客当前有效覆盖期。当前有效覆盖期按覆盖结束日期、覆盖开始日期排序；收款创建时间仅作为同一覆盖期的稳定 tie-breaker，不能让较晚录入的旧周期覆盖较新的租期。
 - 有效收款包括明确填写覆盖日期的零房租或仅押金收款；已作废、已删除或非房租类型记录不得参与当前覆盖期计算。
-- 管理员编辑最后一笔有效收款后，当前覆盖期立即读取该笔修改后的覆盖日期；编辑较早记录不影响当前覆盖期。作废或删除最后一笔有效收款后，当前覆盖期自动回退到上一笔有效收款。
+- 管理员编辑当前有效覆盖期后，当前覆盖期立即读取该笔修改后的覆盖日期；编辑较早记录只有在其覆盖范围成为最新时才影响当前覆盖期。作废或删除当前有效覆盖期后，当前覆盖期自动回退到下一笔最新有效覆盖期。
 - 当前月租标准仅为租客资料或兼容显示信息，不自动计入本次收入。本次合计收入始终等于本次实收房租加本次押金。
 ## 附件原文件与多选上传（2026-07-22）
 

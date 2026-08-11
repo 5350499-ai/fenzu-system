@@ -137,6 +137,14 @@ them with a tenant's current room/property or infer an old payment's tenant
 through current room occupancy. Tenant rent labels must use the shared
 RentPeriodState presentation adapter with the same payment-specific waiver
 facts used by the Reminder Engine.
+
+For rent-period work, distinguish `getLatestRentPeriodState` (current coverage)
+from `getOpenRentDebtPeriodStates` (payment-specific historic follow-up). Do
+not collapse them into a single debt boolean. Reminder debt rows consume the
+open-debt selector; tenant list rows show latest coverage plus a historical debt
+indicator where appropriate. Tenant reminder links must use the shared
+ID-based deep-link plan and mounted-element scroll target, never a room/name
+lookup or timer.
 ### 前端 UI 强制规则
 
 任何新增、修改、重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局之前，必须先阅读并遵循 `UI_DESIGN_SYSTEM.md`。Select、Combobox、Dropdown、Listbox 必须复用公共 `DropdownListbox` 手势与滚动归属契约，禁止页面在 `pointerdown/touchstart` 直接选择选项。除非有明确业务理由并在规范中记录例外，否则不得自行创造新的尺寸、间距、字体、颜色、控件高度或响应式规则；必须优先复用现有 Design Tokens 与公共组件。前端 UI 修改完成后必须运行 `npm run validate:ui` 和现有交互测试，不得绕过公共控件、Checkbox/Radio 和 Modal 生命周期约束。
