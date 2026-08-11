@@ -34,11 +34,17 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-class CacheManager {
+/**
+ * Browser-only cache persistence. IndexedDB is an optional cache layer: a
+ * transient browser connection failure must never prevent the server-backed
+ * business data from loading or saving.
+ */
+export class CacheManager {
   private memory = new Map<string, CacheEntry>();
   private inflight = new Map<string, Promise<unknown>>();
   private listeners = new Map<string, Set<() => void>>();
   private dbPromise: Promise<IDBDatabase | null> | null = null;
+  private db: IDBDatabase | null = null;
   private channel: BroadcastChannel | null = null;
   private disabled = false;
   private stats = { memoryHits: 0, indexedDbHits: 0, serverRequests: 0, lastUpdatedAt: 0 };
@@ -202,77 +208,134 @@ class CacheManager {
     event.keys?.forEach((key) => this.notify(event.scope, key));
   }
 
+  private invalidateDb(db?: IDBDatabase | null) {
+    if (!db) {
+      this.db = null;
+      this.dbPromise = null;
+      return;
+    }
+    if (this.db === db) {
+      this.db = null;
+      this.dbPromise = null;
+    }
+  }
+
+  private isClosingConnectionError(error: unknown) {
+    const name = error instanceof DOMException ? error.name : "";
+    const message = error instanceof Error ? error.message : String(error || "");
+    return name === "InvalidStateError" || /database connection is closing|connection is closing|database is closed/i.test(message);
+  }
+
   private openDb() {
     if (!isBrowser() || !window.indexedDB) return Promise.resolve(null);
     if (this.dbPromise) return this.dbPromise;
-    this.dbPromise = new Promise((resolve) => {
+    const pending = new Promise<IDBDatabase | null>((resolve) => {
       const request = window.indexedDB.open(DB_NAME, 1);
-      request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
-      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        // A previous connection may have been invalidated while this request
+        // was still opening. Do not resurrect that stale result.
+        if (this.dbPromise !== pending) {
+          try { db.close(); } catch { /* no-op */ }
+          resolve(null);
+          return;
+        }
+        const invalidate = () => this.invalidateDb(db);
+        // This manager is the single connection owner. A version change makes
+        // the cached connection invalid before it is closed, so no later
+        // transaction can receive the closing object.
+        db.onversionchange = () => {
+          invalidate();
+          try { db.close(); } catch { /* closing an already closed DB is harmless */ }
+        };
+        db.onclose = invalidate;
+        this.db = db;
+        resolve(db);
+      };
       request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+    });
+    this.dbPromise = pending;
+    // An unsuccessful open must not poison the singleton promise forever.
+    void pending.then((db) => {
+      if (!db && this.dbPromise === pending) this.dbPromise = null;
     });
     return this.dbPromise;
   }
 
+  private async runIndexedDb<T>(fallback: T, operation: (db: IDBDatabase) => Promise<T>) {
+    // A Safari version-change/restore race can occur after openDb resolves but
+    // before transaction starts. Invalidate that exact connection and retry
+    // once. Every operation here is cache-only and idempotent; no business
+    // write is ever replayed through this path.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const db = await this.openDb();
+      if (!db) return fallback;
+      try {
+        return await operation(db);
+      } catch (error) {
+        if (!this.isClosingConnectionError(error) || attempt === 1) return fallback;
+        this.invalidateDb(db);
+      }
+    }
+    return fallback;
+  }
+
+  private transaction<T>(db: IDBDatabase, mode: IDBTransactionMode, action: (store: IDBObjectStore, fail: (error: unknown) => void) => void, result: () => T) {
+    return new Promise<T>((resolve, reject) => {
+      let transaction: IDBTransaction;
+      const fail = (error: unknown) => reject(error instanceof Error ? error : new Error(String(error || "IndexedDB transaction failed")));
+      try {
+        transaction = db.transaction(STORE_NAME, mode);
+        action(transaction.objectStore(STORE_NAME), fail);
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      transaction.oncomplete = () => resolve(result());
+      transaction.onerror = () => reject(transaction.error || new Error("IndexedDB transaction failed"));
+      transaction.onabort = () => reject(transaction.error || new Error("IndexedDB transaction aborted"));
+    });
+  }
+
   private async readIndexedDb<T>(key: string) {
-    const db = await this.openDb();
-    if (!db) return null;
-    return new Promise<CacheEntry<T> | null>((resolve) => {
-      const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key);
-      request.onsuccess = () => {
-        const value = request.result as CacheEntry<T> | undefined;
-        resolve(value?.version === GLOBAL_CACHE_VERSION ? value : null);
-      };
-      request.onerror = () => resolve(null);
+    let value: CacheEntry<T> | undefined;
+    return this.runIndexedDb<CacheEntry<T> | null>(null, async (db) => {
+      await this.transaction(db, "readonly", (store, fail) => {
+        const request = store.get(key);
+        request.onsuccess = () => { value = request.result as CacheEntry<T> | undefined; };
+        request.onerror = () => { fail(request.error || new Error("IndexedDB read failed")); };
+      }, () => undefined);
+      return value?.version === GLOBAL_CACHE_VERSION ? value : null;
     });
   }
 
   private async writeIndexedDb(key: string, entry: CacheEntry) {
-    const db = await this.openDb();
-    if (!db) return;
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).put(entry, key);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-    });
+    await this.runIndexedDb(undefined, (db) => this.transaction(db, "readwrite", (store) => { store.put(entry, key); }, () => undefined));
   }
 
   private async deleteIndexedDb(key: string) {
-    const db = await this.openDb();
-    if (!db) return;
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).delete(key);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-    });
+    await this.runIndexedDb(undefined, (db) => this.transaction(db, "readwrite", (store) => { store.delete(key); }, () => undefined));
   }
 
   private async deleteIndexedDbByScope(scope: string) {
-    const db = await this.openDb();
-    if (!db) return;
-    await new Promise<void>((resolve) => {
-      const request = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).openCursor();
+    await this.runIndexedDb(undefined, (db) => this.transaction(db, "readwrite", (store, fail) => {
+      const request = store.openCursor();
       request.onsuccess = () => {
         const cursor = request.result as IDBCursorWithValue | null;
-        if (!cursor) return resolve();
+        if (!cursor) return;
         if (String(cursor.key).includes(`:${scope}:`)) cursor.delete();
         cursor.continue();
       };
-      request.onerror = () => resolve();
-    });
+      request.onerror = () => { fail(request.error || new Error("IndexedDB cursor read failed")); };
+    }, () => undefined));
   }
 
   private async deleteAllIndexedDb() {
-    const db = await this.openDb();
-    if (!db) return;
-    await new Promise<void>((resolve) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).clear();
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-    });
+    await this.runIndexedDb(undefined, (db) => this.transaction(db, "readwrite", (store) => { store.clear(); }, () => undefined));
   }
 }
 

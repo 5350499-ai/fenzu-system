@@ -299,7 +299,7 @@
 
 ## Global Cache V3（统一缓存架构）
 
-Global Cache V3 establishes one CacheManager boundary for browser business-data reads and writes. The intended flow is UI → CacheManager → business repository → Supabase; pages must not create their own cache or data-fetching policy.
+Global Cache V3 establishes one CacheManager boundary for browser business-data reads and writes. The intended flow is UI → CacheManager → business repository → Supabase; pages must not create their own cache or data-fetching policy. `CacheManager` is the only IndexedDB connection owner: it invalidates and closes its cached connection on `versionchange`, never lets a closing connection remain cached, and allows only one cache-only reconnect retry for an explicit closing-connection race. Pages, React cleanups and lifecycle handlers must never close the shared database directly.
 
 - Why one CacheManager: one place owns cache versioning, account isolation, TTL, invalidation, cross-tab events and diagnostics, so new modules do not drift into incompatible cache behavior.
 - Why two layers: memory cache makes in-app navigation fast, while IndexedDB survives browser restarts without placing business records in localStorage.

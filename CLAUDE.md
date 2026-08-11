@@ -122,7 +122,7 @@
 
 任何新增、修改、重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局之前，必须先阅读并遵循 `UI_DESIGN_SYSTEM.md`。Select、Combobox、Dropdown、Listbox 必须复用公共 `DropdownListbox` 手势与滚动归属契约，禁止页面在 `pointerdown/touchstart` 直接选择选项。除非有明确业务理由并在规范中记录例外，否则不得自行创造新的尺寸、间距、字体、颜色、控件高度或响应式规则；必须优先复用现有 Design Tokens 与公共组件。前端 UI 修改完成后必须运行 `npm run validate:ui` 和现有交互测试，不得绕过公共控件、Checkbox/Radio 和 Modal 生命周期约束。
 
-日期/时间输入必须遵循共享 Date Field Contract；付款方式等重复业务预设必须从 `lib/` 的唯一配置源导入，禁止在页面中复制数组。对历史值只做非破坏性的显示兼容，不得借预设调整改写业务数据。Form Grid / Field Box、Section / Card Stack、租客房间自然排序和既有联系方式映射同样必须遵循 `UI_DESIGN_SYSTEM.md`；禁止页面私有 date 宽高、field 宽度或 card 间距覆盖。
+日期/时间输入必须遵循共享 Date Field Contract；付款方式等重复业务预设必须从 `lib/` 的唯一配置源导入，禁止在页面中复制数组。对历史值只做非破坏性的显示兼容，不得借预设调整改写业务数据。Form Grid / Field Box、Section / Card Stack、租客房间自然排序和既有联系方式映射同样必须遵循 `UI_DESIGN_SYSTEM.md`；禁止页面私有 date 宽高、field 宽度或 card 间距覆盖。IndexedDB 只允许由 `CacheManager` 管理连接生命周期；页面、React cleanup、`pagehide`/`visibilitychange` 等不得关闭共享连接。发生明确 closing/versionchange 竞态时只能由该管理器失效旧连接、重新打开并最多重试一次缓存操作，禁止删除本地数据库或无限重试。
 
 ## 12. 最小读取与最小影响原则
 

@@ -19,6 +19,8 @@ const tenantSorting = readFileSync(resolve(root, "lib/tenant-sorting.ts"), "utf8
 const businessData = readFileSync(resolve(root, "lib/business-data.ts"), "utf8");
 const checkInPage = readFileSync(resolve(root, "app/check-in/page.tsx"), "utf8");
 const propertyProfitsPage = readFileSync(resolve(root, "app/property-profits/page.tsx"), "utf8");
+const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "utf8");
+const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
 
 function sourceFiles(directory) {
   return readdirSync(directory).flatMap((entry) => {
@@ -73,7 +75,10 @@ const required = [
   [tenantsPage, 'label="时间"', "Tenant list must expose the record-time sort"],
   [tenantSorting, '"time"', "Tenant sorting must support the record-time mode"],
   [tenantSorting, "compareRoomLabels", "Tenant room sorting must use natural labels"],
-  [businessData, 'createdAt: row.created_at', "Tenant mappings must expose the immutable database creation time"]
+  [businessData, 'createdAt: row.created_at', "Tenant mappings must expose the immutable database creation time"],
+  [cacheManager, "db.onversionchange", "IndexedDB cache must invalidate a connection on versionchange"],
+  [cacheManager, "database connection is closing", "IndexedDB cache must recognize closing connection errors"],
+  [cacheManager, "attempt < 2", "IndexedDB cache self-heal must have a single retry limit"]
 ];
 
 const failures = required
@@ -94,6 +99,12 @@ if (!/::-webkit-datetime-edit[\s\S]*?--ui-date-content-height/is.test(css) || !/
 
 if (/\.field\s+input:not\(\[type=["']checkbox["']\]\):not\(\[type=["']radio["']\]\)(?!:not\(\.ui-combobox-input\))/i.test(css)) {
   failures.push("Broad .field input rules must explicitly exclude .ui-combobox-input");
+}
+if (/indexedDB\.deleteDatabase\s*\(/.test(cacheManager)) {
+  failures.push("IndexedDB lifecycle repair must not delete the cache database");
+}
+if (/dataError\s*\|\|\s*["'].*Failed to execute.*IDBDatabase/is.test(dashboardPage)) {
+  failures.push("Dashboard must not expose raw IndexedDB implementation errors to users");
 }
 
 const compositeInputRule = css.match(/\.field\.combobox-field\s*>\s*\.combobox\.ui-combobox-control\s*>\s*\.ui-combobox-input[\s\S]*?\{([\s\S]*?)\}/i)?.[1] || "";

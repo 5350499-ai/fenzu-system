@@ -143,8 +143,11 @@ export default function DashboardPage() {
     }
     load().catch((error) => {
       if (!active) return;
+      // Keep browser diagnostics available without presenting a raw IndexedDB
+      // implementation error to ordinary users.
+      console.error("[dashboard] data load failed", error);
       setDataStatus("error");
-      setDataError(error instanceof Error ? error.message : "首页数据加载失败，请稍后重试。");
+      setDataError("首页数据加载失败，请重试。");
     });
     return () => { active = false; unsubscribe?.(); };
   }, [access.authenticated, access.ready, access.permissionVersion, loadAttempt]);
