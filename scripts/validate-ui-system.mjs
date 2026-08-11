@@ -325,15 +325,15 @@ if (!tenantDelete.includes("tenantHasBusinessData") || !tenantDelete.includes("t
 if (!tenantDeleteApi.includes("assertTenantHasNoBusinessData") || !tenantDeleteApi.includes("dryRun")) {
   failures.push("Tenant permanent deletion must have a server-side preflight and final recheck");
 }
-if (!tenantArchive.includes("filterTenantsByArchiveMode") || !tenantsPage.includes("filterTenantsByArchiveMode")) {
+if (!tenantArchive.includes("filterTenantsByArchiveMode") || !tenantsPage.includes("filterTenantsByArchiveMode(tenants, effectiveShowArchived)")) {
   failures.push("Tenant normal/archive modes must share one archive filter primitive");
 }
 const tenantDeleteFunction = tenantsPage.match(/async function permanentlyDeleteTenant\([\s\S]*?\n  \}/)?.[0] || "";
 if (tenantDeleteFunction.includes("saveBusinessData(rentPaymentKey") || tenantDeleteFunction.includes("saveBusinessData(depositKey") || tenantDeleteFunction.includes("saveBusinessData(contractKey")) {
   failures.push("Tenant permanent deletion must not delete historical child records");
 }
-if (!tenantsPage.includes("filterTenantsByArchiveMode(tenants, showArchived)")) {
-  failures.push("Tenant normal/archive modes must use mutually exclusive data sources");
+if (!tenantsPage.includes("effectiveContractExpiringDays") || !tenantsPage.includes("effectiveQuery")) {
+  failures.push("Tenant deep links must temporarily reveal their stable target without permanently resetting user filters");
 }
 if (!tenantsPage.includes("setShowArchived(isArchivedTenantStatus(requestedTenant?.status || \"\"))")) {
   if (!tenantsPage.includes("archiveModeForTenantDeepLink(repairedTenants, requestedTenantId)")) {
@@ -342,6 +342,16 @@ if (!tenantsPage.includes("setShowArchived(isArchivedTenantStatus(requestedTenan
 }
 if (/href:\s*`\/rooms\?roomId=\$\{encodeURIComponent\(tenant\.roomId\)\}`/.test(dashboardPage)) {
   failures.push("Dashboard tenant reminders must not navigate by room ID");
+}
+const sharedRentReminderDisplay = readFileSync(resolve(root, "components/rent-reminder-display.tsx"), "utf8");
+if (!reminderEngine.includes("tenantLifecycle") || !reminderEngine.includes("debtKind")) {
+  failures.push("Payment-backed reminders must carry shared lifecycle and debt-kind metadata");
+}
+if (!rentReminderDisplay.includes("lifecycleLabel") || !rentReminderDisplay.includes("debtKindLabel") || !rentReminderDisplay.includes("availableActions")) {
+  failures.push("Rent reminder display contract must retain lifecycle, debt kind, and action availability");
+}
+if (!sharedRentReminderDisplay.includes("StatusBadge") || !dashboardPage.includes("RentReminderDisplay") || !remindersPage.includes("RentReminderDisplay")) {
+  failures.push("Dashboard and reminder center must render payment-backed reminders through one shared display component");
 }
 
 if (failures.length) {

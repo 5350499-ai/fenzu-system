@@ -14,7 +14,8 @@ type TenantLike = {
 type RoomLike = { id: string; roomNumber?: string; name?: string };
 
 export function isEndedTenantStatus(status = "") {
-  return ["已退租", "已归档", "已结束", "已删除"].some((value) => status.includes(value));
+  const normalized = status.trim().toLowerCase();
+  return ["已退租", "已归档", "已结束", "已删除"].some((value) => status.includes(value)) || normalized.includes("moved_out") || normalized.includes("ended");
 }
 
 export function countTenantGroups<T extends { status?: string }>(tenants: T[]) {

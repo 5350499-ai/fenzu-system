@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
+import { RentReminderDisplay } from "@/components/rent-reminder-display";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -26,7 +27,6 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { buildEffectiveReminders, type ReminderItem } from "@/lib/reminder-engine";
-import { buildRentReminderDisplay } from "@/lib/rent-reminder-display";
 import { defaultBackupReminderSettings, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { cacheManager } from "@/lib/cache/cache-manager";
@@ -193,22 +193,19 @@ export default function RemindersPage() {
   );
 }
 function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Reminder) => void }) {
-  const rentDisplay = buildRentReminderDisplay(item);
+  const isRentReminder = Boolean(item.rentContext);
   if (item.rentContext?.paymentId && item.availableActions.includes("waive")) return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
     <Link className="reminder-page-row-link" href={item.href}>
       <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
-      {rentDisplay ? <span className="reminder-page-rent-content rent-reminder-display"><strong>{rentDisplay.primaryLine}</strong><small>{rentDisplay.secondaryLine}</small></span> : null}
+      {isRentReminder ? <RentReminderDisplay item={item} className="reminder-page-rent-content" /> : null}
     </Link>
     <span className="reminder-rent-actions">{item.availableActions.includes("collect") ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.rentContext.paymentId)}&overdue=1`}>登记补交</Link> : null}{item.availableActions.includes("waive") ? <button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button> : null}</span>
   </div>;
   return (
     <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
       <span className="reminder-page-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge></span>
-      {rentDisplay ? (
-        <span className="reminder-page-rent-content rent-reminder-display">
-          <strong>{rentDisplay.primaryLine}</strong>
-          <small>{rentDisplay.secondaryLine}</small>
-        </span>
+      {isRentReminder ? (
+        <RentReminderDisplay item={item} className="reminder-page-rent-content" />
       ) : (
         <span className="reminder-page-rent-content">
           <span>{item.title}</span>

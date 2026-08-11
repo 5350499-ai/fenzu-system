@@ -944,3 +944,13 @@
 - Added a 28-scenario golden rent-state matrix, including the Aug 5/Aug 10 regressions, zero-value debt, waiver/void/settlement, archive/move-out, re-let history and coverage chronology conflicts.
 - Dashboard and reminder-center rent cards now share a two-line presentation contract that keeps the full coverage end visible.
 - No database, schema, migration, RLS, permissions, real business data, financial formula or Production change.
+
+## 2026-08-11 - Reminder lifecycle deep links and information contract (Preview)
+
+- Added lifecycle-aware tenant deep-link planning for current, moved-out and
+  archive targets, including temporary target visibility, group expansion and
+  mounted-card safe-area scrolling.
+- Dashboard and reminder-center rent cards now share lifecycle/debt-kind badges
+  while retaining full coverage, timing, amount and existing action metadata.
+- No RentPeriod/Open Debt algorithm, database, schema, migration, RLS,
+  permission, real business-data or Production change.

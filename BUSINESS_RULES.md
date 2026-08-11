@@ -126,6 +126,15 @@ superseded without a separate product decision.
   full coverage end in a dedicated second facts line; that date must not be
   hidden by single-line ellipsis.
 
+### Reminder lifecycle and display contract
+
+- Lifecycle does not settle debt: `在租` and `已退租` identify tenancy state;
+  `当前欠租` and `历史欠费` identify whether an open payment is the current latest
+  period or an earlier/ended-lifecycle period.
+- Tenant reminder deep links resolve the stable tenant ID to normal current,
+  normal moved-out, or archive mode. The target may be temporarily revealed
+  through list filters, then expanded and scrolled after mount.
+
 - 所有经营提醒必须从共享 Reminder Engine 生成。首页只能展示同一有效提醒集合的摘要，提醒中心展示完整列表；两者不得分别重算业务规则或使用不一致的总数。
 - 欠费提醒以 RentPeriodState 的事实和当前追缴状态为准；归档只静默日常租客型提醒，不结清债务；退租不自动静默未处理的历史欠费；waiver 和补交结清只使对应 payment/rent period 的提醒失效。
 - 每个提醒必须使用稳定的 type + 业务实体/期间 ID，并携带主体导航和可用操作元数据。租客主体提醒优先使用 tenant_id，不得依靠房间名称或展示文案导航。

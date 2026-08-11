@@ -270,20 +270,22 @@ export default function TenantsPage() {
   // exact tenant visible until the user next changes a list control.
   const activeDeepLinkTenantId = deepLinkTenantId || focusedTenantId;
   const activeDeepLinkTenant = activeDeepLinkTenantId ? tenants.find((tenant) => tenant.id === activeDeepLinkTenantId) || null : null;
+  const effectiveShowArchived = activeDeepLinkTenant ? isArchivedTenantStatus(activeDeepLinkTenant.status || "") : showArchived;
   const effectivePropertyIds = activeDeepLinkTenant?.propertyId && !selectedPropertyIds.includes(activeDeepLinkTenant.propertyId)
     ? [...selectedPropertyIds, activeDeepLinkTenant.propertyId]
     : selectedPropertyIds;
   const effectiveQuery = activeDeepLinkTenant ? "" : query;
+  const effectiveContractExpiringDays = activeDeepLinkTenant ? null : contractExpiringDays;
 
   const filteredTenants = useMemo(() => {
     const keyword = effectiveQuery.trim().toLowerCase();
-    const visible = filterTenantsByArchiveMode(tenants, showArchived);
+    const visible = filterTenantsByArchiveMode(tenants, effectiveShowArchived);
     const propertyVisible = effectivePropertyIds.length
       ? visible.filter((tenant) => effectivePropertyIds.includes(tenant.propertyId))
       : [];
-    const contractVisible = contractExpiringDays === null
+    const contractVisible = effectiveContractExpiringDays === null
       ? propertyVisible
-      : propertyVisible.filter((tenant) => contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, contractExpiringDays)));
+      : propertyVisible.filter((tenant) => contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, effectiveContractExpiringDays)));
     if (!keyword) return contractVisible;
     return contractVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
@@ -297,7 +299,7 @@ export default function TenantsPage() {
       }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [businessToday, contractExpiringDays, contracts, effectivePropertyIds, effectiveQuery, filesByContract, filesByTenant, payments, properties, rooms, showArchived, tenants, waivedPaymentIds]);
+  }, [businessToday, contracts, effectiveContractExpiringDays, effectivePropertyIds, effectiveQuery, effectiveShowArchived, filesByContract, filesByTenant, payments, properties, rooms, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -331,17 +333,21 @@ export default function TenantsPage() {
 
   const pagedTenants = pageRows(sortedTenants, page, pageSize);
   const visibleTenantGroups = splitTenantGroups(pagedTenants);
-  const retiredVisible = showArchived ? [] : visibleTenantGroups.retired;
+  const retiredVisible = effectiveShowArchived ? [] : visibleTenantGroups.retired;
   const currentVisible = visibleTenantGroups.current;
   const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
   const showRetiredExpanded = retiredExpanded;
   const visibleCurrentTenants = currentExpanded ? currentVisible : currentVisible.slice(0, 8);
-  const visibleTenants = showArchived ? pagedTenants : [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
+  const visibleTenants = effectiveShowArchived ? pagedTenants : [...visibleCurrentTenants, ...(showRetiredExpanded ? retiredVisible : [])];
 
   useEffect(() => {
     if (!loaded || !deepLinkTenantId) return;
     const plan = planTenantDeepLink({ tenantId: deepLinkTenantId, tenants, sortedTenants, pageSize });
     if (!plan) return;
+    if (showArchived !== plan.showArchived) {
+      setShowArchived(plan.showArchived);
+      return;
+    }
     if (page !== plan.page) {
       setPage(plan.page);
       return;
@@ -351,7 +357,7 @@ export default function TenantsPage() {
     setDetailTenantId(plan.tenant.id);
     setFocusedTenantId(plan.tenant.id);
     setDeepLinkTenantId("");
-  }, [deepLinkTenantId, loaded, page, pageSize, sortedTenants, tenants]);
+  }, [deepLinkTenantId, loaded, page, pageSize, showArchived, sortedTenants, tenants]);
 
   useEffect(() => {
     if (!focusedTenantId || detailTenantId !== focusedTenantId || !visibleTenants.some((tenant) => tenant.id === focusedTenantId)) return;

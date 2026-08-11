@@ -1206,6 +1206,32 @@ a {
   min-width: 0;
 }
 
+.rent-reminder-primary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rent-reminder-primary > strong {
+  flex: 1 1 auto;
+}
+
+.rent-reminder-badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.rent-reminder-badges .badge {
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .rent-reminder-display strong,
 .rent-reminder-display small,
 .reminder-item.rent-reminder .rent-reminder-display small {

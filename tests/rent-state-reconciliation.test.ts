@@ -139,9 +139,31 @@ test("rent reminder display contract keeps full coverage end on a second line", 
   const target = tenant();
   const overdue = payment(target.id, "payment-display", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const reminder = buildEffectiveReminders(snapshot([target], [overdue]))[0]!;
-  assert.deepEqual(buildRentReminderDisplay(reminder), {
-    primaryLine: "欠费2 | 测试房源 | 02 房间",
-    secondaryLine: "覆盖至 2026-08-05 | 已逾期 6 天 | €0.00",
-    statusText: "已逾期 6 天 | €0.00"
-  });
+  const display = buildRentReminderDisplay(reminder);
+  assert.equal(display?.primaryLine, "欠费2 | 测试房源 | 02 房间");
+  assert.equal(display?.secondaryLine, "覆盖至 2026-08-05 | 已逾期 6 天 | €0.00");
+  assert.equal(display?.statusText, "已逾期 6 天 | €0.00");
+  assert.equal(display?.lifecycleLabel, "在租");
+  assert.equal(display?.debtKindLabel, "当前欠租");
+  assert.deepEqual(display?.availableActions, ["waive"]);
+});
+
+test("rent reminder display keeps lifecycle and historical debt semantics for moved-out and current tenants", () => {
+  const movedOut = tenant("tenant-moved-out", "Test", "moved_out");
+  const debt = payment(movedOut.id, "payment-moved-out", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
+  const movedOutReminder = buildEffectiveReminders(snapshot([movedOut], [debt]))[0]!;
+  const movedOutDisplay = buildRentReminderDisplay(movedOutReminder);
+  assert.equal(movedOutReminder.tenantLifecycle, "moved_out");
+  assert.equal(movedOutReminder.debtKind, "historical");
+  assert.equal(movedOutDisplay?.lifecycleLabel, "已退租");
+  assert.equal(movedOutDisplay?.debtKindLabel, "历史欠费");
+  assert.equal(movedOutDisplay?.secondaryLine.includes("覆盖至 2026-08-05"), true);
+
+  const current = tenant("tenant-current-history", "Current");
+  const oldDebt = payment(current.id, "payment-history", "2026-08-05");
+  const upcoming = payment(current.id, "payment-upcoming", "2026-08-20", { amountPaid: 100, amountUnpaid: 0, paymentStatus: "已收" });
+  const historicalReminder = buildEffectiveReminders(snapshot([current], [oldDebt, upcoming])).find((item) => item.id === "rent_debt:payment-history")!;
+  assert.equal(historicalReminder.tenantLifecycle, "current");
+  assert.equal(historicalReminder.debtKind, "historical");
+  assert.equal(buildRentReminderDisplay(historicalReminder)?.debtKindLabel, "历史欠费");
 });

@@ -8,9 +8,11 @@ type DeepLinkTenant = { id: string; propertyId?: string; status?: string };
 export type TenantDeepLinkPlan<T extends DeepLinkTenant> = {
   tenant: T;
   showArchived: boolean;
+  targetGroup: "current" | "moved_out" | "archived_current" | "archived_moved_out";
   page: number;
   expandCurrent: boolean;
   expandRetired: boolean;
+  temporarilyOverrideFilters: boolean;
   scrollTargetId: string;
   requiredPropertyId: string;
 };
@@ -34,12 +36,15 @@ export function planTenantDeepLink<T extends DeepLinkTenant>({
   const index = sortedTenants.findIndex((item) => item.id === tenantId);
   if (!tenant || index < 0) return null;
   const showArchived = isArchivedTenantStatus(tenant.status || "");
+  const movedOut = isEndedTenantStatus(tenant.status || "");
   return {
     tenant,
     showArchived,
+    targetGroup: showArchived ? (movedOut ? "archived_moved_out" : "archived_current") : (movedOut ? "moved_out" : "current"),
     page: Math.floor(index / Math.max(pageSize, 1)) + 1,
-    expandCurrent: !showArchived && !isEndedTenantStatus(tenant.status || ""),
-    expandRetired: !showArchived && isEndedTenantStatus(tenant.status || ""),
+    expandCurrent: !showArchived && !movedOut,
+    expandRetired: !showArchived && movedOut,
+    temporarilyOverrideFilters: true,
     scrollTargetId: tenantDeepLinkScrollTargetId(tenant.id),
     requiredPropertyId: tenant.propertyId || ""
   };

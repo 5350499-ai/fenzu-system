@@ -204,6 +204,13 @@ remain waiver-eligible. Archive and move-out are lifecycle states, not an
 automatic debt settlement. Reminder display remains a separate derived layer:
 archive mutes it; move-out alone does not.
 
+Tenant reminder deep links must use `planTenantDeepLink`: stable `tenantId`
+determines archive mode and current/moved-out group, temporary target visibility,
+detail expansion and mounted-element scrolling. Never resolve by name, room,
+current occupant, or timer. Payment-backed reminders must render the shared
+`RentReminderDisplay` contract so lifecycle, debt kind, full coverage end,
+timing, amount and engine action metadata cannot diverge between surfaces.
+
 - 所有代码修改完成后，必须先运行 `npm run build`。
 - 构建通过后，必须先部署到 Vercel Preview。
 - 未经用户明确验收，不得直接部署或 Promote 到 Production。

@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MetricCard } from "@/components/metric-card";
+import { RentReminderDisplay } from "@/components/rent-reminder-display";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -38,7 +39,6 @@ import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, g
 import { isCoverageExpired, latestCoverageForTenant } from "@/lib/rent-coverage";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { buildEffectiveReminders, summarizeEffectiveReminders } from "@/lib/reminder-engine";
-import { buildRentReminderDisplay } from "@/lib/rent-reminder-display";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -242,10 +242,10 @@ export default function DashboardPage() {
         {remindersOpen ? (
           <div className="reminder-list">
             {visibleReminders.length ? visibleReminders.map((item) => {
-              const rentDisplay = buildRentReminderDisplay(item);
-              return <Link className={`reminder-item ${item.tone}${rentDisplay ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
-                {rentDisplay ? (
-                  <span className="rent-reminder-display"><strong>{rentDisplay.primaryLine}</strong><small>{rentDisplay.secondaryLine}</small></span>
+              const isRentReminder = Boolean(item.rentContext);
+              return <Link className={`reminder-item ${item.tone}${isRentReminder ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
+                {isRentReminder ? (
+                  <RentReminderDisplay item={item} />
                 ) : (
                   <>
                     <span>{item.title}</span>

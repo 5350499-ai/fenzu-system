@@ -649,6 +649,15 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ## 45. Rent Reminder Display Contract
 
+### Lifecycle-aware details
+
+- Shared rent reminder rows show `在租` or `已退租` lifecycle context and, for
+  debt events, `当前欠租` or `历史欠费`. These are derived metadata, not financial
+  mutations, and remain visible alongside the full coverage-end facts.
+- Reminder deep links use the shared lifecycle plan: moved-out targets expand
+  the retired group in normal mode; archived targets enter archive mode; target
+  cards scroll below header/safe-area space only after mount.
+
 - Dashboard cards and reminder-center rows must reuse the shared rent reminder
   formatter. They render identity (`tenant | property | room`) first, followed
   by a separate facts line containing the full `coverageEnd`, period status and
