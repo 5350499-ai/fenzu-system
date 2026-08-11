@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { countTenantGroups, sortRoomsByNumberAndStatus, sortTenantsByRoomAndStatus } from "../lib/tenant-sorting";
+import { countTenantGroups, sortRoomsByNumberAndStatus, sortTenantsByRoomAndStatus, splitTenantGroups } from "../lib/tenant-sorting";
 
 const rooms = [501, 502, 503, 504].map((number) => ({ id: String(number), roomNumber: String(number), name: `${number} 房间` }));
 const tenant = (id: string, roomId: string, status = "在租", actualMoveOutDate?: string) => ({ id, roomId, status, name: id, monthlyRent: 300, actualMoveOutDate });
@@ -10,6 +10,19 @@ assert.deepEqual(sortTenantsByRoomAndStatus([tenant("old-late", "501", "已退�
 assert.deepEqual(sortTenantsByRoomAndStatus([tenant("none", "", "在租"), tenant("active", "501")], rooms).map((item) => item.id), ["active", "none"]);
 assert.deepEqual(countTenantGroups([tenant("a", "501", "在租"), tenant("b", "502", "欠租"), tenant("c", "501", "已退租")]), { current: 2, retired: 1 });
 assert.deepEqual(countTenantGroups([tenant("missing", "", "在租")]), { current: 1, retired: 0 });
+assert.deepEqual(splitTenantGroups([
+  tenant("active", "501", "在租"),
+  tenant("overdue", "502", "欠租"),
+  tenant("expired-coverage", "503", "在租"),
+  tenant("moved-out", "504", "已退租")
+]), {
+  current: [
+    tenant("active", "501", "在租"),
+    tenant("overdue", "502", "欠租"),
+    tenant("expired-coverage", "503", "在租")
+  ],
+  retired: [tenant("moved-out", "504", "已退租")]
+});
 
 console.log("tenant sorting tests passed");
 

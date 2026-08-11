@@ -30,6 +30,14 @@ export function extractRoomNumber(value: string | undefined | null): number | nu
   return match ? Number(match[0]) : null;
 }
 
+/** Keep lifecycle groups explicit before pagination/rendering. */
+export function splitTenantGroups<T extends { status?: string }>(tenants: T[]) {
+  return {
+    current: tenants.filter((tenant) => !isEndedTenantStatus(tenant.status)),
+    retired: tenants.filter((tenant) => isEndedTenantStatus(tenant.status))
+  };
+}
+
 /**
  * Room labels are user-entered values.  Keep empty assignments at the end,
  * while using the platform's numeric collation for labels such as 1, 2, 10

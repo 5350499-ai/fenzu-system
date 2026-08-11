@@ -47,9 +47,10 @@ import { deleteRentPaymentFile, loadRentPaymentFiles } from "@/lib/rent-payment-
 import { coverageLabel, fixedCoverageExpiryInfo, isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
-import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
+import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
+import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -126,6 +127,8 @@ export default function TenantsPage() {
   const [detailTenantId, setDetailTenantId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
+  const [deleteTenantTarget, setDeleteTenantTarget] = useState<BusinessTenant | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
@@ -296,10 +299,12 @@ export default function TenantsPage() {
     });
   }, [filteredTenants, payments, properties, rooms, sortDirection, sortKey]);
 
-  const visibleTenants = pageRows(sortedTenants, page, pageSize);
+  const pagedTenants = pageRows(sortedTenants, page, pageSize);
+  const visibleTenantGroups = splitTenantGroups(pagedTenants);
+  const visibleTenants = [...visibleTenantGroups.current, ...visibleTenantGroups.retired];
   const explicitTenantFilter = Boolean(query.trim() || propertyFilterId || contractExpiringDays !== null);
-  const retiredVisible = visibleTenants.filter((tenant) => isEndedTenantStatus(tenant.status));
-  const currentVisible = visibleTenants.filter((tenant) => !isEndedTenantStatus(tenant.status));
+  const retiredVisible = visibleTenantGroups.retired;
+  const currentVisible = visibleTenantGroups.current;
   const { current: currentCount, retired: retiredCount } = countTenantGroups(sortedTenants);
   const showRetiredExpanded = retiredExpanded || (explicitTenantFilter && retiredVisible.length > 0 && currentVisible.length === 0);
 
@@ -727,11 +732,11 @@ export default function TenantsPage() {
   }
 
   async function permanentlyDeleteTenant(tenant: BusinessTenant) {
-    if (!access.can("tenants", "delete")) return;
-    const confirmText = window.prompt(
-      "⚠️ 此操作不可恢复\n\n将删除：\n- 租客资料\n- 收租记录\n- 押金记录\n- 合同记录\n- 租客附件\n- 收入附件\n\n请输入 DELETE 确认永久删除。"
-    );
-    if (confirmText !== "DELETE") return;
+    const permissionMessage = tenantDeletePermissionMessage(access.can("tenants", "delete"));
+    if (permissionMessage) {
+      window.alert(permissionMessage);
+      return;
+    }
     setSaving(true);
     try {
       const tenantContracts = contracts.filter((contract) => contract.tenantId === tenant.id);
@@ -773,7 +778,19 @@ export default function TenantsPage() {
       window.alert(error.message || "永久删除租客失败，请稍后重试。");
     } finally {
       setSaving(false);
+      setDeleteTenantTarget(null);
+      setDeleteConfirmation("");
     }
+  }
+
+  function requestPermanentDelete(tenant: BusinessTenant) {
+    const permissionMessage = tenantDeletePermissionMessage(access.can("tenants", "delete"));
+    if (permissionMessage) {
+      window.alert(permissionMessage);
+      return;
+    }
+    setDeleteConfirmation("");
+    setDeleteTenantTarget(tenant);
   }
 
   async function addTenantFile(uploadContext: { tenantId: string; contractId: string | null }, file: File) {
@@ -950,7 +967,7 @@ export default function TenantsPage() {
                     canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
                     onDeleteFile={removeContractFile}
                     onArchive={() => archiveTenant(tenant)}
-                    onPermanentDelete={() => permanentlyDeleteTenant(tenant)}
+                    onPermanentDelete={() => requestPermanentDelete(tenant)}
                     onEdit={() => {
                       openTenantForm(tenant);
                     }}
@@ -1146,6 +1163,26 @@ export default function TenantsPage() {
             <div className="modal-actions">
               <button className="btn" onClick={() => setCreateDepositTenant(null)} type="button">取消</button>
               <button className="btn primary" disabled={saving} onClick={() => void createDepositRecord(createDepositTenant, createDepositAmount, createDepositStatus)} type="button">确认建立</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {deleteTenantTarget ? (
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setDeleteTenantTarget(null); setDeleteConfirmation(""); } }}>
+          <section className="card modal-card deposit-status-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-delete-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <h2 className="panel-title" id="tenant-delete-title">永久删除租客</h2>
+              <button className="btn" onClick={() => { setDeleteTenantTarget(null); setDeleteConfirmation(""); }} type="button"><X size={17} /> 关闭</button>
+            </div>
+            <p className="muted">此操作不可恢复，将删除租客资料及其关联收款、押金、合同和附件。请输入 DELETE 继续。</p>
+            <div className="field">
+              <label htmlFor="tenant-delete-confirmation">确认文字</label>
+              <input id="tenant-delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" />
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => { setDeleteTenantTarget(null); setDeleteConfirmation(""); }} type="button">取消</button>
+              <button className="btn danger" disabled={saving || !isTenantDeleteConfirmed(deleteConfirmation)} onClick={() => void permanentlyDeleteTenant(deleteTenantTarget)} type="button">确认永久删除</button>
             </div>
           </section>
         </div>
