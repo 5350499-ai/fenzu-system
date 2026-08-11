@@ -4,7 +4,7 @@ import type { BusinessRentPayment, BusinessTenant } from "../lib/business-data.t
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
 import { tenantReminderHref } from "../lib/reminder-navigation.ts";
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
-import { fixedTenantRentDebtReminderStage, hasUnresolvedTenantRentDebt, shouldShowTenantRentReminder } from "../lib/rent-coverage.ts";
+import { fixedTenantRentDebtReminderStage, hasUnresolvedTenantRentDebt, isWaivableRentCollectionEvent, shouldShowTenantRentReminder } from "../lib/rent-coverage.ts";
 
 const baseTenant = { id: "tenant-1", status: "在租", propertyId: "property-1", roomId: "room-1" } as BusinessTenant;
 const overduePayment = (amountPaid = 0) => ({
@@ -44,6 +44,21 @@ test("an explicit collection waiver removes only that debt reminder", () => {
   const payment = overduePayment();
   assert.equal(shouldShowTenantRentReminder(archived, payment, new Set()), true);
   assert.equal(shouldShowTenantRentReminder(archived, payment, new Set([payment.id])), false);
+});
+
+test("a valid zero-balance overdue rent event can be waived without changing amounts", () => {
+  const zeroBalance = { ...overduePayment(500), amountUnpaid: 0 };
+  assert.equal(isWaivableRentCollectionEvent(zeroBalance, "2026-08-11"), true);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set()), true);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set([zeroBalance.id])), false);
+  assert.equal(zeroBalance.amountDue, 500);
+  assert.equal(zeroBalance.amountPaid, 500);
+  assert.equal(zeroBalance.amountUnpaid, 0);
+});
+
+test("positive overdue rent events remain waiver eligible", () => {
+  assert.equal(isWaivableRentCollectionEvent(overduePayment(0), "2026-08-11"), true);
+  assert.equal(isWaivableRentCollectionEvent(overduePayment(490), "2026-08-11"), true);
 });
 
 test("archive state does not create a reminder for a non-overdue future coverage", () => {

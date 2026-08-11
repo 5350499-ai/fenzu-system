@@ -312,6 +312,13 @@ export function isRentIncome(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
+/** A waiver closes a generated overdue rent event, not only a positive balance. */
+export function isWaivableRentCollectionEvent(payment: BusinessRentPayment | null, today = todayString()) {
+  if (!payment || !isRentIncome(payment) || isVoided(payment.notes)) return false;
+  if (payment.paymentStatus?.includes("\u5df2\u4f5c\u5e9f") || payment.paymentStatus?.toLowerCase().includes("void")) return false;
+  return Boolean(payment.coverageEndDate && isCoverageExpired(payment, today));
+}
+
 function isValidCoveragePayment(payment: BusinessRentPayment) {
   const status = payment.paymentStatus || "";
   return isRentIncome(payment)

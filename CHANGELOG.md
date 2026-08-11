@@ -891,3 +891,9 @@
 
 - Tenant-subject rent, contract and deposit reminders now navigate by stable tenant ID; archived tenant deep links automatically open the archive view and the tenant detail.
 - Unresolved overdue debt remains reminder-eligible after archive and disappears only through the existing payment or waiver action. No historical business data or database structure changed.
+
+## 2026-08-11 - Zero-balance rent waiver and collection coverage row (Preview)
+
+- Valid overdue rent reminders can now be waived even when the recorded remaining amount is €0.00; the waiver remains an audit action and does not change payment or ledger amounts.
+- Rent collection coverage start/end dates now use one shared semantic two-column row in the collection and reminder follow-up form.
+- Added regression validation for zero-balance waiver eligibility and the fixed coverage-date row. No database schema, migration, RLS, permission, real business data or Production changes.

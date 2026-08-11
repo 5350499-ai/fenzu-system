@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
+import { isWaivableRentCollectionEvent } from "@/lib/rent-coverage";
 import type { BusinessRentPayment } from "@/lib/business-data";
 
 const WAIVE_ACTION = "waive_rent_collection";
@@ -43,13 +44,23 @@ export async function POST(request: Request) {
     if (body.action !== "waive" || !body.rentPaymentId) throw new AccountApiError("欠租处理请求不完整。", 400);
     const client = getSupabaseAuthVerifier(context.accessToken);
     const { data: payment, error: paymentError } = await client.from("rent_payments")
-      .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date")
+      .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,income_type,payment_status,notes")
       .eq("id", body.rentPaymentId)
       .maybeSingle();
     if (paymentError || !payment) throw new AccountApiError("对应租金周期不存在或无权访问。", 404);
     await requirePropertyAccess(context, payment.property_id);
-    const remaining = rentCollectionRemaining({ amountDue: Number(payment.amount_due || 0), amountPaid: Number(payment.amount_paid || 0), amountUnpaid: Number(payment.amount_unpaid || 0) } as BusinessRentPayment);
-    if (remaining <= 0) throw new AccountApiError("这笔租金周期没有剩余欠租，无需放弃追缴。", 409);
+    const businessPayment = {
+      amountDue: Number(payment.amount_due || 0),
+      amountPaid: Number(payment.amount_paid || 0),
+      amountUnpaid: Number(payment.amount_unpaid || 0),
+      coverageStartDate: payment.coverage_start_date || "",
+      coverageEndDate: payment.coverage_end_date || "",
+      incomeType: payment.income_type || "",
+      paymentStatus: payment.payment_status || "",
+      notes: payment.notes || ""
+    } as BusinessRentPayment;
+    if (!isWaivableRentCollectionEvent(businessPayment)) throw new AccountApiError("\u8fd9\u7b14\u79df\u91d1\u5468\u671f\u5f53\u524d\u6ca1\u6709\u53ef\u653e\u5f03\u7684\u6b20\u79df\u63d0\u9192\u3002", 409);
+    const remaining = rentCollectionRemaining(businessPayment);
     const admin = getSupabaseAdmin();
     const { data: existing, error: existingError } = await admin.from("audit_logs")
       .select("id")

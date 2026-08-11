@@ -222,6 +222,12 @@ if (!/租金覆盖开始日期[\s\S]*?租金覆盖结束日期/.test(checkInCove
   failures.push("One-click check-in coverage dates must remain in one explicit left-to-right row");
 }
 
+const rentPaymentCoverageStart = rentPayments.indexOf('data-layout-row="coverage"');
+const rentPaymentCoverageRow = rentPaymentCoverageStart >= 0 ? rentPayments.slice(rentPaymentCoverageStart, rentPaymentCoverageStart + 1500) : "";
+if (!rentPaymentCoverageRow.includes("租金覆盖开始日期") || !rentPaymentCoverageRow.includes("租金覆盖结束日期")) {
+  failures.push("Rent payment and rent-collection coverage dates must remain in one explicit semantic row");
+}
+
 const checkInIncomeRow = checkInPage.match(/data-layout-row="income"([\s\S]*?)data-layout-row="coverage"/)?.[1] || "";
 if (!/本次合计收入[\s\S]*?每月缴费日/.test(checkInIncomeRow)) {
   failures.push("One-click check-in total income must remain the left field of its semantic row");
