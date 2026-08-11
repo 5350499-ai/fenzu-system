@@ -48,6 +48,7 @@ import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-s
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
+import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -130,6 +131,7 @@ export default function TenantsPage() {
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [ownershipMode, setOwnershipMode] = useState<string>("");
   const contractFilesRequestRef = useRef(0);
+  const moveOutSubmissionGuardRef = useRef(createMoveOutSubmissionGuard());
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDate, setMoveOutDate] = useState(localToday());
   const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
@@ -549,26 +551,30 @@ export default function TenantsPage() {
       window.alert("请输入有效的实际退租日期。");
       return;
     }
-    if (!window.confirm("确认办理退租吗？\n会保留历史收租、押金、利润和租客附件，并把房间设为空置、合同设为已结束。")) return;
-    const nextTenants = tenants.map((item) => (item.id === tenant.id ? {
-      ...item,
-      status: "已退租",
-      ...(actualMoveOutDateEnabled ? { actualMoveOutDate } : {})
-    } : item));
-    const saved = await persistAll({
-      tenants: nextTenants,
-      rooms: syncRoomsAfterTenantRemoval(rooms, nextTenants, tenant.roomId),
-      contracts: contracts.map((contract) => (contract.tenantId === tenant.id ? { ...contract, status: "已结束" } : contract)),
-      deposits: deposits.map((deposit) => (deposit.tenantId === tenant.id && !isVoidedDeposit(deposit) ? { ...deposit, status: depositStatus } : deposit))
-    }, "退租保存失败，请重新进入租客详情确认押金状态。");
-    if (!saved) return;
+    let plan: { tenants: BusinessTenant[]; rooms: BusinessRoom[]; contracts: BusinessContract[]; deposits: BusinessDeposit[] };
     try {
-      const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, deposits);
-      setDeposits(refreshedDeposits);
-      setMoveOutTenant(null);
-    } catch {
-      window.alert("退租已提交，但押金状态无法确认，请重新进入租客详情确认。");
+      plan = buildTenantMoveOutPlan({
+        tenant, tenants, rooms, contracts, deposits, depositStatus, actualMoveOutDate,
+        actualMoveOutDateEnabled, isCurrentRelationship: isCurrentRentalRelationship, isVoidedDeposit
+      });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "退租资料校验失败，请刷新后重试。");
+      return;
     }
+    await moveOutSubmissionGuardRef.current.run(async () => {
+      const saved = await persistAll(plan, "退租保存失败，请重新进入租客详情确认押金状态。");
+      if (!saved) return false;
+      try {
+        const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, plan.deposits);
+        setDeposits(refreshedDeposits);
+        setMoveOutTenant(null);
+        window.alert("退租办理成功。房间、租客、合同和押金状态已更新。");
+        return true;
+      } catch {
+        window.alert("退租已提交，但押金状态无法确认，请重新进入租客详情确认。");
+        return false;
+      }
+    });
   }
 
   function openMoveOutDialog(tenant: BusinessTenant) {
@@ -1055,7 +1061,7 @@ export default function TenantsPage() {
             </div> : null}
             <div className="modal-actions">
               <button className="btn" onClick={() => setMoveOutTenant(null)} type="button">取消</button>
-              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus, moveOutDate)} type="button">确认退租</button>
+              <button className="btn primary" disabled={saving} onClick={() => void moveOut(moveOutTenant, moveOutDepositStatus, moveOutDate)} type="button" aria-busy={saving}>{saving ? "办理中…" : "确认退租"}</button>
             </div>
           </section>
         </div>

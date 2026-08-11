@@ -340,8 +340,8 @@ historical compatibility pointer and must not receive new rules.
 2. label.field 内使用 span + control；
 3. 公共 SearchableSelect / OwnershipField 等完整字段组件。
 
-Label 到控件固定使用 --ui-field-gap（8px），字段行列间距使用
---ui-grid-gap（16px；紧凑手机业务表单可用 8px × 12px，但同一表单必须一致）。
+Label 到控件固定使用 `--form-label-gap`（8px）。字段行列间距使用
+`--form-row-gap` / `--form-column-gap`（桌面 16px，手机 12px），同一表单不得用页面级 margin 改写节奏。
 Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ### Closed select appearance
@@ -423,3 +423,53 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   width and focus tokens as ordinary native selects.
 - Dropdown panels may own a separate border only while open. They are not part
   of the closed control border count.
+
+## 25. Form Vertical Rhythm Contract
+
+- 公共 Token：`--form-label-gap` 8px、`--form-row-gap` / `--form-column-gap`
+  桌面 16px、手机 12px、`--form-section-gap` 20px、`--textarea-min-height` 96px。
+- `Field` 负责 label → control；`FormGrid` 负责 field → field。页面不得用
+  `:nth-child`、随机 margin 或局部 `!important` 调整普通字段间距。
+- 两列字段使用 `minmax(0,1fr)` 等宽列。左右 label 从同一顶部开始，单行
+  control 使用相同高度；业务上占整行的字段必须显式 full-span。
+- Modal 表单和页面表单使用同一节奏与控件 Token，不建立 Modal 专用尺寸。
+
+## 26. Mobile Dropdown Gesture Contract
+
+- Gesture starts inside dropdown: dropdown owns vertical scrolling; background
+  page/modal must not scroll simultaneously.
+- Gesture starts outside dropdown: page/modal owns scrolling. Dropdown 可随锚点移动或按
+  outside interaction 关闭，但不得接管页面手势。
+- Option is selected only by a completed tap/click gesture, not by
+  `pointerdown`, `touchstart` or the beginning of a scroll gesture。
+- 触点移动达到 8px 即进入 scroll 状态；该 gesture 不得选择起始 option、不得关闭
+  dropdown，并必须抑制浏览器随后合成的 click。
+- 键盘 Enter/Space 和桌面 click 继续选择当前 option；Escape 和 outside tap 按标准关闭。
+
+## 27. Nested Scroll Ownership and Scroll Chaining Contract
+
+- 下拉列表是具名独立滚动容器：有限 `max-height`、`overflow-y:auto`、
+  `touch-action:pan-y`、`overscroll-behavior-y:contain` 和 iOS momentum scrolling。
+- 列表中间的 vertical gesture 只滚列表；在顶部继续向下拖、底部继续向上拖时，
+  必须阻断 overscroll chaining，不能把滚动交给 Modal 或页面。
+- 不得为了锁背景而设置 dropdown `touch-action:none`，也不得让 Modal background lock
+  同时锁死列表。5、10、20、50 项均必须从首项滚到末项再返回。
+- Modal + Dropdown 嵌套时，唯一 `ModalLayerManager` 只负责 document 背景；dropdown
+  负责自己的列表手势。组件不得另写 body/html scroll lock。
+
+## 28. iOS Editable-Control Font Size Contract
+
+- `≤640px` 时，所有会获得编辑焦点的 input（text/search/tel/email/password/number/date
+  等）、textarea、combobox 内部 input 和 native select 的最终字号至少 16px。
+- 该规则只防止 iPhone Safari focus zoom，不改变普通正文层级；禁止使用
+  `user-scalable=no`、`maximum-scale=1` 或其它关闭无障碍缩放的 viewport hack。
+- WebKit autofill 必须保持 composite inner input 透明、无第二边框和无独立圆角。
+
+## 29. Shared primitive rule
+
+- `SearchableSelect` 与 `TapSelect` 必须复用公共 `DropdownListbox` 手势层。
+  新增 Combobox/Listbox/Dropdown 必须复用该 primitive 或先扩展本规范和公共测试。
+- 页面 CSS 禁止直接覆盖 `.ui-dropdown-listbox`、`.ui-combobox-input` 或 option 的内部
+  手势/边框结构；业务页面只可控制字段跨度和业务内容。
+- `npm run validate:ui` 与交互测试是合并前强制门槛；grep 不能替代 tap-vs-swipe、
+  nested scroll 和 duplicate-submit 的真实状态机测试。

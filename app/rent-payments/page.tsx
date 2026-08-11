@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/money-input";
 import { OwnershipField } from "@/components/ownership-field";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
+import { TapSelect } from "@/components/tap-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
 import {
   BusinessProperty,
@@ -42,14 +43,8 @@ import {
   uploadRentPaymentFile
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
-import { Ban, ChevronDown, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-
-type TapOption = {
-  value: string;
-  label: string;
-  description?: string;
-};
+import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const emptyPayment: BusinessRentPayment = {
   id: "",
@@ -729,77 +724,6 @@ export default function RentPaymentsPage() {
         </div>
       ) : null}
     </AppLayout>
-  );
-}
-
-function TapSelect({
-  label,
-  value,
-  options,
-  className,
-  placeholder = "点这里选择",
-  disabled,
-  allowEmpty,
-  onChange
-}: {
-  label: string;
-  value: string;
-  options: TapOption[];
-  className?: string;
-  placeholder?: string;
-  disabled?: boolean;
-  allowEmpty?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerId = useId();
-  const selected = options.find((option) => option.value === value);
-  const resolvedClassName = className || (label.startsWith("房源") || label.startsWith("房间") || label.startsWith("租客") || label === "收款类型" ? "rent-form-wide" : "rent-form-half");
-
-  useEffect(() => {
-    if (!open) return;
-
-    function closeOnOutside(event: PointerEvent) {
-      const target = event.target;
-      if (target instanceof Node && rootRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-
-    document.addEventListener("pointerdown", closeOnOutside);
-    return () => document.removeEventListener("pointerdown", closeOnOutside);
-  }, [open]);
-
-  function openMenu(event: React.PointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!disabled) setOpen(true);
-  }
-
-  return (
-    <div className={`field tap-select-field ${resolvedClassName}`} ref={rootRef}>
-      <label htmlFor={triggerId}>{label}</label>
-      <div className={`tap-select ${open ? "open" : ""} ${disabled ? "disabled" : ""}`}>
-        <button id={triggerId} className="tap-select-trigger ui-custom-select-trigger" data-ui-control="composite-select-trigger" disabled={disabled} onPointerDown={openMenu} type="button">
-          <span>
-            <strong>{selected?.label || placeholder}</strong>
-            {selected?.description ? <small>{selected.description}</small> : null}
-          </span>
-          <ChevronDown size={18} />
-        </button>
-        {open && !disabled ? (
-          <div className="tap-select-menu">
-            {allowEmpty ? <button className={!value ? "active" : ""} type="button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); setOpen(false); }}><strong>不选择</strong><span>可直接留空</span></button> : null}
-            {options.length ? options.map((option) => (
-              <button className={option.value === value ? "active" : ""} key={option.value} type="button" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); onChange(option.value); setOpen(false); }}>
-                <strong>{option.label}</strong>
-                {option.description ? <span>{option.description}</span> : null}
-              </button>
-            )) : <div className="tap-select-empty">暂无可选项</div>}
-          </div>
-        ) : null}
-      </div>
-    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { DropdownListbox } from "@/components/dropdown-listbox";
 
 export type SelectOption = {
   value: string;
@@ -44,7 +45,7 @@ export function SearchableSelect({
           `${option.label} ${option.description || ""} ${option.keywords || ""}`.toLowerCase().includes(keyword)
         )
       : options;
-    return matched.slice(0, 8);
+    return matched;
   }, [options, query]);
 
   useEffect(() => {
@@ -167,27 +168,18 @@ export function SearchableSelect({
           </button>
         ) : null}
         {open && !disabled ? (
-          <div className="combobox-menu" id={listboxId} role="listbox">
-            {visibleOptions.length ? (
-              visibleOptions.map((option, index) => (
-                <button
-                  aria-selected={option.value === value}
-                  className="combobox-option"
-                  id={`${listboxId}-${index}`}
-                  key={option.value}
-                  onClick={() => chooseOption(option)}
-                  onFocus={() => setActiveIndex(index)}
-                  role="option"
-                  type="button"
-                >
-                  <strong>{option.label}</strong>
-                  {option.description ? <span>{option.description}</span> : null}
-                </button>
-              ))
-            ) : (
-              <div className="combobox-empty">没有匹配结果</div>
-            )}
-          </div>
+          <DropdownListbox
+            activeIndex={activeIndex}
+            className="combobox-menu"
+            emptyClassName="combobox-empty"
+            emptyMessage="没有匹配结果"
+            id={listboxId}
+            onActiveIndexChange={setActiveIndex}
+            onSelect={chooseOption}
+            optionClassName="combobox-option"
+            options={visibleOptions}
+            value={value}
+          />
         ) : null}
       </div>
     </div>

@@ -457,6 +457,17 @@ a {
   --ui-badge-padding-inline: 10px;
   --ui-field-gap: 8px;
   --ui-grid-gap: 16px;
+  --form-label-gap: var(--ui-space-2);
+  --form-field-gap: var(--ui-space-4);
+  --form-row-gap: var(--ui-space-4);
+  --form-column-gap: var(--ui-space-4);
+  --form-section-gap: var(--ui-space-5);
+  --control-height: var(--ui-control-height);
+  --control-height-mobile: var(--ui-control-height-mobile);
+  --control-radius: var(--ui-radius-md);
+  --control-padding-x: var(--ui-control-padding-inline);
+  --control-font-size: var(--ui-font-size-body);
+  --textarea-min-height: 96px;
   --ui-page-padding-inline: 20px;
   --ui-page-padding-inline-mobile: 14px;
   --ui-card-padding: 20px;
@@ -2449,7 +2460,8 @@ td:last-child {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--ui-grid-gap, 16px);
+  row-gap: var(--form-row-gap, 16px);
+  column-gap: var(--form-column-gap, 16px);
 }
 
 .form-grid > *,
@@ -2460,7 +2472,7 @@ td:last-child {
 
 .field {
   display: grid;
-  gap: var(--ui-field-gap, 8px);
+  gap: var(--form-label-gap, 8px);
 }
 
 .field label {
@@ -2514,7 +2526,7 @@ td:last-child {
 }
 
 .field textarea {
-  min-height: 92px;
+  min-height: var(--textarea-min-height, 96px);
   resize: vertical;
 }
 
@@ -2578,8 +2590,10 @@ td:last-child {
   left: 0;
   z-index: 70;
   max-height: min(286px, 42dvh);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -2598,7 +2612,7 @@ td:last-child {
   color: var(--text);
   padding: 10px;
   text-align: left;
-  touch-action: manipulation;
+  touch-action: pan-y;
 }
 
 .combobox-option:hover {
@@ -2669,9 +2683,13 @@ td:last-child {
   left: 0;
   z-index: 80;
   display: grid;
-  max-height: min(360px, 48vh);
+  max-height: min(360px, 48dvh);
   gap: 6px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
@@ -2691,7 +2709,8 @@ td:last-child {
   text-align: left;
 }
 
-.tap-select-menu button.active {
+.tap-select-menu button.active,
+.tap-select-menu button.selected {
   border-color: rgba(65, 185, 129, 0.36);
   background: rgba(65, 185, 129, 0.14);
 }
@@ -2704,6 +2723,15 @@ td:last-child {
 
 .tap-select-empty {
   padding: 12px;
+}
+
+.ui-dropdown-listbox {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-dropdown-listbox > [role="option"] {
+  touch-action: pan-y;
 }
 
 .zanjia-top-actions {
@@ -7256,7 +7284,7 @@ body,
 }
 
 .field textarea {
-  min-height: 96px;
+  min-height: var(--textarea-min-height, 96px);
 }
 
 .field-hint,
@@ -8322,7 +8350,7 @@ input[type="radio"] {
    use these shared measurements instead of adding page-specific dimensions. */
 .field,
 .ui-form-field {
-  gap: var(--ui-space-2, 8px);
+  gap: var(--form-label-gap, 8px);
   min-width: 0;
   max-width: 100%;
 }
@@ -8335,7 +8363,8 @@ input[type="radio"] {
 }
 
 .form-grid {
-  gap: var(--ui-space-4, 16px);
+  row-gap: var(--form-row-gap, 16px);
+  column-gap: var(--form-column-gap, 16px);
 }
 
 .field > label,
@@ -9101,12 +9130,13 @@ label.field > span,
   /* Compact form rhythm: keep touch targets, reduce only inter-field whitespace. */
   .check-in-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+    row-gap: var(--form-row-gap, 12px);
+    column-gap: var(--form-column-gap, 12px);
   }
 
   .check-in-form-grid > .field,
   .check-in-form-grid > .combobox-field {
-    gap: var(--ui-space-1, 4px);
+    gap: var(--form-label-gap, 8px);
   }
 
   .check-in-form-grid > .check-in-wide {
@@ -9116,13 +9146,14 @@ label.field > span,
   /* Tenant creation follows the same compact, two-column mobile form rhythm. */
   .tenant-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+    row-gap: var(--form-row-gap, 12px);
+    column-gap: var(--form-column-gap, 12px);
   }
 
   .tenant-form-grid > .field,
   .tenant-form-grid > .combobox-field {
     min-width: 0;
-    gap: var(--ui-space-1, 4px);
+    gap: var(--form-label-gap, 8px);
   }
 
   .tenant-form-grid > .tenant-form-wide,
@@ -9268,7 +9299,8 @@ label.field > span,
      let a detail value escape its own column. */
   .rent-payment-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+    row-gap: var(--form-row-gap, 12px);
+    column-gap: var(--form-column-gap, 12px);
   }
 
   .rent-payment-form-grid > * {
@@ -9296,7 +9328,8 @@ label.field > span,
 
   .expense-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
+    row-gap: var(--form-row-gap, 12px);
+    column-gap: var(--form-column-gap, 12px);
   }
 
   .expense-form-grid > * {
@@ -9313,7 +9346,7 @@ label.field > span,
   .expense-form-grid .field,
   .expense-form-grid .combobox-field {
     min-width: 0;
-    gap: var(--ui-space-1, 4px);
+    gap: var(--form-label-gap, 8px);
   }
 
   .expense-form-grid .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input),
@@ -9720,6 +9753,11 @@ input[type="radio"] {
 }
 
 @media (max-width: 640px) {
+  :root {
+    --form-row-gap: var(--ui-space-3);
+    --form-column-gap: var(--ui-space-3);
+  }
+
   /* iOS Safari only zooms a focused text control when its computed type size
      is below 16px. Keep the user's browser zoom available; remove the trigger. */
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),

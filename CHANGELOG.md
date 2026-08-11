@@ -851,3 +851,12 @@
 - Rebuilt reminder rows around stable type, subject and status columns while preserving the existing reminder logic and actions.
 - Fixed free-single member-name saving by omitting the server-forbidden sort-order field, retaining the existing rename RPC, 100% share rule and one-member limit.
 - No database schema, migration, real business data, financial calculation, permission model, account record or Production deployment changed.
+
+## 2026-08-11 - Mobile dropdown gesture and move-out stability convergence (Preview)
+
+- Replaced page-local option-on-pointer-down behavior with shared `DropdownListbox` and `TapSelect` primitives used by searchable and tap-first selectors.
+- Added tap-versus-scroll movement tracking, list-owned touch scrolling, explicit top/bottom overscroll containment and full long-list access; searchable options are no longer truncated to eight rows.
+- Unified form label, row, column, section, control and textarea rhythm tokens across check-in, tenant, payment and expense forms while preserving 16px mobile editable-control text and 18px checkbox/radio visuals.
+- Removed the redundant native confirmation that blocked the visible move-out dialog, added stale-state validation and duplicate-submit protection, and retained the established tenant/room/contract/deposit update rules without creating refund expenses.
+- Expanded the UI design-system contract, static UI validation and focused interaction tests for dropdown gestures and move-out state transitions.
+- No database schema, migration, real business data, financial calculation, permission, account or Production changes.
