@@ -867,3 +867,11 @@
 - Centralized new-entry payment presets as 现金、转账、其他 while retaining non-destructive display/edit compatibility for historical Bizum values.
 - Simplified tenant contact labels and added a tenant-list 时间 sort backed by the immutable `tenants.created_at` mapping.
 - No database schema, migration, real business data, financial calculation, permission, account or Production changes.
+
+## 2026-08-11 - Semantic check-in rows and full-width date Field Boxes (Preview)
+
+- Replaced one-click check-in's auto-flow field sequence with shared semantic form rows, keeping total income on the left and rental-coverage start/end dates as an explicit left/right pair.
+- Extended the shared native Date Field Box Contract with logical inline sizing and grid stretch behavior so WebKit intrinsic date sizing cannot shorten a date box inside a form cell.
+- Reordered property-profit presentation to scope, time controls, monthly operating results, profit overview and property results without changing financial calculations.
+- Added design-system and static validation guards for semantic rows, full-width native date controls and the property-profit information order.
+- No database schema, migration, real business data, financial calculation, permission, account or Production changes.

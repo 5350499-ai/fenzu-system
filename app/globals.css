@@ -9867,10 +9867,14 @@ input[type="time"] {
   --ui-date-content-height: var(--ui-form-control-height, 42px);
   box-sizing: border-box;
   width: 100%;
+  inline-size: 100%;
   min-width: 0;
+  min-inline-size: 0;
   height: var(--ui-form-control-height, 42px);
   min-height: var(--ui-form-control-height, 42px);
   max-width: 100%;
+  max-inline-size: 100%;
+  justify-self: stretch;
   padding-block: 0;
   padding-inline: var(--ui-control-padding-inline, 12px);
   font-size: var(--ui-font-size-body, 14px);
@@ -9884,6 +9888,40 @@ input[type="time"] {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+}
+
+/* Semantic form rows prevent CSS grid auto-placement from changing a later
+   field's business position when an earlier optional field is added. */
+.form-grid-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--form-row-gap, 16px) var(--form-column-gap, 16px);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.form-grid-row > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.form-grid-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 640px) {
+  .form-grid-row {
+    gap: var(--form-row-gap, 12px) var(--form-column-gap, 12px);
+  }
+}
+
+@media (max-width: 359px) {
+  .form-grid-row:not(.form-grid-row--single) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Direct page sections are a stack, not adjacent borders. Keep this at the

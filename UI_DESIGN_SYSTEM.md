@@ -567,3 +567,27 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
   or client-side time.
 - `时间 ↑` means oldest record first and `时间 ↓` means newest record first.
   Status remains a display/filter concern, not a substitute time-sort control.
+
+## 38. Semantic Form Row and Date Field Box Contract
+
+- When fields have a business-defined left/right relationship, pages must use
+  the shared `.form-grid-row` primitive instead of relying on CSS Grid auto
+  placement. A new optional field must never change a later field's column.
+- A two-column semantic row uses `repeat(2, minmax(0, 1fr))`; each row and
+  each child use `width:100%`, `min-width:0` and `max-width:100%`. A documented
+  single-field row uses `.form-grid-row--single`.
+- Native `date`, `datetime-local`, `month` and `time` controls are complete
+  Field Boxes: `width` and `inline-size` are `100%`, min sizes are `0`, max
+  sizes are `100%`, `box-sizing` is `border-box`, and `justify-self` is
+  `stretch`. WebKit intrinsic date sizing must never shorten a control inside
+  a Form Grid cell.
+- Page CSS must not add date-width workarounds or rely on auto-flow ordering
+  for semantically paired business fields. Reuse the shared row and Date Field
+  contracts so the rule applies globally.
+
+## 39. Property-profit information order
+
+- Property profit analysis always renders: statistics scope, time controls,
+  monthly operating results, profit overview, then property results and any
+  remaining detail sections. This is presentation order only; it must not
+  change financial calculation or filtering semantics.

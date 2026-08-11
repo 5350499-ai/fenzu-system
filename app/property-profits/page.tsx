@@ -210,6 +210,39 @@ export default function PropertyProfitsPage() {
         </div> : null}
       </section>
 
+      <section className="card panel global-monthly-profit-panel">
+        <div className="panel-header">
+          <div><h2 className="panel-title">按月经营结果</h2><p className="muted">{scopeLabel} · 收入、支出、利润与出租率</p></div>
+        </div>
+        <div className={`global-profit-overview-values ${monthlyMode === "custom" ? "custom-period-overview-values" : ""}`}>
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计收入" : "时间段收入"} value={euro(totals.income)} />
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计支出" : "时间段支出"} value={euro(totals.expense)} />
+          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计净利润" : "时间段净利润"} value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
+          {monthlyMode === "custom" ? <div className="profit-secondary-metric custom-period-occupancy-metric"><span>时间段出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.availableDays > 0 ? `${occupancySummary.rentedDays}/${occupancySummary.availableDays} 房间日` : "暂无数据"}</small></div> : null}
+        </div>
+        <div className="global-monthly-list">
+          {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
+            <div className="unified-monthly-column unified-monthly-left">
+              <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong></div>
+              <div className="unified-monthly-occupancy"><span>出租率 <b>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
+            </div>
+            <div className="unified-monthly-column unified-monthly-middle">
+              <div className="unified-monthly-metric unified-monthly-income">收入 <b>{euro(row.financial.income)}</b></div>
+              <div className="unified-monthly-metric unified-monthly-expense">支出 <b>{euro(row.financial.expense)}</b></div>
+            </div>
+            <div className="unified-monthly-column unified-monthly-right">
+              <div className={`unified-monthly-metric unified-monthly-net ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>净利润 <b>{euro(row.financial.netProfit)}</b></div>
+              <div className={`unified-monthly-status ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>{profitStatus(row.financial.netProfit)}</div>
+            </div>
+          </div>)}
+        </div>
+        {monthlyMode === "overview" && pageCount > 1 ? <div className="global-history-pagination">
+          <button className="btn" type="button" disabled={historyPage === 0} onClick={() => setHistoryPage((page) => Math.max(0, page - 1))}>较新月份</button>
+          <span className="muted">第 {historyPage + 1} / {pageCount} 页</span>
+          <button className="btn" type="button" disabled={historyPage >= pageCount - 1} onClick={() => setHistoryPage((page) => Math.min(pageCount - 1, page + 1))}>更早月份</button>
+        </div> : null}
+      </section>
+
       <section className="card profit-overview-card" aria-label={scopeLabel}>
         <div className="profit-overview-header">
           <div>
@@ -245,39 +278,6 @@ export default function PropertyProfitsPage() {
             </article>
           ))}
         </div>
-      </section>
-
-      <section className="card panel global-monthly-profit-panel">
-        <div className="panel-header">
-          <div><h2 className="panel-title">按月经营结果</h2><p className="muted">{scopeLabel} · 收入、支出、利润与出租率</p></div>
-        </div>
-        <div className={`global-profit-overview-values ${monthlyMode === "custom" ? "custom-period-overview-values" : ""}`}>
-          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计收入" : "时间段收入"} value={euro(totals.income)} />
-          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计支出" : "时间段支出"} value={euro(totals.expense)} />
-          <ProfitSecondaryMetric label={monthlyMode === "overview" ? "累计净利润" : "时间段净利润"} value={euro(totals.netProfit)} tone={totals.netProfit < 0 ? "danger" : "profit"} />
-          {monthlyMode === "custom" ? <div className="profit-secondary-metric custom-period-occupancy-metric"><span>时间段出租率</span><strong>{formatRate(occupancySummary.rate)}</strong><small>{occupancySummary.availableDays > 0 ? `${occupancySummary.rentedDays}/${occupancySummary.availableDays} 房间日` : "暂无数据"}</small></div> : null}
-        </div>
-        <div className="global-monthly-list">
-          {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
-            <div className="unified-monthly-column unified-monthly-left">
-              <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong></div>
-              <div className="unified-monthly-occupancy"><span>出租率 <b>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
-            </div>
-            <div className="unified-monthly-column unified-monthly-middle">
-              <div className="unified-monthly-metric unified-monthly-income">收入 <b>{euro(row.financial.income)}</b></div>
-              <div className="unified-monthly-metric unified-monthly-expense">支出 <b>{euro(row.financial.expense)}</b></div>
-            </div>
-            <div className="unified-monthly-column unified-monthly-right">
-              <div className={`unified-monthly-metric unified-monthly-net ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>净利润 <b>{euro(row.financial.netProfit)}</b></div>
-              <div className={`unified-monthly-status ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>{profitStatus(row.financial.netProfit)}</div>
-            </div>
-          </div>)}
-        </div>
-        {monthlyMode === "overview" && pageCount > 1 ? <div className="global-history-pagination">
-          <button className="btn" type="button" disabled={historyPage === 0} onClick={() => setHistoryPage((page) => Math.max(0, page - 1))}>较新月份</button>
-          <span className="muted">第 {historyPage + 1} / {pageCount} 页</span>
-          <button className="btn" type="button" disabled={historyPage >= pageCount - 1} onClick={() => setHistoryPage((page) => Math.min(pageCount - 1, page + 1))}>更早月份</button>
-        </div> : null}
       </section>
 
     </AppLayout>

@@ -47,6 +47,8 @@ const required = [
   [guide, "Shared business preset contract", "UI guide must define shared business presets"],
   [guide, "Tenant list time-sort contract", "UI guide must define tenant record-time sorting"],
   [guide, "Form Grid / Field Box Contract", "UI guide must define the Field Box contract"],
+  [guide, "Semantic Form Row and Date Field Box Contract", "UI guide must define semantic form rows and full-width date boxes"],
+  [guide, "Property-profit information order", "UI guide must define the property-profit information order"],
   [guide, "Section / Card Stack Gap Contract", "UI guide must define the card stack gap"],
   [guide, "Tenant room-sort contract", "UI guide must define natural tenant room sorting"],
   [guide, "Shared tenant contact contract", "UI guide must define the existing tenant contact mapping"],
@@ -56,6 +58,7 @@ const required = [
   [css, "--ui-control-height-mobile: 44px", "CSS must define the mobile control token"],
   [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
   [css, "--ui-section-stack-gap", "CSS must define the shared section stack token"],
+  [css, ".form-grid-row", "CSS must define the shared semantic form-row primitive"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
   [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
@@ -148,7 +151,11 @@ const dateFieldRule = css.match(/input\[type="date"\],[\s\S]*?input\[type="time"
 for (const [pattern, message] of [
   [/height\s*:\s*var\(--ui-form-control-height/i, "Date fields must use the shared desktop control height"],
   [/width\s*:\s*100%/i, "Date fields must fill their Field Box width"],
+  [/inline-size\s*:\s*100%/i, "Date fields must fill the inline size of their Field Box"],
   [/min-width\s*:\s*0/i, "Date fields must be allowed to shrink inside a grid cell"],
+  [/min-inline-size\s*:\s*0/i, "Date fields must be allowed to shrink inline inside a grid cell"],
+  [/max-inline-size\s*:\s*100%/i, "Date fields must not exceed their Field Box inline size"],
+  [/justify-self\s*:\s*stretch/i, "Date fields must stretch across their Field Box"],
   [/padding-block\s*:\s*0/i, "Date fields must not use vertical padding"],
   [/font-variant-numeric\s*:\s*tabular-nums/i, "Date fields must use stable tabular numerals"]
 ]) {
@@ -173,6 +180,16 @@ if (!checkInPage.includes("wechat: form.wechat") || !checkInPage.includes('label
   failures.push("One-click check-in must reuse the existing tenant contact field and label");
 }
 
+const checkInCoverageRow = checkInPage.match(/data-layout-row="coverage"([\s\S]*?)data-layout-row="payment-attribution"/)?.[1] || "";
+if (!/租金覆盖开始日期[\s\S]*?租金覆盖结束日期/.test(checkInCoverageRow)) {
+  failures.push("One-click check-in coverage dates must remain in one explicit left-to-right row");
+}
+
+const checkInIncomeRow = checkInPage.match(/data-layout-row="income"([\s\S]*?)data-layout-row="coverage"/)?.[1] || "";
+if (!/本次合计收入[\s\S]*?每月缴费日/.test(checkInIncomeRow)) {
+  failures.push("One-click check-in total income must remain the left field of its semantic row");
+}
+
 if (/每月缴费日（可选）/.test(checkInPage) || /每月缴费日（可选）/.test(tenantsPage)) {
   failures.push("Ordinary payment-day labels must not repeat a redundant optional suffix");
 }
@@ -182,8 +199,15 @@ const profitTimeControlsIndex = propertyProfitsPage.indexOf("profit-time-control
 const profitOverviewIndex = propertyProfitsPage.indexOf("profit-overview-card");
 const profitPropertiesIndex = propertyProfitsPage.indexOf("property-profit-panel");
 const profitMonthlyResultsIndex = propertyProfitsPage.indexOf("global-monthly-profit-panel");
-if (!(profitScopeIndex < profitTimeControlsIndex && profitTimeControlsIndex < profitOverviewIndex && profitOverviewIndex < profitPropertiesIndex && profitPropertiesIndex < profitMonthlyResultsIndex)) {
+if (!(profitScopeIndex < profitTimeControlsIndex && profitTimeControlsIndex < profitMonthlyResultsIndex && profitMonthlyResultsIndex < profitOverviewIndex && profitOverviewIndex < profitPropertiesIndex)) {
   failures.push("Property profits must keep the scope-to-time-to-results information order");
+}
+
+for (const { path, source } of uiSources) {
+  if (path.endsWith("app\\globals.css")) continue;
+  if (/input\s*\[type\s*=\s*["'](?:date|datetime-local|month|time)["']\][\s\S]{0,240}?(?:width|min-width|max-width|inline-size|justify-self)\s*:/i.test(source)) {
+    failures.push(`Page/component CSS must not override shared Date Field Box sizing: ${path.replace(root, "")}`);
+  }
 }
 
 for (const { path, source } of uiSources) {

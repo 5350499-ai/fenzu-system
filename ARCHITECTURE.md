@@ -301,6 +301,15 @@
 
 Global Cache V3 establishes one CacheManager boundary for browser business-data reads and writes. The intended flow is UI → CacheManager → business repository → Supabase; pages must not create their own cache or data-fetching policy. `CacheManager` is the only IndexedDB connection owner: it invalidates and closes its cached connection on `versionchange`, never lets a closing connection remain cached, and allows only one cache-only reconnect retry for an explicit closing-connection race. Pages, React cleanups and lifecycle handlers must never close the shared database directly.
 
+### Shared form layout boundary
+
+`UI_DESIGN_SYSTEM.md` owns the shared Form Grid, semantic `.form-grid-row` and
+Date Field Box contracts. Pages may compose those primitives but must not use
+CSS Grid auto-placement for fields with defined left/right business meaning or
+add local native-date sizing overrides. This keeps WebKit intrinsic date sizing
+from changing a Form Grid column and ensures a newly inserted field cannot
+move an unrelated later field.
+
 - Why one CacheManager: one place owns cache versioning, account isolation, TTL, invalidation, cross-tab events and diagnostics, so new modules do not drift into incompatible cache behavior.
 - Why two layers: memory cache makes in-app navigation fast, while IndexedDB survives browser restarts without placing business records in localStorage.
 - Why SWR: cached data can render first and server reconciliation runs in the background, avoiding a blank page while still converging on current data.
