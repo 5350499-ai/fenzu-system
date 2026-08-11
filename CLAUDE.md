@@ -148,8 +148,11 @@ responsive Profit Result Row Contract in `UI_DESIGN_SYSTEM.md`.
 
 Tenant reminders must use stable tenant IDs for tenant-subject navigation.
 Archiving is only a visibility/management state: it must not settle, waive,
-delete, or recompute historical debt or financial records. Unresolved debt must
-continue to generate reminders until an explicit payment/waiver action.
+delete, or recompute historical debt or financial records. Archive mutes daily
+debt-reminder presentation only; restoring archive re-enables an unchanged,
+unresolved debt candidate. Move-out ends the rental relationship but does not
+mute or settle unarchived debt. Only an explicit payment/waiver action closes
+the applicable debt follow-up.
 
 Cross-property query/list/analytics/settlement filters must reuse
 `PropertyMultiSelect` and `lib/property-scope.ts`; only a business record's
@@ -159,13 +162,14 @@ single `property_id` attribution may remain a native single selector.
 
 `lib/rent-period-state.ts` is the required pure selector for a rent period's
 coverage, overdue state, due/paid/remaining values, historical debt fact,
-payment-specific waiver and current collection/reminder eligibility inputs.
+payment-specific waiver and current collection/debt-follow-up inputs.
 New tenant, rent-payment, dashboard, reminder, profit or analytics code must
 not recreate these rules from raw coverage dates, amounts or audit-log waiver
 IDs. A waiver is append-only, payment-specific and non-financial: it never
 rewrites the original payment or creates income/expense; €0.00 overdue events
 remain waiver-eligible. Archive and move-out are lifecycle states, not an
-automatic debt settlement. Reminder display remains a separate derived layer.
+automatic debt settlement. Reminder display remains a separate derived layer:
+archive mutes it; move-out alone does not.
 
 - 所有代码修改完成后，必须先运行 `npm run build`。
 - 构建通过后，必须先部署到 Vercel Preview。

@@ -28,6 +28,7 @@ const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8")
 const tenantArchive = readFileSync(resolve(root, "lib/tenant-archive.ts"), "utf8");
 const reminderNavigation = readFileSync(resolve(root, "lib/reminder-navigation.ts"), "utf8");
 const rentCoverage = readFileSync(resolve(root, "lib/rent-coverage.ts"), "utf8");
+const rentPeriodState = readFileSync(resolve(root, "lib/rent-period-state.ts"), "utf8");
 const tenantDeleteApi = readFileSync(resolve(root, "app/api/business-data/route.ts"), "utf8");
 
 function sourceFiles(directory) {
@@ -100,7 +101,10 @@ const required = [
   [propertyScope, "isAllPropertyScope", "Property scope semantics must be shared"],
   [tenantsPage, "selectedPropertyIds", "Tenant list must use the shared property scope state"],
   [reminderNavigation, "tenantReminderHref", "Tenant reminders must use a stable tenant navigation helper"],
-  [rentCoverage, "fixedTenantRentDebtReminderStage", "Tenant debt reminders must remain eligible for archived unresolved debt"],
+  [guide, "Archive vs Debt Contract", "UI guide must define archive versus debt presentation behavior"],
+  [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
+  [rentCoverage, 'state.lifecycle === "archived"', "Archived tenant debt reminders must be muted by the compatibility policy bridge"],
+  [rentCoverage, "fixedTenantRentDebtReminderStage", "Tenant debt reminder staging must remain in the compatibility bridge pending Reminder Engine"],
   [rentCoverage, "hasUnresolvedTenantRentDebt", "Tenant debt status must distinguish unresolved debt from archive state"],
   [rentCoverage, "shouldShowTenantRentReminder", "Tenant reminder visibility must respect explicit waiver actions"],
   [remindersPage, "refreshBusinessData", "Reminder center must refresh authoritative business sources"],

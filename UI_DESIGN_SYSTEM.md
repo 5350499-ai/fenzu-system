@@ -639,6 +639,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ## 44. Tenant reminder and archive contract
 
+### Archive vs Debt Contract
+
 - Archiving is a visibility/management state, not a financial or lease-settlement action. It must not change historical payments, debt, contracts, deposits, move-out history, profit, statistics or settlement records.
-- Unresolved tenant debt remains eligible for reminders across current, moved-out and archived tenant states until an explicit supported business action settles it or waives collection.
+- Unresolved tenant debt remains a debt fact across current, moved-out and archived tenant states until an explicit supported business action settles it or waives collection. Daily reminder presentation is separate: archived tenants are muted; restored archived tenants and unarchived moved-out tenants with unresolved debt remain reminder candidates.
+- Archive, restore archive and move-out must not change the debt amount, historical payment facts, waiver facts or collection state. A waiver closes only the payment-specific follow-up; it does not rewrite the historical payment or create financial entries.
 - A tenant-subject reminder must navigate by stable `tenant_id` to the tenant detail, never by the tenant's mutable room assignment. This includes archived tenants; the tenant page must enter its archive mode for a deep link when necessary.

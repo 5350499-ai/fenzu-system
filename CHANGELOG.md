@@ -887,10 +887,10 @@
 - Tenant filtering now supports all or multiple properties, with current tenants capped at eight collapsed rows by default and retired tenants collapsed by default.
 - Tenant permanent-delete preparation refreshes authoritative child snapshots before deletion. Delete API errors now distinguish permission denial from foreign-key references instead of reporting every failure as a permission error.
 
-## 2026-08-11 - Tenant reminder navigation and archived debt continuity (Preview)
+## 2026-08-11 - Tenant reminder navigation and archived debt continuity (Preview, archive behavior superseded)
 
 - Tenant-subject rent, contract and deposit reminders now navigate by stable tenant ID; archived tenant deep links automatically open the archive view and the tenant detail.
-- Unresolved overdue debt remains reminder-eligible after archive and disappears only through the existing payment or waiver action. No historical business data or database structure changed.
+- Historical note: this Preview previously kept unresolved overdue debt reminder-visible after archive. The archive presentation behavior is superseded by the 2026-08-11 archive/debt policy correction below; historical debt continuity remains unchanged.
 
 ## 2026-08-11 - Zero-balance rent waiver and collection coverage row (Preview)
 
@@ -908,4 +908,11 @@
 - Added the pure `lib/rent-period-state.ts` selector as the shared payment-period source for coverage, expiry, normalized remaining balance, immutable historical debt facts, payment-specific waiver state and current collection/reminder eligibility inputs.
 - Routed legacy coverage selection, remaining-balance and waiver/reminder compatibility helpers through the new selector without rewriting dashboard, reminder, tenant or profit pages.
 - Added fixture-only state-matrix tests, including zero-balance waiver, payment-specific waiver isolation, archived/moved-out history, voided records, multiple periods, decimal amounts and calendar boundaries.
+- No database schema, migration, RLS, permission, real business data, financial formula, account or Production change.
+
+## 2026-08-11 - Archive, move-out and debt policy correction
+
+- Archive now has an explicit presentation-only contract: it mutes daily debt reminders without settling, waiving, deleting or recomputing debt. Restoring archive re-enables the same unresolved debt candidate.
+- Move-out ends the rental relationship only. It does not settle debt or automatically mute an unarchived unresolved debt reminder.
+- Debt facts, collection state and reminder presentation are documented as separate concerns; the current compatibility helpers apply the temporary policy bridge pending the dedicated Reminder Engine.
 - No database schema, migration, RLS, permission, real business data, financial formula, account or Production change.

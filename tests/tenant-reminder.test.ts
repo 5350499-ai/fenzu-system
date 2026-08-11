@@ -24,12 +24,13 @@ test("tenant-subject reminders navigate by tenant ID, not room ID", () => {
   assert.equal(tenantReminderHref(null), "/tenants");
 });
 
-test("unresolved debt remains a reminder after tenant archive", () => {
+test("archive mutes reminder presentation without settling unresolved debt", () => {
   const payment = overduePayment();
   const archived = { ...baseTenant, status: "已归档" };
   assert.equal(hasUnresolvedTenantRentDebt(baseTenant, payment, "2026-08-11"), true);
   assert.equal(hasUnresolvedTenantRentDebt(archived, payment, "2026-08-11"), true);
-  assert.equal(fixedTenantRentDebtReminderStage(archived, payment, "2026-08-11")?.level, "overdue");
+  assert.equal(fixedTenantRentDebtReminderStage(archived, payment, "2026-08-11"), null);
+  assert.equal(shouldShowTenantRentReminder(archived, payment, new Set(), "2026-08-11"), false);
 });
 
 test("paid archived debt is not reminder eligible", () => {
@@ -40,20 +41,43 @@ test("paid archived debt is not reminder eligible", () => {
 });
 
 test("an explicit collection waiver removes only that debt reminder", () => {
-  const archived = { ...baseTenant, status: "已归档" };
   const payment = overduePayment();
-  assert.equal(shouldShowTenantRentReminder(archived, payment, new Set()), true);
-  assert.equal(shouldShowTenantRentReminder(archived, payment, new Set([payment.id])), false);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, payment, new Set(), "2026-08-11"), true);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, payment, new Set([payment.id]), "2026-08-11"), false);
 });
 
 test("a valid zero-balance overdue rent event can be waived without changing amounts", () => {
-  const zeroBalance = { ...overduePayment(500), amountUnpaid: 0 };
+  const zeroBalance = { ...overduePayment(0), amountDue: 0, amountPaid: 0, amountUnpaid: 0 };
   assert.equal(isWaivableRentCollectionEvent(zeroBalance, "2026-08-11"), true);
-  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set()), true);
-  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set([zeroBalance.id])), false);
-  assert.equal(zeroBalance.amountDue, 500);
-  assert.equal(zeroBalance.amountPaid, 500);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set(), "2026-08-11"), true);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, zeroBalance, new Set([zeroBalance.id]), "2026-08-11"), false);
+  assert.equal(zeroBalance.amountDue, 0);
+  assert.equal(zeroBalance.amountPaid, 0);
   assert.equal(zeroBalance.amountUnpaid, 0);
+});
+
+test("moved-out tenants remain reminder-visible until an archive or handling action", () => {
+  const movedOut = { ...baseTenant, status: "已退租" };
+  const payment = overduePayment();
+  assert.equal(hasUnresolvedTenantRentDebt(movedOut, payment, "2026-08-11"), true);
+  assert.equal(fixedTenantRentDebtReminderStage(movedOut, payment, "2026-08-11")?.level, "overdue");
+  assert.equal(shouldShowTenantRentReminder(movedOut, payment, new Set(), "2026-08-11"), true);
+});
+
+test("restoring archive re-enables the same unresolved debt reminder", () => {
+  const archived = { ...baseTenant, status: "已归档" };
+  const payment = overduePayment();
+  assert.equal(shouldShowTenantRentReminder(archived, payment, new Set(), "2026-08-11"), false);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, payment, new Set(), "2026-08-11"), true);
+});
+
+test("current tenants retain upcoming collection reminders while overdue paid periods do not", () => {
+  const upcoming = { ...overduePayment(), coverageEndDate: "2026-08-15" };
+  const settledOverdue = overduePayment(500);
+  assert.equal(fixedTenantRentDebtReminderStage(baseTenant, upcoming, "2026-08-11")?.level, "upcoming");
+  assert.equal(shouldShowTenantRentReminder(baseTenant, upcoming, new Set(), "2026-08-11"), true);
+  assert.equal(fixedTenantRentDebtReminderStage(baseTenant, settledOverdue, "2026-08-11"), null);
+  assert.equal(shouldShowTenantRentReminder(baseTenant, settledOverdue, new Set(), "2026-08-11"), false);
 });
 
 test("positive overdue rent events remain waiver eligible", () => {

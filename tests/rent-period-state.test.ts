@@ -56,7 +56,7 @@ test("positive overdue debt keeps facts separate from collection state", () => {
   assert.equal(state.collectionRequired, true);
   assert.equal(state.canCollect, true);
   assert.equal(state.canWaive, true);
-  assert.equal(state.reminderEligibleByCurrentPolicy, true);
+  assert.equal(state.hasOpenDebtFollowUp, true);
 });
 
 test("paid overdue history remains historical but no longer requires collection", () => {
@@ -66,6 +66,7 @@ test("paid overdue history remains historical but no longer requires collection"
   assert.equal(state.remainingAmount, 0);
   assert.equal(state.collectionRequired, false);
   assert.equal(state.canCollect, false);
+  assert.equal(state.hasOpenDebtFollowUp, false);
 });
 
 test("zero-balance overdue events remain waivable without changing ledger facts", () => {
@@ -76,10 +77,11 @@ test("zero-balance overdue events remain waivable without changing ledger facts"
   assert.equal(state.remainingAmount, 0);
   assert.equal(state.canCollect, false);
   assert.equal(state.canWaive, true);
-  assert.equal(state.reminderEligibleByCurrentPolicy, true);
+  assert.equal(state.isZeroAmountOverdueEvent, true);
+  assert.equal(state.hasOpenDebtFollowUp, true);
   assert.equal(waived.waived, true);
   assert.equal(waived.canWaive, false);
-  assert.equal(waived.reminderEligibleByCurrentPolicy, false);
+  assert.equal(waived.hasOpenDebtFollowUp, false);
   assert.equal(zero.amountDue, 0);
   assert.equal(zero.amountPaid, 0);
   assert.equal(zero.amountUnpaid, 0);
@@ -96,9 +98,9 @@ test("waiver is payment-specific and closes current follow-up without mutating p
   assert.equal(waived.remainingAmount, 100);
   assert.equal(waived.collectionRequired, false);
   assert.equal(waived.canWaive, false);
-  assert.equal(waived.reminderEligibleByCurrentPolicy, false);
+  assert.equal(waived.hasOpenDebtFollowUp, false);
   assert.equal(untouched.waived, false);
-  assert.equal(untouched.reminderEligibleByCurrentPolicy, true);
+  assert.equal(untouched.hasOpenDebtFollowUp, true);
 });
 
 test("archived and moved-out lifecycle do not rewrite historical debt", () => {
@@ -106,10 +108,12 @@ test("archived and moved-out lifecycle do not rewrite historical debt", () => {
   const movedOut = getRentPeriodState({ tenant: tenant("\u5df2\u9000\u79df"), payment: payment(), today: TODAY });
   assert.equal(archived.lifecycle, "archived");
   assert.equal(archived.hasUnresolvedHistoricalDebt, true);
-  assert.equal(archived.reminderEligibleByCurrentPolicy, true);
+  assert.equal(archived.hasCurrentUnresolvedDebt, true);
+  assert.equal(archived.hasOpenDebtFollowUp, true);
   assert.equal(movedOut.lifecycle, "ended");
   assert.equal(movedOut.hasUnresolvedHistoricalDebt, true);
-  assert.equal(movedOut.reminderEligibleByCurrentPolicy, false);
+  assert.equal(movedOut.hasCurrentUnresolvedDebt, true);
+  assert.equal(movedOut.hasOpenDebtFollowUp, true);
 });
 
 test("archived waiver closes follow-up while preserving the old debt fact", () => {
@@ -117,7 +121,7 @@ test("archived waiver closes follow-up while preserving the old debt fact", () =
   assert.equal(state.hasHistoricalDebtEvent, true);
   assert.equal(state.hasUnresolvedHistoricalDebt, true);
   assert.equal(state.waived, true);
-  assert.equal(state.reminderEligibleByCurrentPolicy, false);
+  assert.equal(state.hasOpenDebtFollowUp, false);
 });
 
 test("moved-out waiver closes follow-up without settling the historical debt", () => {
@@ -127,7 +131,7 @@ test("moved-out waiver closes follow-up without settling the historical debt", (
   assert.equal(state.hasUnresolvedHistoricalDebt, true);
   assert.equal(state.waived, true);
   assert.equal(state.canWaive, false);
-  assert.equal(state.reminderEligibleByCurrentPolicy, false);
+  assert.equal(state.hasOpenDebtFollowUp, false);
 });
 
 test("restoring an archived tenant changes lifecycle only, not rent debt facts", () => {
@@ -138,6 +142,7 @@ test("restoring an archived tenant changes lifecycle only, not rent debt facts",
   assert.equal(restored.amountPaid, archived.amountPaid);
   assert.equal(restored.remainingAmount, archived.remainingAmount);
   assert.equal(restored.hasHistoricalDebtEvent, archived.hasHistoricalDebtEvent);
+  assert.equal(restored.waived, archived.waived);
 });
 
 test("voided and missing payments never create an actionable period", () => {

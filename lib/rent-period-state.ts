@@ -30,12 +30,13 @@ export type RentPeriodState = {
   hasHistoricalDebtEvent: boolean;
   hasUnresolvedHistoricalDebt: boolean;
   hasCurrentUnresolvedDebt: boolean;
+  isZeroAmountOverdueEvent: boolean;
   waived: boolean;
   waiverPaymentId: string | null;
   collectionRequired: boolean;
   canCollect: boolean;
   canWaive: boolean;
-  reminderEligibleByCurrentPolicy: boolean;
+  hasOpenDebtFollowUp: boolean;
 };
 
 export type RentPeriodStateInput = {
@@ -83,7 +84,11 @@ export function getRentPeriodState({
   const hasHistoricalDebtEvent = hasValidRentPayment && isExpired;
   const hasUnresolvedHistoricalDebt = hasHistoricalDebtEvent && remainingAmount > 0;
   const hasCurrentUnresolvedDebt = hasUnresolvedHistoricalDebt && !waived;
+  const isZeroAmountOverdueEvent = hasHistoricalDebtEvent && amountDue === 0 && amountUnpaidRecorded === 0;
   const collectionRequired = hasCurrentUnresolvedDebt;
+  // This is a domain fact, not final reminder presentation. The future Reminder
+  // Engine applies archive/UI policy to this candidate without changing debt.
+  const hasOpenDebtFollowUp = !waived && (hasCurrentUnresolvedDebt || isZeroAmountOverdueEvent);
 
   return {
     tenantId: tenant.id,
@@ -107,17 +112,14 @@ export function getRentPeriodState({
     hasHistoricalDebtEvent,
     hasUnresolvedHistoricalDebt,
     hasCurrentUnresolvedDebt,
+    isZeroAmountOverdueEvent,
     waived,
     waiverPaymentId: waived ? paymentId : null,
     collectionRequired,
     canCollect: collectionRequired,
     // A waiver closes an expired payment-specific event, including a zero-balance event.
-    canWaive: hasHistoricalDebtEvent && !waived,
-    reminderEligibleByCurrentPolicy: Boolean(
-      !waived
-      && reminderStage
-      && (lifecycle === "current" || (lifecycle === "archived" && reminderStage === "overdue" && remainingAmount > 0))
-    )
+    canWaive: hasOpenDebtFollowUp,
+    hasOpenDebtFollowUp
   };
 }
 

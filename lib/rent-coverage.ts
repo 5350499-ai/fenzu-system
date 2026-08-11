@@ -1,6 +1,6 @@
 import type { BusinessContract, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 // @ts-expect-error Node's strip-types test runner needs an explicit TypeScript extension here.
-import { getRentPeriodState, latestValidRentPeriodPayment, rentPeriodDayDifference, rentPeriodToday } from "./rent-period-state.ts";
+import { classifyRentPeriodTenantLifecycle, getRentPeriodState, latestValidRentPeriodPayment, rentPeriodDayDifference, rentPeriodToday } from "./rent-period-state.ts";
 
 function isArchivedTenantValue(status = "") {
   return status === "\u5df2\u5f52\u6863" || status.toLowerCase() === "archived";
@@ -219,9 +219,9 @@ export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom
 }
 
 /**
- * Rent-debt reminders survive tenant archiving. Current tenants retain the
- * existing collection-reminder behavior; archived tenants are eligible only
- * when the coverage is actually overdue and an amount remains unresolved.
+ * Temporary Reminder Engine compatibility bridge. Debt facts are supplied by
+ * RentPeriodState; archive mutes daily reminder presentation without settling
+ * debt, while a moved-out tenant remains eligible until archived or handled.
  */
 export function fixedTenantRentDebtReminderStage(
   tenant: BusinessTenant,
@@ -229,7 +229,8 @@ export function fixedTenantRentDebtReminderStage(
   today = todayString()
 ): RentCollectionReminderStage | null {
   const state = getRentPeriodState({ tenant, payment, today });
-  if (!state.reminderEligibleByCurrentPolicy || !state.reminderStage) return null;
+  if (state.lifecycle === "archived" || !state.reminderStage) return null;
+  if (state.isExpired ? !state.hasOpenDebtFollowUp : state.lifecycle !== "current") return null;
   if (!payment) return null;
   const stage = rentCoverageReminderStageFixed(payment, today);
   if (!stage) return null;
@@ -242,7 +243,7 @@ export function hasUnresolvedTenantRentDebt(
   today = todayString()
 ) {
   const state = getRentPeriodState({ tenant, payment, today });
-  return state.hasUnresolvedHistoricalDebt && (state.lifecycle === "current" || state.lifecycle === "archived");
+  return state.hasCurrentUnresolvedDebt;
 }
 
 export function shouldShowTenantRentReminder(
@@ -251,12 +252,18 @@ export function shouldShowTenantRentReminder(
   waivedPaymentIds: ReadonlySet<string>,
   today = todayString()
 ) {
-  return getRentPeriodState({ tenant, payment, today, waivedPaymentIds }).reminderEligibleByCurrentPolicy;
+  const state = getRentPeriodState({ tenant, payment, today, waivedPaymentIds });
+  if (state.lifecycle === "archived") return false;
+  return state.isExpired ? state.hasOpenDebtFollowUp : state.lifecycle === "current";
 }
 
 /** Formal rent-reminder eligibility. Contract expiry is reported separately. */
 export function isCanonicalRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom[]) {
-  if (!isCurrentRentalRelationship(tenant)) return false;
+  const lifecycle = classifyRentPeriodTenantLifecycle(tenant.status);
+  if (lifecycle === "archived" || lifecycle === "other") return false;
+  // A moved-out tenant can still have an overdue, open debt. The staging
+  // helper excludes non-overdue move-out periods before presentation.
+  if (lifecycle === "ended") return true;
   const room = rooms.find((item) => item.id === tenant.roomId);
   return !room || !["维修中", "暂停出租", "已归档"].includes(room.status);
 }

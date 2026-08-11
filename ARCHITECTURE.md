@@ -347,8 +347,10 @@ The static `/roadmap` page is a product-planning surface only. All current roadm
 Tenant deletion is fail-closed: the client may preflight, but the server must recheck every tenant-linked business relation immediately before deleting. A successful permanent deletion may remove only a tenant with no business data; it must never delete contracts, payments, deposits, settlements, attachments or other historical rows to satisfy a foreign key. Tenant archive is a management view state, not deletion, and normal/archive tenant list modes are mutually exclusive.
 
 Tenant-subject reminders navigate by stable `tenant_id` to the tenant detail,
-including archived tenants. Archive does not settle or remove debt: unresolved
-tenant debt remains reminder-eligible until a supported payment or waiver action.
+including archived tenants. Archive does not settle or remove debt, but it does
+mute daily reminder presentation. Move-out ends the rental relationship without
+settling debt: an unarchived, unresolved historical debt remains a reminder
+candidate until a supported payment or waiver action.
 
 Reminder derived state is authoritative-state-first: a cache snapshot known to
 be stale must not render as valid operating reminders while waiver or payment
@@ -383,16 +385,19 @@ Attachment archives remain independent from data Backup/Restore. The ZIP has hum
 `lib/rent-period-state.ts` is the pure, payment-specific source of truth for
 rent-period facts and collection state. It selects the latest valid rent period
 and exposes coverage dates, expiry/overdue values, normalized due/paid/remaining
-amounts, historical debt facts, payment-specific waiver state and the current
-policy's reminder eligibility inputs.
+amounts, historical debt facts, payment-specific waiver state and an open
+debt-follow-up candidate. It does not decide whether a UI should display a
+reminder.
 
 The contract separates immutable facts from current handling: a waiver is read
 from the append-only audit-log projection, applies only to its `rent_payment_id`,
 does not alter the original payment, and creates neither income nor expense.
 An expired zero-balance period remains a historical event and may be waived;
-remaining balance is not a precondition for waiver. Tenant archive or move-out
-does not rewrite historical debt facts. Reminder presentation remains a separate
-derived concern and will consume this state through the future Reminder Engine.
+remaining balance is not a precondition for waiver. Tenant archive, archive
+restore and move-out do not rewrite historical debt facts. Reminder presentation
+is a separate derived concern: archive mutes daily presentation, while move-out
+does not by itself mute an unresolved debt. The future Reminder Engine will own
+that policy by consuming this state.
 
 Pages and domain helpers must not independently recompute rent debt from
 coverage dates, payment status, remaining amounts and waiver IDs. They must use
