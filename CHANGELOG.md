@@ -954,3 +954,10 @@
   while retaining full coverage, timing, amount and existing action metadata.
 - No RentPeriod/Open Debt algorithm, database, schema, migration, RLS,
   permission, real business-data or Production change.
+
+## 2026-08-11 - DebtCase single source and compact debt UI (Preview)
+
+- Added `DebtCase` as the sole conversion from Rent Domain open-debt facts into reminder, tenant display, action metadata and debt-focus navigation data.
+- Replaced the legacy rent formatter/component and tenant display adapter with `DebtDisplayModel`, `DebtRow` and `DebtActionPanel`; debt links now carry `tenantId`, `paymentId` and `focus=debt`.
+- Reminder Engine consumes DebtCase instead of independently selecting periods or recalculating waiver/current/historical debt status.
+- No database, schema, migration, RLS, permissions, real business data, financial calculation or Production change.

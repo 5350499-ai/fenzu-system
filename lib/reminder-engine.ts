@@ -7,7 +7,9 @@ import { pendingDepositReturnRecords } from "./deposit-return-reminders.ts";
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
 import { euro } from "./format.ts";
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
-import { inspectTenantRentState, rentPeriodToday, type RentPeriodReminderStage, type RentPeriodState } from "./rent-period-state.ts";
+import { getLatestRentPeriodState, rentPeriodToday, type RentPeriodReminderStage, type RentPeriodState } from "./rent-period-state.ts";
+// @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
+import { getDebtCases, type DebtCase } from "./debt-case.ts";
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
 import { roomOccupancyStatus } from "./rent-coverage.ts";
 // @ts-expect-error node's strip-types test runner loads TypeScript modules directly.
@@ -22,8 +24,6 @@ export type ReminderType = "rent_debt" | "rent_collection" | "contract_expiry" |
 export type ReminderCategory = "欠费提醒" | "收租提醒" | "合同30天内到期" | "押金异常" | "即将退租" | "空置房间" | "备份提醒";
 export type ReminderTone = "danger" | "warning" | "yellow" | "green" | "info" | "blue";
 export type ReminderAction = "collect" | "waive";
-export type ReminderTenantLifecycle = "current" | "moved_out" | "archived" | "other";
-export type ReminderDebtKind = "current" | "historical";
 
 export type ReminderNavigationTarget = {
   kind: "tenant" | "room" | "property" | "settings" | "deposits";
@@ -34,20 +34,6 @@ export type ReminderNavigationTarget = {
   contractId?: string;
   paymentId?: string;
   depositId?: string;
-};
-
-export type ReminderRentContext = {
-  paymentId: string;
-  propertyLabel: string;
-  roomLabel: string;
-  tenantName: string;
-  coverageEnd: string;
-  statusLabel: string;
-  daysRemaining?: number;
-  daysOverdue?: number;
-  amount?: number;
-  tenantLifecycle: ReminderTenantLifecycle;
-  debtKind?: ReminderDebtKind;
 };
 
 export type ReminderItem = {
@@ -71,10 +57,8 @@ export type ReminderItem = {
   daysOverdue?: number;
   amount?: number;
   availableActions: ReminderAction[];
-  tenantLifecycle?: ReminderTenantLifecycle;
-  debtKind?: ReminderDebtKind;
+  debtCase?: DebtCase;
   surfaces: Array<"dashboard" | "reminder_center">;
-  rentContext?: ReminderRentContext;
 };
 type ReminderDraft = Omit<ReminderItem, "surfaces">;
 
@@ -111,26 +95,19 @@ export function buildEffectiveReminders(snapshot: ReminderSnapshot): ReminderIte
   const tenantById = new Map(snapshot.tenants.map((item) => [item.id, item]));
   const reminders: ReminderDraft[] = [];
 
+  const debtCases = getDebtCases({ properties: snapshot.properties, rooms: snapshot.rooms, tenants: snapshot.tenants, rentPayments: snapshot.rentPayments, waivedPaymentIds, today });
+  for (const debtCase of debtCases) {
+    // Archive is a reminder-presentation policy only. The DebtCase remains
+    // open and inspectable, but daily debt reminders are muted.
+    if (!debtCase.tenantLifecycle.startsWith("archived")) reminders.push(reminderFromDebtCase(debtCase));
+  }
+
   for (const tenant of snapshot.tenants) {
     const tenantPayments = snapshot.rentPayments.filter((item) => item.tenantId === tenant.id);
-    const reconciliation = inspectTenantRentState({ tenant, payments: tenantPayments, today, waivedPaymentIds });
-    if (reconciliation.latestPeriod.lifecycle === "current" && !reconciliation.latestPeriod.isExpired && reconciliation.latestPeriod.reminderStage) {
-      const payment = tenantPayments.find((item) => item.id === reconciliation.latestPeriod.paymentId);
-      if (payment) reminders.push(rentReminderFromPeriod({ type: "rent_collection", tenant, payment, state: reconciliation.latestPeriod, propertyById, roomById }));
-    }
-    if (reconciliation.latestPeriod.lifecycle !== "archived") {
-      for (const state of reconciliation.openDebtPeriods) {
-        const payment = tenantPayments.find((item) => item.id === state.paymentId);
-        if (payment) reminders.push(rentReminderFromPeriod({
-          type: "rent_debt",
-          tenant,
-          payment,
-          state,
-          propertyById,
-          roomById,
-          debtKind: state.paymentId === reconciliation.latestPeriod.paymentId && state.lifecycle === "current" ? "current" : "historical"
-        }));
-      }
+    const latestPeriod = getLatestRentPeriodState({ tenant, payments: tenantPayments, today, waivedPaymentIds });
+    if (latestPeriod.lifecycle === "current" && !latestPeriod.isExpired && latestPeriod.reminderStage) {
+      const payment = tenantPayments.find((item) => item.id === latestPeriod.paymentId);
+      if (payment) reminders.push(rentCollectionReminderFromPeriod({ tenant, payment, state: latestPeriod }));
     }
   }
 
@@ -284,28 +261,45 @@ function isArchivedTenant(tenant: BusinessTenant) {
   return status === "已归档" || status === "archived";
 }
 
-function rentReminderFromPeriod({
-  type,
+function reminderFromDebtCase(debtCase: DebtCase): ReminderDraft {
+  const navigationTarget: ReminderNavigationTarget = {
+    kind: "tenant", href: debtCase.navigation.tenantHref, tenantId: debtCase.tenantId,
+    roomId: debtCase.roomId, propertyId: debtCase.propertyId, paymentId: debtCase.paymentId
+  };
+  return {
+    id: debtCase.debtCaseId,
+    type: "rent_debt",
+    category: "欠费提醒",
+    title: debtCase.tenantName,
+    description: `${debtCase.propertyName} | ${debtCase.roomName}`,
+    tone: "danger",
+    priority: 50_000 + debtCase.daysOverdue * 100 + Math.round(debtCase.remainingAmount),
+    href: navigationTarget.href,
+    navigationTarget,
+    tenantId: debtCase.tenantId,
+    roomId: debtCase.roomId,
+    propertyId: debtCase.propertyId,
+    paymentId: debtCase.paymentId,
+    dueDate: debtCase.coverageEnd,
+    daysOverdue: debtCase.daysOverdue,
+    amount: debtCase.remainingAmount,
+    availableActions: [...(debtCase.canCollect ? ["collect" as const] : []), ...(debtCase.canWaive ? ["waive" as const] : [])],
+    debtCase
+  };
+}
+
+function rentCollectionReminderFromPeriod({
   tenant,
   payment,
   state,
-  propertyById,
-  roomById,
-  debtKind
 }: {
-  type: "rent_debt" | "rent_collection";
   tenant: BusinessTenant;
   payment: BusinessRentPayment;
   state: RentPeriodState;
-  propertyById: Map<string, BusinessProperty>;
-  roomById: Map<string, BusinessRoom>;
-  debtKind?: ReminderDebtKind;
 }): ReminderDraft {
   const stage = state.reminderStage;
   if (!stage) throw new Error("Rent reminder requires a classified coverage stage.");
-  const room = roomById.get(payment.roomId);
-  const isDebt = type === "rent_debt";
-  const amount = isDebt ? state.remainingAmount : referenceRentAmount(payment, tenant);
+  const amount = referenceRentAmount(payment, tenant);
   const navigationTarget: ReminderNavigationTarget = {
     kind: "tenant",
     href: tenantReminderHref(payment.tenantId),
@@ -314,16 +308,14 @@ function rentReminderFromPeriod({
     propertyId: payment.propertyId,
     paymentId: payment.id
   };
-  const statusLabel = rentReminderStatus(stage, amount);
-  const tenantLifecycle = reminderTenantLifecycle(state.lifecycle);
   return {
-    id: `${type}:${payment.id}`,
-    type,
-    category: isDebt ? "欠费提醒" : "收租提醒",
-    title: rentReminderTitle(room?.roomNumber || room?.name || tenant.name || "租客", stage, amount),
+    id: `rent_collection:${payment.id}`,
+    type: "rent_collection",
+    category: "收租提醒",
+    title: rentReminderTitle(tenant.name || "租客", stage, amount),
     description: `${tenant.name || "未命名租客"} · 覆盖至：${state.coverageEndDate || "-"}`,
     tone: rentStageTone(stage),
-    priority: rentStagePriority(stage) + (isDebt ? amount : 10 - (state.coverageDaysRemaining || 0)),
+    priority: rentStagePriority(stage) + 10 - (state.coverageDaysRemaining || 0),
     href: navigationTarget.href,
     navigationTarget,
     tenantId: payment.tenantId,
@@ -334,47 +326,12 @@ function rentReminderFromPeriod({
     daysRemaining: state.coverageDaysRemaining ?? undefined,
     daysOverdue: state.overdueDays || undefined,
     amount,
-    tenantLifecycle,
-    debtKind,
-    availableActions: isDebt ? [
-      ...(state.canCollect ? ["collect" as const] : []),
-      ...(state.canWaive ? ["waive" as const] : [])
-    ] : [],
-    rentContext: {
-      paymentId: payment.id,
-      // This is a business identifier, not decorative copy. The shared
-      // two-line formatter may wrap it on mobile, but must not silently
-      // truncate the payment-owned property/room context.
-      propertyLabel: propertyById.get(payment.propertyId)?.name?.trim() || "房源",
-      roomLabel: room?.name?.trim() || room?.roomNumber?.trim() || "房间",
-      tenantName: tenant.name || "未命名租客",
-      coverageEnd: state.coverageEndDate || "-",
-      statusLabel,
-      daysRemaining: state.coverageDaysRemaining ?? undefined,
-      daysOverdue: state.overdueDays || undefined,
-      amount,
-      tenantLifecycle,
-      debtKind
-    }
+    availableActions: []
   };
-}
-
-function reminderTenantLifecycle(lifecycle: RentPeriodState["lifecycle"]): ReminderTenantLifecycle {
-  if (lifecycle === "current") return "current";
-  if (lifecycle === "ended") return "moved_out";
-  if (lifecycle === "archived") return "archived";
-  return "other";
 }
 
 function referenceRentAmount(payment: BusinessRentPayment, tenant: BusinessTenant) {
   return Math.max(0, Number(payment.amountDue || 0), Number(tenant.monthlyRent || 0));
-}
-
-function rentReminderStatus(stage: RentPeriodReminderStage, amount: number) {
-  if (stage === "overdue") return `已逾期 ${euro(amount)}`;
-  if (stage === "critical") return "今日到期";
-  if (stage === "urgent") return "即将到期";
-  return "即将到期";
 }
 
 function rentReminderTitle(room: string, stage: RentPeriodReminderStage, amount: number) {

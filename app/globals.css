@@ -3188,6 +3188,28 @@ td:last-child {
   scroll-margin-block-start: calc(var(--ui-space-6) + env(safe-area-inset-top));
 }
 
+/* Debt Single Source Contract: shared compact row; coverage and amount may wrap but never ellipsize. */
+.debt-row {
+  display: grid;
+  gap: 4px;
+  min-inline-size: 0;
+  padding: 8px 0;
+  color: inherit;
+  text-decoration: none;
+}
+.debt-row-primary { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-inline-size: 0; }
+.debt-row-primary > strong { min-inline-size: 0; overflow-wrap: anywhere; }
+.debt-row-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
+.debt-row-secondary { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; color: var(--muted); }
+.debt-action-panel { display: grid; gap: 8px; }
+.debt-action-panel-actions, .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.reminder-list .debt-row, .reminder-page-row .debt-row { border-bottom: 1px solid var(--border); }
+.reminder-list .debt-row:last-child { border-bottom: 0; }
+@media (max-width: 640px) {
+  .debt-row-primary { align-items: flex-start; }
+  .debt-row-badges { max-inline-size: 44%; }
+}
+
 .tenant-deep-link-target:not(.tenant-card-expanded) .tenant-card-toggle {
   background: var(--surface-hover);
 }

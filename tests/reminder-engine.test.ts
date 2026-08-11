@@ -25,10 +25,10 @@ test("Reminder Engine creates a stable tenant-owned overdue debt reminder with s
   assert.equal(item.id, "rent_debt:payment-1");
   assert.equal(item.tenantId, "tenant-1");
   assert.equal(item.navigationTarget.kind, "tenant");
-  assert.equal(item.navigationTarget.href, "/tenants?tenantId=tenant-1");
+  assert.equal(item.navigationTarget.href, "/tenants?tenantId=tenant-1&paymentId=payment-1&focus=debt");
   assert.deepEqual(item.availableActions, ["collect", "waive"]);
-  assert.equal(item.tenantLifecycle, "current");
-  assert.equal(item.debtKind, "current");
+  assert.equal(item.debtCase?.tenantLifecycle, "current");
+  assert.equal(item.debtCase?.debtKind, "current");
   assert.deepEqual(item.surfaces, ["dashboard", "reminder_center"]);
 });
 
@@ -60,8 +60,8 @@ test("future collection reminders exclude moved-out and archived tenants", () =>
 
 test("moved-out open debt keeps tenant lifecycle and historical debt metadata", () => {
   const item = buildEffectiveReminders(snapshot({ tenants: [tenant("moved_out")] })).find((entry) => entry.type === "rent_debt");
-  assert.equal(item?.tenantLifecycle, "moved_out");
-  assert.equal(item?.debtKind, "historical");
+  assert.equal(item?.debtCase?.tenantLifecycle, "moved_out");
+  assert.equal(item?.debtCase?.debtKind, "historical");
   assert.equal(item?.navigationTarget.tenantId, "tenant-1");
 });
 

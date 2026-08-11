@@ -211,6 +211,10 @@ current occupant, or timer. Payment-backed reminders must render the shared
 `RentReminderDisplay` contract so lifecycle, debt kind, full coverage end,
 timing, amount and engine action metadata cannot diverge between surfaces.
 
+### Debt Single Source Contract
+
+New debt UI must build and consume `DebtCase` from `lib/debt-case.ts`; do not add page-local coverage, waiver or current/historical debt checks. Dashboard, reminder center and tenant debt focus use `DebtDisplayModel` / `DebtRow`. Debt navigation must preserve `tenantId`, `paymentId` and `focus=debt`; a normal tenant click remains a normal profile view.
+
 - 所有代码修改完成后，必须先运行 `npm run build`。
 - 构建通过后，必须先部署到 Vercel Preview。
 - 未经用户明确验收，不得直接部署或 Promote 到 Production。

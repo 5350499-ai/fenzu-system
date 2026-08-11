@@ -665,3 +665,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Coverage end is a primary operating fact. Rent reminder UI must wrap rather
   than truncate it with a single-line ellipsis; action buttons occupy their own
   row/space and never compete with coverage facts.
+
+## 46. Debt Row and Debt Focus Contract
+
+- Actionable rent debt surfaces reuse `DebtRow` and `DebtDisplayModel`.
+- Line one is identity plus lifecycle/debt-kind badges; line two contains full coverage end, overdue days and amount. Critical facts may wrap but may not ellipsize.
+- A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. A debt focus link opens only the compact Debt Action Panel.

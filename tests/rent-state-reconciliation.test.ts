@@ -6,9 +6,11 @@ import { inspectTenantRentState } from "../lib/rent-period-state.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
 import { buildEffectiveReminders } from "../lib/reminder-engine.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
-import { getTenantRentDisplay } from "../lib/tenant-rent-state-display.ts";
+import { getDebtCases, getTenantDebtCases } from "../lib/debt-case.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
-import { buildRentReminderDisplay } from "../lib/rent-reminder-display.ts";
+import { buildDebtDisplayModel } from "../lib/debt-display.ts";
+// @ts-expect-error Node runner imports TypeScript directly.
+import { getTenantDebtDisplay } from "../lib/tenant-debt-display.ts";
 
 const TODAY = "2026-08-11";
 const property = { id: "property-1", name: "测试房源", address: "", city: "" } as BusinessProperty;
@@ -25,7 +27,8 @@ function snapshot(tenants: BusinessTenant[], rentPayments: BusinessRentPayment[]
 
 function assertChain(target: BusinessTenant, payments: BusinessRentPayment[], expectedLatest: string | null, expectedOpen: string[], waivedPaymentIds = new Set<string>()) {
   const report = inspectTenantRentState({ tenant: target, payments, waivedPaymentIds, today: TODAY });
-  const display = getTenantRentDisplay({ tenant: target, payments, waivedPaymentIds, today: TODAY });
+  const debtCases = getDebtCases(snapshot([target], payments, waivedPaymentIds));
+  const display = getTenantDebtDisplay({ tenant: target, payments, debtCases: getTenantDebtCases(target.id, debtCases), waivedPaymentIds, today: TODAY });
   const reminders = buildEffectiveReminders(snapshot([target], payments, waivedPaymentIds));
   assert.equal(report.latestPeriod.paymentId, expectedLatest);
   assert.deepEqual(report.openDebtPeriods.map((state) => state.paymentId), expectedOpen);
@@ -41,7 +44,7 @@ test("regression: an unhandled 2026-08-05 coverage is an open debt everywhere", 
   assert.equal(display.stateKind, "current_overdue");
   assert.equal(display.displayStatus, "欠租");
   assert.equal(report.entries[0]?.reason, "open-overdue");
-  assert.equal(reminders[0]?.rentContext?.coverageEnd, "2026-08-05");
+  assert.equal(reminders[0]?.debtCase?.coverageEnd, "2026-08-05");
 });
 
 test("regression: two different 2026-08-10 tenants keep independent debt reminders and navigation", () => {
@@ -126,7 +129,8 @@ test("golden rent-state matrix reconciles latest, open debt, tenant state and re
     const payments = scenario.payments(target);
     const waivedPaymentIds = new Set(scenario.waived || []);
     const report = inspectTenantRentState({ tenant: target, payments, waivedPaymentIds, today: TODAY });
-    const display = getTenantRentDisplay({ tenant: target, payments, waivedPaymentIds, today: TODAY });
+    const debtCases = getDebtCases(snapshot([target], payments, waivedPaymentIds));
+    const display = getTenantDebtDisplay({ tenant: target, payments, debtCases: getTenantDebtCases(target.id, debtCases), waivedPaymentIds, today: TODAY });
     const reminderIds = buildEffectiveReminders(snapshot([target], payments, waivedPaymentIds)).filter((item) => item.type === "rent_debt").map((item) => item.id);
     assert.equal(report.latestPeriod.paymentId, scenario.latest, scenario.id);
     assert.deepEqual(report.openDebtPeriods.map((state) => state.paymentId), scenario.open, scenario.id);
@@ -139,10 +143,9 @@ test("rent reminder display contract keeps full coverage end on a second line", 
   const target = tenant();
   const overdue = payment(target.id, "payment-display", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const reminder = buildEffectiveReminders(snapshot([target], [overdue]))[0]!;
-  const display = buildRentReminderDisplay(reminder);
+  const display = reminder.debtCase ? buildDebtDisplayModel(reminder.debtCase) : null;
   assert.equal(display?.primaryLine, "欠费2 | 测试房源 | 02 房间");
   assert.equal(display?.secondaryLine, "覆盖至 2026-08-05 | 已逾期 6 天 | €0.00");
-  assert.equal(display?.statusText, "已逾期 6 天 | €0.00");
   assert.equal(display?.lifecycleLabel, "在租");
   assert.equal(display?.debtKindLabel, "当前欠租");
   assert.deepEqual(display?.availableActions, ["waive"]);
@@ -152,9 +155,9 @@ test("rent reminder display keeps lifecycle and historical debt semantics for mo
   const movedOut = tenant("tenant-moved-out", "Test", "moved_out");
   const debt = payment(movedOut.id, "payment-moved-out", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const movedOutReminder = buildEffectiveReminders(snapshot([movedOut], [debt]))[0]!;
-  const movedOutDisplay = buildRentReminderDisplay(movedOutReminder);
-  assert.equal(movedOutReminder.tenantLifecycle, "moved_out");
-  assert.equal(movedOutReminder.debtKind, "historical");
+  const movedOutDisplay = movedOutReminder.debtCase ? buildDebtDisplayModel(movedOutReminder.debtCase) : null;
+  assert.equal(movedOutReminder.debtCase?.tenantLifecycle, "moved_out");
+  assert.equal(movedOutReminder.debtCase?.debtKind, "historical");
   assert.equal(movedOutDisplay?.lifecycleLabel, "已退租");
   assert.equal(movedOutDisplay?.debtKindLabel, "历史欠费");
   assert.equal(movedOutDisplay?.secondaryLine.includes("覆盖至 2026-08-05"), true);
@@ -163,7 +166,7 @@ test("rent reminder display keeps lifecycle and historical debt semantics for mo
   const oldDebt = payment(current.id, "payment-history", "2026-08-05");
   const upcoming = payment(current.id, "payment-upcoming", "2026-08-20", { amountPaid: 100, amountUnpaid: 0, paymentStatus: "已收" });
   const historicalReminder = buildEffectiveReminders(snapshot([current], [oldDebt, upcoming])).find((item) => item.id === "rent_debt:payment-history")!;
-  assert.equal(historicalReminder.tenantLifecycle, "current");
-  assert.equal(historicalReminder.debtKind, "historical");
-  assert.equal(buildRentReminderDisplay(historicalReminder)?.debtKindLabel, "历史欠费");
+  assert.equal(historicalReminder.debtCase?.tenantLifecycle, "current");
+  assert.equal(historicalReminder.debtCase?.debtKind, "historical");
+  assert.equal(historicalReminder.debtCase ? buildDebtDisplayModel(historicalReminder.debtCase).debtKindLabel : "", "历史欠费");
 });

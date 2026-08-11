@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MetricCard } from "@/components/metric-card";
-import { RentReminderDisplay } from "@/components/rent-reminder-display";
+import { DebtRow } from "@/components/debt-row";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -242,16 +242,9 @@ export default function DashboardPage() {
         {remindersOpen ? (
           <div className="reminder-list">
             {visibleReminders.length ? visibleReminders.map((item) => {
-              const isRentReminder = Boolean(item.rentContext);
-              return <Link className={`reminder-item ${item.tone}${isRentReminder ? " rent-reminder" : ""}`} href={item.href} key={item.id}>
-                {isRentReminder ? (
-                  <RentReminderDisplay item={item} />
-                ) : (
-                  <>
-                    <span>{item.title}</span>
-                    <small>{item.description}</small>
-                  </>
-                )}
+              const debtCase = item.debtCase;
+              return debtCase ? <DebtRow className={`reminder-item ${item.tone} rent-reminder`} debtCase={debtCase} href={item.href} key={item.id} /> : <Link className={`reminder-item ${item.tone}`} href={item.href} key={item.id}>
+                <><span>{item.title}</span><small>{item.description}</small></>
               </Link>;
             }) : <p className="muted">暂无需要处理的提醒。</p>}
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}

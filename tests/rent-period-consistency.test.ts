@@ -6,7 +6,9 @@ import { getLatestRentPeriodState, getOpenRentDebtPeriodStates } from "../lib/re
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
 import { buildEffectiveReminders } from "../lib/reminder-engine.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
-import { getTenantRentDisplay } from "../lib/tenant-rent-state-display.ts";
+import { getDebtCases, getTenantDebtCases } from "../lib/debt-case.ts";
+// @ts-expect-error node runner imports TypeScript directly.
+import { getTenantDebtDisplay } from "../lib/tenant-debt-display.ts";
 
 const TODAY = "2026-08-11";
 const tenant = { id: "tenant-test", propertyId: "property-1", roomId: "room-1", name: "Test", status: "在租" } as BusinessTenant;
@@ -44,7 +46,8 @@ test("current period and an older open debt are selected independently and expla
   const latest = getLatestRentPeriodState({ tenant, payments: [olderDebt, currentUpcoming], today: TODAY });
   const openDebtPeriods = getOpenRentDebtPeriodStates({ tenant, payments: [olderDebt, currentUpcoming], today: TODAY });
   const reminders = buildEffectiveReminders(snapshot([olderDebt, currentUpcoming]));
-  const display = getTenantRentDisplay({ tenant, payments: [olderDebt, currentUpcoming], today: TODAY });
+  const debtCases = getDebtCases(snapshot([olderDebt, currentUpcoming]));
+  const display = getTenantDebtDisplay({ tenant, payments: [olderDebt, currentUpcoming], debtCases: getTenantDebtCases(tenant.id, debtCases), today: TODAY });
 
   assert.equal(latest.paymentId, currentUpcoming.id);
   assert.deepEqual(openDebtPeriods.map((state) => state.paymentId), [olderDebt.id]);
@@ -63,7 +66,8 @@ test("a payment-specific waiver removes only that historical open debt while the
   const waivedPaymentIds = new Set([olderZeroDebt.id]);
   const openDebtPeriods = getOpenRentDebtPeriodStates({ tenant, payments: [olderZeroDebt, currentUpcoming], today: TODAY, waivedPaymentIds });
   const reminders = buildEffectiveReminders(snapshot([olderZeroDebt, currentUpcoming], waivedPaymentIds));
-  const display = getTenantRentDisplay({ tenant, payments: [olderZeroDebt, currentUpcoming], today: TODAY, waivedPaymentIds });
+  const debtCases = getDebtCases(snapshot([olderZeroDebt, currentUpcoming], waivedPaymentIds));
+  const display = getTenantDebtDisplay({ tenant, payments: [olderZeroDebt, currentUpcoming], debtCases: getTenantDebtCases(tenant.id, debtCases), today: TODAY, waivedPaymentIds });
 
   assert.deepEqual(openDebtPeriods.map((state) => state.paymentId), []);
   assert.equal(reminders.some((item) => item.paymentId === olderZeroDebt.id), false);

@@ -6,9 +6,11 @@ import { buildEffectiveReminders } from "../lib/reminder-engine.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
 import { validateReminderEntityConsistency } from "../lib/reminder-entity-consistency.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
-import { resolveTenantReminderTarget } from "../lib/reminder-navigation.ts";
+import { resolveTenantNavigationContext } from "../lib/reminder-navigation.ts";
 // @ts-expect-error Node's strip-types runner imports TypeScript directly.
-import { getTenantRentDisplay } from "../lib/tenant-rent-state-display.ts";
+import { getDebtCases, getTenantDebtCases } from "../lib/debt-case.ts";
+// @ts-expect-error Node's strip-types runner imports TypeScript directly.
+import { getTenantDebtDisplay } from "../lib/tenant-debt-display.ts";
 
 const TODAY = "2026-08-11";
 const propertyOld = { id: "property-old", name: "旧房源", address: "", city: "" } as BusinessProperty;
@@ -30,8 +32,8 @@ test("rent reminders preserve payment-owned tenant, property and room across mov
   assert.equal(oldDebt?.tenantId, tenantA.id);
   assert.equal(oldDebt?.roomId, roomOld.id);
   assert.equal(oldDebt?.propertyId, propertyOld.id);
-  assert.equal(oldDebt?.rentContext?.tenantName, tenantA.name);
-  assert.equal(resolveTenantReminderTarget(oldDebt!.href, [tenantA, tenantB])?.id, tenantA.id);
+  assert.equal(oldDebt?.debtCase?.tenantName, tenantA.name);
+  assert.equal(resolveTenantNavigationContext(oldDebt!.href)?.tenantId, tenantA.id);
 });
 
 test("multiple periods, payment-specific waivers, voids and zero overdue events keep their own subject", () => {
@@ -65,9 +67,14 @@ test("archive mutes a debt without changing the payment entity and similar names
 });
 
 test("tenant-list rent labels consume the same RentPeriodState and payment-specific waiver facts", () => {
-  const open = getTenantRentDisplay({ tenant: tenantB, payments: [paymentB], today: TODAY });
-  const waived = getTenantRentDisplay({ tenant: tenantB, payments: [paymentB], waivedPaymentIds: new Set([paymentB.id]), today: TODAY });
-  const upcoming = getTenantRentDisplay({ tenant: tenantB, payments: [{ ...paymentB, coverageEndDate: "2026-08-15" }], today: TODAY });
+  const base = { properties: [propertyOld], rooms: [roomOld], tenants: [tenantB], rentPayments: [paymentB], today: TODAY };
+  const openCases = getDebtCases(base);
+  const waivedCases = getDebtCases({ ...base, waivedPaymentIds: new Set([paymentB.id]) });
+  const upcomingPayment = { ...paymentB, coverageEndDate: "2026-08-15" };
+  const upcomingCases = getDebtCases({ ...base, rentPayments: [upcomingPayment] });
+  const open = getTenantDebtDisplay({ tenant: tenantB, payments: [paymentB], debtCases: getTenantDebtCases(tenantB.id, openCases), today: TODAY });
+  const waived = getTenantDebtDisplay({ tenant: tenantB, payments: [paymentB], debtCases: getTenantDebtCases(tenantB.id, waivedCases), waivedPaymentIds: new Set([paymentB.id]), today: TODAY });
+  const upcoming = getTenantDebtDisplay({ tenant: tenantB, payments: [upcomingPayment], debtCases: getTenantDebtCases(tenantB.id, upcomingCases), today: TODAY });
   assert.equal(open.displayStatus, "欠租");
   assert.equal(open.expiry.label, "已逾期10天");
   assert.equal(waived.displayStatus, "在租");

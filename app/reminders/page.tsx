@@ -3,7 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
-import { RentReminderDisplay } from "@/components/rent-reminder-display";
+import { DebtRow } from "@/components/debt-row";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -103,7 +103,7 @@ export default function RemindersPage() {
   );
 
   async function waiveReminder() {
-    if (!waiveTarget?.rentContext?.paymentId) return;
+    if (!waiveTarget?.debtCase?.paymentId) return;
     setWaiving(true);
     try {
       const session = await getValidSupabaseSession();
@@ -111,11 +111,11 @@ export default function RemindersPage() {
       const response = await fetch("/api/rent-collection", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ action: "waive", rentPaymentId: waiveTarget.rentContext.paymentId, reason: waiveReason.trim() })
+        body: JSON.stringify({ action: "waive", rentPaymentId: waiveTarget.debtCase.paymentId, reason: waiveReason.trim() })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "放弃追缴失败。");
-      setWaivedPaymentIds((current) => new Set([...current, waiveTarget.rentContext!.paymentId]));
+      setWaivedPaymentIds((current) => new Set([...current, waiveTarget.debtCase!.paymentId]));
       try {
         await cacheManager.invalidate([DASHBOARD_CACHE_KEY], session.user.id);
       } catch (cacheError) {
@@ -193,25 +193,15 @@ export default function RemindersPage() {
   );
 }
 function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Reminder) => void }) {
-  const isRentReminder = Boolean(item.rentContext);
-  if (item.rentContext?.paymentId && item.availableActions.includes("waive")) return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
-    <Link className="reminder-page-row-link" href={item.href}>
-      <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
-      {isRentReminder ? <RentReminderDisplay item={item} className="reminder-page-rent-content" /> : null}
-    </Link>
-    <span className="reminder-rent-actions">{item.availableActions.includes("collect") ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.rentContext.paymentId)}&overdue=1`}>登记补交</Link> : null}{item.availableActions.includes("waive") ? <button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button> : null}</span>
+  if (item.debtCase) return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
+    <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
+    <DebtRow debtCase={item.debtCase} href={item.href} className="reminder-page-rent-content" />
+    <span className="reminder-rent-actions">{item.debtCase.canCollect ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.debtCase.paymentId)}&overdue=1`}>登记补交</Link> : null}{item.debtCase.canWaive ? <button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button> : null}</span>
   </div>;
   return (
     <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
       <span className="reminder-page-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge></span>
-      {isRentReminder ? (
-        <RentReminderDisplay item={item} className="reminder-page-rent-content" />
-      ) : (
-        <span className="reminder-page-rent-content">
-          <span>{item.title}</span>
-          <small>{item.description}</small>
-        </span>
-      )}
+      <span className="reminder-page-rent-content"><span>{item.title}</span><small>{item.description}</small></span>
       <span className="reminder-page-state" aria-hidden="true" />
     </Link>
   );

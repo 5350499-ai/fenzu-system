@@ -227,6 +227,13 @@ superseded without a separate product decision.
 - 有效收款包括明确填写覆盖日期的零房租或仅押金收款；已作废、已删除或非房租类型记录不得参与当前覆盖期计算。
 - 管理员编辑当前有效覆盖期后，当前覆盖期立即读取该笔修改后的覆盖日期；编辑较早记录只有在其覆盖范围成为最新时才影响当前覆盖期。作废或删除当前有效覆盖期后，当前覆盖期自动回退到下一笔最新有效覆盖期。
 - 当前月租标准仅为租客资料或兼容显示信息，不自动计入本次收入。本次合计收入始终等于本次实收房租加本次押金。
+
+## Debt Single Source Contract（2026-08-11）
+
+- `DebtCase` is a payment-specific open collection event. It never rewrites the original payment, contract, deposit or audit history.
+- Latest Rent Period explains current coverage; Open Debt Periods explain every unresolved payment period. They must not be collapsed into one boolean.
+- Archive mutes daily reminders only; move-out does not settle debt. Positive debt can collect or waive; a valid €0 overdue event can waive only and creates no income or expense.
+- Every debt UI, reminder, navigation target and action visibility rule consumes the same DebtCase. Coverage end, overdue facts and amount must remain visible.
 ## 附件原文件与多选上传（2026-07-22）
 
 - 合同附件、收款附件和支出附件单个文件上限均为 4MB。

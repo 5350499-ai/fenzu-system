@@ -44,7 +44,8 @@ import { euro } from "@/lib/format";
 import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
-import { getTenantRentDisplay, type TenantRentDisplay } from "@/lib/tenant-rent-state-display";
+import { getDebtCases, getTenantDebtCases, type DebtCase } from "@/lib/debt-case";
+import { getTenantDebtDisplay, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
 import { rentPeriodToday } from "@/lib/rent-period-state";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
@@ -55,7 +56,9 @@ import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/te
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
-import { resolveTenantReminderTarget } from "@/lib/reminder-navigation";
+import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
+import { DebtRow } from "@/components/debt-row";
+import { DebtActionPanel } from "@/components/debt-action-panel";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -132,6 +135,7 @@ export default function TenantsPage() {
   const [detailTenantId, setDetailTenantId] = useState("");
   const [deepLinkTenantId, setDeepLinkTenantId] = useState("");
   const [focusedTenantId, setFocusedTenantId] = useState("");
+  const [debtFocusPaymentId, setDebtFocusPaymentId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [currentExpanded, setCurrentExpanded] = useState(false);
@@ -222,11 +226,13 @@ export default function TenantsPage() {
       setPartnerOptions(activePartnerOptions);
       setPartnersLoading(false);
       if (!access.isFreeSingle) await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
-       const requestedTenantId = resolveTenantReminderTarget(`${window.location.pathname}${window.location.search}`, repairedTenants)?.id || "";
+       const requestedNavigation = resolveTenantNavigationContext(`${window.location.pathname}${window.location.search}`);
+       const requestedTenantId = requestedNavigation?.tenantId || "";
       const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
       setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDeepLinkTenantId(requestedTenantId);
+        setDebtFocusPaymentId(requestedNavigation?.focus === "debt" ? requestedNavigation.paymentId : "");
         setShowArchived(archiveModeForTenantDeepLink(repairedTenants, requestedTenantId) === true);
         setDetailTenantId(requestedTenantId);
       }
@@ -276,6 +282,7 @@ export default function TenantsPage() {
     : selectedPropertyIds;
   const effectiveQuery = activeDeepLinkTenant ? "" : query;
   const effectiveContractExpiringDays = activeDeepLinkTenant ? null : contractExpiringDays;
+  const debtCases = useMemo(() => getDebtCases({ properties, rooms, tenants, rentPayments: payments, waivedPaymentIds, today: businessToday }), [businessToday, payments, properties, rooms, tenants, waivedPaymentIds]);
 
   const filteredTenants = useMemo(() => {
     const keyword = effectiveQuery.trim().toLowerCase();
@@ -291,15 +298,16 @@ export default function TenantsPage() {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
-      const displayStatus = getTenantRentDisplay({
+      const displayStatus = getTenantDebtDisplay({
         tenant,
         payments: payments.filter((payment) => payment.tenantId === tenant.id),
+        debtCases: getTenantDebtCases(tenant.id, debtCases),
         waivedPaymentIds,
         today: businessToday
       }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [businessToday, contracts, effectiveContractExpiringDays, effectivePropertyIds, effectiveQuery, effectiveShowArchived, filesByContract, filesByTenant, payments, properties, rooms, tenants, waivedPaymentIds]);
+  }, [businessToday, contracts, debtCases, effectiveContractExpiringDays, effectivePropertyIds, effectiveQuery, effectiveShowArchived, filesByContract, filesByTenant, payments, properties, rooms, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [
@@ -313,13 +321,14 @@ export default function TenantsPage() {
   ), [payments, tenants]);
 
   const tenantRentDisplayById = useMemo(() => new Map(
-    tenants.map((tenant) => [tenant.id, getTenantRentDisplay({
+    tenants.map((tenant) => [tenant.id, getTenantDebtDisplay({
       tenant,
       payments: payments.filter((payment) => payment.tenantId === tenant.id),
+      debtCases: getTenantDebtCases(tenant.id, debtCases),
       waivedPaymentIds,
       today: businessToday
     })])
-  ), [businessToday, payments, tenants, waivedPaymentIds]);
+  ), [businessToday, debtCases, payments, tenants, waivedPaymentIds]);
 
   const sortedTenants = useMemo(() => {
     return sortTenantsByRoomAndStatus(filteredTenants, rooms, {
@@ -372,6 +381,27 @@ export default function TenantsPage() {
   function clearTenantSearch() {
     setFocusedTenantId("");
     setQuery("");
+  }
+
+  async function waiveDebtCase(debtCase: DebtCase) {
+    if (!window.confirm("确认放弃追缴这笔欠费吗？不会生成收入或支出，历史记录将保留。")) return;
+    const session = await getValidSupabaseSession();
+    if (!session) {
+      window.alert("登录已失效，请重新登录。");
+      return;
+    }
+    const response = await fetch("/api/rent-collection", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: "waive", rentPaymentId: debtCase.paymentId, reason: "" })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      window.alert(payload.error || "放弃追缴失败。");
+      return;
+    }
+    setWaivedPaymentIds((current) => new Set([...current, debtCase.paymentId]));
+    setDebtFocusPaymentId("");
   }
 
   function close() {
@@ -921,7 +951,7 @@ export default function TenantsPage() {
             const room = rooms.find((item) => item.id === tenant.roomId);
             const files = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant);
             const contract = latestContractForTenant(tenant.id, contracts);
-            const rentDisplay = tenantRentDisplayById.get(tenant.id) || getTenantRentDisplay({ tenant, payments: [], waivedPaymentIds });
+            const rentDisplay = tenantRentDisplayById.get(tenant.id) || getTenantDebtDisplay({ tenant, payments: [], debtCases: [] });
             const displayStatus = rentDisplay.displayStatus;
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expiryInfo = rentDisplay.expiry;
@@ -937,6 +967,7 @@ export default function TenantsPage() {
                 : (paymentPerformance?.onTimeRate || 0) >= 80 ? "blue" : "orange"
               : "neutral";
             const expanded = detailTenantId === tenant.id;
+            const debtFocusCase = expanded ? debtCases.find((item) => item.tenantId === tenant.id && item.paymentId === debtFocusPaymentId) || null : null;
             return (
               <Fragment key={tenant.id}>
                 {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
@@ -948,7 +979,7 @@ export default function TenantsPage() {
                     else tenantRowRefs.current.delete(tenant.id);
                   }}
                 >
-                <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => setDetailTenantId(expanded ? "" : tenant.id)} type="button">
+                <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => { setDebtFocusPaymentId(""); setDetailTenantId(expanded ? "" : tenant.id); }} type="button">
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
@@ -976,7 +1007,7 @@ export default function TenantsPage() {
                     <span className="tenant-expiry-date">覆盖至 {expiryInfo.endDate}</span>
                   </div>
                 ) : null}
-                {expanded ? (
+                {expanded && debtFocusCase ? <DebtActionPanel debtCase={debtFocusCase} onWaive={waiveDebtCase} /> : expanded ? (
                   <TenantDetail
                     contract={contract}
                     coverageEnd={rentDisplay.state.coverageEndDate || "-"}
@@ -1521,8 +1552,8 @@ function SortButton({ active, direction, label, onClick }: { active: boolean; di
 function compareTenantPriority(
   left: BusinessTenant,
   right: BusinessTenant,
-  leftExpiry: TenantRentDisplay["expiry"],
-  rightExpiry: TenantRentDisplay["expiry"],
+  leftExpiry: TenantDebtDisplay["expiry"],
+  rightExpiry: TenantDebtDisplay["expiry"],
   leftProperty: string,
   rightProperty: string,
   rooms: BusinessRoom[]
@@ -1549,8 +1580,8 @@ function compareTenantProperty(left: BusinessTenant, right: BusinessTenant, left
 function compareTenantStatus(
   left: BusinessTenant,
   right: BusinessTenant,
-  leftExpiry: TenantRentDisplay["expiry"],
-  rightExpiry: TenantRentDisplay["expiry"],
+  leftExpiry: TenantDebtDisplay["expiry"],
+  rightExpiry: TenantDebtDisplay["expiry"],
   payments: BusinessRentPayment[]
 ) {
   const leftRank = tenantStatusRank(left, leftExpiry);
@@ -1563,7 +1594,7 @@ function compareTenantStatus(
   return leftEnd.localeCompare(rightEnd);
 }
 
-function tenantStatusRank(tenant: BusinessTenant, expiry?: TenantRentDisplay["expiry"]) {
+function tenantStatusRank(tenant: BusinessTenant, expiry?: TenantDebtDisplay["expiry"]) {
   if (!isCurrentRentalRelationship(tenant)) return isArchivedTenant(tenant) ? 4 : 3;
   if (!expiry) return 2;
   if (expiry.level === "red") return 0;

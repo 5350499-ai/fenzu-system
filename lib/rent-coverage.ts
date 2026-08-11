@@ -218,56 +218,6 @@ export function isRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom
   return true;
 }
 
-/**
- * Temporary Reminder Engine compatibility bridge. Debt facts are supplied by
- * RentPeriodState; archive mutes daily reminder presentation without settling
- * debt, while a moved-out tenant remains eligible until archived or handled.
- */
-export function fixedTenantRentDebtReminderStage(
-  tenant: BusinessTenant,
-  payment: BusinessRentPayment | null,
-  today = todayString()
-): RentCollectionReminderStage | null {
-  const state = getRentPeriodState({ tenant, payment, today });
-  if (state.lifecycle === "archived" || !state.reminderStage) return null;
-  if (state.isExpired ? !state.hasOpenDebtFollowUp : state.lifecycle !== "current") return null;
-  if (!payment) return null;
-  const stage = rentCoverageReminderStageFixed(payment, today);
-  if (!stage) return null;
-  return { ...stage, reason: "coverage", daysPastPaymentDay: 0 };
-}
-
-export function hasUnresolvedTenantRentDebt(
-  tenant: BusinessTenant,
-  payment: BusinessRentPayment | null,
-  today = todayString()
-) {
-  const state = getRentPeriodState({ tenant, payment, today });
-  return state.hasCurrentUnresolvedDebt;
-}
-
-export function shouldShowTenantRentReminder(
-  tenant: BusinessTenant,
-  payment: BusinessRentPayment | null,
-  waivedPaymentIds: ReadonlySet<string>,
-  today = todayString()
-) {
-  const state = getRentPeriodState({ tenant, payment, today, waivedPaymentIds });
-  if (state.lifecycle === "archived") return false;
-  return state.isExpired ? state.hasOpenDebtFollowUp : state.lifecycle === "current";
-}
-
-/** Formal rent-reminder eligibility. Contract expiry is reported separately. */
-export function isCanonicalRentReminderTenant(tenant: BusinessTenant, rooms: BusinessRoom[]) {
-  const lifecycle = classifyRentPeriodTenantLifecycle(tenant.status);
-  if (lifecycle === "archived" || lifecycle === "other") return false;
-  // A moved-out tenant can still have an overdue, open debt. The staging
-  // helper excludes non-overdue move-out periods before presentation.
-  if (lifecycle === "ended") return true;
-  const room = rooms.find((item) => item.id === tenant.roomId);
-  return !room || !["维修中", "暂停出租", "已归档"].includes(room.status);
-}
-
 export type CoverageExpiryInfo = {
   daysRemaining: number | null;
   endDate: string;

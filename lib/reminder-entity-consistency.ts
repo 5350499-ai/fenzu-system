@@ -1,6 +1,6 @@
 import type { ReminderItem, ReminderSnapshot } from "./reminder-engine";
 // @ts-expect-error Node's strip-types test runner needs an explicit TypeScript extension here.
-import { resolveTenantReminderTarget, tenantReminderHref } from "./reminder-navigation.ts";
+import { resolveTenantNavigationContext, tenantDebtHref } from "./reminder-navigation.ts";
 
 /**
  * Test/development-only invariant checker for payment-backed reminder subjects.
@@ -52,15 +52,15 @@ export function validateReminderEntityConsistency(
       issues.push(issue(reminder, "unknown-tenant", `Payment ${paymentId} references a missing tenant.`));
       continue;
     }
-    if (reminder.rentContext?.tenantName !== tenant.name) {
+    if (reminder.debtCase?.tenantName !== tenant.name) {
       issues.push(issue(reminder, "display-name-mismatch", `Reminder display name must come from payment ${paymentId} tenant.`));
     }
     if (reminder.navigationTarget.kind !== "tenant"
       || reminder.navigationTarget.tenantId !== payment.tenantId
-      || reminder.navigationTarget.href !== tenantReminderHref(payment.tenantId)) {
+      || reminder.navigationTarget.href !== tenantDebtHref(payment.tenantId, paymentId)) {
       issues.push(issue(reminder, "tenant-navigation-mismatch", `Reminder navigation must target payment ${paymentId} tenant.`));
     }
-    if (resolveTenantReminderTarget(reminder.navigationTarget.href, snapshot.tenants)?.id !== payment.tenantId) {
+    if (resolveTenantNavigationContext(reminder.navigationTarget.href)?.tenantId !== payment.tenantId) {
       issues.push(issue(reminder, "tenant-detail-target-mismatch", `Reminder href must resolve to payment ${paymentId} tenant detail.`));
     }
     if (reminder.navigationTarget.paymentId !== paymentId
