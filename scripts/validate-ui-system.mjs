@@ -360,6 +360,21 @@ if (!rentReminderDisplay.includes("lifecycleLabel") || !rentReminderDisplay.incl
 if (!sharedRentReminderDisplay.includes("StatusBadge") || (!dashboardPage.includes("DebtRow") && !dashboardPage.includes("HomepageReminderRow")) || !homepageReminderRow.includes("ReminderRow") || !remindersPage.includes("ReminderRow")) {
   failures.push("Dashboard and reminder center must render payment-backed reminders through one shared display component");
 }
+if (!tenantsPage.includes('className="tenant-status-wrapper"')) {
+  failures.push("Tenant list statuses must use one shared status wrapper");
+}
+if (!/\.tenant-compact-list \.tenant-status-wrapper[\s\S]*?flex-wrap:\s*wrap/i.test(css)) {
+  failures.push("Tenant list status wrapper must be allowed to wrap on narrow screens");
+}
+if (!/\.tenant-compact-list \.tenant-mobile-meta[\s\S]*?flex-wrap:\s*wrap/i.test(css)) {
+  failures.push("Tenant mobile metadata must be allowed to wrap");
+}
+if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?row-gap:\s*var\(--ui-compact-row-gap\)/i.test(css)) {
+  failures.push("Tenant core detail rows must use the shared compact grid gap");
+}
+if (!/\.tenant-detail-panel \.tenant-detail-actions[\s\S]*?row-gap:\s*0\.35em/i.test(css)) {
+  failures.push("Tenant detail action rows must use the compact action gap");
+}
 
 if (failures.length) {
   console.error("UI design-system validation failed:");

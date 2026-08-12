@@ -32,10 +32,24 @@ test("tenant list gives name and property readable minimum tracks before badges"
   assert.match(css, /\.tenant-compact-list \.tenant-finance-line \.tenant-property-short/);
 });
 
+test("tenant list collapses statuses into one wrapping track", () => {
+  assert.match(page, /className="tenant-status-wrapper"/);
+  assert.match(css, /\.tenant-compact-list \.tenant-status-wrapper\s*\{[\s\S]*?flex-wrap:\s*wrap/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-wrapper\s*\{[\s\S]*?grid-column:\s*5/);
+  assert.match(css, /\.tenant-compact-list \.tenant-mobile-meta\s*\{[\s\S]*?flex-wrap:\s*wrap/);
+});
+
 test("compact vertical rhythm uses relative gaps and preserves touch-sized actions", () => {
   assert.match(css, /--ui-compact-row-gap:\s*0\.5em/);
   assert.match(css, /\.tenant-core-detail-grid\s*\{[\s\S]*?row-gap:\s*0/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?row-gap:\s*var\(--ui-compact-action-row-gap\)/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-button\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target/);
   assert.doesNotMatch(css, /\.tenant-core-detail-grid[^\{]*\{[^\}]*height:\s*\d+px/i);
+});
+
+test("tenant detail core rows use one gap source and keep action touch targets", () => {
+  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid\s*\{[\s\S]*?row-gap:\s*var\(--ui-compact-row-gap\)/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid \.compact-detail-row\s*\{[\s\S]*?padding-block:\s*2px/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?row-gap:\s*0\.35em[\s\S]*?margin-block:\s*0[\s\S]*?padding-block:\s*0/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-button\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target/);
 });

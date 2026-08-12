@@ -9107,6 +9107,131 @@ label.field > span,
   padding-block: 2px;
 }
 
+/* Tenant List precision contract: identity stays readable and all compact
+   statuses share one shrinkable track instead of competing grid columns. */
+.tenant-compact-list .tenant-finance-line {
+  grid-template-columns:
+    minmax(92px, 0.9fr)
+    minmax(100px, 1.2fr)
+    minmax(2.5em, auto)
+    minmax(82px, auto)
+    minmax(0, 1fr);
+}
+
+.tenant-compact-list .tenant-status-wrapper {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 4px;
+  flex-wrap: wrap;
+  overflow: visible;
+  white-space: normal;
+}
+
+.tenant-compact-list .tenant-status-wrapper > .tenant-toggle-control,
+.tenant-compact-list .tenant-status-wrapper > .tenant-payment-performance {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tenant-compact-list .tenant-status-wrapper .badge {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-mobile-meta {
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  padding-block: 1px 2px;
+}
+
+.tenant-compact-list .tenant-mobile-meta > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tenant-compact-list .tenant-mobile-coverage {
+  max-width: 100%;
+}
+
+.tenant-compact-list .tenant-finance-line > .tenant-status-wrapper {
+  grid-column: 5;
+  justify-self: end;
+}
+
+/* Tenant Detail precision contract: core facts have one vertical rhythm
+   source; outer panel spacing remains the section-level grouping rhythm. */
+.tenant-detail-panel .tenant-core-detail-group {
+  gap: 0;
+  padding-block: 8px;
+  padding-inline: 10px;
+}
+
+.tenant-detail-panel .tenant-core-detail-grid {
+  row-gap: var(--ui-compact-row-gap);
+}
+
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-details-toggle-row,
+.tenant-detail-panel .tenant-core-detail-grid > .compact-detail-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row > .compact-detail-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row > .compact-detail-row {
+  margin-block: 0;
+}
+
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row + .tenant-detail-pair-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-note-field,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-details-toggle-row {
+  margin-top: 0;
+}
+
+.tenant-detail-panel .tenant-core-detail-grid .compact-detail-row {
+  min-height: 0;
+  padding-block: 2px;
+}
+
+.tenant-detail-panel .tenant-detail-actions {
+  row-gap: 0.35em;
+  margin-block: 0;
+  padding-block: 0;
+}
+
+@media (max-width: 640px) {
+  .tenant-compact-list .tenant-finance-line {
+    grid-template-columns:
+      minmax(5.5em, 1fr)
+      minmax(6em, 1.15fr)
+      minmax(2.5em, auto)
+      minmax(0, auto);
+    gap: 3px;
+    padding-block: 2px;
+  }
+
+  .tenant-compact-list .tenant-finance-line > :nth-child(4),
+  .tenant-compact-list .tenant-finance-line > :nth-child(6) {
+    display: none;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-status-wrapper {
+    grid-column: 4;
+    justify-self: end;
+  }
+
+  .tenant-compact-list .tenant-mobile-meta {
+    flex-wrap: wrap;
+    padding-block: 1px 2px;
+  }
+}
+
 .compact-record-note-toggle {
   display: block;
   width: 100%;

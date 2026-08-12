@@ -703,3 +703,10 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Tenant detail fields, reminder rows and compact action grids may use the compact rhythm. Section-to-section/card-to-card spacing remains a separate visual grouping concern.
 - Action controls retain the existing mobile touch target (`--ui-touch-target`, approximately 44px); only the gap between action rows is reduced.
 - The contract must remain safe at 375px, 390px and 430px, with natural wrapping and no fixed-height text rows, clipping or horizontal overflow.
+
+### Tenant List / Tenant Detail Precision Contract
+
+- On mobile, a tenant summary row uses identity tracks for tenant, property and room, followed by one shrinkable wrapping status track. Lifecycle, payment-performance and other compact badges must not become separate max-content grid columns.
+- Tenant mobile metadata may wrap. Tenant and property text receive readable space before ellipsis; the room track remains visible and status content must not overlap or cover adjacent text.
+- Tenant core detail facts use one vertical rhythm source: the core grid owns the row gap, while detail rows do not add a second row margin. Core detail padding is scoped to the tenant core group and does not change unrelated compact cards.
+- Current and moved-out tenants share the same list and detail layout. Lifecycle-specific facts may add content, but may not create a second column or spacing system.
