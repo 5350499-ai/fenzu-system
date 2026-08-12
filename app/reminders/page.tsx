@@ -3,7 +3,6 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
-import { DebtRow } from "@/components/debt-row";
 import { ReminderRow as SharedReminderRow } from "@/components/reminder-row";
 import {
   BusinessContract,
@@ -32,7 +31,6 @@ import { defaultBackupReminderSettings, loadBackupReminderSettings, type BackupR
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Reminder = ReminderItem;
@@ -131,15 +129,6 @@ export default function RemindersPage() {
     }
   }
 
-  /* category sections were replaced by the single reminder summary list */
-  const grouped = useMemo(() => {
-    const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "即将退租", "空置房间", ...(access.isFreeSingle ? [] : ["备份提醒"])];
-    return groups.map((group) => ({
-      title: group,
-      items: reminders.filter((item) => item.category === group)
-    }));
-  }, [access.isFreeSingle, reminders]);
-
   if (dataStatus !== "ready") {
     return (
       <AppLayout title={"\u63d0\u9192\u4e2d\u5fc3"} description={"\u6b63\u5728\u8bfb\u53d6\u6700\u65b0\u63d0\u9192\u3002"}>
@@ -169,20 +158,6 @@ export default function RemindersPage() {
         </div>
       </section>
 
-      {false && <div className="grid dashboard-panels">
-        {grouped.map((group) => (
-          <section className="card panel" key={group.title}>
-            <div className="panel-header">
-              <h2 className="panel-title">{group.title}</h2>
-              <span className="muted">{group.items.length} 条</span>
-            </div>
-            <div className="reminder-page-list compact">
-              {group.items.map((item) => <ReminderRow item={item} key={item.id} onWaive={setWaiveTarget} />)}
-              {!group.items.length ? <p className="muted">暂无</p> : null}
-            </div>
-          </section>
-        ))}
-      </div>}
       {waiveTarget ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
         <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
           <h2 className="panel-title">确认放弃追缴</h2>
@@ -192,19 +167,5 @@ export default function RemindersPage() {
         </section>
       </div> : null}
     </AppLayout>
-  );
-}
-function ReminderRow({ item, onWaive }: { item: Reminder; onWaive: (item: Reminder) => void }) {
-  if (item.debtCase) return <div className={`reminder-page-row reminder-page-row--actions ${item.tone}`}>
-    <span className="reminder-page-kind"><StatusBadge tone="red">欠费提醒</StatusBadge></span>
-    <DebtRow debtCase={item.debtCase} href={item.href} className="reminder-page-rent-content" />
-    <span className="reminder-rent-actions">{item.debtCase.canCollect ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(item.debtCase.paymentId)}&overdue=1`}>登记补交</Link> : null}{item.debtCase.canWaive ? <button className="btn warning" type="button" onClick={() => onWaive(item)}>放弃追缴</button> : null}</span>
-  </div>;
-  return (
-    <Link className={`reminder-page-row ${item.tone}`} href={item.href}>
-      <span className="reminder-page-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{item.category}</StatusBadge></span>
-      <span className="reminder-page-rent-content"><span>{item.title}</span><small>{item.description}</small></span>
-      <span className="reminder-page-state" aria-hidden="true" />
-    </Link>
   );
 }

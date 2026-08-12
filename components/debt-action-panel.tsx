@@ -8,7 +8,7 @@ export function DebtActionPanel({ debtCase, onWaive }: { debtCase: DebtCase; onW
     <div className="detail-section-title">欠费处理</div>
     <DebtRow debtCase={debtCase} className="debt-row--panel" />
     <div className="debt-action-panel-actions">
-      {debtCase.canCollect ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(debtCase.paymentId)}&overdue=1`}>登记补交</Link> : null}
+      {debtCase.canCollect ? <Link className="btn primary" href={`/rent-payments?collectPayment=${encodeURIComponent(debtCase.paymentId)}&overdue=1`}>续交房租</Link> : null}
       {debtCase.canWaive ? <button className="btn warning" type="button" onClick={() => onWaive(debtCase)}>放弃追缴</button> : null}
     </div>
   </section>;

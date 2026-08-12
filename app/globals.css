@@ -14,6 +14,11 @@
   --blue: #2563eb;
   --shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 22px 54px rgba(15, 23, 42, 0.12);
+  --tenant-list-font-size: 11px;
+  --tenant-list-line-height: 1.25;
+  --tenant-list-gap: 2px;
+  --tenant-list-badge-font-size: 10px;
+  --tenant-list-badge-height: 22px;
 }
 
 .attachment-upload-progress {
@@ -3049,6 +3054,8 @@ td:last-child {
   background: var(--surface-soft);
   color: inherit;
   text-decoration: none;
+  font-size: var(--tenant-list-font-size);
+  line-height: var(--tenant-list-line-height);
 }
 
 .reminder-page-list-single .reminder-row-full {
@@ -3073,8 +3080,9 @@ td:last-child {
 .reminder-page-list-single .reminder-row-primary > strong {
   min-inline-size: 0;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--tenant-list-font-size);
   font-weight: 850;
+  line-height: var(--tenant-list-line-height);
   overflow-wrap: anywhere;
 }
 
@@ -3101,11 +3109,11 @@ td:last-child {
 
 .reminder-row-kind .badge,
 .reminder-row-badges .badge {
-  min-block-size: 22px;
+  min-block-size: var(--tenant-list-badge-height);
   box-sizing: border-box;
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--tenant-list-badge-font-size);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -3121,6 +3129,29 @@ td:last-child {
   flex-wrap: wrap;
   gap: 6px;
   padding-top: 2px;
+}
+
+.reminder-page-list-single .reminder-rent-actions:has(> .btn:nth-child(2)) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.reminder-page-list-single .reminder-row-link {
+  display: grid;
+  min-inline-size: 0;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.reminder-page-list-single .reminder-rent-actions .btn {
+  min-block-size: var(--tenant-list-badge-height);
+  min-inline-size: 0;
+  width: 100%;
+  justify-content: center;
+  padding-inline: 9px;
+  font-size: var(--tenant-list-font-size);
+  line-height: var(--tenant-list-line-height);
 }
 
 @media (max-width: 640px) {
@@ -3334,6 +3365,8 @@ td:last-child {
 .debt-row-secondary { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; color: var(--muted); }
 .debt-action-panel { display: grid; gap: 8px; }
 .debt-action-panel-actions, .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.debt-action-panel-actions:has(> .btn:nth-child(2)) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.debt-action-panel-actions .btn { min-inline-size: 0; width: 100%; justify-content: center; }
 .reminder-list .debt-row, .reminder-page-row .debt-row { border-bottom: 1px solid var(--border); }
 .reminder-list .debt-row:last-child { border-bottom: 0; }
 @media (max-width: 640px) {
@@ -4376,7 +4409,7 @@ td:last-child {
 
 .tenant-compact-list .tenant-finance-line {
   grid-template-columns: minmax(38px, 0.55fr) minmax(76px, 1.6fr) minmax(68px, 1.25fr) auto minmax(52px, auto);
-  gap: 2px;
+  gap: var(--tenant-list-gap);
   min-height: 32px;
   padding-block: 5px;
   font-size: 11px;
@@ -4414,7 +4447,7 @@ td:last-child {
 .tenant-compact-list .tenant-finance-line .badge {
   min-width: 0;
   padding-inline: 4px;
-  font-size: 10px;
+  font-size: var(--tenant-list-badge-font-size);
   white-space: nowrap;
 }
 
@@ -6956,7 +6989,7 @@ td:last-child {
   background: var(--surface);
   color: var(--text);
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: var(--tenant-list-font-size);
   opacity: .82;
 }
 

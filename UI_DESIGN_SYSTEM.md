@@ -670,4 +670,10 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - Actionable rent debt surfaces reuse `DebtRow` and `DebtDisplayModel`.
 - Line one is identity plus lifecycle/debt-kind badges; line two contains full coverage end, overdue days and amount. Critical facts may wrap but may not ellipsize.
+
+## 47. Tenant Information Display Contract
+
+- Tenant-subject reminder rows reuse the current tenant-list typography and density tokens for tenant names, property/room context, supporting facts and lifecycle/debt badges.
+- Pages may choose compact or full row structure, but must not define a separate tenant-name font, supporting-text scale, badge height or badge padding for the same semantic content.
+- Positive debt rows expose the existing collection action with the tenant-facing label `续交房租` plus `放弃追缴`; a valid zero-amount debt exposes only `放弃追缴`. Both actions continue to use the existing business entry points.
 - A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. A debt focus link opens only the compact Debt Action Panel.

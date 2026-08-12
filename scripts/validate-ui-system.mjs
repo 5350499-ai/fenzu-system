@@ -23,6 +23,7 @@ const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "
 const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
 const homepageReminderRow = readFileSync(resolve(root, "components/homepage-reminder-row.tsx"), "utf8");
 const remindersPage = readFileSync(resolve(root, "app/reminders/page.tsx"), "utf8");
+const reminderRow = readFileSync(resolve(root, "components/reminder-row.tsx"), "utf8");
 const propertyMultiSelect = readFileSync(resolve(root, "components/property-multi-select.tsx"), "utf8");
 const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
 const tenantDelete = readFileSync(resolve(root, "lib/tenant-delete.ts"), "utf8");
@@ -140,6 +141,7 @@ const required = [
   [remindersRuntime, "buildEffectiveReminders", "Reminder center runtime must consume the shared Reminder Engine"],
   [guide, "Archive vs Debt Contract", "UI guide must define archive versus debt presentation behavior"],
   [guide, "Rent Reminder Display Contract", "UI guide must define the two-line rent reminder presentation contract"],
+  [guide, "Tenant Information Display Contract", "UI guide must define the shared tenant reminder typography contract"],
   [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
   [debtCase, "tenantLifecycle", "DebtCase must preserve lifecycle without settling debt"],
   [debtCase, "canWaive", "DebtCase must preserve payment-specific waiver action metadata"],
@@ -147,6 +149,9 @@ const required = [
   [remindersPage, "dataStatus !== \"ready\"", "Reminder center must gate first render until authoritative state is ready"],
   [remindersPage, "DASHBOARD_CACHE_KEY", "Reminder mutation must identify the dashboard derived cache"],
   [remindersPage, "cacheManager.invalidate", "Reminder mutation must invalidate derived reminder cache"],
+  [reminderRow, "reminder-row-link", "Full tenant debt rows must keep a stable deep-link target"],
+  [reminderRow, "续交房租", "Positive tenant debt must expose the tenant-facing collection label"],
+  [css, "--tenant-list-font-size", "Tenant reminder typography must use the tenant-list token"],
   [readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8"), "PropertyMultiSelect", "Expense list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8"), "PropertyMultiSelect", "Rent payment list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/partner-settlements/page.tsx"), "utf8"), "PropertyMultiSelect", "Settlement history property scope must use the shared selector"]
