@@ -989,7 +989,7 @@ export default function TenantsPage() {
                   </strong>
                   <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge></span>
                   {rentDisplay.hasHistoricalOpenDebt ? <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge></span> : null}
-                  <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
+                  <span className="tenant-toggle-control tenant-deposit-badge" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                   <span className="tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
                   </span>
                 <span className="tenant-mobile-meta">
@@ -997,7 +997,7 @@ export default function TenantsPage() {
                   {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
                   {rentDisplay.hasHistoricalOpenDebt ? <StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge> : null}
                   <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
-                  <span className="tenant-toggle-control" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
+                  <span className="tenant-toggle-control tenant-deposit-badge" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                 </span>
                 </button>
                 {expiryInfo.label ? (
@@ -1038,8 +1038,10 @@ export default function TenantsPage() {
                     onCreateDeposit={() => openCreateDepositDialog(tenant)}
                     onAddFile={(context, file) => addTenantFile(context, file)}
                     onRestore={() => restoreTenant(tenant)}
-                    propertyName={property?.name || "-"}
-                    roomName={room?.name || "-"}
+                  propertyName={property?.name || "-"}
+                  roomName={room?.name || "-"}
+                    hasHistoricalOpenDebt={rentDisplay.hasHistoricalOpenDebt}
+                    historicalDebtLabel={rentDisplay.historicalDebtLabel}
                     saving={saving}
                     tenant={tenant}
                     depositStatus={depositStatus}
@@ -1273,6 +1275,8 @@ function TenantDetail({
   deposits,
   propertyName,
   roomName,
+  hasHistoricalOpenDebt,
+  historicalDebtLabel,
   files,
   attachmentLoadState,
   attachmentLoadError,
@@ -1307,6 +1311,8 @@ function TenantDetail({
   deposits: BusinessDeposit[];
   propertyName: string;
   roomName: string;
+  hasHistoricalOpenDebt: boolean;
+  historicalDebtLabel: string;
   files: ContractFile[];
   attachmentLoadState: AttachmentLoadState;
   attachmentLoadError: string;
@@ -1351,23 +1357,29 @@ function TenantDetail({
   const latestReceived = latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0;
   return (
     <div className="record-detail-panel tenant-detail-panel">
+      {coverageExpiry ? <div className="tenant-detail-expiry-summary"><span>距离租金到期</span><strong>{coverageExpiry}</strong></div> : null}
       <CompactDetailGroup className="tenant-core-detail-group">
         <CompactDetailGrid className="tenant-core-detail-grid">
-        {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
-        <DetailField label="房源" value={propertyName} />
-        <DetailField label="房间" value={roomName} />
-        <div className="tenant-basic-detail-grid">
+        <div className="tenant-detail-pair-row">
+          <DetailField label="房源" value={propertyName} />
+          <DetailField label="房间" value={roomName} />
+        </div>
+        <div className="tenant-detail-pair-row">
           <DetailField label="入住人数" value={`${tenant.occupantCount}人`} />
           <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
         </div>
-        <div className="tenant-amount-grid">
+        <div className="tenant-detail-pair-row">
           <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
           <DetailField label="最近一次实收" value={euro(latestReceived)} />
+        </div>
+        <div className="tenant-detail-pair-row">
           <DetailField label="押金标准" value={euro(tenant.depositAmount)} />
           <DetailField label="已收押金" value={euro(receivedDeposit)} />
         </div>
-        <DetailField className="tenant-coverage-field" label="租金已覆盖至" value={coverageEnd} />
-        <div className="tenant-note-field">
+        <div className="tenant-detail-wide-row tenant-coverage-field">
+          <DetailField label="租金覆盖至" value={coverageEnd} />
+        </div>
+        <div className="tenant-detail-wide-row tenant-note-field">
           <DetailField label="备注" value={tenant.notes || "-"} />
         </div>
         <div className="tenant-details-toggle-row">
@@ -1388,24 +1400,17 @@ function TenantDetail({
         </CompactDetailGrid>
       </CompactDetailGroup>
 
-      {depositStatus === "未建立押金管理记录" ? (
-        <div className="deposit-status-detail">
+      {movedOut || depositStatus === "未建立押金管理记录" ? (
+        <div className="tenant-lifecycle-status-area">
+          {movedOut ? <div className="tenant-lifecycle-badges"><StatusBadge tone="red">已退租</StatusBadge>{hasHistoricalOpenDebt ? <StatusBadge tone="red">{historicalDebtLabel}</StatusBadge> : null}</div> : null}
+          <div className="deposit-status-detail">
           <div>
             <span className="muted">押金状态</span>
-            <StatusBadge>未建立押金管理记录</StatusBadge>
-            <span className="muted">该租客只有收款记录中的押金金额，尚未建立独立押金管理记录。</span>
+            <StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge>
+            {depositStatus === "未建立押金管理记录" ? <span className="muted">该租客只有收款记录中的押金金额，尚未建立独立押金管理记录。</span> : null}
           </div>
-          <button className="btn" disabled={saving} type="button" onClick={onCreateDeposit}>建立押金管理记录</button>
-        </div>
-      ) : null}
-
-      {movedOut && depositStatus !== "未建立押金管理记录" ? (
-        <div className="deposit-status-detail">
-          <div>
-            <span className="muted">押金状态</span>
-            <StatusBadge tone={depositStatus === "押金已处理" ? "green" : "amber"}>{depositStatus}</StatusBadge>
+          {depositStatus === "未建立押金管理记录" ? <button className="btn" disabled={saving} type="button" onClick={onCreateDeposit}>建立押金管理记录</button> : <button className="btn" disabled={saving} type="button" onClick={onEditDepositStatus}>修改押金状态</button>}
           </div>
-          <button className="btn" disabled={saving} type="button" onClick={onEditDepositStatus}>修改押金状态</button>
         </div>
       ) : null}
 

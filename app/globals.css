@@ -19,6 +19,7 @@
   --tenant-list-gap: 2px;
   --tenant-list-badge-font-size: 10px;
   --tenant-list-badge-height: 22px;
+  --tenant-detail-row-gap: 8px;
 }
 
 .attachment-upload-progress {
@@ -8029,6 +8030,41 @@ input[type="radio"] {
   min-width: 0;
 }
 
+.tenant-detail-expiry-summary,
+.tenant-lifecycle-status-area {
+  display: grid;
+  gap: var(--tenant-detail-row-gap, 8px);
+}
+
+.tenant-detail-expiry-summary {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.tenant-detail-expiry-summary span {
+  color: var(--muted);
+  font-size: var(--ui-font-size-secondary, 13px);
+}
+
+.tenant-detail-expiry-summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--ui-font-size-body, 14px);
+}
+
+.tenant-lifecycle-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tenant-detail-row-gap, 8px);
+}
+
+.tenant-card-expanded .tenant-deposit-badge,
+.tenant-card-expanded .tenant-payment-performance {
+  display: none;
+}
+
 .tenant-detail-action-button {
   min-height: 42px;
   border-radius: var(--ui-radius-md);
@@ -9719,6 +9755,62 @@ label.field > span,
     grid-template-columns: 1fr;
   }
 
+}
+
+/* Final tenant-detail contract: four equal pairs followed by two full-width rows. */
+.tenant-core-detail-grid > .tenant-detail-pair-row,
+.tenant-core-detail-grid > .tenant-detail-wide-row {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.tenant-core-detail-grid > .tenant-detail-pair-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--tenant-detail-row-gap);
+}
+
+.tenant-core-detail-grid > .tenant-detail-pair-row > .compact-detail-row,
+.tenant-core-detail-grid > .tenant-detail-wide-row > .compact-detail-row {
+  min-width: 0;
+  margin: 0;
+}
+
+.tenant-core-detail-grid > .tenant-detail-pair-row,
+.tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-core-detail-grid > .tenant-details-toggle-row,
+.tenant-core-detail-grid > .compact-detail-row {
+  margin-block: 0;
+}
+
+.tenant-core-detail-grid > .tenant-detail-pair-row + .tenant-detail-pair-row,
+.tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-core-detail-grid > .tenant-note-field,
+.tenant-core-detail-grid > .tenant-details-toggle-row {
+  margin-top: var(--tenant-detail-row-gap);
+}
+
+.tenant-core-detail-grid > .tenant-detail-wide-row .compact-detail-row {
+  width: 100%;
+}
+
+.tenant-core-detail-grid > .tenant-detail-wide-row .compact-detail-row > strong {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Current and moved-out details share one predictable two-column action grid. */
+.tenant-detail-panel .tenant-detail-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tenant-detail-panel .tenant-detail-actions-row {
+  display: contents;
+}
+
+.tenant-detail-panel .tenant-detail-action-spacer {
+  display: none;
 }
 
 /* Global form focus policy: one dark control surface, one subtle border.

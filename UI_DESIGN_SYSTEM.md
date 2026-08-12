@@ -688,3 +688,10 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Property, room, coverage end and notes remain full-width detail fields. Lifecycle-specific information may add compact status rows, but must not create a second vertically expanded detail layout.
 - Tenant detail actions use the same two-column action grid and button geometry across lifecycle states.
 - A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. A debt focus link opens only the compact Debt Action Panel.
+
+## 50. Tenant Detail Final Layout Contract
+
+- The mobile tenant-detail base information is fixed to six rows: property | room; occupant count | payment day; monthly rent | last received; deposit standard | deposit received; coverage end; notes.
+- All four paired rows use the same two-column grid, gap, typography and value wrapping rules. Coverage end and notes remain full-width rows.
+- Current and moved-out tenants use the same base detail markup. Lifecycle-specific information may appear only in a compact status area above or below it.
+- A tenant detail may render the deposit status once only. Repeated lifecycle badges or duplicate deposit-status copies are not allowed; payment-summary “no records” text must remain in its payment-statistics context.
