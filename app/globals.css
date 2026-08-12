@@ -9402,7 +9402,7 @@ label.field > span,
    Display data is deliberately separate from interactive controls: only form
    controls retain the 42px/44px touch measurements. Related detail rows live
    in one compact group card instead of becoming a stack of mini cards. */
-.record-detail-panel:has(> .compact-detail-card) {
+.record-detail-panel:has(> .compact-detail-card):not(.tenant-detail-panel) {
   gap: var(--ui-space-3, 12px);
   border: 0;
   border-radius: 0;
@@ -9598,7 +9598,7 @@ label.field > span,
 }
 
 @media (max-width: 640px) {
-  .record-detail-panel:has(> .compact-detail-card) {
+  .record-detail-panel:has(> .compact-detail-card):not(.tenant-detail-panel) {
     gap: var(--ui-space-3, 12px);
   }
 
@@ -10039,6 +10039,69 @@ label.field > span,
 
 .tenant-detail-panel .tenant-detail-action-spacer {
   display: none;
+}
+
+/* Tenant Detail density owner: section rhythm is separate from core-row rhythm.
+   Keep touch targets intact while removing the nested deposit block's legacy
+   margin and the extra whitespace around compact utility sections. */
+.record-detail-panel.tenant-detail-panel:has(> .compact-detail-card) {
+  gap: 7px;
+}
+
+.tenant-detail-panel .tenant-lifecycle-status-area > .deposit-status-detail {
+  gap: 6px;
+  margin-block: 0;
+  padding: 6px 8px;
+  row-gap: 6px;
+}
+
+.tenant-detail-panel .tenant-lifecycle-status-area > .deposit-status-detail > div {
+  gap: 6px;
+}
+
+.tenant-detail-panel .tenant-performance-section,
+.tenant-detail-panel .tenant-timeline-section,
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  gap: 7px;
+}
+
+.tenant-detail-panel .tenant-performance-summary {
+  gap: 5px;
+  padding: 8px;
+}
+
+.tenant-detail-panel .tenant-performance-metric {
+  gap: 5px;
+}
+
+.tenant-detail-panel .tenant-monthly-payment-panel {
+  gap: 7px;
+}
+
+.tenant-detail-panel .tenant-details-toggle {
+  min-height: var(--ui-touch-target, 44px);
+  height: 44px;
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding-block: 0;
+}
+
+.tenant-detail-panel .tenant-year-switcher button {
+  min-height: var(--ui-touch-target, 44px);
+  padding-inline: 6px;
+  border-color: color-mix(in srgb, var(--border) 72%, transparent);
+  background: transparent;
+}
+
+.tenant-detail-panel .payment-history-panel,
+.tenant-detail-panel .contract-attachments-panel {
+  padding-top: 7px;
+}
+
+.tenant-detail-panel .payment-history-line {
+  gap: 8px;
+  padding-block: 8px;
 }
 
 /* Global form focus policy: one dark control surface, one subtle border.

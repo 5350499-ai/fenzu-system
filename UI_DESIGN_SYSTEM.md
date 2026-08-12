@@ -714,6 +714,18 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Action controls retain the existing mobile touch target (`--ui-touch-target`, approximately 44px); only the gap between action rows is reduced.
 - The contract must remain safe at 375px, 390px and 430px, with natural wrapping and no fixed-height text rows, clipping or horizontal overflow.
 
+### UI implementation ownership
+
+`UI_DESIGN_SYSTEM.md` defines visual and responsive contracts. `UI_COMPONENT_MAP.md` defines the implementation ownership and the safe modification entry point. Before any UI change, read both documents, locate the existing component and semantic selector owner, and prefer modifying that owner. Do not create a duplicate component or parallel selector when an owner already exists.
+
+### Tenant Detail Density Ownership Contract
+
+- `.tenant-core-detail-group`, `.tenant-core-detail-grid` and `.compact-detail-row` own base-detail density; core rows use the scoped relative gap and rows do not add a second margin source.
+- `.record-detail-panel.tenant-detail-panel` owns direct-child section rhythm. Its section gap is separate from the core-detail row gap.
+- `.tenant-lifecycle-status-area .deposit-status-detail` owns the nested deposit status layout. The nested selector must not inherit the generic 14px vertical margin intended for standalone deposit blocks.
+- `.tenant-performance-section`, `.tenant-performance-summary`, `.tenant-timeline-section`, `.tenant-monthly-payment-panel`, `.payment-history-panel` and `.payment-history-line` own their internal density only. They do not change rent, debt, payment or chart calculations.
+- Disclosure and utility controls retain a minimum 44px hit target. Visual compactness must come from border/background/padding treatment and surrounding gaps, never from clipping, transforms or reduced touch targets.
+
 ### Tenant List / Tenant Detail Precision Contract
 
 - On mobile, a tenant summary row uses identity tracks for tenant, property and room, followed by one shrinkable wrapping status track. Lifecycle, payment-performance and other compact badges must not become separate max-content grid columns.

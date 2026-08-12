@@ -1,0 +1,97 @@
+# UI Component Map
+
+## UI implementation ownership
+
+本文件是项目的 UI 实现定位地图，不是视觉规范或变更日志。
+
+使用顺序：先阅读 `UI_DESIGN_SYSTEM.md` 了解视觉契约，再阅读本文件定位已有组件、semantic class、CSS owner 和允许修改范围。UI 修改应优先修改已有 owner，不得通过全局覆盖或平行组件重新实现。
+
+## Global UI Roots
+
+| 页面/能力 | 实现 owner | Semantic class / selector | 责任 | 修改边界 |
+|---|---|---|---|---|
+| 全局视觉规范 | `UI_DESIGN_SYSTEM.md` | 规范章节与 shared tokens | 定义视觉、间距、触控和响应式契约 | 修改跨页面规则前必须更新并验证 |
+| 全局 CSS | `app/globals.css` | `:root`、shared semantic selectors | 执行全局 token 和已有组件样式 | 不用全局 selector 修复单页问题 |
+| shared primitives | `components/ui.tsx` | `SectionCard`、`DetailCard`、`CompactDetail*`、buttons | 提供共享 UI 原语 | 不为单页复制 primitive |
+| 房源范围选择 | `components/property-multi-select.tsx`, `lib/property-scope.ts` | `PropertyMultiSelect`, `property-scope` | 统一房源查询范围 | 禁止页面建立平行房源范围选择器 |
+| 下拉/选择 | `components/searchable-select.tsx`, `components/dropdown-listbox.tsx`, `components/tap-select.tsx` | shared listbox/select classes | 统一手势、滚动和选择行为 | 禁止页面自己实现 dropdown/listbox |
+
+## Tenant List Root
+
+| 层级 | Owner |
+|---|---|
+| 页面/组件 | `app/tenants/page.tsx` → tenant list rendering |
+| 列表容器 | `.tenant-compact-list` |
+| 主行 | `.tenant-finance-line` |
+| 状态容器 | `.tenant-status-wrapper` |
+| 第二行元数据 | `.tenant-mobile-meta` |
+| 房间短展示 | `.tenant-list-room` |
+
+职责：紧凑展示租客名、房源、房间、状态 badge 和第二行租金元数据。
+
+列表房间名是 presentation-only 规则：约 `10ch`、`min-width: 0`、单行 ellipsis。详情房间名使用 `.tenant-detail-room`，必须保留原值并允许自然换行，不能继承列表规则。
+
+允许修改：列表 row 的限定布局和响应式宽度。禁止修改：租金/债务状态计算、共享 DebtCase、Reminder Engine。
+
+## Tenant Detail Root
+
+页面 owner：`app/tenants/page.tsx` → `TenantDetail`。
+
+根节点：`.record-detail-panel.tenant-detail-panel`。
+
+```text
+TenantDetail
+├─ .tenant-detail-expiry-summary
+├─ .tenant-detail-actions
+├─ .tenant-core-detail-group
+│  └─ .tenant-core-detail-grid
+│     ├─ 房源 | 房间
+│     ├─ 入住人数 | 每月缴费日
+│     ├─ 月租标准 | 最近一次实收
+│     ├─ 押金标准 | 已收押金
+│     ├─ .tenant-coverage-field
+│     ├─ .tenant-note-field
+│     └─ .tenant-details-toggle
+├─ .tenant-lifecycle-status-area
+│  └─ .deposit-status-detail
+├─ .tenant-performance-section
+│  └─ .tenant-performance-summary
+├─ .tenant-timeline-section
+│  └─ .tenant-monthly-payment-panel
+│     └─ .tenant-combined-chart-frame
+├─ .payment-history-panel
+│  └─ .payment-history-toggle / .payment-history-line
+└─ .contract-attachments-panel
+```
+
+### Tenant Detail Density Ownership
+
+- 基础资料内部密度 owner：`.tenant-core-detail-group`、`.tenant-core-detail-grid`、`.compact-detail-row`。当前 core row gap 约为 `0.35em`，`compact-detail-row` 的 `padding-block` 为 `0`。基础资料过松时先检查这里，不要修改全局 compact token。
+- Tenant Detail direct-child section rhythm owner：`.record-detail-panel.tenant-detail-panel`。它负责 action、基础资料、押金、付款摘要、图表和历史记录之间的 section gap；它不负责 core rows。
+- 押金状态 owner：`.tenant-lifecycle-status-area`、`.deposit-status-detail`。嵌套押金块必须从这里处理，不能只写 `.tenant-detail-panel > .deposit-status-detail`。
+- 付款摘要 owner：`.tenant-performance-section`、`.tenant-performance-summary`。负责标题、四项指标和内部密度，不负责付款计算。
+- 趋势图 owner：`components/tenant-monthly-payment-panel.tsx`、`.tenant-timeline-section`、`.tenant-monthly-payment-panel`、`.tenant-combined-chart-frame`。负责年份选择、图例/说明和 chart frame，不修改业务计算。
+- 原始收款记录 owner：`.payment-history-panel`、`.payment-history-toggle`、`.payment-history-line`。负责折叠入口与记录行密度。
+
+允许修改：上述 owner 的展示布局、间距和响应式规则。禁止修改：RentPeriodState、DebtCase、Open Debt、Reminder Engine、收款、押金业务规则和租客真实数据。
+
+## Tenant Debt Action Root
+
+`DebtCase` 只负责 debt domain fact；Tenant Detail 的 `.tenant-detail-actions` 只负责 action placement。
+
+- 正数欠费：`续交房租` + `放弃追缴`。
+- 有效 €0 欠费：仅 `放弃追缴`。
+- 多期欠费：每个 action 仍绑定自己的 `paymentId`。
+- 禁止重新建立独立 Debt Card / DebtActionPanel 大卡片。
+
+## Reminder UI Root
+
+`Reminder Engine` 是提醒业务真源；shared Reminder Display Model / row 是展示真源。首页和 `/reminders` 必须消费同一 collection，不得页面级重新计算租金或欠费状态。
+
+## Modal / Dropdown Root
+
+`Modal Layer Manager` 负责 modal backdrop/document scroll；`DropdownListbox`、`TapSelect`、`SearchableSelect` 各自负责下拉列表手势与滚动。Modal body scroll 不得由页面另行锁定或创建平行 manager。
+
+## Ownership Change Rule
+
+只有 ownership 发生变化时才需要同步更新本地图；普通数值调整不记录历史细节。若没有现有 owner，先说明缺口，再建立最小 shared root；不得以 duplicate selector 规避定位问题。

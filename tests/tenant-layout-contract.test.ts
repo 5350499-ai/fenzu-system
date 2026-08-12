@@ -83,6 +83,20 @@ test("compact vertical rhythm uses relative gaps and preserves touch-sized actio
   assert.doesNotMatch(css, /\.tenant-core-detail-grid[^\{]*\{[^\}]*height:\s*\d+px/i);
 });
 
+test("tenant detail density ownership keeps section spacing scoped and deposit nesting compact", () => {
+  assert.match(css, /\.record-detail-panel\.tenant-detail-panel:has\(> \.compact-detail-card\)\s*\{[\s\S]*?gap:\s*7px/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-lifecycle-status-area > \.deposit-status-detail\s*\{[\s\S]*?margin-block:\s*0[\s\S]*?padding:\s*6px 8px[\s\S]*?gap:\s*6px/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-performance-summary\s*\{[\s\S]*?gap:\s*5px[\s\S]*?padding:\s*8px/);
+  assert.match(css, /\.tenant-detail-panel \.payment-history-panel,[\s\S]*?\.tenant-detail-panel \.contract-attachments-panel\s*\{[\s\S]*?padding-top:\s*7px/);
+});
+
+test("tenant detail utility controls remain touch-sized while visually lighter", () => {
+  assert.match(css, /\.tenant-detail-panel \.tenant-details-toggle\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-details-toggle\s*\{[\s\S]*?height:\s*44px/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-year-switcher button\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target/);
+  assert.match(css, /\.tenant-detail-panel \.payment-history-line\s*\{[\s\S]*?padding-block:\s*8px/);
+});
+
 test("tenant detail core rows use one gap source and keep action touch targets", () => {
   assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid\s*\{[\s\S]*?--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)/);
   assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid \.compact-detail-row\s*\{[\s\S]*?padding-block:\s*0/);

@@ -5,6 +5,7 @@ const root = process.cwd();
 const css = readFileSync(resolve(root, "app/globals.css"), "utf8");
 const guide = readFileSync(resolve(root, "UI_DESIGN_SYSTEM.md"), "utf8");
 const claude = readFileSync(resolve(root, "CLAUDE.md"), "utf8");
+const componentMap = readFileSync(resolve(root, "UI_COMPONENT_MAP.md"), "utf8");
 const architecture = readFileSync(resolve(root, "ARCHITECTURE.md"), "utf8");
 const searchableSelect = readFileSync(resolve(root, "components/searchable-select.tsx"), "utf8");
 const ownershipField = readFileSync(resolve(root, "components/ownership-field.tsx"), "utf8");
@@ -143,6 +144,9 @@ const required = [
   [guide, "Rent Reminder Display Contract", "UI guide must define the two-line rent reminder presentation contract"],
   [guide, "Tenant Information Display Contract", "UI guide must define the shared tenant reminder typography contract"],
   [guide, "Compact Vertical Rhythm Contract", "UI guide must define the compact vertical rhythm contract"],
+  [componentMap, "UI implementation ownership", "UI component map must define implementation ownership"],
+  [componentMap, "Tenant Detail Density Ownership", "UI component map must define Tenant Detail density ownership"],
+  [claude, "UI Modification Gate", "CLAUDE.md must require the UI modification gate"],
   [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
   [debtCase, "tenantLifecycle", "DebtCase must preserve lifecycle without settling debt"],
   [debtCase, "canWaive", "DebtCase must preserve payment-specific waiver action metadata"],
@@ -371,6 +375,21 @@ if (!/\.tenant-compact-list \.tenant-mobile-meta[\s\S]*?flex-wrap:\s*wrap/i.test
 }
 if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?(?:--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)|row-gap:\s*var\(--ui-compact-row-gap\))/i.test(css)) {
   failures.push("Tenant core detail rows must use a scoped relative compact grid gap");
+}
+if (!/\.record-detail-panel\.tenant-detail-panel:has\(> \.compact-detail-card\)\s*\{[\s\S]*?gap:\s*7px/i.test(css)) {
+  failures.push("Tenant Detail must use its scoped 7px section rhythm");
+}
+if (!/\.tenant-detail-panel \.tenant-lifecycle-status-area > \.deposit-status-detail\s*\{[\s\S]*?margin-block:\s*0[\s\S]*?padding:\s*6px 8px[\s\S]*?gap:\s*6px/i.test(css)) {
+  failures.push("Nested Tenant Detail deposit status must use the compact scoped rule");
+}
+if (!/\.tenant-detail-panel \.tenant-details-toggle\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target[\s\S]*?height:\s*44px/i.test(css)) {
+  failures.push("Tenant Detail disclosure must retain a 44px hit target");
+}
+if (!/\.tenant-detail-panel \.tenant-performance-summary\s*\{[\s\S]*?gap:\s*5px[\s\S]*?padding:\s*8px/i.test(css)) {
+  failures.push("Tenant Detail performance summary must use the scoped compact spacing");
+}
+if (!/\.tenant-detail-panel \.payment-history-panel,[\s\S]*?\.tenant-detail-panel \.contract-attachments-panel\s*\{[\s\S]*?padding-top:\s*7px/i.test(css)) {
+  failures.push("Tenant Detail history sections must use the scoped compact top padding");
 }
 if (!/\.tenant-detail-panel \.tenant-detail-actions[\s\S]*?row-gap:\s*0\.35em/i.test(css)) {
   failures.push("Tenant detail action rows must use the compact action gap");

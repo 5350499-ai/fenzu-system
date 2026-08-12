@@ -961,3 +961,8 @@
 - Replaced the legacy rent formatter/component and tenant display adapter with `DebtDisplayModel`, `DebtRow` and `DebtActionPanel`; debt links now carry `tenantId`, `paymentId` and `focus=debt`.
 - Reminder Engine consumes DebtCase instead of independently selecting periods or recalculating waiver/current/historical debt status.
 - No database, schema, migration, RLS, permissions, real business data, financial calculation or Production change.
+# 2026-08-12 - UI component ownership map and tenant detail density
+
+- Added `UI_COMPONENT_MAP.md` as the implementation ownership map for shared UI and Tenant Detail.
+- Added the UI Modification Gate reference to `CLAUDE.md` and the ownership boundary to `UI_DESIGN_SYSTEM.md`.
+- Scoped Tenant Detail section, nested deposit, payment summary, utility-control and history spacing adjustments without changing business logic.
