@@ -1501,21 +1501,13 @@ function TenantDetail({
 function TenantDetailActions({ tenant, debtCases, focusedDebtPaymentId, onWaiveDebt, canCollectRent, canEdit, canArchive, isAdmin, archived, saving, onMoveOut, onRestore, onArchive, onEdit, onPermanentDelete }: { tenant: BusinessTenant; debtCases: readonly DebtCase[]; focusedDebtPaymentId: string; onWaiveDebt: (debtCase: DebtCase) => void; canCollectRent: boolean; canEdit: boolean; canArchive: boolean; isAdmin: boolean; archived: boolean; saving: boolean; onMoveOut: () => void; onRestore: () => void; onArchive: () => void; onEdit: () => void; onPermanentDelete: () => void }) {
   const movedOut = tenant.status.includes("已退租");
   const primaryDebtCase = debtCases[0] || null;
-  return <div className="tenant-detail-actions">
-    <div className="tenant-detail-actions-row tenant-detail-actions-primary">
-      {primaryDebtCase?.canCollect ? <a className="btn tenant-detail-action-button" href={`/rent-payments?collectPayment=${encodeURIComponent(primaryDebtCase.paymentId)}&overdue=1`}>续交房租</a> : canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-      {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-      {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-    </div>
-    <div className="tenant-detail-actions-row tenant-detail-actions-secondary">
-      <span className="tenant-detail-action-spacer" aria-hidden="true" />
-      {canArchive && archived ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button> : canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-      {!debtCases.length && isAdmin ? <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button> : !debtCases.length ? <span className="tenant-detail-action-spacer" aria-hidden="true" /> : null}
-    </div>
-    {debtCases.length ? <div className="tenant-detail-debt-delete-row">
-      {isAdmin ? <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-      {primaryDebtCase?.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving} type="button" onClick={() => onWaiveDebt(primaryDebtCase)}>放弃追缴</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-    </div> : null}
+  return <div className="compact-action-grid tenant-detail-actions">
+    {primaryDebtCase?.canCollect ? <a className="btn tenant-detail-action-button" href={`/rent-payments?collectPayment=${encodeURIComponent(primaryDebtCase.paymentId)}&overdue=1`}>续交房租</a> : canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : null}
+    {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : null}
+    {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
+    {canArchive && archived ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button> : canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button> : null}
+    {isAdmin ? <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button> : null}
+    {primaryDebtCase?.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving} type="button" onClick={() => onWaiveDebt(primaryDebtCase)}>放弃追缴</button> : null}
     {debtCases.slice(1).map((debtCase) => <div className={`tenant-detail-debt-extra-row${debtCase.paymentId === focusedDebtPaymentId ? " tenant-detail-debt-extra-row-focused" : ""}`} data-payment-id={debtCase.paymentId} key={debtCase.debtCaseId}>
       <span className="tenant-debt-action-status">已逾期{debtCase.daysOverdue}天</span>
       <span className="tenant-debt-action-buttons">

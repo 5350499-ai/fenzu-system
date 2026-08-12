@@ -221,7 +221,7 @@ export function TasksServerManager() {
                 <div className="mobile-record-field"><span>关联租客</span><strong>{task.tenantId ? tenantById.get(task.tenantId)?.name || "已关联租客" : "无关联租客"}</strong></div>
               </div>
               {task.notes ? <p className="muted">{task.notes}</p> : null}
-              <div className="task-actions">
+              <div className="compact-action-grid task-actions">
                 {access.can("tasks", "edit") ? <button className="btn" type="button" disabled={saving} onClick={() => void setTaskStatus(task.id, task.status === "pending" ? "completed" : "pending")}>
                   {task.status === "pending" ? <Check size={15} /> : <RotateCcw size={15} />}{task.status === "pending" ? "完成" : "恢复"}
                 </button> : <span aria-hidden="true" />}

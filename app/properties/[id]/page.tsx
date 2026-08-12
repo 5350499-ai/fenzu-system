@@ -321,7 +321,7 @@ export default function PropertyDetailPage() {
           <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
           <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts, scopedPayments) || "尚无入住记录"} />
         </div> : null}
-        <div className="property-management-actions">
+        <div className="compact-action-grid property-management-actions">
           {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}
           {access.can("properties", "archive") ? (isArchived(property.notes)
             ? <button className="btn property-management-action" type="button" onClick={() => void restoreProperty()}><RotateCcw size={15} /> 恢复</button>

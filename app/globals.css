@@ -22,6 +22,7 @@
   --tenant-detail-row-gap: var(--ui-compact-row-gap);
   --ui-compact-row-gap: 0.5em;
   --ui-compact-action-row-gap: 0.5em;
+  --ui-compact-action-grid-gap: 8px;
 }
 
 .attachment-upload-progress {
@@ -250,10 +251,26 @@ a {
   align-items: center;
 }
 
-.task-actions {
+/* Shared root for short, independent business actions. Modal/form confirmation
+   footers and payment-specific two-action rows intentionally do not use it. */
+.compact-action-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--ui-compact-action-grid-gap, 8px);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.compact-action-grid > .btn,
+.compact-action-grid > a.btn {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ui-touch-target, 44px);
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.task-actions {
   align-items: stretch;
 }
 
@@ -3367,14 +3384,6 @@ td:last-child {
 .debt-row-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
 .debt-row-secondary { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; color: var(--muted); }
 .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.tenant-detail-debt-delete-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-column: 1 / -1;
-  gap: var(--ui-compact-action-row-gap, 0.35em);
-  min-width: 0;
-}
-.tenant-detail-debt-delete-row .tenant-detail-action-button { min-width: 0; width: 100%; }
 .tenant-detail-debt-extra-row {
   display: grid;
   grid-column: 1 / -1;
@@ -3663,22 +3672,8 @@ td:last-child {
 
 .tenant-detail-actions {
   order: -1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: 8px;
-  row-gap: 8px;
   width: 100%;
   min-width: 0;
-}
-
-.tenant-detail-actions-row {
-  display: contents;
-}
-
-.tenant-detail-action-spacer {
-  display: block;
-  min-width: 0;
-  pointer-events: none;
 }
 
 .tenant-detail-action-button {
@@ -4285,9 +4280,6 @@ td:last-child {
 }
 
 .expense-detail-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
   min-width: 0;
 }
 
@@ -4937,9 +4929,6 @@ td:last-child {
 }
 
 .property-management-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
   min-width: 0;
   margin-top: 4px;
 }
@@ -8023,18 +8012,7 @@ input[type="radio"] {
 }
 
 .tenant-detail-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
   padding-top: 2px;
-}
-
-.tenant-detail-actions-row {
-  display: contents;
-}
-
-.tenant-detail-action-spacer {
-  display: none;
 }
 
 .tenant-detail-panel > .deposit-status-detail {
@@ -8322,10 +8300,6 @@ input[type="radio"] {
 
   .room-finance-line .room-property-name { font-size: 10px; }
   .room-finance-line .room-display-name { font-size: 13px; }
-
-  .tenant-detail-actions-row {
-    gap: 6px;
-  }
 
   .tenant-detail-action-button {
     min-width: 0;
@@ -8618,9 +8592,6 @@ input[type="radio"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .tenant-detail-panel .tenant-detail-actions {
-    grid-template-columns: 1fr;
-  }
 
   .tenant-detail-panel .payment-history-line {
     grid-template-columns: minmax(76px, 0.8fr) minmax(0, 1.2fr);
@@ -8647,7 +8618,6 @@ input[type="radio"] {
 .tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
-.tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tenant-detail-panel .tenant-detail-action-button { min-height: var(--ui-touch-target, 44px); height: auto; padding-inline: var(--ui-space-2, 8px); font-size: var(--ui-font-size-button, 14px); line-height: var(--ui-line-height-tight, 1.2); white-space: normal; }
 .room-finance-line { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto auto; grid-template-areas: "room property status rent unpaid expiry"; min-height: 64px; padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px); gap: var(--ui-space-3, 12px); }
 .room-finance-line > :nth-child(1) { grid-area: property; }
@@ -8665,7 +8635,6 @@ input[type="radio"] {
   .modal-backdrop { display: block; overflow-y: auto; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
   .modal-card { width: 100%; min-height: 0; margin: 0 auto; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
-  .tenant-detail-panel .tenant-detail-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
   .room-finance-line > :nth-child(5) { display: none; }
   .room-finance-line > :nth-child(6) { display: block; grid-area: expiry; justify-self: start; }
@@ -10028,18 +9997,7 @@ label.field > span,
   gap: var(--ui-compact-row-gap);
 }
 
-/* Current and moved-out details share one predictable two-column action grid. */
-.tenant-detail-panel .tenant-detail-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.tenant-detail-panel .tenant-detail-actions-row {
-  display: contents;
-}
-
-.tenant-detail-panel .tenant-detail-action-spacer {
-  display: none;
-}
+/* Current and moved-out details share the Compact Action Grid root. */
 
 /* Tenant Detail density owner: section rhythm is separate from core-row rhythm.
    Keep touch targets intact while removing the nested deposit block's legacy

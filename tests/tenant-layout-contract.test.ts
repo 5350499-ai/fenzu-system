@@ -7,16 +7,16 @@ const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
 test("current and moved-out tenants use the same detail component and compact action grid", () => {
   assert.equal((page.match(/<TenantDetail\b/g) || []).length, 1);
-  assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions-row\s*\{\s*display:\s*contents/);
-  assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-spacer\s*\{\s*display:\s*none/);
+  assert.match(page, /className="compact-action-grid tenant-detail-actions"/);
+  assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?row-gap:\s*var\(--ui-compact-action-row-gap\)/);
+  assert.doesNotMatch(page, /tenant-detail-action-spacer/);
 });
 
 test("expanded tenants place payment-specific actions in the existing detail action grid", () => {
   assert.match(page, /const tenantDebtCases = getTenantDebtCases\(tenant\.id, debtCases\)/);
   assert.match(page, /debtCases=\{tenantDebtCases\}/);
   assert.match(page, /onWaiveDebt=\{waiveDebtCase\}/);
-  assert.match(page, /className="tenant-detail-debt-delete-row"/);
   assert.match(page, /canCollectRent=\{access\.can\("rent_payments", "create"\).*tenantDebtCases\.length === 0\}/);
 });
 
@@ -27,8 +27,7 @@ test("tenant detail keeps payment-specific actions without a standalone debt car
   assert.match(page, /debtCase\.canWaive \?/);
   assert.match(page, /已逾期\$\{primaryDebtCase\.daysOverdue\}天/);
   assert.match(page, /data-payment-id=\{debtCase\.paymentId\}/);
-  assert.match(css, /\.tenant-detail-debt-delete-row\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
-  assert.doesNotMatch(css, /tenant-detail-debt-delete-row[^\{]*\{[^\}]*grid-template-columns:\s*1fr/);
+  assert.doesNotMatch(page, /tenant-detail-debt-delete-row/);
 });
 
 test("tenant detail does not repeat lifecycle or debt badges inside the deposit section", () => {

@@ -966,3 +966,9 @@
 - Added `UI_COMPONENT_MAP.md` as the implementation ownership map for shared UI and Tenant Detail.
 - Added the UI Modification Gate reference to `CLAUDE.md` and the ownership boundary to `UI_DESIGN_SYSTEM.md`.
 - Scoped Tenant Detail section, nested deposit, payment summary, utility-control and history spacing adjustments without changing business logic.
+
+# 2026-08-12 - Compact action grid ownership
+
+- Added the shared `.compact-action-grid` contract for short independent business actions.
+- Migrated Tenant Detail, task, expense/rent-payment detail and property detail action groups to three natural-flow columns while retaining two-column/single-column semantics for modal, confirmation, form and payment-specific action groups.
+- No business logic, database, schema, permissions, real data or Production changes.

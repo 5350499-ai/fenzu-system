@@ -696,7 +696,7 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - Current and moved-out tenants reuse the same `TenantDetail` base layout, including the three compact two-column metric rows: occupant/payment day, monthly rent/last received, and deposit standard/received deposit.
 - Property, room, coverage end and notes remain full-width detail fields. Lifecycle-specific information may add compact status rows, but must not create a second vertically expanded detail layout.
-- Tenant detail actions use the same two-column action grid and button geometry across lifecycle states.
+- Tenant detail actions use the shared three-column `.compact-action-grid` and the same button geometry across lifecycle states; unavailable actions flow away without spacer cells.
 - A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. Tenant detail renders these controls in the existing action grid, without a duplicate debt card.
 
 ## 50. Tenant Detail Final Layout Contract
@@ -738,3 +738,11 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - In the tenant list collapsed row, room names use the original display value in a single line, with a responsive width of approximately `10ch`, `min-width: 0`, and CSS ellipsis so status content keeps its space.
 - In expanded tenant detail, the room and property values use separate semantic selectors and retain the complete original value with natural wrapping; they must not inherit the list ellipsis contract.
 - Room display truncation is presentation-only. It must not slice, rewrite or persist the room name.
+
+## 52. Compact Action Grid Contract
+
+- Short, independent business-operation groups on mobile use the shared `.compact-action-grid` root and default to three equal columns with `minmax(0, 1fr)`.
+- Each action keeps a usable mobile touch target of at least 44px; the grid never uses text scaling, fixed-width overflow or overlapping controls to force three columns.
+- Buttons flow naturally in source order. Missing permissions or unavailable actions do not create spacer cells or artificial empty slots.
+- The shared root is for compact business actions only. Confirmation/cancel pairs, save/back controls, modal footers, form submission actions, long-label CTAs and payment-specific two-action groups remain two-column or single-column according to their semantic contract.
+- The shared root is owned by `app/globals.css` and mapped in `UI_COMPONENT_MAP.md`; page-specific action groups must not create a parallel two/three-column implementation.

@@ -444,7 +444,7 @@ function ExpenseDetail({
           {canUploadFiles ? <AttachmentAddControl label="支出附件" disabled={saving} onAdd={onAddFile} /> : null}
         </> : null}
       </div> : null}
-      <div className="expense-detail-actions">
+      <div className="compact-action-grid expense-detail-actions">
         {canEdit ? <button className="btn expense-detail-action" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑支出</button> : <span aria-hidden="true" />}
         {canArchive ? <button className="btn expense-detail-action" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : <span aria-hidden="true" />}
         {canDelete ? <button className="btn danger expense-detail-action" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}

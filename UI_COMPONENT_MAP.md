@@ -84,6 +84,21 @@ TenantDetail
 - 多期欠费：每个 action 仍绑定自己的 `paymentId`。
 - 禁止重新建立独立 Debt Card / DebtActionPanel 大卡片。
 
+## Compact Action Grid Root
+
+| Owner | Semantic class | Scope |
+|---|---|---|
+| `app/globals.css` shared root | `.compact-action-grid` | Short, independent business actions on mobile; three equal columns with `minmax(0, 1fr)` and a minimum 44px touch target |
+| Tenant Detail | `.compact-action-grid.tenant-detail-actions` | Current and moved-out tenant actions; buttons flow naturally without spacer items |
+| Task cards | `.compact-action-grid.task-actions` | Short task actions such as complete, edit and delete |
+| Expense/rent-payment detail | `.compact-action-grid.expense-detail-actions` | Short record actions such as edit, void and permanent delete |
+| Property detail | `.compact-action-grid.property-management-actions` | Short property actions such as edit, archive/restore and permanent delete |
+
+This root does not own `modal-actions`, confirmation/cancel footers, form submission actions,
+`PropertyMultiSelect` confirmation, long CTAs, or payment-specific two-action rows such as
+`.tenant-debt-action-buttons` and `.reminder-rent-actions`. Those groups retain their own
+semantic layout because two-column or single-column presentation is part of their meaning.
+
 ## Reminder UI Root
 
 `Reminder Engine` 是提醒业务真源；shared Reminder Display Model / row 是展示真源。首页和 `/reminders` 必须消费同一 collection，不得页面级重新计算租金或欠费状态。
