@@ -3366,13 +3366,21 @@ td:last-child {
 .debt-row-primary > strong { min-inline-size: 0; overflow-wrap: anywhere; }
 .debt-row-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
 .debt-row-secondary { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; color: var(--muted); }
-.debt-action-panel { display: grid; gap: 8px; }
-.debt-action-panel-actions, .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.debt-action-panel-actions:has(> .btn:nth-child(2)) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.debt-action-panel-actions .btn { min-inline-size: 0; width: 100%; justify-content: center; }
-.tenant-debt-action-stack { display: grid; gap: var(--ui-compact-row-gap, 0.5em); min-width: 0; }
-.tenant-debt-action-stack .debt-action-panel { margin: 0; }
-.tenant-debt-action-stack .debt-action-panel-focused { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
+.reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tenant-debt-action-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-compact-action-row-gap, 0.35em);
+  min-width: 0;
+  padding-block: 2px;
+}
+.tenant-debt-action-row-focused { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
+.tenant-debt-action-status { min-width: 0; color: var(--muted); font-size: var(--ui-font-size-secondary, 13px); line-height: var(--ui-line-height-normal, 1.45); overflow-wrap: anywhere; }
+.tenant-debt-action-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ui-compact-action-row-gap, 0.35em); min-width: 0; }
+.tenant-debt-action-buttons:has(> .btn:only-child) { grid-template-columns: minmax(0, 1fr); }
+.tenant-debt-action-buttons .btn { min-width: 0; width: 100%; }
 .reminder-list .debt-row, .reminder-page-row .debt-row { border-bottom: 1px solid var(--border); }
 .reminder-list .debt-row:last-child { border-bottom: 0; }
 @media (max-width: 640px) {
@@ -9993,10 +10001,6 @@ label.field > span,
 .reminder-center .reminder-row-compact,
 .reminder-page-list-single .reminder-row-full,
 .reminder-page-list-single .reminder-row-compact {
-  gap: var(--ui-compact-row-gap);
-}
-
-.debt-action-panel {
   gap: var(--ui-compact-row-gap);
 }
 

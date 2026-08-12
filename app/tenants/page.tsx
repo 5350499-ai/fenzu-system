@@ -58,7 +58,6 @@ import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTen
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
 import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
 import { DebtRow } from "@/components/debt-row";
-import { TenantDebtActionStack } from "@/components/debt-action-panel";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -1000,7 +999,6 @@ export default function TenantsPage() {
                   <span className="tenant-toggle-control tenant-deposit-badge" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                 </span>
                 </button>
-                {expanded ? <TenantDebtActionStack debtCases={tenantDebtCases} focusedPaymentId={debtFocusPaymentId} onWaive={waiveDebtCase} /> : null}
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
                     <span className="tenant-expiry-dot" aria-hidden="true" />
@@ -1015,6 +1013,9 @@ export default function TenantsPage() {
                     coverageExpiry={expiryInfo.label}
                     payments={payments.filter((payment) => payment.tenantId === tenant.id)}
                     deposits={deposits.filter((deposit) => deposit.tenantId === tenant.id)}
+                    debtCases={tenantDebtCases}
+                    focusedDebtPaymentId={debtFocusPaymentId}
+                    onWaiveDebt={waiveDebtCase}
                     files={files}
                     attachmentLoadState={contractFilesLoadState}
                     attachmentLoadError={contractFilesLoadError}
@@ -1041,8 +1042,6 @@ export default function TenantsPage() {
                     onRestore={() => restoreTenant(tenant)}
                   propertyName={property?.name || "-"}
                   roomName={room?.name || "-"}
-                    hasHistoricalOpenDebt={rentDisplay.hasHistoricalOpenDebt}
-                    historicalDebtLabel={rentDisplay.historicalDebtLabel}
                     saving={saving}
                     tenant={tenant}
                     depositStatus={depositStatus}
@@ -1274,10 +1273,11 @@ function TenantDetail({
   coverageExpiry,
   payments,
   deposits,
+  debtCases,
+  focusedDebtPaymentId,
+  onWaiveDebt,
   propertyName,
   roomName,
-  hasHistoricalOpenDebt,
-  historicalDebtLabel,
   files,
   attachmentLoadState,
   attachmentLoadError,
@@ -1310,10 +1310,11 @@ function TenantDetail({
   coverageExpiry: string;
   payments: BusinessRentPayment[];
   deposits: BusinessDeposit[];
+  debtCases: readonly DebtCase[];
+  focusedDebtPaymentId: string;
+  onWaiveDebt: (debtCase: DebtCase) => void;
   propertyName: string;
   roomName: string;
-  hasHistoricalOpenDebt: boolean;
-  historicalDebtLabel: string;
   files: ContractFile[];
   attachmentLoadState: AttachmentLoadState;
   attachmentLoadError: string;
@@ -1356,9 +1357,28 @@ function TenantDetail({
     : "neutral";
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
   const latestReceived = latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0;
+  const primaryDebtCase = debtCases[0] || null;
   return (
     <div className="record-detail-panel tenant-detail-panel">
       {coverageExpiry ? <div className="tenant-detail-expiry-summary"><span>距离租金到期</span><strong>{coverageExpiry}</strong></div> : null}
+      <TenantDetailActions
+        tenant={tenant}
+        debtCases={debtCases}
+        focusedDebtPaymentId={focusedDebtPaymentId}
+        onWaiveDebt={onWaiveDebt}
+        canCollectRent={canCollectRent}
+        canEdit={canEdit}
+        canArchive={canArchive}
+        isAdmin={isAdmin}
+        archived={archived}
+        saving={saving}
+        onMoveOut={onMoveOut}
+        onRestore={onRestore}
+        onArchive={onArchive}
+        onEdit={onEdit}
+        onPermanentDelete={onPermanentDelete}
+      />
+
       <CompactDetailGroup className="tenant-core-detail-group">
         <CompactDetailGrid className="tenant-core-detail-grid">
         <div className="tenant-detail-pair-row">
@@ -1371,7 +1391,7 @@ function TenantDetail({
         </div>
         <div className="tenant-detail-pair-row">
           <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
-          <DetailField label="最近一次实收" value={euro(latestReceived)} />
+          <DetailField label="最近一次实收" value={`${euro(latestReceived)}${primaryDebtCase ? ` · 已逾期${primaryDebtCase.daysOverdue}天` : ""}`} />
         </div>
         <div className="tenant-detail-pair-row">
           <DetailField label="押金标准" value={euro(tenant.depositAmount)} />
@@ -1403,7 +1423,6 @@ function TenantDetail({
 
       {movedOut || depositStatus === "未建立押金管理记录" ? (
         <div className="tenant-lifecycle-status-area">
-          {movedOut ? <div className="tenant-lifecycle-badges"><StatusBadge tone="red">已退租</StatusBadge>{hasHistoricalOpenDebt ? <StatusBadge tone="red">{historicalDebtLabel}</StatusBadge> : null}</div> : null}
           <div className="deposit-status-detail">
           <div>
             <span className="muted">押金状态</span>
@@ -1475,26 +1494,31 @@ function TenantDetail({
         {canUploadFiles ? <AttachmentAddControl label="添加附件" disabled={saving} onAdd={addAttachment} /> : null}
       </div> : null}
 
-      <div className="tenant-detail-actions">
-        <div className="tenant-detail-actions-row tenant-detail-actions-primary">
-          {canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-          {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-          {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-        </div>
-        <div className="tenant-detail-actions-row tenant-detail-actions-secondary">
-          <span className="tenant-detail-action-spacer" aria-hidden="true" />
-          {canArchive && archived ? (
-            <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button>
-          ) : canArchive ? (
-            <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button>
-          ) : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-          {isAdmin ? (
-            <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button>
-          ) : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
-        </div>
-      </div>
     </div>
   );
+}
+
+function TenantDetailActions({ tenant, debtCases, focusedDebtPaymentId, onWaiveDebt, canCollectRent, canEdit, canArchive, isAdmin, archived, saving, onMoveOut, onRestore, onArchive, onEdit, onPermanentDelete }: { tenant: BusinessTenant; debtCases: readonly DebtCase[]; focusedDebtPaymentId: string; onWaiveDebt: (debtCase: DebtCase) => void; canCollectRent: boolean; canEdit: boolean; canArchive: boolean; isAdmin: boolean; archived: boolean; saving: boolean; onMoveOut: () => void; onRestore: () => void; onArchive: () => void; onEdit: () => void; onPermanentDelete: () => void }) {
+  const movedOut = tenant.status.includes("已退租");
+  return <div className="tenant-detail-actions">
+    <div className="tenant-detail-actions-row tenant-detail-actions-primary">
+      {canCollectRent ? <a className="btn tenant-detail-action-button" href={`/rent-payments?renewTenantId=${tenant.id}`}>续交房租</a> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+      {!movedOut && canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onMoveOut}><Archive size={15} /> 退租</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+      {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+    </div>
+    <div className="tenant-detail-actions-row tenant-detail-actions-secondary">
+      <span className="tenant-detail-action-spacer" aria-hidden="true" />
+      {canArchive && archived ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button> : canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+      {isAdmin ? <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button> : <span className="tenant-detail-action-spacer" aria-hidden="true" />}
+    </div>
+    {debtCases.map((debtCase) => <div className={`tenant-debt-action-row${debtCase.paymentId === focusedDebtPaymentId ? " tenant-debt-action-row-focused" : ""}`} data-payment-id={debtCase.paymentId} key={debtCase.debtCaseId}>
+      <span className="tenant-debt-action-status">已逾期{debtCase.daysOverdue}天</span>
+      <span className="tenant-debt-action-buttons">
+        {debtCase.canCollect ? <a className="btn tenant-detail-action-button" href={`/rent-payments?collectPayment=${encodeURIComponent(debtCase.paymentId)}&overdue=1`}>续交房租</a> : null}
+        {debtCase.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving} type="button" onClick={() => onWaiveDebt(debtCase)}>放弃追缴</button> : null}
+      </span>
+    </div>)}
+  </div>;
 }
 
 function TenantAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: ContractFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: ContractFile) => void; canDownload?: boolean; canDelete?: boolean }) {

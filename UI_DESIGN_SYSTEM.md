@@ -679,11 +679,13 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ## 47.1 Tenant Debt Action Placement Contract
 
-- The collapsed tenant row shows debt status only. After a tenant is expanded, any open `DebtCase` is rendered immediately before the shared `TenantDetail`.
-- Debt actions remain payment-specific. Multiple open debts render one compact action panel per payment, including coverage end, overdue days, amount and the existing actions.
+- The collapsed tenant row shows debt status only. After a tenant is expanded, any open `DebtCase` is rendered as a compact payment-specific row inside the existing `TenantDetail` action grid.
+- Debt actions do not repeat tenant, property, room, lifecycle or coverage fields already present in the detail; overdue days may be shown beside the latest received amount.
+- Multiple open debts render one compact action row per payment, with the stable payment ID retained for action binding.
 - Current and moved-out tenants use the same debt-action component. Move-out does not hide an actionable historical debt.
 - A positive debt exposes `续交房租` and `放弃追缴`; a valid €0 debt exposes only `放弃追缴`. These controls continue using the existing collection and waiver entry points.
 - When open debt exists, the ordinary renewal control is not duplicated beside the debt-specific collection action.
+- The deposit module displays deposit state only; lifecycle and debt badges are not repeated there.
 
 ## 48. Tenant List Column Contract
 
@@ -695,7 +697,7 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Current and moved-out tenants reuse the same `TenantDetail` base layout, including the three compact two-column metric rows: occupant/payment day, monthly rent/last received, and deposit standard/received deposit.
 - Property, room, coverage end and notes remain full-width detail fields. Lifecycle-specific information may add compact status rows, but must not create a second vertically expanded detail layout.
 - Tenant detail actions use the same two-column action grid and button geometry across lifecycle states.
-- A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. A debt focus link opens only the compact Debt Action Panel.
+- A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. Tenant detail renders these controls in the existing action grid, without a duplicate debt card.
 
 ## 50. Tenant Detail Final Layout Contract
 

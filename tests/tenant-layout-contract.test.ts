@@ -12,20 +12,30 @@ test("current and moved-out tenants use the same detail component and compact ac
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-spacer\s*\{\s*display:\s*none/);
 });
 
-test("expanded tenants place payment-specific debt actions before the shared detail", () => {
+test("expanded tenants place payment-specific actions in the existing detail action grid", () => {
   assert.match(page, /const tenantDebtCases = getTenantDebtCases\(tenant\.id, debtCases\)/);
-  assert.match(page, /<TenantDebtActionStack debtCases=\{tenantDebtCases\}/);
-  assert.ok(page.indexOf("<TenantDebtActionStack") < page.indexOf("<TenantDetail"));
+  assert.match(page, /debtCases=\{tenantDebtCases\}/);
+  assert.match(page, /onWaiveDebt=\{waiveDebtCase\}/);
+  assert.match(page, /className=\{`tenant-debt-action-row/);
   assert.match(page, /canCollectRent=\{access\.can\("rent_payments", "create"\).*tenantDebtCases\.length === 0\}/);
 });
 
-test("debt action stack keeps each open debt payment-specific and preserves zero-debt waiver behavior", () => {
-  const panel = readFileSync(new URL("../components/debt-action-panel.tsx", import.meta.url), "utf8");
-  assert.match(panel, /debtCases\.map\(\(debtCase\) => <DebtActionPanel key=\{debtCase\.debtCaseId\}/);
-  assert.match(panel, /data-payment-id=\{debtCase\.paymentId\}/);
-  assert.match(panel, /debtCase\.canCollect \?/);
-  assert.match(panel, /debtCase\.canWaive \?/);
-  assert.match(panel, /className="tenant-debt-action-stack"/);
+test("tenant detail keeps payment-specific actions without a standalone debt card", () => {
+  assert.doesNotMatch(page, /TenantDebtActionStack|<DebtActionPanel/);
+  assert.match(page, /data-payment-id=\{debtCase\.paymentId\}/);
+  assert.match(page, /debtCase\.canCollect \?/);
+  assert.match(page, /debtCase\.canWaive \?/);
+  assert.match(page, /已逾期\$\{primaryDebtCase\.daysOverdue\}天/);
+  assert.match(page, /data-payment-id=\{debtCase\.paymentId\}/);
+  assert.match(css, /\.tenant-debt-action-row\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
+});
+
+test("tenant detail does not repeat lifecycle or debt badges inside the deposit section", () => {
+  const detail = page.slice(page.indexOf("function TenantDetail("), page.indexOf("function TenantDetailActions("));
+  assert.doesNotMatch(detail, /tenant-lifecycle-badges/);
+  assert.doesNotMatch(detail, /hasHistoricalOpenDebt/);
+  assert.doesNotMatch(detail, /historicalDebtLabel/);
+  assert.match(detail, /<span className="muted">押金状态<\/span>/);
 });
 
 test("tenant detail uses the final four-pair plus two-wide-row contract", () => {
