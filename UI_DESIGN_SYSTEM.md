@@ -710,3 +710,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Tenant mobile metadata may wrap. Tenant and property text receive readable space before ellipsis; the room track remains visible and status content must not overlap or cover adjacent text.
 - Tenant core detail facts use one vertical rhythm source: the core grid owns the row gap, while detail rows do not add a second row margin. Core detail padding is scoped to the tenant core group and does not change unrelated compact cards.
 - Current and moved-out tenants share the same list and detail layout. Lifecycle-specific facts may add content, but may not create a second column or spacing system.
+
+### Tenant Room Name Display Contract
+
+- In the tenant list collapsed row, room names use the original display value in a single line, with a responsive width of approximately `10ch`, `min-width: 0`, and CSS ellipsis so status content keeps its space.
+- In expanded tenant detail, the room and property values use separate semantic selectors and retain the complete original value with natural wrapping; they must not inherit the list ellipsis contract.
+- Room display truncation is presentation-only. It must not slice, rewrite or persist the room name.

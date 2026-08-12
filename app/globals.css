@@ -9232,6 +9232,46 @@ label.field > span,
   }
 }
 
+/* Tenant Room Name Display Contract: list rows stay single-line and bounded;
+   detail rows retain the original value and may wrap naturally. */
+.tenant-compact-list .tenant-finance-line > .tenant-list-room {
+  min-width: 0;
+  max-width: 10ch;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-compact-list .tenant-finance-line {
+  grid-template-columns:
+    minmax(92px, 0.9fr)
+    minmax(100px, 1.2fr)
+    minmax(2.5em, 10ch)
+    minmax(82px, auto)
+    minmax(0, 1fr);
+}
+
+.tenant-detail-panel .tenant-detail-property > strong,
+.tenant-detail-panel .tenant-detail-room > strong {
+  min-width: 0;
+  max-width: none;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .tenant-compact-list .tenant-finance-line {
+    grid-template-columns:
+      minmax(5.5em, 1fr)
+      minmax(6em, 1.15fr)
+      minmax(2.5em, 10ch)
+      minmax(0, auto);
+  }
+}
+
 .compact-record-note-toggle {
   display: block;
   width: 100%;

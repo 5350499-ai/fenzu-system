@@ -983,7 +983,7 @@ export default function TenantsPage() {
                   <span className="finance-line tenant-finance-line">
                   <span className="tenant-name">{tenant.name || "-"}</span>
                   <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
-                  <span className="tenant-room-short" title={room?.name || room?.roomNumber || "-"}>{compactRoomName(room)}</span>
+                  <span className="tenant-list-room" title={room?.name || room?.roomNumber || "-"}>{room?.name || room?.roomNumber || "-"}</span>
                   <strong className="tenant-rent tenant-received" title={latestReceivedPayment ? `最近一次实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}>
                     {latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}
                   </strong>
@@ -1361,8 +1361,8 @@ function TenantDetail({
       <CompactDetailGroup className="tenant-core-detail-group">
         <CompactDetailGrid className="tenant-core-detail-grid">
         <div className="tenant-detail-pair-row">
-          <DetailField label="房源" value={propertyName} />
-          <DetailField label="房间" value={roomName} />
+          <DetailField className="tenant-detail-property" label="房源" value={propertyName} />
+          <DetailField className="tenant-detail-room" label="房间" value={roomName} />
         </div>
         <div className="tenant-detail-pair-row">
           <DetailField label="入住人数" value={`${tenant.occupantCount}人`} />
@@ -1726,16 +1726,6 @@ function daysBetween(startDate: string, endDate: string) {
 function compactPropertyName(name?: string) {
   const value = (name || "").replace(/\s+/g, "").trim();
   return value ? value.slice(0, 12) + (value.length > 12 ? "..." : "") : "-";
-}
-
-function compactRoomName(room?: BusinessRoom) {
-  const value = (room?.name || room?.roomNumber || "").trim();
-  if (!value) return "-";
-  const number = room?.roomNumber?.trim() || value.match(/^\d{1,4}/)?.[0] || "";
-  if (!number) return value.slice(0, 8) + (value.length > 8 ? "..." : "");
-  const description = value.slice(value.indexOf(number) + number.length).trim();
-  const compact = description ? number + " " + description.slice(0, 5) : number;
-  return compact.slice(0, 9) + (compact.length > 9 ? "..." : "");
 }
 
 function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, newDepositAmount: number): BusinessRentPayment {

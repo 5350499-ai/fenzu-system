@@ -39,6 +39,15 @@ test("tenant list collapses statuses into one wrapping track", () => {
   assert.match(css, /\.tenant-compact-list \.tenant-mobile-meta\s*\{[\s\S]*?flex-wrap:\s*wrap/);
 });
 
+test("tenant room uses a compact list contract and a full detail contract", () => {
+  assert.match(page, /className="tenant-list-room"/);
+  assert.doesNotMatch(page, /compactRoomName\(/);
+  assert.match(page, /className="tenant-detail-property"/);
+  assert.match(page, /className="tenant-detail-room"/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-detail-property > strong,[\s\S]*?\.tenant-detail-panel \.tenant-detail-room > strong[\s\S]*?overflow:\s*visible[\s\S]*?white-space:\s*normal/);
+});
+
 test("compact vertical rhythm uses relative gaps and preserves touch-sized actions", () => {
   assert.match(css, /--ui-compact-row-gap:\s*0\.5em/);
   assert.match(css, /\.tenant-core-detail-grid\s*\{[\s\S]*?row-gap:\s*0/);

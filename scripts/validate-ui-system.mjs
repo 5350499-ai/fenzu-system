@@ -375,6 +375,15 @@ if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?row-gap:\s*var\(--u
 if (!/\.tenant-detail-panel \.tenant-detail-actions[\s\S]*?row-gap:\s*0\.35em/i.test(css)) {
   failures.push("Tenant detail action rows must use the compact action gap");
 }
+if (!tenantsPage.includes('className="tenant-list-room"') || tenantsPage.includes("compactRoomName(")) {
+  failures.push("Tenant list room names must preserve the source value for CSS-only truncation");
+}
+if (!/\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis/i.test(css)) {
+  failures.push("Tenant list room names must be single-line and bounded with ellipsis");
+}
+if (!/\.tenant-detail-panel \.tenant-detail-room > strong[\s\S]*?white-space:\s*normal[\s\S]*?overflow:\s*visible/i.test(css)) {
+  failures.push("Tenant detail room values must remain fully readable and wrap naturally");
+}
 
 if (failures.length) {
   console.error("UI design-system validation failed:");
