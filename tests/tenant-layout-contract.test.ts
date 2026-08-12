@@ -7,6 +7,9 @@ const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
 test("current and moved-out tenants use the same detail component and compact action grid", () => {
   assert.equal((page.match(/<TenantDetail\b/g) || []).length, 1);
+  assert.equal((page.match(/record-detail-panel tenant-detail-panel/g) || []).length, 1);
+  assert.match(page, /tenant-lifecycle-status-area[\s\S]*?actualMoveOutDate/);
+  assert.equal((page.match(/movedOut && isActualMoveOutDateEnabled\(\)/g) || []).length, 1);
   assert.match(page, /className="compact-action-grid tenant-detail-actions"/);
   assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?row-gap:\s*var\(--ui-compact-action-row-gap\)/);

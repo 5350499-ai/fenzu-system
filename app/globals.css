@@ -22,7 +22,7 @@
   --tenant-detail-row-gap: var(--ui-compact-row-gap);
   --ui-compact-row-gap: 0.5em;
   --ui-compact-action-row-gap: 0.5em;
-  --ui-compact-action-grid-gap: 8px;
+  --ui-compact-action-grid-gap: 5px;
 }
 
 .attachment-upload-progress {
@@ -256,7 +256,8 @@ a {
 .compact-action-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ui-compact-action-grid-gap, 8px);
+  column-gap: var(--ui-compact-action-grid-gap, 5px);
+  row-gap: var(--ui-compact-action-row-gap, 0.5em);
   align-items: stretch;
   min-width: 0;
 }
@@ -268,6 +269,9 @@ a {
   min-height: var(--ui-touch-target, 44px);
   box-sizing: border-box;
   justify-content: center;
+  gap: 5px;
+  padding-inline: 6px;
+  white-space: nowrap;
 }
 
 .task-actions {
@@ -8562,7 +8566,8 @@ input[type="radio"] {
 }
 
 .tenant-detail-panel .tenant-detail-actions {
-  gap: var(--ui-space-3, 12px);
+  column-gap: var(--ui-compact-action-grid-gap, 5px);
+  row-gap: var(--ui-compact-action-row-gap, 0.5em);
 }
 
 .tenant-detail-panel .tenant-detail-action-button.danger,
@@ -8618,7 +8623,7 @@ input[type="radio"] {
 .tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
-.tenant-detail-panel .tenant-detail-action-button { min-height: var(--ui-touch-target, 44px); height: auto; padding-inline: var(--ui-space-2, 8px); font-size: var(--ui-font-size-button, 14px); line-height: var(--ui-line-height-tight, 1.2); white-space: normal; }
+.tenant-detail-panel .tenant-detail-action-button { min-height: var(--ui-touch-target, 44px); height: auto; padding-inline: 6px; font-size: var(--ui-font-size-button, 14px); line-height: var(--ui-line-height-tight, 1.2); white-space: nowrap; }
 .room-finance-line { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto auto; grid-template-areas: "room property status rent unpaid expiry"; min-height: 64px; padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px); gap: var(--ui-space-3, 12px); }
 .room-finance-line > :nth-child(1) { grid-area: property; }
 .room-finance-line > :nth-child(2) { grid-area: room; }

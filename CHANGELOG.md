@@ -972,3 +972,9 @@
 - Added the shared `.compact-action-grid` contract for short independent business actions.
 - Migrated Tenant Detail, task, expense/rent-payment detail and property detail action groups to three natural-flow columns while retaining two-column/single-column semantics for modal, confirmation, form and payment-specific action groups.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-12 - Tenant detail shell and compact action spacing
+
+- Unified moved-out lifecycle/date rows inside the existing Tenant Detail status owner so current and moved-out details share the same shell contract.
+- Tightened the shared compact action grid to a 5px mobile column gap, 6px inline button padding and a 5px icon/text gap while preserving 44px touch targets and payment-specific two-column groups.
+- No business logic, database, schema, permissions, real data or Production changes.

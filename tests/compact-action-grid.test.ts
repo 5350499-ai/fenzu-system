@@ -13,8 +13,9 @@ const designSystem = readFileSync(new URL("../UI_DESIGN_SYSTEM.md", import.meta.
 
 test("compact action grid owns three equal mobile columns and preserves touch targets", () => {
   assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?gap:\s*var\(--ui-compact-action-grid-gap/);
+  assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?column-gap:\s*var\(--ui-compact-action-grid-gap/);
   assert.match(css, /\.compact-action-grid\s*>\s*\.btn,[\s\S]*?min-height:\s*var\(--ui-touch-target/);
+  assert.match(css, /\.compact-action-grid\s*>\s*\.btn,[\s\S]*?gap:\s*5px[\s\S]*?padding-inline:\s*6px[\s\S]*?white-space:\s*nowrap/);
 });
 
 test("Tenant Detail and short record groups use the shared root", () => {

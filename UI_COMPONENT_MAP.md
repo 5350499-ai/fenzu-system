@@ -66,6 +66,8 @@ TenantDetail
 
 ### Tenant Detail Density Ownership
 
+- Current and moved-out tenants both render through the same `TenantDetail` component and `.record-detail-panel.tenant-detail-panel` shell. Moved-out status/date content may add rows inside `.tenant-lifecycle-status-area`, but must not introduce a second detail shell or a looser padding wrapper.
+
 - 基础资料内部密度 owner：`.tenant-core-detail-group`、`.tenant-core-detail-grid`、`.compact-detail-row`。当前 core row gap 约为 `0.35em`，`compact-detail-row` 的 `padding-block` 为 `0`。基础资料过松时先检查这里，不要修改全局 compact token。
 - Tenant Detail direct-child section rhythm owner：`.record-detail-panel.tenant-detail-panel`。它负责 action、基础资料、押金、付款摘要、图表和历史记录之间的 section gap；它不负责 core rows。
 - 押金状态 owner：`.tenant-lifecycle-status-area`、`.deposit-status-detail`。嵌套押金块必须从这里处理，不能只写 `.tenant-detail-panel > .deposit-status-detail`。
@@ -98,6 +100,10 @@ This root does not own `modal-actions`, confirmation/cancel footers, form submis
 `PropertyMultiSelect` confirmation, long CTAs, or payment-specific two-action rows such as
 `.tenant-debt-action-buttons` and `.reminder-rent-actions`. Those groups retain their own
 semantic layout because two-column or single-column presentation is part of their meaning.
+
+The shared compact root uses a narrow mobile column gap and compact button internals while
+preserving the 44px touch target. Tenant Detail and other short-action owners must not add a
+page-local gap or nowrap/overflow variant.
 
 ## Reminder UI Root
 

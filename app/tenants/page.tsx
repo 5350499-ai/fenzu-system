@@ -1431,16 +1431,15 @@ function TenantDetail({
           </div>
           {depositStatus === "未建立押金管理记录" ? <button className="btn" disabled={saving} type="button" onClick={onCreateDeposit}>建立押金管理记录</button> : <button className="btn" disabled={saving} type="button" onClick={onEditDepositStatus}>修改押金状态</button>}
           </div>
-        </div>
-      ) : null}
-
-      {movedOut && isActualMoveOutDateEnabled() ? (
-        <div className="deposit-status-detail">
-          <div>
-            <span className="muted">实际退租日期</span>
-            <strong>{tenant.actualMoveOutDate || "未录入"}</strong>
-          </div>
-          <button className="btn" disabled={saving} type="button" onClick={onEditMoveOutDate}>{tenant.actualMoveOutDate ? "修改实际退租日期" : "补录实际退租日期"}</button>
+          {movedOut && isActualMoveOutDateEnabled() ? (
+            <div className="deposit-status-detail">
+              <div>
+                <span className="muted">实际退租日期</span>
+                <strong>{tenant.actualMoveOutDate || "未录入"}</strong>
+              </div>
+              <button className="btn" disabled={saving} type="button" onClick={onEditMoveOutDate}>{tenant.actualMoveOutDate ? "修改实际退租日期" : "补录实际退租日期"}</button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

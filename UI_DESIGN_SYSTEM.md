@@ -746,3 +746,5 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Buttons flow naturally in source order. Missing permissions or unavailable actions do not create spacer cells or artificial empty slots.
 - The shared root is for compact business actions only. Confirmation/cancel pairs, save/back controls, modal footers, form submission actions, long-label CTAs and payment-specific two-action groups remain two-column or single-column according to their semantic contract.
 - The shared root is owned by `app/globals.css` and mapped in `UI_COMPONENT_MAP.md`; page-specific action groups must not create a parallel two/three-column implementation.
+- On mobile the shared root uses a compact 4-6px column gap, compact inline button padding, and a small icon/text gap. Short labels, including an icon plus four Chinese characters such as `永久删除`, should remain on one line when the three-column contract fits; use `white-space: nowrap` without shrinking the 44px touch target.
+- Payment-specific two-action groups remain two columns and do not inherit the compact three-column root.
