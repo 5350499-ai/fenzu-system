@@ -19,7 +19,9 @@
   --tenant-list-gap: 2px;
   --tenant-list-badge-font-size: 10px;
   --tenant-list-badge-height: 22px;
-  --tenant-detail-row-gap: 8px;
+  --tenant-detail-row-gap: var(--ui-compact-row-gap);
+  --ui-compact-row-gap: 0.5em;
+  --ui-compact-action-row-gap: 0.5em;
 }
 
 .attachment-upload-progress {
@@ -9798,6 +9800,36 @@ label.field > span,
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
+}
+
+/* Compact vertical rhythm: reduce inter-row whitespace without shrinking text or touch targets. */
+.tenant-core-detail-grid {
+  row-gap: 0;
+}
+
+.tenant-core-detail-grid > .tenant-detail-pair-row + .tenant-detail-pair-row,
+.tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-core-detail-grid > .tenant-note-field,
+.tenant-core-detail-grid > .tenant-details-toggle-row {
+  margin-top: var(--ui-compact-row-gap);
+}
+
+.tenant-detail-panel .tenant-detail-actions {
+  row-gap: var(--ui-compact-action-row-gap);
+}
+
+.reminder-center .reminder-list {
+  gap: var(--ui-compact-row-gap);
+}
+
+.reminder-center .reminder-row-compact,
+.reminder-page-list-single .reminder-row-full,
+.reminder-page-list-single .reminder-row-compact {
+  gap: var(--ui-compact-row-gap);
+}
+
+.debt-action-panel {
+  gap: var(--ui-compact-row-gap);
 }
 
 /* Current and moved-out details share one predictable two-column action grid. */

@@ -695,3 +695,11 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - All four paired rows use the same two-column grid, gap, typography and value wrapping rules. Coverage end and notes remain full-width rows.
 - Current and moved-out tenants use the same base detail markup. Lifecycle-specific information may appear only in a compact status area above or below it.
 - A tenant detail may render the deposit status once only. Repeated lifecycle badges or duplicate deposit-status copies are not allowed; payment-summary “no records” text must remain in its payment-statistics context.
+
+## 51. Compact Vertical Rhythm Contract
+
+- Compact information rows use the relative `--ui-compact-row-gap` token, targeting roughly half of the current body-text height. Pages must not invent large row margins for the same semantic group.
+- Body line-height remains readable; compactness comes from the gap between rows, not from collapsing the text line box.
+- Tenant detail fields, reminder rows and compact action grids may use the compact rhythm. Section-to-section/card-to-card spacing remains a separate visual grouping concern.
+- Action controls retain the existing mobile touch target (`--ui-touch-target`, approximately 44px); only the gap between action rows is reduced.
+- The contract must remain safe at 375px, 390px and 430px, with natural wrapping and no fixed-height text rows, clipping or horizontal overflow.

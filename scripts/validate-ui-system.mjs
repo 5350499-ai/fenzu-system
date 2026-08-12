@@ -142,6 +142,7 @@ const required = [
   [guide, "Archive vs Debt Contract", "UI guide must define archive versus debt presentation behavior"],
   [guide, "Rent Reminder Display Contract", "UI guide must define the two-line rent reminder presentation contract"],
   [guide, "Tenant Information Display Contract", "UI guide must define the shared tenant reminder typography contract"],
+  [guide, "Compact Vertical Rhythm Contract", "UI guide must define the compact vertical rhythm contract"],
   [rentPeriodState, "hasOpenDebtFollowUp", "Rent period state must expose a debt follow-up candidate without final reminder presentation"],
   [debtCase, "tenantLifecycle", "DebtCase must preserve lifecycle without settling debt"],
   [debtCase, "canWaive", "DebtCase must preserve payment-specific waiver action metadata"],
@@ -152,6 +153,7 @@ const required = [
   [reminderRow, "reminder-row-link", "Full tenant debt rows must keep a stable deep-link target"],
   [reminderRow, "续交房租", "Positive tenant debt must expose the tenant-facing collection label"],
   [css, "--tenant-list-font-size", "Tenant reminder typography must use the tenant-list token"],
+  [css, "--ui-compact-row-gap", "CSS must define the relative compact row gap token"],
   [readFileSync(resolve(root, "app/expenses/page.tsx"), "utf8"), "PropertyMultiSelect", "Expense list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/rent-payments/page.tsx"), "utf8"), "PropertyMultiSelect", "Rent payment list property scope must use the shared selector"],
   [readFileSync(resolve(root, "app/partner-settlements/page.tsx"), "utf8"), "PropertyMultiSelect", "Settlement history property scope must use the shared selector"]
