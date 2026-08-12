@@ -1356,8 +1356,10 @@ function TenantDetail({
         {coverageExpiry ? <DetailField label={"\u8ddd\u79bb\u79df\u91d1\u5230\u671f"} value={coverageExpiry} /> : null}
         <DetailField label="房源" value={propertyName} />
         <DetailField label="房间" value={roomName} />
-        <DetailField label="入住人数" value={`${tenant.occupantCount}人`} />
-        <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
+        <div className="tenant-basic-detail-grid">
+          <DetailField label="入住人数" value={`${tenant.occupantCount}人`} />
+          <DetailField label="每月缴费日" value={tenant.paymentDay ? `每月${tenant.paymentDay}号` : "未设置"} />
+        </div>
         <div className="tenant-amount-grid">
           <DetailField label="月租标准" value={euro(tenant.monthlyRent)} />
           <DetailField label="最近一次实收" value={euro(latestReceived)} />
@@ -1425,13 +1427,6 @@ function TenantDetail({
           <span className="tenant-performance-metric">最长迟交<strong>{performance.longestLateDays ?? "-"}天</strong></span>
           <span className="tenant-performance-metric">按时付款率<strong className={`tenant-payment-rate ${paymentRateTone}`}>{paymentRateLabel}</strong></span>
         </div>
-        {performance.periods.length === 0 ? (
-          <div className="tenant-performance-empty">
-            <strong>暂无足够数据</strong>
-            <span>完成下一次完整自然月房租收款后，系统将开始生成迟交趋势和付款统计。</span>
-            {performance.excludedCount ? <span>另有{performance.excludedCount}条历史记录因首月、非完整月份或日期不足，未纳入统计。</span> : null}
-          </div>
-        ) : null}
         {performance.currentOverdueDays != null ? <div className={`tenant-current-overdue ${performance.currentOverdueDays >= 10 ? "red" : "yellow"}`}>当前逾期 {performance.currentOverdueDays} 天</div> : null}
       </section>
 

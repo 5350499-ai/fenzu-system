@@ -9261,6 +9261,18 @@ label.field > span,
   min-width: 0;
 }
 
+.tenant-core-detail-group .tenant-basic-detail-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--ui-space-3, 12px);
+  min-width: 0;
+}
+
+.tenant-core-detail-group .tenant-basic-detail-grid .compact-detail-row {
+  min-width: 0;
+}
+
 .tenant-core-detail-group .tenant-amount-grid .compact-detail-row {
   min-width: 0;
 }
