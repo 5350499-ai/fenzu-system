@@ -3034,6 +3034,137 @@ td:last-child {
   .attachment-inline-action { min-width: 42px; }
 }
 
+/* Shared reminder presentation: compact homepage and complete summary use the same facts order. */
+.reminder-center .reminder-row-compact,
+.reminder-page-list-single .reminder-row-full,
+.reminder-page-list-single .reminder-row-compact {
+  box-sizing: border-box;
+  display: grid;
+  min-inline-size: 0;
+  min-block-size: 74px;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.reminder-page-list-single .reminder-row-full {
+  min-block-size: 96px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.reminder-page-list-single .reminder-row-full:last-child { border-bottom: 0; }
+
+.reminder-center .reminder-row-primary,
+.reminder-page-list-single .reminder-row-primary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  align-items: start;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.reminder-center .reminder-row-primary > strong,
+.reminder-page-list-single .reminder-row-primary > strong {
+  min-inline-size: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.reminder-center .reminder-row-context,
+.reminder-page-list-single .reminder-row-context,
+.reminder-center .reminder-row-secondary,
+.reminder-page-list-single .reminder-row-secondary {
+  min-inline-size: 0;
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.reminder-row-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-inline-size: 132px;
+}
+
+.reminder-row-kind .badge,
+.reminder-row-badges .badge {
+  min-block-size: 22px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.reminder-page-list-single .reminder-row-kind { grid-column: 1; }
+.reminder-page-list-single .reminder-row-primary > strong { grid-column: 2; }
+.reminder-page-list-single .reminder-row-context { grid-column: 3; }
+.reminder-page-list-single .reminder-row-badges { grid-column: 4; }
+.reminder-page-list-single .reminder-rent-actions { grid-column: 1 / -1; }
+
+.reminder-page-list-single .reminder-rent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .reminder-center .reminder-row-primary,
+  .reminder-page-list-single .reminder-row-primary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .reminder-center .reminder-row-primary > strong,
+  .reminder-page-list-single .reminder-row-primary > strong {
+    grid-column: 1;
+  }
+
+  .reminder-center .reminder-row-context,
+  .reminder-page-list-single .reminder-row-context {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .reminder-center .reminder-row-badges,
+  .reminder-page-list-single .reminder-row-badges {
+    grid-column: 2;
+    grid-row: 1;
+    max-inline-size: 124px;
+  }
+
+  .reminder-page-list-single .reminder-row-kind {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .reminder-page-list-single .reminder-row-primary > strong {
+    grid-row: 2;
+  }
+
+  .reminder-page-list-single .reminder-row-context {
+    grid-row: 3;
+  }
+
+  .reminder-page-list-single .reminder-row-badges {
+    grid-row: 2;
+  }
+}
+
 .settings-entry-card {
   display: flex;
   flex-direction: column;
@@ -3212,92 +3343,6 @@ td:last-child {
 
 .tenant-deep-link-target:not(.tenant-card-expanded) .tenant-card-toggle {
   background: var(--surface-hover);
-}
-
-/* Homepage reminder center only: one compact visual skeleton for debt and rent rows. */
-.reminder-center .homepage-reminder-row {
-  box-sizing: border-box;
-  display: grid;
-  min-block-size: 74px;
-  min-inline-size: 0;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-soft);
-  color: inherit;
-  text-decoration: none;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-primary-homepage,
-.reminder-center .homepage-reminder-primary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) auto;
-  align-items: start;
-  gap: 6px;
-  min-inline-size: 0;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-tenant,
-.reminder-center .homepage-reminder-row .debt-row-context,
-.reminder-center .homepage-reminder-row .debt-row-secondary {
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-tenant,
-.reminder-center .homepage-reminder-row .homepage-reminder-primary strong {
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 850;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-context {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-secondary {
-  color: var(--muted);
-  line-height: 1.35;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.reminder-center .homepage-reminder-row .debt-row-badges {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-  max-inline-size: 132px;
-}
-
-.reminder-center .homepage-reminder-row .badge {
-  min-block-size: 22px;
-  box-sizing: border-box;
-  padding: 2px 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .reminder-center .homepage-reminder-row .debt-row-primary-homepage,
-  .reminder-center .homepage-reminder-primary {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .reminder-center .homepage-reminder-row .debt-row-context {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .reminder-center .homepage-reminder-row .debt-row-badges {
-    max-inline-size: 122px;
-  }
 }
 
 .pagination-size-select {

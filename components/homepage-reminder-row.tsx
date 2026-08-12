@@ -1,19 +1,7 @@
-import Link from "next/link";
-import { DebtRow } from "@/components/debt-row";
 import type { ReminderItem } from "@/lib/reminder-engine";
+import { ReminderRow } from "@/components/reminder-row";
+import type { ReminderDisplayContext } from "@/lib/reminder-display";
 
-export function HomepageReminderRow({ item }: { item: ReminderItem }) {
-  if (item.debtCase) {
-    return <DebtRow
-      className={`reminder-item ${item.tone} rent-reminder`}
-      debtCase={item.debtCase}
-      href={item.href}
-      variant="homepage"
-    />;
-  }
-
-  return <Link className={`reminder-item homepage-reminder-row ${item.tone}`} href={item.href}>
-    <span className="debt-row-primary homepage-reminder-primary"><strong>{item.title}</strong></span>
-    <small className="debt-row-secondary">{item.description}</small>
-  </Link>;
+export function HomepageReminderRow({ item, context }: { item: ReminderItem; context: ReminderDisplayContext }) {
+  return <ReminderRow item={item} context={context} variant="compact" />;
 }

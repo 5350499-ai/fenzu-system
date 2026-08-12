@@ -350,7 +350,7 @@ if (!debtCase.includes("tenantLifecycle") || !debtCase.includes("debtKind")) {
 if (!rentReminderDisplay.includes("lifecycleLabel") || !rentReminderDisplay.includes("debtKindLabel") || !rentReminderDisplay.includes("availableActions")) {
   failures.push("Rent reminder display contract must retain lifecycle, debt kind, and action availability");
 }
-if (!sharedRentReminderDisplay.includes("StatusBadge") || (!dashboardPage.includes("DebtRow") && !dashboardPage.includes("HomepageReminderRow")) || !homepageReminderRow.includes("DebtRow") || !remindersPage.includes("DebtRow")) {
+if (!sharedRentReminderDisplay.includes("StatusBadge") || (!dashboardPage.includes("DebtRow") && !dashboardPage.includes("HomepageReminderRow")) || !homepageReminderRow.includes("ReminderRow") || !remindersPage.includes("ReminderRow")) {
   failures.push("Dashboard and reminder center must render payment-backed reminders through one shared display component");
 }
 

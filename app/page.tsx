@@ -242,7 +242,7 @@ export default function DashboardPage() {
         {remindersOpen ? (
           <div className="reminder-list">
             {visibleReminders.length ? visibleReminders.map((item) => {
-              return <HomepageReminderRow item={item} key={item.id} />;
+              return <HomepageReminderRow item={item} context={{ properties, rooms, tenants }} key={item.id} />;
             }) : <p className="muted">暂无需要处理的提醒。</p>}
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
           </div>

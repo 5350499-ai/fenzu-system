@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
 import { DebtRow } from "@/components/debt-row";
+import { ReminderRow as SharedReminderRow } from "@/components/reminder-row";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -130,6 +131,7 @@ export default function RemindersPage() {
     }
   }
 
+  /* category sections were replaced by the single reminder summary list */
   const grouped = useMemo(() => {
     const groups = ["欠费提醒", "收租提醒", "合同30天内到期", "押金异常", "即将退租", "空置房间", ...(access.isFreeSingle ? [] : ["备份提醒"])];
     return groups.map((group) => ({
@@ -159,15 +161,15 @@ export default function RemindersPage() {
           </div>
           <StatusBadge tone={reminders.length ? "amber" : "green"}>{reminders.length} 条提醒</StatusBadge>
         </div>
-        <div className="reminder-page-list">
-          {reminders.slice(0, 8).map((item) => (
-            <ReminderRow item={item} key={item.id} onWaive={setWaiveTarget} />
+        <div className="reminder-page-list reminder-page-list-single">
+          {reminders.map((item) => (
+            <SharedReminderRow item={item} context={{ properties, rooms, tenants }} key={item.id} onWaive={setWaiveTarget} />
           ))}
           {!reminders.length ? <p className="muted">暂无系统提醒。</p> : null}
         </div>
       </section>
 
-      <div className="grid dashboard-panels">
+      {false && <div className="grid dashboard-panels">
         {grouped.map((group) => (
           <section className="card panel" key={group.title}>
             <div className="panel-header">
@@ -180,7 +182,7 @@ export default function RemindersPage() {
             </div>
           </section>
         ))}
-      </div>
+      </div>}
       {waiveTarget ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
         <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
           <h2 className="panel-title">确认放弃追缴</h2>
