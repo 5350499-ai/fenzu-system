@@ -3370,6 +3370,9 @@ td:last-child {
 .debt-action-panel-actions, .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .debt-action-panel-actions:has(> .btn:nth-child(2)) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .debt-action-panel-actions .btn { min-inline-size: 0; width: 100%; justify-content: center; }
+.tenant-debt-action-stack { display: grid; gap: var(--ui-compact-row-gap, 0.5em); min-width: 0; }
+.tenant-debt-action-stack .debt-action-panel { margin: 0; }
+.tenant-debt-action-stack .debt-action-panel-focused { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
 .reminder-list .debt-row, .reminder-page-row .debt-row { border-bottom: 1px solid var(--border); }
 .reminder-list .debt-row:last-child { border-bottom: 0; }
 @media (max-width: 640px) {

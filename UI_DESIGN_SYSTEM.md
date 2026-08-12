@@ -677,6 +677,14 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Pages may choose compact or full row structure, but must not define a separate tenant-name font, supporting-text scale, badge height or badge padding for the same semantic content.
 - Positive debt rows expose the existing collection action with the tenant-facing label `续交房租` plus `放弃追缴`; a valid zero-amount debt exposes only `放弃追缴`. Both actions continue to use the existing business entry points.
 
+## 47.1 Tenant Debt Action Placement Contract
+
+- The collapsed tenant row shows debt status only. After a tenant is expanded, any open `DebtCase` is rendered immediately before the shared `TenantDetail`.
+- Debt actions remain payment-specific. Multiple open debts render one compact action panel per payment, including coverage end, overdue days, amount and the existing actions.
+- Current and moved-out tenants use the same debt-action component. Move-out does not hide an actionable historical debt.
+- A positive debt exposes `续交房租` and `放弃追缴`; a valid €0 debt exposes only `放弃追缴`. These controls continue using the existing collection and waiver entry points.
+- When open debt exists, the ordinary renewal control is not duplicated beside the debt-specific collection action.
+
 ## 48. Tenant List Column Contract
 
 - Current and moved-out tenant lists use the same responsive column definition for tenant name, property, room and status badges.

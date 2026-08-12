@@ -12,6 +12,22 @@ test("current and moved-out tenants use the same detail component and compact ac
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-spacer\s*\{\s*display:\s*none/);
 });
 
+test("expanded tenants place payment-specific debt actions before the shared detail", () => {
+  assert.match(page, /const tenantDebtCases = getTenantDebtCases\(tenant\.id, debtCases\)/);
+  assert.match(page, /<TenantDebtActionStack debtCases=\{tenantDebtCases\}/);
+  assert.ok(page.indexOf("<TenantDebtActionStack") < page.indexOf("<TenantDetail"));
+  assert.match(page, /canCollectRent=\{access\.can\("rent_payments", "create"\).*tenantDebtCases\.length === 0\}/);
+});
+
+test("debt action stack keeps each open debt payment-specific and preserves zero-debt waiver behavior", () => {
+  const panel = readFileSync(new URL("../components/debt-action-panel.tsx", import.meta.url), "utf8");
+  assert.match(panel, /debtCases\.map\(\(debtCase\) => <DebtActionPanel key=\{debtCase\.debtCaseId\}/);
+  assert.match(panel, /data-payment-id=\{debtCase\.paymentId\}/);
+  assert.match(panel, /debtCase\.canCollect \?/);
+  assert.match(panel, /debtCase\.canWaive \?/);
+  assert.match(panel, /className="tenant-debt-action-stack"/);
+});
+
 test("tenant detail uses the final four-pair plus two-wide-row contract", () => {
   assert.equal((page.match(/className="tenant-detail-pair-row"/g) || []).length, 4);
   assert.match(page, /className="tenant-detail-wide-row tenant-coverage-field"/);

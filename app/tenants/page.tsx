@@ -58,7 +58,7 @@ import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTen
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
 import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
 import { DebtRow } from "@/components/debt-row";
-import { DebtActionPanel } from "@/components/debt-action-panel";
+import { TenantDebtActionStack } from "@/components/debt-action-panel";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
@@ -967,7 +967,7 @@ export default function TenantsPage() {
                 : (paymentPerformance?.onTimeRate || 0) >= 80 ? "blue" : "orange"
               : "neutral";
             const expanded = detailTenantId === tenant.id;
-            const debtFocusCase = expanded ? debtCases.find((item) => item.tenantId === tenant.id && item.paymentId === debtFocusPaymentId) || null : null;
+            const tenantDebtCases = getTenantDebtCases(tenant.id, debtCases);
             return (
               <Fragment key={tenant.id}>
                 {retired && !previousRetired ? <div className="tenant-status-group-title tenant-retired-group-title"><button className="tenant-status-group-toggle" type="button" onClick={() => setRetiredExpanded((current) => !current)} aria-expanded={showRetiredExpanded}>已退租租客（{retiredCount}组） <span>{showRetiredExpanded ? "收起" : "展开"}</span></button></div> : null}
@@ -1000,6 +1000,7 @@ export default function TenantsPage() {
                   <span className="tenant-toggle-control tenant-deposit-badge" onClick={(event) => event.stopPropagation()}><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
                 </span>
                 </button>
+                {expanded ? <TenantDebtActionStack debtCases={tenantDebtCases} focusedPaymentId={debtFocusPaymentId} onWaive={waiveDebtCase} /> : null}
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
                     <span className="tenant-expiry-dot" aria-hidden="true" />
@@ -1007,7 +1008,7 @@ export default function TenantsPage() {
                     <span className="tenant-expiry-date">覆盖至 {expiryInfo.endDate}</span>
                   </div>
                 ) : null}
-                {expanded && debtFocusCase ? <DebtActionPanel debtCase={debtFocusCase} onWaive={waiveDebtCase} /> : expanded ? (
+                {expanded ? <>
                   <TenantDetail
                     contract={contract}
                     coverageEnd={rentDisplay.state.coverageEndDate || "-"}
@@ -1021,7 +1022,7 @@ export default function TenantsPage() {
                     isAdmin={access.can("tenants", "delete")}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
-                    canCollectRent={access.can("rent_payments", "create") && isCurrentRentalRelationship(tenant)}
+                    canCollectRent={access.can("rent_payments", "create") && isCurrentRentalRelationship(tenant) && tenantDebtCases.length === 0}
                     canViewFiles={access.can("attachments") && access.canSensitive("canViewContractFiles")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
                     canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
@@ -1047,7 +1048,7 @@ export default function TenantsPage() {
                     depositStatus={depositStatus}
                     partnerDirectory={partnerDirectory}
                   />
-                ) : null}
+                </> : null}
                 </article> : null}
               </Fragment>
             );
