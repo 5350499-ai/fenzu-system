@@ -77,7 +77,7 @@ TenantDetail
 
 ## Tenant Debt Action Root
 
-`DebtCase` 只负责 debt domain fact；Tenant Detail 的 `.tenant-detail-actions` 只负责 action placement。
+`lib/debt-case.ts` 的 `DebtCase` 只负责 debt domain fact；Tenant Detail 的 `.tenant-detail-actions` 只负责 action placement。
 
 - 正数欠费：`续交房租` + `放弃追缴`。
 - 有效 €0 欠费：仅 `放弃追缴`。
@@ -87,6 +87,10 @@ TenantDetail
 ## Reminder UI Root
 
 `Reminder Engine` 是提醒业务真源；shared Reminder Display Model / row 是展示真源。首页和 `/reminders` 必须消费同一 collection，不得页面级重新计算租金或欠费状态。
+
+## Property Scope Root
+
+`components/property-multi-select.tsx` 的 `PropertyMultiSelect` 与 `lib/property-scope.ts` 的 `property-scope` 是跨房源查询范围的唯一 owner。列表、统计、利润和结算页面不得建立平行的房源范围选择器。
 
 ## Modal / Dropdown Root
 
