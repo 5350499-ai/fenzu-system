@@ -21,6 +21,7 @@ const checkInPage = readFileSync(resolve(root, "app/check-in/page.tsx"), "utf8")
 const propertyProfitsPage = readFileSync(resolve(root, "app/property-profits/page.tsx"), "utf8");
 const cacheManager = readFileSync(resolve(root, "lib/cache/cache-manager.ts"), "utf8");
 const dashboardPage = readFileSync(resolve(root, "app/page.tsx"), "utf8");
+const homepageReminderRow = readFileSync(resolve(root, "components/homepage-reminder-row.tsx"), "utf8");
 const remindersPage = readFileSync(resolve(root, "app/reminders/page.tsx"), "utf8");
 const propertyMultiSelect = readFileSync(resolve(root, "components/property-multi-select.tsx"), "utf8");
 const propertyScope = readFileSync(resolve(root, "lib/property-scope.ts"), "utf8");
@@ -349,7 +350,7 @@ if (!debtCase.includes("tenantLifecycle") || !debtCase.includes("debtKind")) {
 if (!rentReminderDisplay.includes("lifecycleLabel") || !rentReminderDisplay.includes("debtKindLabel") || !rentReminderDisplay.includes("availableActions")) {
   failures.push("Rent reminder display contract must retain lifecycle, debt kind, and action availability");
 }
-if (!sharedRentReminderDisplay.includes("StatusBadge") || !dashboardPage.includes("DebtRow") || !remindersPage.includes("DebtRow")) {
+if (!sharedRentReminderDisplay.includes("StatusBadge") || (!dashboardPage.includes("DebtRow") && !dashboardPage.includes("HomepageReminderRow")) || !homepageReminderRow.includes("DebtRow") || !remindersPage.includes("DebtRow")) {
   failures.push("Dashboard and reminder center must render payment-backed reminders through one shared display component");
 }
 

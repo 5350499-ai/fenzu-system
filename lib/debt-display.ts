@@ -4,6 +4,8 @@ import { euro } from "./format.ts";
 
 export type DebtDisplayModel = {
   primaryLine: string;
+  tenantName: string;
+  contextLine: string;
   secondaryLine: string;
   lifecycleLabel: string;
   lifecycleTone: "green" | "amber" | "blue";
@@ -18,6 +20,8 @@ export function buildDebtDisplayModel(debtCase: DebtCase): DebtDisplayModel {
   const lifecycleTone = lifecycleLabel === "在租" ? "green" : lifecycleLabel === "已退租" ? "amber" : "blue";
   return {
     primaryLine: [debtCase.tenantName, debtCase.propertyName, debtCase.roomName].filter(Boolean).join(" | "),
+    tenantName: debtCase.tenantName,
+    contextLine: [debtCase.propertyName, debtCase.roomName].filter(Boolean).join(" | "),
     secondaryLine: `覆盖至 ${debtCase.coverageEnd || "-"} | 已逾期 ${debtCase.daysOverdue} 天 | ${euro(debtCase.remainingAmount)}`,
     lifecycleLabel,
     lifecycleTone,

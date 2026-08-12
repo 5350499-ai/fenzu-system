@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MetricCard } from "@/components/metric-card";
-import { DebtRow } from "@/components/debt-row";
+import { HomepageReminderRow } from "@/components/homepage-reminder-row";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -242,10 +242,7 @@ export default function DashboardPage() {
         {remindersOpen ? (
           <div className="reminder-list">
             {visibleReminders.length ? visibleReminders.map((item) => {
-              const debtCase = item.debtCase;
-              return debtCase ? <DebtRow className={`reminder-item ${item.tone} rent-reminder`} debtCase={debtCase} href={item.href} key={item.id} /> : <Link className={`reminder-item ${item.tone}`} href={item.href} key={item.id}>
-                <><span>{item.title}</span><small>{item.description}</small></>
-              </Link>;
+              return <HomepageReminderRow item={item} key={item.id} />;
             }) : <p className="muted">暂无需要处理的提醒。</p>}
             {reminders.length > 3 ? <Link className="btn" href="/reminders">查看更多</Link> : null}
           </div>
