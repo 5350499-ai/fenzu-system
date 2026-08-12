@@ -369,8 +369,8 @@ if (!/\.tenant-compact-list \.tenant-status-wrapper[\s\S]*?flex-wrap:\s*wrap/i.t
 if (!/\.tenant-compact-list \.tenant-mobile-meta[\s\S]*?flex-wrap:\s*wrap/i.test(css)) {
   failures.push("Tenant mobile metadata must be allowed to wrap");
 }
-if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?row-gap:\s*var\(--ui-compact-row-gap\)/i.test(css)) {
-  failures.push("Tenant core detail rows must use the shared compact grid gap");
+if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?(?:--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)|row-gap:\s*var\(--ui-compact-row-gap\))/i.test(css)) {
+  failures.push("Tenant core detail rows must use a scoped relative compact grid gap");
 }
 if (!/\.tenant-detail-panel \.tenant-detail-actions[\s\S]*?row-gap:\s*0\.35em/i.test(css)) {
   failures.push("Tenant detail action rows must use the compact action gap");

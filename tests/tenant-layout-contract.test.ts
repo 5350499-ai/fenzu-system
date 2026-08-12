@@ -16,7 +16,7 @@ test("expanded tenants place payment-specific actions in the existing detail act
   assert.match(page, /const tenantDebtCases = getTenantDebtCases\(tenant\.id, debtCases\)/);
   assert.match(page, /debtCases=\{tenantDebtCases\}/);
   assert.match(page, /onWaiveDebt=\{waiveDebtCase\}/);
-  assert.match(page, /className=\{`tenant-debt-action-row/);
+  assert.match(page, /className="tenant-detail-debt-delete-row"/);
   assert.match(page, /canCollectRent=\{access\.can\("rent_payments", "create"\).*tenantDebtCases\.length === 0\}/);
 });
 
@@ -27,7 +27,8 @@ test("tenant detail keeps payment-specific actions without a standalone debt car
   assert.match(page, /debtCase\.canWaive \?/);
   assert.match(page, /已逾期\$\{primaryDebtCase\.daysOverdue\}天/);
   assert.match(page, /data-payment-id=\{debtCase\.paymentId\}/);
-  assert.match(css, /\.tenant-debt-action-row\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
+  assert.match(css, /\.tenant-detail-debt-delete-row\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
+  assert.doesNotMatch(css, /tenant-detail-debt-delete-row[^\{]*\{[^\}]*grid-template-columns:\s*1fr/);
 });
 
 test("tenant detail does not repeat lifecycle or debt badges inside the deposit section", () => {
@@ -83,8 +84,9 @@ test("compact vertical rhythm uses relative gaps and preserves touch-sized actio
 });
 
 test("tenant detail core rows use one gap source and keep action touch targets", () => {
-  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid\s*\{[\s\S]*?row-gap:\s*var\(--ui-compact-row-gap\)/);
-  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid \.compact-detail-row\s*\{[\s\S]*?padding-block:\s*2px/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid\s*\{[\s\S]*?--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid \.compact-detail-row\s*\{[\s\S]*?padding-block:\s*0/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-core-detail-grid\s*\{[\s\S]*?row-gap:\s*0\.35em/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-actions\s*\{[\s\S]*?row-gap:\s*0\.35em[\s\S]*?margin-block:\s*0[\s\S]*?padding-block:\s*0/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-action-button\s*\{[\s\S]*?min-height:\s*var\(--ui-touch-target/);
 });

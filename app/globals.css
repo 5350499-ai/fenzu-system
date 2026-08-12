@@ -3367,16 +3367,23 @@ td:last-child {
 .debt-row-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
 .debt-row-secondary { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; color: var(--muted); }
 .reminder-rent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.tenant-debt-action-row {
+.tenant-detail-debt-delete-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-column: 1 / -1;
+  gap: var(--ui-compact-action-row-gap, 0.35em);
+  min-width: 0;
+}
+.tenant-detail-debt-delete-row .tenant-detail-action-button { min-width: 0; width: 100%; }
+.tenant-detail-debt-extra-row {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--ui-compact-action-row-gap, 0.35em);
   min-width: 0;
-  padding-block: 2px;
 }
-.tenant-debt-action-row-focused { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
+.tenant-detail-debt-extra-row-focused { outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent); outline-offset: 2px; }
 .tenant-debt-action-status { min-width: 0; color: var(--muted); font-size: var(--ui-font-size-secondary, 13px); line-height: var(--ui-line-height-normal, 1.45); overflow-wrap: anywhere; }
 .tenant-debt-action-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ui-compact-action-row-gap, 0.35em); min-width: 0; }
 .tenant-debt-action-buttons:has(> .btn:only-child) { grid-template-columns: minmax(0, 1fr); }
@@ -9186,7 +9193,8 @@ label.field > span,
 }
 
 .tenant-detail-panel .tenant-core-detail-grid {
-  row-gap: var(--ui-compact-row-gap);
+  --tenant-detail-row-gap: 0.35em;
+  row-gap: var(--tenant-detail-row-gap);
 }
 
 .tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row,
@@ -9207,7 +9215,23 @@ label.field > span,
 
 .tenant-detail-panel .tenant-core-detail-grid .compact-detail-row {
   min-height: 0;
-  padding-block: 2px;
+  padding-block: 0;
+}
+
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-details-toggle-row,
+.tenant-detail-panel .tenant-core-detail-grid > .compact-detail-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row > .compact-detail-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row > .compact-detail-row {
+  margin-block: 0;
+}
+
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-pair-row + .tenant-detail-pair-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-detail-wide-row,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-note-field,
+.tenant-detail-panel .tenant-core-detail-grid > .tenant-details-toggle-row {
+  margin-top: 0;
 }
 
 .tenant-detail-panel .tenant-detail-actions {
