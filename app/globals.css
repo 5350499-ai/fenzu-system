@@ -3826,6 +3826,19 @@ td:last-child {
   line-height: 1.25;
 }
 
+/* Current and moved-out tenant rows share one mobile-first column contract. */
+.tenant-compact-list .tenant-finance-line {
+  grid-template-columns: minmax(5.5em, 1fr) minmax(6.5em, 1.2fr) minmax(2.5em, auto) repeat(3, minmax(0, max-content));
+}
+
+.tenant-compact-list .tenant-finance-line .tenant-name,
+.tenant-compact-list .tenant-finance-line .tenant-property-short {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tenant-performance-metric {
   display: flex;
   min-width: 0;
@@ -4408,7 +4421,7 @@ td:last-child {
   }
 
 .tenant-compact-list .tenant-finance-line {
-  grid-template-columns: minmax(38px, 0.55fr) minmax(76px, 1.6fr) minmax(68px, 1.25fr) auto minmax(52px, auto);
+  grid-template-columns: minmax(5.5em, 1fr) minmax(6.5em, 1.2fr) minmax(2.5em, auto) repeat(3, minmax(0, max-content));
   gap: var(--tenant-list-gap);
   min-height: 32px;
   padding-block: 5px;
@@ -7989,8 +8002,31 @@ input[type="radio"] {
 }
 
 .tenant-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding-top: 2px;
+}
+
+.tenant-detail-actions-row {
+  display: contents;
+}
+
+.tenant-detail-action-spacer {
+  display: none;
+}
+
+.tenant-detail-panel > .deposit-status-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.tenant-detail-panel > .deposit-status-detail > div {
+  min-width: 0;
 }
 
 .tenant-detail-action-button {

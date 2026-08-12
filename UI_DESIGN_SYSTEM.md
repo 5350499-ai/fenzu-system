@@ -676,4 +676,15 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Tenant-subject reminder rows reuse the current tenant-list typography and density tokens for tenant names, property/room context, supporting facts and lifecycle/debt badges.
 - Pages may choose compact or full row structure, but must not define a separate tenant-name font, supporting-text scale, badge height or badge padding for the same semantic content.
 - Positive debt rows expose the existing collection action with the tenant-facing label `续交房租` plus `放弃追缴`; a valid zero-amount debt exposes only `放弃追缴`. Both actions continue to use the existing business entry points.
+
+## 48. Tenant List Column Contract
+
+- Current and moved-out tenant lists use the same responsive column definition for tenant name, property, room and status badges.
+- Name and property tracks receive readable minimum space before ellipsis is applied; room remains a compact visible column and badges use content-sized tracks.
+
+## 49. Tenant Detail Layout Contract
+
+- Current and moved-out tenants reuse the same `TenantDetail` base layout, including the three compact two-column metric rows: occupant/payment day, monthly rent/last received, and deposit standard/received deposit.
+- Property, room, coverage end and notes remain full-width detail fields. Lifecycle-specific information may add compact status rows, but must not create a second vertically expanded detail layout.
+- Tenant detail actions use the same two-column action grid and button geometry across lifecycle states.
 - A positive debt exposes collection and waiver; a valid €0 debt exposes waiver only. A debt focus link opens only the compact Debt Action Panel.
