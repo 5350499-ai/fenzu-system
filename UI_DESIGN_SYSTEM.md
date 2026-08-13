@@ -786,3 +786,12 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Positive remaining coverage uses `剩余N天`; the existing approaching-expiry threshold is expressed by warning color, not a different label. Due-today uses `今日到期`, overdue uses `已逾期N天`, and missing coverage uses a neutral no-coverage label.
 - The row reuses existing coverage facts and threshold levels; it does not calculate dates in JSX. Current, moved-out and archived tenants share the same responsive ownership.
 - Use relative grid tracks such as `31fr / 25fr / 44fr`; fixed pixel columns, wrapping, overflow and device-specific rules are prohibited.
+
+## 57. Tablet / Foldable Medium Shell Contract
+
+- The App Shell has three viewport-driven modes: Phone, Medium and Desktop. Device names, user-agent checks, `window.innerWidth`, `screen.width`, `devicePixelRatio`, transforms and zoom are prohibited for Shell layout.
+- Phone is `max-width: 640px`: preserve the verified bottom navigation, mobile safe-area handling and `--ui-bottom-nav-clearance` contract.
+- Medium is `641px–1100px`: use a 72px left compact rail with 44px minimum link targets and no bottom navigation. The rail reuses the App Shell navigation data, permission filtering, destinations and active-route behavior.
+- Desktop is `min-width: 1101px`: preserve the existing full 260px sidebar and its navigation behavior. The breakpoint is intentionally delayed until the full sidebar has a more usable main content width.
+- Medium main content uses the Shell formula `viewport - 72px rail - 36px horizontal padding`; Desktop uses the existing `viewport - 260px sidebar - 52px horizontal padding`. At the Medium/Desktop handoff the absolute navigation-footprint change is 188px by design; page-specific business contracts remain unchanged and must be reviewed separately in 2.4c.
+- These Shell rules own only navigation and outer content width. Tenant List fixed three-row/five-slot contracts, Tenant Detail, Reminder, Modal, table and chart contracts remain frozen.

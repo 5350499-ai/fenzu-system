@@ -58,13 +58,15 @@ export const navGroups = [
   }
 ];
 
-const mobileItems = [
-  { href: "/", label: "首页", icon: Home, module: "home" },
-  { href: "/tasks", label: "待办", icon: ClipboardList, module: "tasks" },
-  { href: "/property-profits", label: "利润", icon: BarChart3, module: "profits" },
-  { href: "/analytics", label: "统计", icon: LineChart, module: "analytics" },
-  { href: "/more", label: "更多", icon: ChevronRight }
+const shellNavItems = [
+  ...navGroups.flatMap((group) => group.items),
+  { href: "/more", label: "更多", icon: ChevronRight, module: undefined }
 ];
+
+const mobileNavigationHrefs = ["/", "/tasks", "/property-profits", "/analytics", "/more"];
+const mobileItems = mobileNavigationHrefs
+  .map((href) => shellNavItems.find((item) => item.href === href))
+  .filter((item): item is (typeof shellNavItems)[number] => Boolean(item));
 
 export function AppLayout({ children, title, description }: { children: React.ReactNode; title: string; description?: string }) {
   const pathname = usePathname();
@@ -197,6 +199,25 @@ export function AppLayout({ children, title, description }: { children: React.Re
             })}
           </nav>
         ))}
+      </aside>
+
+      <aside className="compact-rail" aria-label="紧凑导航">
+        {shellNavItems.filter((item) => !item.module || canOpenModule(item.module as AccountModuleKey)).map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href;
+          return (
+            <Link
+              aria-label={item.label}
+              className={`compact-rail-link ${active ? "active" : ""}`}
+              href={item.href}
+              key={item.href}
+              title={item.label}
+            >
+              <Icon aria-hidden="true" size={20} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </aside>
 
       <main className="main">

@@ -160,3 +160,12 @@ page-local gap or nowrap/overflow variant.
 - The second row is owned by `.tenant-list-rent-row` in `app/tenants/page.tsx` and uses the shared `tenantRentRowLabel()` / `tenantRentRowTone()` presentation adapters from `lib/tenant-debt-display.ts`.
 - Its responsive semantic slots are received amount, coverage/due status and coverage date, using proportional `31fr / 25fr / 44fr` tracks with no fixed pixel column widths.
 - Current, moved-out and archived tenants use the same rent-row renderer; coverage facts and threshold levels remain owned by RentPeriodState/TenantDebtDisplay.
+
+## App Shell Three-Mode Ownership
+
+- `app/layout.tsx` owns viewport metadata; `components/app-layout.tsx` owns the shared navigation data, permission filtering and active-route behavior for every shell mode.
+- Phone Shell: `@media (max-width: 640px)` uses `.mobile-nav` and `--ui-bottom-nav-clearance`; `.sidebar` and `.compact-rail` are hidden.
+- Medium Shell: `@media (min-width: 641px) and (max-width: 1100px)` uses the 72px `.compact-rail`; `.mobile-nav` and `.sidebar` are hidden. The rail is presentation-only and consumes the same `navGroups` and `canOpenModule()` ownership as the full sidebar.
+- Desktop Shell: `@media (min-width: 1101px)` uses the existing 260px `.sidebar`; `.compact-rail` and `.mobile-nav` are hidden. Desktop navigation content, permissions, destinations and active state remain unchanged.
+- `app/globals.css` is the sole layout owner for `.app-shell`, `.sidebar`, `.compact-rail`, `.main` and `.mobile-nav`. No page may add a second shell breakpoint or device-specific navigation rule.
+- The Medium Shell changes only the outer shell. Tenant List identity/rent/five-slot contracts, Tenant Detail, Reminder, Modal, table and chart ownership remain page/component-specific and are not reinterpreted here.

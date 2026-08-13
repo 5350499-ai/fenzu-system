@@ -1022,3 +1022,10 @@
 - Replaced the Data Center and settlement snapshot navigation-like page padding with shared 16px visual end spacing; `.main` remains the sole mobile navigation clearance owner.
 - Derived mobile Toast and upload-progress offsets from the shared 66px navigation structural height plus distinct visual gaps and safe-area; desktop no longer consumes mobile-navigation offsets.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - Add Tablet and Foldable Medium Shell
+
+- Added a viewport-driven three-mode App Shell: verified Phone bottom navigation through 640px, a 72px permission-aware compact rail from 641px to 1100px, and the existing 260px desktop sidebar from 1101px.
+- Medium rail navigation reuses the existing navigation data, permission filtering, destinations and active-route behavior; no business page contracts or business logic changed.
+- Added App Shell responsive contract coverage and documented ownership in `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md`.
+- No database, schema, permissions, RLS, real-data or Production changes.
