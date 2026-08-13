@@ -1006,3 +1006,9 @@
 
 - Aligned the received-amount slot to the same left content boundary as the tenant identity while preserving the existing rent-row proportions and all other rows.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - App Shell and Modal CSS ownership convergence (Preview)
+
+- Consolidated the shared modal backdrop/card base and dynamic viewport rules into one authoritative CSS ownership path while preserving scroll lock, safe-area, sticky-header, mobile sizing and internal scrolling behavior.
+- Documented App Shell and Modal ownership in `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md`; the 980px breakpoint and bottom-nav clearance remain unchanged.
+- No business logic, database, schema, permissions, real data or Production changes.

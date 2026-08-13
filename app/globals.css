@@ -5668,24 +5668,6 @@ td:last-child {
   resize: vertical;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  background: rgba(15, 23, 42, 0.42);
-  padding: 18px;
-  backdrop-filter: blur(8px);
-}
-
-.modal-card {
-  width: min(860px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-}
-
 .tenant-compact-list .tenant-card-toggle:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
@@ -8623,15 +8605,6 @@ input[type="radio"] {
   }
 }
 
-/* Final precedence for the first-round UI sample fixes. */
-.modal-backdrop, .attachment-modal-backdrop, .data-center-sheet-backdrop { overscroll-behavior: contain; }
-/* Keep the document locked behind a dialog while the dialog owns scrolling.
-   On narrow screens the backdrop becomes the one scroll surface, preventing
-   iOS from transferring a drag to the locked document and snapping it back. */
-.modal-backdrop { height: 100dvh; min-height: 100svh; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
-.modal-card { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
-.modal-card > .panel-header:first-child { position: sticky; top: -20px; z-index: 2; flex: 0 0 auto; margin: -20px -20px 16px; padding: 20px 20px 12px; background: var(--surface); }
-.modal-card > .panel-header:first-child .btn { min-height: var(--ui-touch-target, 44px); }
 .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input), .field select, .field textarea, .combobox { border-radius: var(--ui-radius-md, 12px); font-size: var(--ui-font-size-body, 14px); }
 .tenant-detail-panel .payment-history-toggle, .tenant-detail-panel .attachment-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3, 12px); min-width: 0; text-align: left; }
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -10187,23 +10160,49 @@ textarea:-webkit-autofill:focus,
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
+/* Single modal backdrop owner: base surface, dynamic viewport and safe-area
+   behavior live together here; mobile-only adjustments remain below. */
 .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100dvh;
   min-height: 100svh;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
 }
 
 .modal-card {
+  display: flex;
+  flex-direction: column;
   width: min(860px, 100%);
   max-width: 100%;
+  min-height: 0;
   max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding: 20px;
+}
+
+.modal-card > .panel-header:first-child {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin: -20px -20px 16px;
+  padding: 20px 20px 12px;
+  background: var(--surface);
+}
+
+.modal-card > .panel-header:first-child .btn {
+  min-height: var(--ui-touch-target, 44px);
 }
 
 /* PropertyMultiSelect owns a bounded sheet: the header and actions stay

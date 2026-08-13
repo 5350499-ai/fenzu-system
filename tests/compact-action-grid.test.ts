@@ -10,6 +10,7 @@ const payments = readFileSync(new URL("../app/rent-payments/page.tsx", import.me
 const properties = readFileSync(new URL("../app/properties/[id]/page.tsx", import.meta.url), "utf8");
 const componentMap = readFileSync(new URL("../UI_COMPONENT_MAP.md", import.meta.url), "utf8");
 const designSystem = readFileSync(new URL("../UI_DESIGN_SYSTEM.md", import.meta.url), "utf8");
+const modalManager = readFileSync(new URL("../components/modal-layer-manager.tsx", import.meta.url), "utf8");
 
 test("compact action grid owns three equal mobile columns and preserves touch targets", () => {
   assert.match(css, /\.compact-action-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
@@ -33,6 +34,18 @@ test("semantic two-action and modal groups remain outside the compact three-colu
   const modalBlocks = [...css.matchAll(/\.modal-actions\s*\{([\s\S]*?)\}/g)].map((match) => match[1]);
   assert.ok(modalBlocks.length > 0);
   assert.ok(modalBlocks.every((block) => !/grid-template-columns:\s*repeat\(3/.test(block)));
+});
+
+test("app shell and modal responsive roots have one authoritative CSS owner", () => {
+  assert.equal((css.match(/^\.modal-backdrop\s*\{/gm) || []).length, 1);
+  assert.equal((css.match(/^\.modal-card\s*\{/gm) || []).length, 1);
+  assert.equal((css.match(/^\.app-shell\s*\{/gm) || []).length, 1);
+  assert.equal((css.match(/^\.mobile-nav\s*\{/gm) || []).length, 1);
+  assert.match(css, /\.modal-backdrop\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?min-height:\s*100svh/);
+  assert.match(css, /\.modal-card\s*\{[\s\S]*?max-height:\s*calc\(100dvh/);
+  assert.match(css, /@media\s*\(max-width:\s*980px\)[\s\S]*?\.mobile-nav\s*\{/);
+  assert.match(css, /--ui-bottom-nav-clearance:\s*calc\(116px\s*\+\s*env\(safe-area-inset-bottom\)\)/);
+  assert.match(modalManager, /body\.style\.position\s*=\s*"fixed"/);
 });
 
 test("compact action root does not impose desktop-only or overflow-prone fixed columns", () => {

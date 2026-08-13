@@ -122,6 +122,15 @@ page-local gap or nowrap/overflow variant.
 
 `Modal Layer Manager` 负责 modal backdrop/document scroll；`DropdownListbox`、`TapSelect`、`SearchableSelect` 各自负责下拉列表手势与滚动。Modal body scroll 不得由页面另行锁定或创建平行 manager。
 
+### App Shell / Modal responsive ownership
+
+- `app/layout.tsx` owns the viewport metadata (`device-width`, `initialScale: 1`, `viewportFit: cover`) and mounts the global providers.
+- `components/app-layout.tsx` owns the `.app-shell` DOM: `.sidebar`, `.main`, `.topbar` and `.mobile-nav`.
+- `app/globals.css` is the sole CSS owner for those shell selectors and the existing `980px` shell switch. `--ui-bottom-nav-clearance` remains the main-content clearance owner and is intentionally outside the 2.2 scope.
+- `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration. Pages and modal components must not add a second body-lock lifecycle.
+- `app/globals.css` owns the shared `.modal-backdrop` and `.modal-card` base, dynamic viewport, safe-area and internal-scroll contract. Mobile overrides remain in the same CSS owner; a later precision block must not recreate a parallel modal base.
+- `PropertyMultiSelect` owns only its bounded sheet internals (`.property-multi-select-backdrop`, `.property-multi-select-modal`); it does not own document scroll locking.
+
 ## Ownership Change Rule
 
 只有 ownership 发生变化时才需要同步更新本地图；普通数值调整不记录历史细节。若没有现有 owner，先说明缺口，再建立最小 shared root；不得以 duplicate selector 规避定位问题。
