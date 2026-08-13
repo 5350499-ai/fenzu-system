@@ -1017,3 +1017,8 @@
 - Converged the mobile `.main` bottom-navigation clearance to one responsive contract derived from the 66px navigation structure, 18px content breathing room and the bottom safe-area inset.
 - Removed the `max-width: 640px` historical 128px `.main` override; the 980px shell breakpoint, page-specific padding, overlays and business UI contracts are unchanged.
 - No business logic, database, schema, permissions, real data or Production changes.
+# 2026-08-13 - Converge page and fixed-overlay bottom spacing
+
+- Replaced the Data Center and settlement snapshot navigation-like page padding with shared 16px visual end spacing; `.main` remains the sole mobile navigation clearance owner.
+- Derived mobile Toast and upload-progress offsets from the shared 66px navigation structural height plus distinct visual gaps and safe-area; desktop no longer consumes mobile-navigation offsets.
+- No business logic, database, schema, permissions, real data or Production changes.

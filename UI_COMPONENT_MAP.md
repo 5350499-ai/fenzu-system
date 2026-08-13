@@ -136,6 +136,8 @@ page-local gap or nowrap/overflow variant.
 - `--ui-mobile-nav-structural-height` and `--ui-mobile-nav-content-gap` are the responsive clearance inputs. `--ui-bottom-nav-clearance` is the single `.main` bottom-navigation avoidance contract: structural height + 18px content breathing room + `env(safe-area-inset-bottom)`.
 - The `max-width: 980px` `.main` rule is the only mobile-shell consumer. The `max-width: 640px` block must not create a second bottom-clearance owner.
 - Page-specific padding and fixed overlay offsets are separate ownership areas; they must not be folded into or duplicated as main bottom-navigation clearance.
+- Bottom-spacing ownership is explicit: `.main` owns `MAIN_NAVIGATION_CLEARANCE`; `.data-center-page` and `.settlement-snapshot-page` own only normal `PAGE_VISUAL_SPACING`; `.mobile-nav` owns `NAV_INTERNAL_SAFE_AREA`; `.ui-toast` and `.attachment-upload-progress` own `FIXED_OVERLAY_OFFSET`; Modal surfaces own `MODAL_SAFE_AREA`.
+- App Shell pages must not add page-level `safe-area-inset-bottom` or navigation-sized padding as a substitute for `.main` clearance. Fixed overlays may derive their mobile offset from the shared nav structural-height fact, but must keep their own visual gap semantics.
 - `PropertyMultiSelect` owns only its bounded sheet internals (`.property-multi-select-backdrop`, `.property-multi-select-modal`); it does not own document scroll locking.
 
 ## Ownership Change Rule
