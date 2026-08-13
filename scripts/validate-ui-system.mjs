@@ -376,6 +376,12 @@ if (!/\.tenant-compact-list \.tenant-list-row-stack[\s\S]*?display:\s*flex[\s\S]
 if (/\.tenant-compact-list \.tenant-list-row\s*\{[^}]*flex-wrap\s*:/i.test(css)) {
   failures.push("Tenant list rows must not use browser-driven flex wrapping");
 }
+if (!tenantsPage.includes("getTenantStatusSlots(") || !tenantsPage.includes("tenant-status-slot-${index + 1}")) {
+  failures.push("Tenant list status row must use the fixed five-slot presentation mapping");
+}
+if (!/\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row[\s\S]*?grid-auto-flow:\s*row/i.test(css)) {
+  failures.push("Tenant status five-slot row must use deterministic grid flow");
+}
 if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?(?:--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)|row-gap:\s*var\(--ui-compact-row-gap\))/i.test(css)) {
   failures.push("Tenant core detail rows must use a scoped relative compact grid gap");
 }

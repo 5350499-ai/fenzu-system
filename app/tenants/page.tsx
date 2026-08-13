@@ -52,6 +52,7 @@ import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
+import { getTenantStatusSlots } from "@/lib/tenant-status-slots";
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
@@ -965,6 +966,16 @@ export default function TenantsPage() {
                 ? "green"
                 : (paymentPerformance?.onTimeRate || 0) >= 80 ? "blue" : "orange"
               : "neutral";
+            const statusSlots = getTenantStatusSlots({
+              lifecycleLabel: tenant.status || "在租",
+              lifecycleTone: tenantTone(tenant.status || "在租"),
+              hasCurrentDebt: displayStatus === "欠租",
+              hasHistoricalDebt: rentDisplay.hasHistoricalOpenDebt,
+              paymentPerformanceLabel,
+              paymentPerformanceTone,
+              depositStatus,
+              depositTone: depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""
+            });
             const expanded = detailTenantId === tenant.id;
             const tenantDebtCases = getTenantDebtCases(tenant.id, debtCases);
             return (
@@ -991,11 +1002,9 @@ export default function TenantsPage() {
                       <span className="tenant-list-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
                     </span>
                     <span className="tenant-list-row tenant-status-row" onClick={(event) => event.stopPropagation()}>
-                      <span className="tenant-status-item"><StatusBadge tone={tenantTone(tenant.status || "在租")}>{tenant.status || "在租"}</StatusBadge></span>
-                      {displayStatus === "欠租" ? <span className="tenant-status-item"><StatusBadge tone="danger">当前欠租</StatusBadge></span> : null}
-                      {rentDisplay.hasHistoricalOpenDebt ? <span className="tenant-status-item"><StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge></span> : null}
-                      <span className="tenant-status-item tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
-                      <span className="tenant-status-item tenant-deposit-badge"><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
+                      {statusSlots.map((slot, index) => <span className={`tenant-status-item tenant-status-slot tenant-status-slot-${index + 1}${index === 3 ? " tenant-payment-performance" : ""}${index === 4 ? " tenant-deposit-badge" : ""}`} key={index} aria-hidden={!slot}>
+                        {slot ? <StatusBadge tone={slot.tone}>{slot.label}</StatusBadge> : null}
+                      </span>)}
                     </span>
                   </span>
                 </button>

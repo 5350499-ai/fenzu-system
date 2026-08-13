@@ -130,3 +130,9 @@ page-local gap or nowrap/overflow variant.
 - `.tenant-list-identity-row` is the sole mobile identity-row owner. Its columns are `3fr / 4fr / 3fr` (30% / 40% / 30%), using the shared 14px body typography and child-level CSS ellipsis. The list room value is bounded by this grid; it does not receive a second fixed `10ch` cap. Current, moved-out and archived list rows share this rule; Tenant Detail remains the full-value wrapping owner.
 - `lib/reminder-display.ts` is the sole vacant-room presentation model owner. A vacant reminder resolves `roomId` to `room.name` as the first-line identity, `propertyId` to `property.name` as the second line, and renders the `空置` badge beside the room name.
 - `components/reminder-row.tsx` is the shared vacant-room row renderer consumed by both `components/homepage-reminder-row.tsx` and `app/reminders/page.tsx`. Neither surface may reconstruct room/property identity independently.
+
+## Tenant Status Five-Slot Ownership
+
+- `lib/tenant-status-slots.ts` owns the presentation-only `getTenantStatusSlots()` mapping for the Tenant List third row.
+- `.tenant-status-row` owns one responsive five-track grid in this fixed order: lifecycle, current debt, historical debt, payment performance, deposit status.
+- Empty slots return `null` and retain their grid track without rendering text, border, background or placeholder. Current, moved-out and archived tenants use the same mapping and renderer; no auto-pack, flex-wrap or fixed-pixel columns are allowed.

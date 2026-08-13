@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+// @ts-expect-error Node's strip-types test runner imports TypeScript directly.
+import { getTenantStatusSlots } from "../lib/tenant-status-slots.ts";
 
 const page = readFileSync(new URL("../app/tenants/page.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
@@ -72,6 +74,37 @@ test("tenant list keeps statuses in one deterministic status row", () => {
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row\s*\{[\s\S]*?grid-template-columns:/);
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-rent-row\s*\{[\s\S]*?grid-template-columns:/);
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(page, /getTenantStatusSlots\(/);
+  assert.match(page, /tenant-status-slot-\$\{index \+ 1\}/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[\s\S]*?grid-auto-flow:\s*row/);
+});
+
+test("tenant status slots keep business types fixed and empty slots invisible", () => {
+  const slots = getTenantStatusSlots({ lifecycleLabel: "在租", hasCurrentDebt: false, hasHistoricalDebt: true, paymentPerformanceLabel: "按时80%", depositStatus: "押金待处理" });
+  assert.equal(slots.length, 5);
+  assert.equal(slots[0]?.label, "在租");
+  assert.equal(slots[1], null);
+  assert.equal(slots[2]?.label, "历史欠费");
+  assert.equal(slots[3]?.label, "按时80%");
+  assert.equal(slots[4]?.label, "押金待处理");
+  assert.doesNotMatch(page, /statusSlots\.filter/);
+  assert.match(page, /aria-hidden=\{!slot\}/);
+});
+
+test("tenant status slot matrix preserves every business position", () => {
+  const cases = [
+    { lifecycleLabel: "在租", hasCurrentDebt: false, hasHistoricalDebt: false, paymentPerformanceLabel: "按时100%", depositStatus: "无押金", expected: ["在租", null, null, "按时100%", "无押金"] },
+    { lifecycleLabel: "在租", hasCurrentDebt: true, hasHistoricalDebt: false, paymentPerformanceLabel: "暂无记录", depositStatus: "无押金", expected: ["在租", "当前欠租", null, "暂无记录", "无押金"] },
+    { lifecycleLabel: "在租", hasCurrentDebt: false, hasHistoricalDebt: true, paymentPerformanceLabel: "按时80%", depositStatus: "押金待处理", expected: ["在租", null, "历史欠费", "按时80%", "押金待处理"] },
+    { lifecycleLabel: "在租", hasCurrentDebt: true, hasHistoricalDebt: true, paymentPerformanceLabel: "暂无记录", depositStatus: "押金待处理", expected: ["在租", "当前欠租", "历史欠费", "暂无记录", "押金待处理"] },
+    { lifecycleLabel: "已退租", hasCurrentDebt: false, hasHistoricalDebt: true, paymentPerformanceLabel: "暂无记录", depositStatus: "押金已处理", expected: ["已退租", null, "历史欠费", "暂无记录", "押金已处理"] },
+    { lifecycleLabel: "已归档", hasCurrentDebt: false, hasHistoricalDebt: false, paymentPerformanceLabel: "按时100%", depositStatus: "无押金", expected: ["已归档", null, null, "按时100%", "无押金"] },
+  ];
+
+  for (const input of cases) {
+    const labels = getTenantStatusSlots(input).map((slot) => slot?.label ?? null);
+    assert.deepEqual(labels, input.expected);
+  }
 });
 
 test("tenant list has a deterministic three-row contract and keeps detail room rules separate", () => {
@@ -105,9 +138,15 @@ test("tenant list fixtures keep the same three-row shape across lifecycle and st
     assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-list-row-stack[^\{]*\{[^}]*flex-wrap\s*:/, fixture);
   }
 
-  for (const width of [375, 390, 430]) {
+  for (const width of [375, 390, 393, 414, 430]) {
     assert.ok(width >= 375 && width <= 430, `fixture width ${width}px is covered`);
   }
+});
+
+test("tenant status five-slot grid stays proportional across mobile widths", () => {
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[^}]*grid-template-columns:[^;}]*\d+px/i);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row \.badge\s*\{[\s\S]*?max-width:\s*100%[\s\S]*?text-overflow:\s*ellipsis/);
 });
 
 test("tenant room uses a compact list contract and a full detail contract", () => {

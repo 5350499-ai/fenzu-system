@@ -760,3 +760,11 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - The mobile Tenant List identity row uses `3fr / 4fr / 3fr` semantic tracks for tenant, property and room (30% / 40% / 30%). All three values use the shared 14px body typography, `min-width: 0`, single-line ellipsis and no second fixed room-width cap. Tenant Detail remains the separate full-value wrapping presentation.
 - Vacant-room reminders use one shared display model and row renderer on the homepage and `/reminders`: `room.name` is the first-line identity, `property.name` is the second line, and `空置` is the first-line status badge. Reminder title/description are not used to reconstruct or duplicate those identities.
+
+## 55. Tenant Status Five-Slot Contract
+
+- The Tenant List status row has five fixed business slots in this order: lifecycle, current debt, historical debt, payment performance and deposit status.
+- Empty slots retain their proportional grid track but render no text, border, background, placeholder or empty badge. Later statuses never shift left to fill an empty slot.
+- The row uses a responsive relative grid, preferably `repeat(5, minmax(0, 1fr))`; fixed pixel column widths, browser-driven flex wrapping, fourth rows, horizontal overflow and transforms/scaling are prohibited.
+- Current, moved-out and archived tenants consume the same slot mapping and renderer. Only slot data may differ; slot positions do not.
+- The second rent-information row remains responsible for received amount, due/overdue wording and coverage date. Those facts must not be copied into the five status slots.

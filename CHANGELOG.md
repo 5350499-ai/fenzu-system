@@ -989,3 +989,9 @@
 - Scoped the mobile Tenant List identity row to shared 30% / 40% / 30% tracks and removed the duplicate fixed room-width cap while preserving child ellipsis.
 - Unified vacant-room reminder presentation around `roomId` → room name and `propertyId` → property name for both homepage and reminder-center rows.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - Tenant List five-slot status row
+
+- Added a presentation-only fixed slot mapping for lifecycle, current debt, historical debt, payment performance and deposit status; empty slots retain their responsive grid tracks without visual placeholders.
+- Kept current, moved-out and archived Tenant List rows on the same renderer and responsive relative five-column contract.
+- No business logic, database, schema, permissions, real data or Production changes.

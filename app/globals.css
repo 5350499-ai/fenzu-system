@@ -9143,8 +9143,12 @@ label.field > span,
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-status-row {
+    display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-flow: row;
     gap: 3px;
+    width: 100%;
+    min-width: 0;
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-row > * {
@@ -9178,6 +9182,11 @@ label.field > span,
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
+  }
+
+  .tenant-compact-list .tenant-list-row-stack > .tenant-status-row > .tenant-status-slot {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-status-row .badge {
