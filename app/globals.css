@@ -6793,6 +6793,181 @@ td:last-child {
   }
 }
 
+/* 2.4c first batch: Medium-width business rows. The Shell owns the outer
+   width; these scoped roots own shrink/ellipsis inside 641-1100px only. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  .app-shell .rent-finance-line,
+  .app-shell .expense-finance-line {
+    grid-template-columns: minmax(0, 0.9fr) minmax(64px, 0.7fr) minmax(0, 1.6fr) max-content max-content;
+    gap: 6px;
+  }
+
+  .app-shell .rent-finance-line > *,
+  .app-shell .expense-finance-line > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .rent-finance-line > :nth-child(-n + 3),
+  .app-shell .expense-finance-line > :nth-child(-n + 3),
+  .app-shell .rent-finance-line .partner-tag,
+  .app-shell .expense-finance-line .partner-tag {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-shell .room-finance-line {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) minmax(72px, auto) minmax(90px, auto) minmax(0, 1.25fr) minmax(86px, auto);
+    gap: 6px;
+  }
+
+  .app-shell .room-finance-line .room-property-name,
+  .app-shell .room-finance-line .room-display-name,
+  .app-shell .room-finance-line .room-coverage-summary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-shell .room-current-tenant {
+    grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr)) auto;
+    gap: 6px;
+    min-width: 0;
+    padding: 8px;
+  }
+
+  .app-shell .room-current-tenant > *,
+  .app-shell .room-current-tenant strong,
+  .app-shell .room-current-tenant span {
+    min-width: 0;
+  }
+
+  .app-shell .room-current-tenant strong,
+  .app-shell .room-current-tenant span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-shell .reminder-page-list-single .reminder-row-primary,
+  .app-shell .reminder-center .reminder-row-primary {
+    grid-template-columns: auto minmax(0, 1.25fr) minmax(0, 1fr) auto;
+  }
+
+  .app-shell .reminder-page-list-single .reminder-row-badges,
+  .app-shell .reminder-center .reminder-row-badges {
+    max-inline-size: 180px;
+    min-width: 0;
+  }
+
+  .app-shell .reminder-page-list-single .reminder-row-context,
+  .app-shell .reminder-center .reminder-row-context,
+  .app-shell .reminder-page-list-single .reminder-row-secondary,
+  .app-shell .reminder-center .reminder-row-secondary {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .app-shell .reminder-page-list-single .reminder-rent-actions,
+  .app-shell .reminder-center .reminder-rent-actions {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .app-shell .reminder-page-list-single .reminder-rent-actions button,
+  .app-shell .reminder-center .reminder-rent-actions button {
+    min-width: 44px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-shell .attachment-management-row,
+  .app-shell .attachment-inventory-file-row,
+  .app-shell .attachment-preview.attachment-file-card {
+    min-width: 0;
+  }
+
+  .app-shell .attachment-inventory-file-row {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 6px;
+  }
+
+  .app-shell .attachment-inventory-file,
+  .app-shell .attachment-management-row > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .attachment-inventory-file {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-shell .attachment-inventory-file-row button,
+  .app-shell .attachment-management-row button {
+    min-width: 44px;
+    max-width: 100%;
+  }
+
+  .app-shell .partner-management-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .app-shell .partner-management-main,
+  .app-shell .partner-management-meta,
+  .app-shell .partner-management-hint {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .partner-management-main,
+  .app-shell .partner-management-hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-shell .partner-management-actions {
+    min-width: 0;
+    display: flex;
+    gap: 6px;
+  }
+
+  .app-shell .partner-management-actions > * {
+    min-width: 44px;
+    max-width: 100%;
+  }
+
+  .app-shell .settlement-history-summary-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .app-shell .settlement-history-summary-metrics > *,
+  .app-shell .settlement-history-partner,
+  .app-shell .settlement-history-card-footer,
+  .app-shell .partner-settlement-card > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .settlement-history-partner,
+  .app-shell .settlement-history-card-footer,
+  .app-shell .partner-settlement-card .money,
+  .app-shell .partner-settlement-card .partner-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .unified-monthly-head,
 .unified-monthly-income,
 .unified-monthly-net {

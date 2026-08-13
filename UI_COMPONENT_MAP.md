@@ -169,3 +169,11 @@ page-local gap or nowrap/overflow variant.
 - Desktop Shell: `@media (min-width: 1101px)` uses the existing 260px `.sidebar`; `.compact-rail` and `.mobile-nav` are hidden. Desktop navigation content, permissions, destinations and active state remain unchanged.
 - `app/globals.css` is the sole layout owner for `.app-shell`, `.sidebar`, `.compact-rail`, `.main` and `.mobile-nav`. No page may add a second shell breakpoint or device-specific navigation rule.
 - The Medium Shell changes only the outer shell. Tenant List identity/rent/five-slot contracts, Tenant Detail, Reminder, Modal, table and chart ownership remain page/component-specific and are not reinterpreted here.
+
+## Medium Business Layout Ownership — 2.4c First Batch
+
+- `app/globals.css` owns the scoped `641px–1100px` Medium contracts for `.rent-finance-line`, `.expense-finance-line`, `.room-finance-line`, `.room-current-tenant`, shared reminder rows, attachment inventory/file rows, partner management rows and settlement summary rows/cards.
+- Finance rows use proportional/shrinkable text tracks; amounts and status remain intact, while date/partner/description and long names receive explicit `min-width: 0` plus ellipsis where the field is single-line.
+- Room rows preserve room/property/current-tenant ownership and use shrinkable names; status, rent and coverage remain separate fields. No room occupancy or payment logic is changed.
+- Reminder, attachment, partner and settlement roots keep their existing renderers and actions. Only Medium width allocation, shrink and overflow ownership is changed; no reminder engine, storage, settlement formula or business data source is changed.
+- Phone (`<=640px`) and Desktop (`>=1101px`) rules remain owned by their existing roots. BUG-01 (check-in deposit selector clipping) and SHELL-REVIEW-01 (Medium/Desktop handoff) are explicitly outside this batch.

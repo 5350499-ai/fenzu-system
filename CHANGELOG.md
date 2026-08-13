@@ -1029,3 +1029,10 @@
 - Medium rail navigation reuses the existing navigation data, permission filtering, destinations and active-route behavior; no business page contracts or business logic changed.
 - Added App Shell responsive contract coverage and documented ownership in `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md`.
 - No database, schema, permissions, RLS, real-data or Production changes.
+
+# 2026-08-13 - Medium business layout governance, first batch
+
+- Added scoped `641px–1100px` shrink/ellipsis contracts for rent and expense finance rows, room/current-tenant rows, reminder rows, attachment rows, partner rows and settlement summary rows/cards.
+- Reused existing renderers and action/data sources; Phone, Desktop, Tenant List, Tenant Detail, Reminder Engine, settlement formulas, attachment storage and business data remain unchanged.
+- BUG-01 deposit-selector clipping and SHELL-REVIEW-01 Medium/Desktop Shell handoff remain explicitly out of scope.
+- No database, schema, permissions, RLS, real-data or Production changes.

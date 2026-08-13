@@ -795,3 +795,11 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Desktop is `min-width: 1101px`: preserve the existing full 260px sidebar and its navigation behavior. The breakpoint is intentionally delayed until the full sidebar has a more usable main content width.
 - Medium main content uses the Shell formula `viewport - 72px rail - 36px horizontal padding`; Desktop uses the existing `viewport - 260px sidebar - 52px horizontal padding`. At the Medium/Desktop handoff the absolute navigation-footprint change is 188px by design; page-specific business contracts remain unchanged and must be reviewed separately in 2.4c.
 - These Shell rules own only navigation and outer content width. Tenant List fixed three-row/five-slot contracts, Tenant Detail, Reminder, Modal, table and chart contracts remain frozen.
+
+## 58. Medium Business Layout Contract — 2.4c First Batch
+
+- The first Medium-width business batch is scoped to `641px–1100px`: rent finance rows, expense finance rows, room finance/current-tenant rows, reminder rows, attachment rows, partner rows and settlement rows/cards.
+- Medium business grids use `fr`/`minmax(0, ...)` where content can shrink. Long single-line names, descriptions, filenames and labels use an explicit shrink owner and ellipsis; amounts, statuses and actions retain readable minimums.
+- No Medium rule changes the Phone contract (`<=640px`), Desktop contract (`>=1101px`), Tenant List three-row/five-slot contract, Tenant Detail, Reminder Engine, settlement calculation, attachment storage or business data.
+- Fixed pixels remain valid for touch targets, icons, small badge/action minimums and semantic minimums. Desktop fixed finance columns are not reused blindly in Medium.
+- BUG-01 (check-in deposit selector clipping) and SHELL-REVIEW-01 (1100→1101 Shell handoff) remain separate follow-up items and are not part of this batch.
