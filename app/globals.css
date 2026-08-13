@@ -9105,9 +9105,8 @@ label.field > span,
   grid-template-columns:
     minmax(92px, 0.9fr)
     minmax(100px, 1.2fr)
-    minmax(2.5em, auto)
-    minmax(82px, auto)
-    minmax(0, 1fr);
+    minmax(2.5em, 10ch)
+    minmax(82px, auto);
 }
 
 .tenant-compact-list .tenant-status-wrapper {
@@ -9137,14 +9136,21 @@ label.field > span,
   white-space: nowrap;
 }
 
+.tenant-compact-list .tenant-secondary-status-wrapper {
+  display: contents;
+  min-width: 0;
+}
+
 .tenant-compact-list .tenant-mobile-meta {
+  display: flex;
   max-width: 100%;
   flex-wrap: wrap;
   gap: 2px 6px;
   padding-block: 1px 2px;
 }
 
-.tenant-compact-list .tenant-mobile-meta > * {
+.tenant-compact-list .tenant-mobile-meta > *,
+.tenant-compact-list .tenant-secondary-status-wrapper > * {
   min-width: 0;
   max-width: 100%;
 }
@@ -9154,7 +9160,7 @@ label.field > span,
 }
 
 .tenant-compact-list .tenant-finance-line > .tenant-status-wrapper {
-  grid-column: 5;
+  grid-column: 4;
   justify-self: end;
 }
 

@@ -63,8 +63,15 @@ test("tenant list gives name and property readable minimum tracks before badges"
 
 test("tenant list collapses statuses into one wrapping track", () => {
   assert.match(page, /className="tenant-status-wrapper"/);
+  assert.match(page, /className="tenant-secondary-status-wrapper"/);
+  const row = page.slice(page.indexOf('className="finance-line tenant-finance-line"'), page.indexOf('</button>', page.indexOf('className="finance-line tenant-finance-line"')));
+  assert.match(row, /tenant-status-wrapper[\s\S]*?displayStatus/);
+  const primaryStatus = row.slice(row.indexOf('className="tenant-status-wrapper"'), row.indexOf('</span>\n                  </span>'));
+  assert.doesNotMatch(primaryStatus, /historicalDebtLabel|tenant-payment-performance/);
+  assert.match(row, /tenant-secondary-status-wrapper[\s\S]*?historicalDebtLabel[\s\S]*?tenant-payment-performance/);
   assert.match(css, /\.tenant-compact-list \.tenant-status-wrapper\s*\{[\s\S]*?flex-wrap:\s*wrap/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-wrapper\s*\{[\s\S]*?grid-column:\s*5/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-wrapper\s*\{[\s\S]*?grid-column:\s*4/);
+  assert.match(css, /\.tenant-compact-list \.tenant-secondary-status-wrapper\s*\{[\s\S]*?display:\s*contents/);
   assert.match(css, /\.tenant-compact-list \.tenant-mobile-meta\s*\{[\s\S]*?flex-wrap:\s*wrap/);
 });
 

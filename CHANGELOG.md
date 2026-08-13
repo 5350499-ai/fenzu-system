@@ -973,6 +973,11 @@
 - Migrated Tenant Detail, task, expense/rent-payment detail and property detail action groups to three natural-flow columns while retaining two-column/single-column semantics for modal, confirmation, form and payment-specific action groups.
 - No business logic, database, schema, permissions, real data or Production changes.
 
+# 2026-08-13 - Unified tenant list row contract
+
+- Unified current and moved-out tenant list rows into the same primary-status and secondary-status slots; lifecycle, debt, payment and deposit values remain data-driven.
+- No business logic, database, schema, permissions, real data or Production changes.
+
 # 2026-08-12 - Tenant detail shell and compact action spacing
 
 - Unified moved-out lifecycle/date rows inside the existing Tenant Detail status owner so current and moved-out details share the same shell contract.

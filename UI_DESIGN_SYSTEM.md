@@ -748,3 +748,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - The shared root is owned by `app/globals.css` and mapped in `UI_COMPONENT_MAP.md`; page-specific action groups must not create a parallel two/three-column implementation.
 - On mobile the shared root uses a compact 4-6px column gap, compact inline button padding, and a small icon/text gap. Short labels, including an icon plus four Chinese characters such as `永久删除`, should remain on one line when the three-column contract fits; use `white-space: nowrap` without shrinking the 44px touch target.
 - Payment-specific two-action groups remain two columns and do not inherit the compact three-column root.
+
+## 53. Tenant List Row Contract
+
+- Current and moved-out tenants use the same two-row tenant-list renderer: identity and primary status in the first row; received amount, rent/debt timing, coverage and secondary payment/deposit statuses in the second row.
+- Lifecycle changes content (`在租` / `已退租`) only. Historical debt, payment performance and deposit status use the shared secondary status slot and must not create moved-out-only rows, wrappers or vertically stacked badge layers.
+- Identity fields keep their existing shrink/ellipsis contract, while room remains bounded in list mode and full/wrapping in Tenant Detail.

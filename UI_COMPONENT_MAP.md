@@ -33,6 +33,8 @@
 
 允许修改：列表 row 的限定布局和响应式宽度。禁止修改：租金/债务状态计算、共享 DebtCase、Reminder Engine。
 
+Current Tenant 与 Moved-out Tenant 必须共享同一个 Tenant List Row Contract。生命周期只能改变状态内容，不能改变 row renderer、主行/第二行槽位、grid 结构或状态容器；不要为 moved-out 建立额外 wrapper 或专属 row CSS。
+
 ## Tenant Detail Root
 
 页面 owner：`app/tenants/page.tsx` → `TenantDetail`。
