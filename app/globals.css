@@ -9146,6 +9146,11 @@ label.field > span,
     white-space: nowrap;
   }
 
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-identity-row > * {
+    font-size: var(--ui-font-size-body, 14px);
+    line-height: var(--ui-line-height-normal, 1.45);
+  }
+
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-identity-row > .tenant-list-room {
     max-width: 10ch;
   }

@@ -59,6 +59,7 @@ test("tenant list gives name and property readable minimum tracks before badges"
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row\s*\{[\s\S]*?minmax\(0, 1fr\)[\s\S]*?minmax\(0, 1\.2fr\)/);
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \*/);
   assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \.tenant-list-room/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \*[\s\S]*?font-size:\s*var\(--ui-font-size-body, 14px\)[\s\S]*?line-height:\s*var\(--ui-line-height-normal, 1\.45\)/);
 });
 
 test("tenant list keeps statuses in one deterministic status row", () => {
