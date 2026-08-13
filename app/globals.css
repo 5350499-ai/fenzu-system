@@ -505,7 +505,10 @@ a {
   --ui-card-padding-mobile: 14px;
   --ui-modal-padding: 16px;
   --ui-modal-max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-  --ui-bottom-nav-clearance: calc(116px + env(safe-area-inset-bottom));
+  /* Mobile nav: 1px border + 8px top/bottom padding + 48px link row + 18px content breathing room. */
+  --ui-mobile-nav-structural-height: 66px;
+  --ui-mobile-nav-content-gap: 18px;
+  --ui-bottom-nav-clearance: calc(var(--ui-mobile-nav-structural-height) + var(--ui-mobile-nav-content-gap) + env(safe-area-inset-bottom));
   --ui-focus: 0 0 0 3px color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
@@ -7695,7 +7698,6 @@ input[type="radio"] {
   .main {
     padding-right: 14px;
     padding-left: 14px;
-    padding-bottom: calc(128px + env(safe-area-inset-bottom));
   }
 
   .topbar,

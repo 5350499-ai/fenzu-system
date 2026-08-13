@@ -1012,3 +1012,8 @@
 - Consolidated the shared modal backdrop/card base and dynamic viewport rules into one authoritative CSS ownership path while preserving scroll lock, safe-area, sticky-header, mobile sizing and internal scrolling behavior.
 - Documented App Shell and Modal ownership in `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md`; the 980px breakpoint and bottom-nav clearance remain unchanged.
 - No business logic, database, schema, permissions, real data or Production changes.
+# 2026-08-13 - Mobile main clearance ownership convergence
+
+- Converged the mobile `.main` bottom-navigation clearance to one responsive contract derived from the 66px navigation structure, 18px content breathing room and the bottom safe-area inset.
+- Removed the `max-width: 640px` historical 128px `.main` override; the 980px shell breakpoint, page-specific padding, overlays and business UI contracts are unchanged.
+- No business logic, database, schema, permissions, real data or Production changes.

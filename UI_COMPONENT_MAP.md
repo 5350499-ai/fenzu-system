@@ -129,6 +129,13 @@ page-local gap or nowrap/overflow variant.
 - `app/globals.css` is the sole CSS owner for those shell selectors and the existing `980px` shell switch. `--ui-bottom-nav-clearance` remains the main-content clearance owner and is intentionally outside the 2.2 scope.
 - `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration. Pages and modal components must not add a second body-lock lifecycle.
 - `app/globals.css` owns the shared `.modal-backdrop` and `.modal-card` base, dynamic viewport, safe-area and internal-scroll contract. Mobile overrides remain in the same CSS owner; a later precision block must not recreate a parallel modal base.
+
+### Mobile main clearance ownership
+
+- `.mobile-nav` remains owned by `components/app-layout.tsx` (DOM) and `app/globals.css` (layout). Its structural height is derived from the current 1px borders, 8px vertical padding and 48px navigation-link minimum height: `66px`.
+- `--ui-mobile-nav-structural-height` and `--ui-mobile-nav-content-gap` are the responsive clearance inputs. `--ui-bottom-nav-clearance` is the single `.main` bottom-navigation avoidance contract: structural height + 18px content breathing room + `env(safe-area-inset-bottom)`.
+- The `max-width: 980px` `.main` rule is the only mobile-shell consumer. The `max-width: 640px` block must not create a second bottom-clearance owner.
+- Page-specific padding and fixed overlay offsets are separate ownership areas; they must not be folded into or duplicated as main bottom-navigation clearance.
 - `PropertyMultiSelect` owns only its bounded sheet internals (`.property-multi-select-backdrop`, `.property-multi-select-modal`); it does not own document scroll locking.
 
 ## Ownership Change Rule

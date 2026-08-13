@@ -722,6 +722,8 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - `app/layout.tsx` is the viewport metadata root; `components/app-layout.tsx` is the App Shell DOM root.
 - `.app-shell`, `.sidebar`, `.main`, `.topbar` and `.mobile-nav` have one CSS ownership path in `app/globals.css`. The current `980px` breakpoint and bottom-nav clearance are preserved unless a separately approved responsive phase changes them.
+- Mobile main clearance is derived from the shared bottom-navigation contract: `66px` structural navigation height (1px borders + 8px vertical padding + 48px link row) plus `18px` content breathing room plus `env(safe-area-inset-bottom)`. `--ui-bottom-nav-clearance` is the only `.main` bottom-navigation avoidance owner.
+- The mobile navigation keeps its own `env(safe-area-inset-bottom)` padding to protect navigation content; that is separate from the `.main` clearance and is not a duplicated consumer. Page-specific bottom padding and overlay offsets do not replace or silently duplicate the main clearance contract.
 - `ModalLayerManager` is the only document scroll-lock owner. Modal surfaces own their own scrolling and continue to use dynamic viewport units plus safe-area insets.
 - `.modal-backdrop` and `.modal-card` each have one base CSS owner, with mobile overrides kept in the same owner section. Do not append a second precision override block to repair modal behavior.
 - Before changing App Shell or Modal CSS, read `UI_COMPONENT_MAP.md`, identify the owner selector, and verify the existing cascade instead of creating a parallel root.
