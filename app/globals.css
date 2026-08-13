@@ -9182,6 +9182,14 @@ label.field > span,
     color: var(--muted);
   }
 
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-received {
+    justify-self: stretch;
+    width: 100%;
+    margin-inline: 0;
+    padding-inline: 0;
+    text-align: left;
+  }
+
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status.green {
     color: var(--ui-color-success, var(--green));
   }

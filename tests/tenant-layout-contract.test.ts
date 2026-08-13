@@ -106,6 +106,7 @@ test("tenant rent row uses three stable proportional slots and semantic display 
   assert.match(page, /tenantRentRowLabel\(expiryInfo\)/);
   assert.match(page, /tenantRentRowTone\(expiryInfo\)/);
   assert.doesNotMatch(page, /expiryInfo\.label \|\| "租期正常"/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-rent-row > \.tenant-list-received\s*\{[\s\S]*?justify-self:\s*stretch[\s\S]*?text-align:\s*left/);
 });
 
 test("tenant status slot matrix preserves every business position", () => {

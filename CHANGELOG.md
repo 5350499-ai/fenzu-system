@@ -1001,3 +1001,8 @@
 - Stabilized the unexpanded Tenant List rent row into proportional received-amount, coverage-status and coverage-date slots.
 - Restored semantic coverage colors from the existing threshold levels while standardizing positive remaining-time text to `剩余N天`.
 - No rent calculations, business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - Align Tenant List received amount
+
+- Aligned the received-amount slot to the same left content boundary as the tenant identity while preserving the existing rent-row proportions and all other rows.
+- No business logic, database, schema, permissions, real data or Production changes.
