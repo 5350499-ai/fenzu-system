@@ -751,6 +751,7 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ## 53. Tenant List Row Contract
 
-- Current and moved-out tenants use the same two-row tenant-list renderer: identity and primary status in the first row; received amount, rent/debt timing, coverage and secondary payment/deposit statuses in the second row.
+- Current and moved-out tenants use the same deterministic three-row tenant-list renderer: identity, rent information, and statuses. Statuses never participate in browser-driven wrapping with identity or rent information.
 - Lifecycle changes content (`在租` / `已退租`) only. Historical debt, payment performance and deposit status use the shared secondary status slot and must not create moved-out-only rows, wrappers or vertically stacked badge layers.
 - Identity fields keep their existing shrink/ellipsis contract, while room remains bounded in list mode and full/wrapping in Tenant Detail.
+- Mobile Tenant List uses a deterministic three-row contract: identity row, rent-information row, and status row. Browser-driven arbitrary flex wrapping is prohibited; status values must not move into the identity or rent rows or create a fourth row.

@@ -61,18 +61,51 @@ test("tenant list gives name and property readable minimum tracks before badges"
   assert.match(css, /\.tenant-compact-list \.tenant-finance-line \.tenant-property-short/);
 });
 
-test("tenant list collapses statuses into one wrapping track", () => {
-  assert.match(page, /className="tenant-status-wrapper"/);
-  assert.match(page, /className="tenant-secondary-status-wrapper"/);
+test("tenant list keeps statuses in one deterministic status row", () => {
+  assert.match(page, /className="tenant-list-row tenant-list-identity-row"/);
+  assert.match(page, /className="tenant-list-row tenant-list-rent-row"/);
+  assert.match(page, /className="tenant-list-row tenant-status-row"/);
+  assert.doesNotMatch(page, /className="tenant-status-wrapper"/);
+  assert.doesNotMatch(page, /className="tenant-secondary-status-wrapper"/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-identity-row\s*\{[\s\S]*?grid-template-columns:/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-rent-row\s*\{[\s\S]*?grid-template-columns:/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)[\s\S]*?gap:\s*4px/);
+});
+
+test("tenant list has a deterministic three-row contract and keeps detail room rules separate", () => {
   const row = page.slice(page.indexOf('className="finance-line tenant-finance-line"'), page.indexOf('</button>', page.indexOf('className="finance-line tenant-finance-line"')));
-  assert.match(row, /tenant-status-wrapper[\s\S]*?displayStatus/);
-  const primaryStatus = row.slice(row.indexOf('className="tenant-status-wrapper"'), row.indexOf('</span>\n                  </span>'));
-  assert.doesNotMatch(primaryStatus, /historicalDebtLabel|tenant-payment-performance/);
-  assert.match(row, /tenant-secondary-status-wrapper[\s\S]*?historicalDebtLabel[\s\S]*?tenant-payment-performance/);
-  assert.match(css, /\.tenant-compact-list \.tenant-status-wrapper\s*\{[\s\S]*?flex-wrap:\s*wrap/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-wrapper\s*\{[\s\S]*?grid-column:\s*4/);
-  assert.match(css, /\.tenant-compact-list \.tenant-secondary-status-wrapper\s*\{[\s\S]*?display:\s*contents/);
-  assert.match(css, /\.tenant-compact-list \.tenant-mobile-meta\s*\{[\s\S]*?flex-wrap:\s*wrap/);
+  assert.equal((row.match(/className="tenant-list-row/g) || []).length, 3);
+  assert.match(row, /tenant-list-room/);
+  assert.match(row, /tenant-list-coverage/);
+  assert.match(row, /tenant-status-item/);
+  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /\.tenant-detail-panel \.tenant-detail-property/);
+});
+
+test("tenant list fixtures keep the same three-row shape across lifecycle and status combinations", () => {
+  const fixtures = [
+    "current + on-rent + on-time + no-deposit",
+    "current + overdue + no-record + no-deposit",
+    "current + on-rent + no-record + deposit-pending",
+    "current + on-time + no-deposit + long-room",
+    "moved-out + no-record + deposit-processed",
+    "moved-out + historical-debt + deposit-pending",
+    "long-tenant + long-property + long-room + multiple-statuses",
+  ];
+
+  assert.equal(fixtures.length, 7);
+  for (const fixture of fixtures) {
+    assert.equal((page.match(/className="tenant-list-row/g) || []).length, 3, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?white-space:\s*nowrap/, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0, 1fr\)\)/, fixture);
+    assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-row[^\{]*\{[^}]*flex-wrap\s*:/, fixture);
+  }
+
+  for (const width of [375, 390, 430]) {
+    assert.ok(width >= 375 && width <= 430, `fixture width ${width}px is covered`);
+  }
 });
 
 test("tenant room uses a compact list contract and a full detail contract", () => {

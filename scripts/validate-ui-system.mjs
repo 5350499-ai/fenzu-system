@@ -364,14 +364,17 @@ if (!rentReminderDisplay.includes("lifecycleLabel") || !rentReminderDisplay.incl
 if (!sharedRentReminderDisplay.includes("StatusBadge") || (!dashboardPage.includes("DebtRow") && !dashboardPage.includes("HomepageReminderRow")) || !homepageReminderRow.includes("ReminderRow") || !remindersPage.includes("ReminderRow")) {
   failures.push("Dashboard and reminder center must render payment-backed reminders through one shared display component");
 }
-if (!tenantsPage.includes('className="tenant-status-wrapper"')) {
-  failures.push("Tenant list statuses must use one shared status wrapper");
+if (!tenantsPage.includes('className="tenant-list-row tenant-list-identity-row"')
+  || !tenantsPage.includes('className="tenant-list-row tenant-list-rent-row"')
+  || !tenantsPage.includes('className="tenant-list-row tenant-status-row"')) {
+  failures.push("Tenant list must use the deterministic identity/rent/status three-row renderer");
 }
-if (!/\.tenant-compact-list \.tenant-status-wrapper[\s\S]*?flex-wrap:\s*wrap/i.test(css)) {
-  failures.push("Tenant list status wrapper must be allowed to wrap on narrow screens");
+if (!/\.tenant-compact-list \.tenant-finance-line[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)[\s\S]*?gap:\s*4px/i.test(css)
+  || !/\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0, 1fr\)\)/i.test(css)) {
+  failures.push("Tenant list must keep a deterministic three-row CSS contract");
 }
-if (!/\.tenant-compact-list \.tenant-mobile-meta[\s\S]*?flex-wrap:\s*wrap/i.test(css)) {
-  failures.push("Tenant mobile metadata must be allowed to wrap");
+if (/\.tenant-compact-list \.tenant-list-row\s*\{[^}]*flex-wrap\s*:/i.test(css)) {
+  failures.push("Tenant list rows must not use browser-driven flex wrapping");
 }
 if (!/\.tenant-detail-panel \.tenant-core-detail-grid[\s\S]*?(?:--tenant-detail-row-gap:\s*0\.35em[\s\S]*?row-gap:\s*var\(--tenant-detail-row-gap\)|row-gap:\s*var\(--ui-compact-row-gap\))/i.test(css)) {
   failures.push("Tenant core detail rows must use a scoped relative compact grid gap");

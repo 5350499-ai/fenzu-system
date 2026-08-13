@@ -9099,6 +9099,88 @@ label.field > span,
   padding-block: 2px;
 }
 
+/* Final Tenant List mobile contract. Keep this after legacy tenant-list rules
+   so the three semantic rows cannot be reinterpreted as the former multi-column
+   finance line by an older selector. */
+@media (max-width: 640px) {
+  .tenant-compact-list .tenant-finance-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    min-width: 0;
+    min-height: 0;
+    padding-block: 4px;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-row {
+    display: grid;
+    min-width: 0;
+    width: 100%;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-identity-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(2.5em, 10ch);
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-rent-row {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.8fr) minmax(0, 1.35fr);
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-status-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-row > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-identity-row > *,
+  .tenant-compact-list .tenant-finance-line > .tenant-list-rent-row > * {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-room {
+    max-width: 10ch;
+    white-space: nowrap;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-list-row > .tenant-list-rent-status,
+  .tenant-compact-list .tenant-finance-line > .tenant-list-row > .tenant-list-coverage {
+    text-align: left;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-status-row > .tenant-status-item {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .tenant-compact-list .tenant-finance-line > .tenant-status-row .badge {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: center;
+    overflow: hidden;
+    padding-inline: 3px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tenant-compact-list .tenant-status-wrapper,
+  .tenant-compact-list .tenant-secondary-status-wrapper,
+  .tenant-compact-list .tenant-mobile-meta {
+    display: none;
+  }
+}
+
 /* Tenant List precision contract: identity stays readable and all compact
    statuses share one shrinkable track instead of competing grid columns. */
 .tenant-compact-list .tenant-finance-line {

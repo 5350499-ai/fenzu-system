@@ -980,23 +980,24 @@ export default function TenantsPage() {
                 >
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => { setDebtFocusPaymentId(""); setDetailTenantId(expanded ? "" : tenant.id); }} type="button">
                   <span className="finance-line tenant-finance-line">
-                  <span className="tenant-name">{tenant.name || "-"}</span>
-                  <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
-                  <span className="tenant-list-room" title={room?.name || room?.roomNumber || "-"}>{room?.name || room?.roomNumber || "-"}</span>
-                  <span className="tenant-status-wrapper" onClick={(event) => event.stopPropagation()}>
-                    <span className="tenant-toggle-control"><StatusBadge tone={tenantTone(displayStatus)}>{displayStatus}</StatusBadge></span>
+                    <span className="tenant-list-row tenant-list-identity-row">
+                      <span className="tenant-name">{tenant.name || "-"}</span>
+                      <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
+                      <span className="tenant-list-room" title={room?.name || room?.roomNumber || "-"}>{room?.name || room?.roomNumber || "-"}</span>
+                    </span>
+                    <span className="tenant-list-row tenant-list-rent-row">
+                      <strong className="tenant-list-received" title={latestReceivedPayment ? `最近一次实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}>{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
+                      <strong className={`tenant-list-rent-status ${expiryInfo.level}`}>{expiryInfo.label || "租期正常"}</strong>
+                      <span className="tenant-list-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
+                    </span>
+                    <span className="tenant-list-row tenant-status-row" onClick={(event) => event.stopPropagation()}>
+                      <span className="tenant-status-item"><StatusBadge tone={tenantTone(tenant.status || "在租")}>{tenant.status || "在租"}</StatusBadge></span>
+                      {displayStatus === "欠租" ? <span className="tenant-status-item"><StatusBadge tone="danger">当前欠租</StatusBadge></span> : null}
+                      {rentDisplay.hasHistoricalOpenDebt ? <span className="tenant-status-item"><StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge></span> : null}
+                      <span className="tenant-status-item tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
+                      <span className="tenant-status-item tenant-deposit-badge"><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
+                    </span>
                   </span>
-                  </span>
-                <span className="tenant-mobile-meta">
-                  <strong className="tenant-mobile-received">{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
-                  {expiryInfo.label ? <strong className={`tenant-mobile-reminder ${expiryInfo.level}`}>{expiryInfo.label}</strong> : null}
-                  <span className="tenant-mobile-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
-                  <span className="tenant-secondary-status-wrapper" onClick={(event) => event.stopPropagation()}>
-                    {rentDisplay.hasHistoricalOpenDebt ? <span className="tenant-toggle-control"><StatusBadge tone="danger">{rentDisplay.historicalDebtLabel}</StatusBadge></span> : null}
-                    <span className="tenant-payment-performance" title="付款表现"><StatusBadge tone={paymentPerformanceTone}>{paymentPerformanceLabel}</StatusBadge></span>
-                    <span className="tenant-toggle-control tenant-deposit-badge"><StatusBadge tone={depositStatus === "押金已处理" ? "green" : depositStatus === "押金待处理" ? "amber" : ""}>{depositStatus}</StatusBadge></span>
-                  </span>
-                </span>
                 </button>
                 {expiryInfo.label ? (
                   <div className={`tenant-expiry-row ${expiryInfo.level}`}>
