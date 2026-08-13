@@ -9139,7 +9139,7 @@ label.field > span,
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row {
-    grid-template-columns: minmax(0, max-content) minmax(0, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 31fr) minmax(0, 25fr) minmax(0, 44fr);
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-status-row {
@@ -9175,6 +9175,24 @@ label.field > span,
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-coverage {
     min-width: 0;
     text-align: right;
+  }
+
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status {
+    min-width: 0;
+    color: var(--muted);
+  }
+
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status.green {
+    color: var(--ui-color-success, var(--green));
+  }
+
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status.yellow,
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status.orange {
+    color: var(--ui-color-warning, var(--amber));
+  }
+
+  .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-rent-status.red {
+    color: var(--ui-color-danger, var(--red));
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-status-row > .tenant-status-item {

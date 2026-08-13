@@ -995,3 +995,9 @@
 - Added a presentation-only fixed slot mapping for lifecycle, current debt, historical debt, payment performance and deposit status; empty slots retain their responsive grid tracks without visual placeholders.
 - Kept current, moved-out and archived Tenant List rows on the same renderer and responsive relative five-column contract.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - Tenant List rent row semantics
+
+- Stabilized the unexpanded Tenant List rent row into proportional received-amount, coverage-status and coverage-date slots.
+- Restored semantic coverage colors from the existing threshold levels while standardizing positive remaining-time text to `剩余N天`.
+- No rent calculations, business logic, database, schema, permissions, real data or Production changes.

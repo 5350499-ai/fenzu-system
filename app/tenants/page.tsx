@@ -45,7 +45,7 @@ import { isValidCalendarDate, localToday } from "@/lib/actual-move-out-date";
 import { isActualMoveOutDateEnabled } from "@/lib/actual-move-out-feature";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, repairMissingTenantMonthlyRents } from "@/lib/rent-coverage";
 import { getDebtCases, getTenantDebtCases, type DebtCase } from "@/lib/debt-case";
-import { getTenantDebtDisplay, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
+import { getTenantDebtDisplay, tenantRentRowLabel, tenantRentRowTone, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
 import { rentPeriodToday } from "@/lib/rent-period-state";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
@@ -998,7 +998,7 @@ export default function TenantsPage() {
                     </span>
                     <span className="tenant-list-row tenant-list-rent-row">
                       <strong className="tenant-list-received" title={latestReceivedPayment ? `最近一次实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}>{latestReceivedPayment ? `实收 ${euro(latestReceivedPayment.amountPaid)}` : "暂无实收"}</strong>
-                      <strong className={`tenant-list-rent-status ${expiryInfo.level}`}>{expiryInfo.label || "租期正常"}</strong>
+                      <strong className={`tenant-list-rent-status ${tenantRentRowTone(expiryInfo)}`}>{tenantRentRowLabel(expiryInfo)}</strong>
                       <span className="tenant-list-coverage">{expiryInfo.endDate ? `覆盖至 ${expiryInfo.endDate}` : "无覆盖日期"}</span>
                     </span>
                     <span className="tenant-list-row tenant-status-row" onClick={(event) => event.stopPropagation()}>

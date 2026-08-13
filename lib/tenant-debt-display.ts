@@ -13,6 +13,20 @@ export type TenantDebtDisplay = {
   expiry: { daysRemaining: number | null; endDate: string; level: "normal" | "yellow" | "orange" | "red"; label: string; sortGroup: number };
 };
 
+/** Presentation-only label for the Tenant List rent row; facts come from RentPeriodState. */
+export function tenantRentRowLabel(expiry: TenantDebtDisplay["expiry"]): string {
+  if (expiry.daysRemaining === null) return "无覆盖日期";
+  if (expiry.daysRemaining > 0) return `剩余${expiry.daysRemaining}天`;
+  if (expiry.daysRemaining === 0) return "今日到期";
+  return `已逾期${Math.abs(expiry.daysRemaining)}天`;
+}
+
+/** Maps the existing coverage level to the Tenant List semantic color classes. */
+export function tenantRentRowTone(expiry: TenantDebtDisplay["expiry"]): "green" | "yellow" | "orange" | "red" | "neutral" {
+  if (!expiry.endDate || expiry.daysRemaining === null) return "neutral";
+  return expiry.level === "normal" ? "green" : expiry.level;
+}
+
 /** Tenant-list adapter: latest coverage comes from RentDomain; debt only from DebtCase. */
 export function getTenantDebtDisplay({ tenant, payments, debtCases, waivedPaymentIds, today }: { tenant: BusinessTenant; payments: BusinessRentPayment[]; debtCases: DebtCase[]; waivedPaymentIds?: ReadonlySet<string>; today?: string }): TenantDebtDisplay {
   const state = getLatestRentPeriodState({ tenant, payments, waivedPaymentIds, today });

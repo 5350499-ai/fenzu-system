@@ -136,3 +136,9 @@ page-local gap or nowrap/overflow variant.
 - `lib/tenant-status-slots.ts` owns the presentation-only `getTenantStatusSlots()` mapping for the Tenant List third row.
 - `.tenant-status-row` owns one responsive five-track grid in this fixed order: lifecycle, current debt, historical debt, payment performance, deposit status.
 - Empty slots return `null` and retain their grid track without rendering text, border, background or placeholder. Current, moved-out and archived tenants use the same mapping and renderer; no auto-pack, flex-wrap or fixed-pixel columns are allowed.
+
+## Tenant List Rent Row Ownership
+
+- The second row is owned by `.tenant-list-rent-row` in `app/tenants/page.tsx` and uses the shared `tenantRentRowLabel()` / `tenantRentRowTone()` presentation adapters from `lib/tenant-debt-display.ts`.
+- Its responsive semantic slots are received amount, coverage/due status and coverage date, using proportional `31fr / 25fr / 44fr` tracks with no fixed pixel column widths.
+- Current, moved-out and archived tenants use the same rent-row renderer; coverage facts and threshold levels remain owned by RentPeriodState/TenantDebtDisplay.

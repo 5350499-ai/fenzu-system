@@ -768,3 +768,10 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - The row uses a responsive relative grid, preferably `repeat(5, minmax(0, 1fr))`; fixed pixel column widths, browser-driven flex wrapping, fourth rows, horizontal overflow and transforms/scaling are prohibited.
 - Current, moved-out and archived tenants consume the same slot mapping and renderer. Only slot data may differ; slot positions do not.
 - The second rent-information row remains responsible for received amount, due/overdue wording and coverage date. Those facts must not be copied into the five status slots.
+
+## 56. Tenant List Rent Row Contract
+
+- The rent row has three proportional slots: received amount, coverage/due status and coverage date. Amount length must not move the status slot.
+- Positive remaining coverage uses `剩余N天`; the existing approaching-expiry threshold is expressed by warning color, not a different label. Due-today uses `今日到期`, overdue uses `已逾期N天`, and missing coverage uses a neutral no-coverage label.
+- The row reuses existing coverage facts and threshold levels; it does not calculate dates in JSX. Current, moved-out and archived tenants share the same responsive ownership.
+- Use relative grid tracks such as `31fr / 25fr / 44fr`; fixed pixel columns, wrapping, overflow and device-specific rules are prohibited.

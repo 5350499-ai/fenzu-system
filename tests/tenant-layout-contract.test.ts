@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 // @ts-expect-error Node's strip-types test runner imports TypeScript directly.
 import { getTenantStatusSlots } from "../lib/tenant-status-slots.ts";
+// @ts-expect-error Node's strip-types test runner imports TypeScript directly.
+import { tenantRentRowLabel, tenantRentRowTone } from "../lib/tenant-debt-display.ts";
 
 const page = readFileSync(new URL("../app/tenants/page.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
@@ -89,6 +91,21 @@ test("tenant status slots keep business types fixed and empty slots invisible", 
   assert.equal(slots[4]?.label, "押金待处理");
   assert.doesNotMatch(page, /statusSlots\.filter/);
   assert.match(page, /aria-hidden=\{!slot\}/);
+});
+
+test("tenant rent row uses three stable proportional slots and semantic display tones", () => {
+  assert.equal(tenantRentRowLabel({ daysRemaining: 18, endDate: "2026-08-31", level: "normal", label: "", sortGroup: 3 }), "剩余18天");
+  assert.equal(tenantRentRowLabel({ daysRemaining: 13, endDate: "2026-08-26", level: "orange", label: "即将到期13天", sortGroup: 1 }), "剩余13天");
+  assert.equal(tenantRentRowLabel({ daysRemaining: 0, endDate: "2026-08-13", level: "red", label: "今日到期", sortGroup: 0 }), "今日到期");
+  assert.equal(tenantRentRowLabel({ daysRemaining: -3, endDate: "2026-08-10", level: "red", label: "", sortGroup: 0 }), "已逾期3天");
+  assert.equal(tenantRentRowLabel({ daysRemaining: null, endDate: "", level: "normal", label: "", sortGroup: 4 }), "无覆盖日期");
+  assert.equal(tenantRentRowTone({ daysRemaining: 30, endDate: "2026-08-31", level: "yellow", label: "", sortGroup: 2 }), "yellow");
+  assert.equal(tenantRentRowTone({ daysRemaining: 31, endDate: "2026-09-01", level: "normal", label: "", sortGroup: 3 }), "green");
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-rent-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 31fr\)\s+minmax\(0, 25fr\)\s+minmax\(0, 44fr\)/);
+  assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-rent-row\s*\{[^}]*grid-template-columns:[^;}]*\d+px/i);
+  assert.match(page, /tenantRentRowLabel\(expiryInfo\)/);
+  assert.match(page, /tenantRentRowTone\(expiryInfo\)/);
+  assert.doesNotMatch(page, /expiryInfo\.label \|\| "租期正常"/);
 });
 
 test("tenant status slot matrix preserves every business position", () => {
