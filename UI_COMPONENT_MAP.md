@@ -22,13 +22,13 @@
 |---|---|
 | 页面/组件 | `app/tenants/page.tsx` → tenant list rendering |
 | 列表容器 | `.tenant-compact-list` |
-| 主行 | `.tenant-finance-line` |
+| 三行纵向容器 | `.tenant-list-row-stack` |
 | 身份行 | `.tenant-list-identity-row` |
 | 租金信息行 | `.tenant-list-rent-row` |
 | 状态行 | `.tenant-status-row` |
 | 房间短展示 | `.tenant-list-room` |
 
-职责：使用固定三行 Tenant List Row Contract 展示租客名、房源、房间、租金信息和状态 badge。
+职责：使用固定三行 Tenant List Row Contract 展示租客名、房源、房间、租金信息和状态 badge；`.tenant-list-row-stack` 是唯一纵向父级，三个 row 必须是它的直接子元素。
 
 移动端固定为：身份行、租金信息行、状态行。状态不得通过普通 flex-wrap 在三行之间随机流动；current、moved-out 和 archive 来源必须消费同一 renderer。
 

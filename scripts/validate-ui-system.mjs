@@ -369,8 +369,8 @@ if (!tenantsPage.includes('className="tenant-list-row tenant-list-identity-row"'
   || !tenantsPage.includes('className="tenant-list-row tenant-status-row"')) {
   failures.push("Tenant list must use the deterministic identity/rent/status three-row renderer");
 }
-if (!/\.tenant-compact-list \.tenant-finance-line[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)[\s\S]*?gap:\s*4px/i.test(css)
-  || !/\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0, 1fr\)\)/i.test(css)) {
+if (!/\.tenant-compact-list \.tenant-list-row-stack[\s\S]*?display:\s*flex[\s\S]*?flex-direction:\s*column[\s\S]*?width:\s*100%/i.test(css)
+  || !/\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0, 1fr\)\)/i.test(css)) {
   failures.push("Tenant list must keep a deterministic three-row CSS contract");
 }
 if (/\.tenant-compact-list \.tenant-list-row\s*\{[^}]*flex-wrap\s*:/i.test(css)) {
@@ -400,7 +400,7 @@ if (!/\.tenant-detail-panel \.tenant-detail-actions[\s\S]*?row-gap:\s*0\.35em/i.
 if (!tenantsPage.includes('className="tenant-list-room"') || tenantsPage.includes("compactRoomName(")) {
   failures.push("Tenant list room names must preserve the source value for CSS-only truncation");
 }
-if (!/\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis/i.test(css)) {
+if (!/\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis/i.test(css)) {
   failures.push("Tenant list room names must be single-line and bounded with ellipsis");
 }
 if (!/\.tenant-detail-panel \.tenant-detail-room > strong[\s\S]*?white-space:\s*normal[\s\S]*?overflow:\s*visible/i.test(css)) {

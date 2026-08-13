@@ -56,9 +56,9 @@ test("deposit status is represented once in the expanded detail and payment summ
 });
 
 test("tenant list gives name and property readable minimum tracks before badges", () => {
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line\s*\{[\s\S]*?minmax\(5\.5em, 1fr\)[\s\S]*?minmax\(6\.5em, 1\.2fr\)/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line \.tenant-name/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line \.tenant-property-short/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row\s*\{[\s\S]*?minmax\(0, 1fr\)[\s\S]*?minmax\(0, 1\.2fr\)/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \*/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \.tenant-list-room/);
 });
 
 test("tenant list keeps statuses in one deterministic status row", () => {
@@ -67,19 +67,20 @@ test("tenant list keeps statuses in one deterministic status row", () => {
   assert.match(page, /className="tenant-list-row tenant-status-row"/);
   assert.doesNotMatch(page, /className="tenant-status-wrapper"/);
   assert.doesNotMatch(page, /className="tenant-secondary-status-wrapper"/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-identity-row\s*\{[\s\S]*?grid-template-columns:/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-rent-row\s*\{[\s\S]*?grid-template-columns:/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)[\s\S]*?gap:\s*4px/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack\s*\{[\s\S]*?display:\s*flex[\s\S]*?flex-direction:\s*column[\s\S]*?width:\s*100%/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row\s*\{[\s\S]*?grid-template-columns:/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-rent-row\s*\{[\s\S]*?grid-template-columns:/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
 });
 
 test("tenant list has a deterministic three-row contract and keeps detail room rules separate", () => {
-  const row = page.slice(page.indexOf('className="finance-line tenant-finance-line"'), page.indexOf('</button>', page.indexOf('className="finance-line tenant-finance-line"')));
+  const row = page.slice(page.indexOf('className="finance-line tenant-finance-line tenant-list-row-stack"'), page.indexOf('</button>', page.indexOf('className="finance-line tenant-finance-line tenant-list-row-stack"')));
+  assert.match(row, /tenant-list-row-stack/);
   assert.equal((row.match(/className="tenant-list-row/g) || []).length, 3);
   assert.match(row, /tenant-list-room/);
   assert.match(row, /tenant-list-coverage/);
   assert.match(row, /tenant-status-item/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?white-space:\s*nowrap/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-property/);
 });
 
@@ -97,10 +98,10 @@ test("tenant list fixtures keep the same three-row shape across lifecycle and st
   assert.equal(fixtures.length, 7);
   for (const fixture of fixtures) {
     assert.equal((page.match(/className="tenant-list-row/g) || []).length, 3, fixture);
-    assert.match(css, /\.tenant-compact-list \.tenant-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/, fixture);
-    assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?white-space:\s*nowrap/, fixture);
-    assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0, 1fr\)\)/, fixture);
-    assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-row[^\{]*\{[^}]*flex-wrap\s*:/, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack\s*\{[\s\S]*?display:\s*flex[\s\S]*?flex-direction:\s*column/, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row[\s\S]*?max-width:\s*10ch/, fixture);
+    assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-status-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/, fixture);
+    assert.doesNotMatch(css, /\.tenant-compact-list \.tenant-list-row-stack[^\{]*\{[^}]*flex-wrap\s*:/, fixture);
   }
 
   for (const width of [375, 390, 430]) {
@@ -113,7 +114,7 @@ test("tenant room uses a compact list contract and a full detail contract", () =
   assert.doesNotMatch(page, /compactRoomName\(/);
   assert.match(page, /className="tenant-detail-property"/);
   assert.match(page, /className="tenant-detail-room"/);
-  assert.match(css, /\.tenant-compact-list \.tenant-finance-line > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /\.tenant-compact-list \.tenant-list-row-stack > \.tenant-list-identity-row > \.tenant-list-room[\s\S]*?max-width:\s*10ch[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/);
   assert.match(css, /\.tenant-detail-panel \.tenant-detail-property > strong,[\s\S]*?\.tenant-detail-panel \.tenant-detail-room > strong[\s\S]*?overflow:\s*visible[\s\S]*?white-space:\s*normal/);
 });
 

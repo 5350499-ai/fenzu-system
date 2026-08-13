@@ -979,7 +979,7 @@ export default function TenantsPage() {
                   }}
                 >
                 <button aria-expanded={expanded} className="tenant-card-toggle" onClick={() => { setDebtFocusPaymentId(""); setDetailTenantId(expanded ? "" : tenant.id); }} type="button">
-                  <span className="finance-line tenant-finance-line">
+                  <span className="finance-line tenant-finance-line tenant-list-row-stack">
                     <span className="tenant-list-row tenant-list-identity-row">
                       <span className="tenant-name">{tenant.name || "-"}</span>
                       <span className="tenant-property-short" title={property?.name || "-"}>{compactPropertyName(property?.name)}</span>
