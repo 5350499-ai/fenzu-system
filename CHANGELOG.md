@@ -983,3 +983,9 @@
 - Unified moved-out lifecycle/date rows inside the existing Tenant Detail status owner so current and moved-out details share the same shell contract.
 - Tightened the shared compact action grid to a 5px mobile column gap, 6px inline button padding and a 5px icon/text gap while preserving 44px touch targets and payment-specific two-column groups.
 - No business logic, database, schema, permissions, real data or Production changes.
+
+# 2026-08-13 - Tenant identity tracks and vacant-room reminder display
+
+- Scoped the mobile Tenant List identity row to shared 30% / 40% / 30% tracks and removed the duplicate fixed room-width cap while preserving child ellipsis.
+- Unified vacant-room reminder presentation around `roomId` → room name and `propertyId` → property name for both homepage and reminder-center rows.
+- No business logic, database, schema, permissions, real data or Production changes.

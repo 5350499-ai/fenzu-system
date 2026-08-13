@@ -24,6 +24,11 @@ export type ReminderDisplayModel = {
   secondaryLine: string;
   amountLabel?: string;
   debtCase?: DebtCase;
+  vacantRoom?: {
+    roomName: string;
+    propertyName: string;
+    statusLabel: "空置";
+  };
 };
 
 export function buildReminderDisplayModel(item: ReminderItem, context: ReminderDisplayContext): ReminderDisplayModel {
@@ -56,6 +61,22 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
       lifecycleTone: isEndedTenantStatus(tenant?.status || "") ? "amber" : "green",
       secondaryLine: [`覆盖至 ${item.dueDate || "-"}`, status, item.amount != null ? euro(item.amount) : ""].filter(Boolean).join(" | "),
       amountLabel: item.amount != null ? euro(item.amount) : undefined
+    };
+  }
+
+  if (item.type === "vacant_room") {
+    const room = context.rooms.find((candidate) => candidate.id === item.roomId);
+    const property = context.properties.find((candidate) => candidate.id === item.propertyId);
+    return {
+      categoryLabel: item.category,
+      tenantName: room?.name || room?.roomNumber || "房间",
+      contextLine: property?.name || "房源",
+      secondaryLine: property?.name || "房源",
+      vacantRoom: {
+        roomName: room?.name || room?.roomNumber || "房间",
+        propertyName: property?.name || "房源",
+        statusLabel: "空置"
+      }
     };
   }
 

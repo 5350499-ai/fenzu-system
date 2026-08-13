@@ -3131,6 +3131,19 @@ td:last-child {
   max-inline-size: 132px;
 }
 
+.reminder-row-vacant-primary {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.reminder-row-vacant-primary > strong {
+  grid-column: 1;
+}
+
+.reminder-row-vacant-primary .reminder-row-badges {
+  grid-column: 2;
+  max-inline-size: none;
+}
+
 .reminder-row-kind .badge,
 .reminder-row-badges .badge {
   min-block-size: var(--tenant-list-badge-height);
@@ -9122,7 +9135,7 @@ label.field > span,
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-identity-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(2.5em, 10ch);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 3fr);
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row {
@@ -9152,7 +9165,7 @@ label.field > span,
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-identity-row > .tenant-list-room {
-    max-width: 10ch;
+    max-width: 100%;
   }
 
   .tenant-compact-list .tenant-list-row-stack > .tenant-list-rent-row > .tenant-list-coverage {
@@ -9241,7 +9254,7 @@ label.field > span,
    detail rows retain the original value and may wrap naturally. */
 .tenant-compact-list .tenant-finance-line > .tenant-list-room {
   min-width: 0;
-  max-width: 10ch;
+  max-width: 100%;
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

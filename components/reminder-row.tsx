@@ -5,6 +5,16 @@ import { buildReminderDisplayModel, type ReminderDisplayContext } from "@/lib/re
 
 export function ReminderRow({ item, context, variant = "full", onWaive }: { item: ReminderItem; context: ReminderDisplayContext; variant?: "compact" | "full"; onWaive?: (item: ReminderItem) => void }) {
   const display = buildReminderDisplayModel(item, context);
+  if (display.vacantRoom) {
+    const vacantIdentity = <>
+      <span className="reminder-row-primary reminder-row-vacant-primary">
+        <strong>{display.vacantRoom.roomName}</strong>
+        <span className="reminder-row-badges"><StatusBadge tone="blue">{display.vacantRoom.statusLabel}</StatusBadge></span>
+      </span>
+      <small className="reminder-row-secondary reminder-row-vacant-secondary">{display.vacantRoom.propertyName}</small>
+    </>;
+    return <Link className={`reminder-row reminder-row-${variant} ${item.tone} reminder-row-vacant`} href={item.href}>{vacantIdentity}</Link>;
+  }
   const identity = <>
     <span className="reminder-row-primary">
       {variant === "full" ? <span className="reminder-row-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{display.categoryLabel}</StatusBadge></span> : null}

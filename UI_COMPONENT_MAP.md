@@ -125,3 +125,8 @@ page-local gap or nowrap/overflow variant.
 ## Ownership Change Rule
 
 只有 ownership 发生变化时才需要同步更新本地图；普通数值调整不记录历史细节。若没有现有 owner，先说明缺口，再建立最小 shared root；不得以 duplicate selector 规避定位问题。
+## Tenant List Identity and Vacant Room Reminder Display Contract
+
+- `.tenant-list-identity-row` is the sole mobile identity-row owner. Its columns are `3fr / 4fr / 3fr` (30% / 40% / 30%), using the shared 14px body typography and child-level CSS ellipsis. The list room value is bounded by this grid; it does not receive a second fixed `10ch` cap. Current, moved-out and archived list rows share this rule; Tenant Detail remains the full-value wrapping owner.
+- `lib/reminder-display.ts` is the sole vacant-room presentation model owner. A vacant reminder resolves `roomId` to `room.name` as the first-line identity, `propertyId` to `property.name` as the second line, and renders the `空置` badge beside the room name.
+- `components/reminder-row.tsx` is the shared vacant-room row renderer consumed by both `components/homepage-reminder-row.tsx` and `app/reminders/page.tsx`. Neither surface may reconstruct room/property identity independently.

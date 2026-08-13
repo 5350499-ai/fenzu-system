@@ -755,3 +755,8 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Lifecycle changes content (`在租` / `已退租`) only. Historical debt, payment performance and deposit status use the shared secondary status slot and must not create moved-out-only rows, wrappers or vertically stacked badge layers.
 - Identity fields keep their existing shrink/ellipsis contract, while room remains bounded in list mode and full/wrapping in Tenant Detail.
 - Mobile Tenant List uses a deterministic three-row contract: identity row, rent-information row, and status row. Browser-driven arbitrary flex wrapping is prohibited; status values must not move into the identity or rent rows or create a fourth row.
+
+## 54. Tenant Identity and Vacant Room Reminder Display Contract
+
+- The mobile Tenant List identity row uses `3fr / 4fr / 3fr` semantic tracks for tenant, property and room (30% / 40% / 30%). All three values use the shared 14px body typography, `min-width: 0`, single-line ellipsis and no second fixed room-width cap. Tenant Detail remains the separate full-value wrapping presentation.
+- Vacant-room reminders use one shared display model and row renderer on the homepage and `/reminders`: `room.name` is the first-line identity, `property.name` is the second line, and `空置` is the first-line status badge. Reminder title/description are not used to reconstruct or duplicate those identities.
