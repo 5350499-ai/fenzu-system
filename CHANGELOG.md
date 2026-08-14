@@ -11,6 +11,12 @@
 - Added regression coverage for table/chart scroll ownership, high-risk row shrink ownership, frozen Tenant List contracts and BUG-01 ownership.
 - No business fields, calculations, scroll semantics, navigation, database, schema, permissions, real data or Production were changed.
 
+## 2026-08-14 - Responsive regression contract lock (2.7)
+
+- Added the final `RESPONSIVE_CONTRACT.md` matrix and `npm run validate:responsive` aggregate guard for Shell, safe-area, Modal, BUG-01, Tenant List, Medium business, Table and Chart ownership.
+- Added static anti-pattern checks for device-width JavaScript/CSS layout hacks without flagging pointer-capability detection or error-reporting metadata.
+- No production CSS, business logic, database, schema, permissions, real data or Production deployment changed.
+
 ## 2026-08-10 - Composite form-control convergence (Preview)
 
 - Completed the 2.4d static responsive regression pass for Phone/Medium/Desktop shell ownership, frozen Tenant List contracts, Modal ownership and intentional table/chart scrolling. Real iPhone acceptance remains a Preview follow-up.

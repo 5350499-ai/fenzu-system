@@ -748,6 +748,13 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - `overflow-x: clip` on the document is a last-resort guard, not a substitute for root-level overflow ownership. The 2.6 contract is frozen across Phone (`<=640px`), Medium (`641px-1100px`) and Desktop (`>=1101px`).
 - Tenant List, Tenant Detail, Modal ownership, BUG-01 and intentional table/chart scroll contracts remain frozen.
 
+### 62. Responsive Regression Contract - 2.7
+
+- The final static matrix and ownership summary live in `RESPONSIVE_CONTRACT.md`; implementation ownership remains in `UI_COMPONENT_MAP.md`.
+- Run `npm run validate:responsive` before changing responsive roots. It guards the three Shell ranges, safe-area/main clearance, Modal ownership, BUG-01, frozen Tenant List rows, Medium business roots, intentional Table/Chart scrolling and forbidden layout anti-patterns.
+- Fixed pixels are evaluated by semantic ownership, not globally banned. Phone/Medium/Desktop breakpoints, navigation modes, table/chart scroll strategy and already accepted business contracts require explicit approval to change.
+- Status: `IPHONE_MANUAL_VALIDATION_PASSED`; no Tablet/foldable runtime result is claimed by static tests.
+
 ### Tenant Detail Density Ownership Contract
 
 - `.tenant-core-detail-group`, `.tenant-core-detail-grid` and `.compact-detail-row` own base-detail density; core rows use the scoped relative gap and rows do not add a second margin source.

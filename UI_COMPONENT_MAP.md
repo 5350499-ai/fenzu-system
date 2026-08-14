@@ -159,6 +159,12 @@ page-local gap or nowrap/overflow variant.
 - Rent/expense, room, reminder, attachment and settlement rows retain their existing renderers and business field order. Their Medium contracts own shrink/ellipsis at the row root; fixed values remain only where they express touch targets, status/action minimums or semantic minimum content.
 - `html, body { overflow-x: clip; }` is only a final guard. A business root must not rely on it to conceal overflow; table and chart wrappers own their own bounded scrolling.
 
+## Final Responsive Regression Contract - 2.7
+
+- `RESPONSIVE_CONTRACT.md` is the concise final contract; this map remains the implementation ownership source.
+- `npm run validate:responsive` is the aggregate static regression entry for Shell, safe-area, Modal, BUG-01, Tenant List, Medium business roots, Table and Chart contracts.
+- The contract matrix covers 320px through 1440px and freezes Phone `<=640px`, Medium `641px-1100px` and Desktop `>=1101px`. It does not claim Tablet runtime validation.
+
 ## Ownership Change Rule
 
 只有 ownership 发生变化时才需要同步更新本地图；普通数值调整不记录历史细节。若没有现有 owner，先说明缺口，再建立最小 shared root；不得以 duplicate selector 规避定位问题。
