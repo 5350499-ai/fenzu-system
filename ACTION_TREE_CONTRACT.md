@@ -58,7 +58,7 @@ Each registry row uses these fields:
 | `ACTION.TENANT.ARCHIVE` | Tenant archive/restore | LIFECYCLE, UPDATE | Tenant Detail | `persistAll` -> `tenants` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM for archive; NO_CONFIRM_REQUIRED for restore | ALERT / LOCAL_STATE | archive permission | HIGH | tenant page | tenant lifecycle service | MIGRATION_PENDING |
 | `ACTION.TENANT.DELETE` | Empty tenant delete | DESTRUCTIVE | Tenant Detail | `business-data` + tenant delete check | UI_PENDING_GUARD | TYPED_CONFIRM | ALERT / LOCAL_STATE | delete permission + empty-shell guard | HIGH | tenant page/API | destructive action service | MIGRATION_PENDING |
 | `ACTION.DEBT.WAIVE` | Waive rent collection | FINANCIAL, UPDATE | Tenant and Reminder pages | `/api/rent-collection` -> audit log | UI_PENDING_GUARD; SERVER_IDEMPOTENCY via audit duplicate check | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE + cache invalidation | rent payment edit permission + property access + audit | HIGH | rent-collection API | financial action service | MIGRATION_PENDING |
-| `ACTION.RENT_PAYMENT.SAVE` | Rent/payment save | CREATE, UPDATE, FINANCIAL | Rent Payments, Tenant Detail | `saveBusinessData` -> `rent_payments`, optional deposit/tenant updates | UI_PENDING_GUARD; no action-level key | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE + CACHE_INVALIDATION | payment permission | HIGH | payment pages + generic root | rent payment action service | MIGRATION_PENDING |
+| `ACTION.RENT_PAYMENT.SAVE` | Rent/payment save | CREATE, UPDATE, FINANCIAL | Rent Payments, Tenant Detail | `saveBusinessData` -> `rent_payments`, optional deposit/tenant updates | UI_PENDING_GUARD; no action-level key | NO_CONFIRM_REQUIRED | ALERT / core local state + targeted side-effect refresh | payment permission | HIGH | payment pages + generic root | rent payment action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.VOID` | Void payment | UPDATE, FINANCIAL, DESTRUCTIVE | Rent Payments | `saveBusinessData` marking void | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | archive permission | HIGH | payment page | financial action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.DELETE` | Delete payment | DESTRUCTIVE, FINANCIAL | Rent Payments | file delete + `saveBusinessData` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | delete permission | HIGH | payment page | destructive action service | MIGRATION_PENDING |
 | `ACTION.DEPOSIT.SAVE` | Deposit create/update/status | CREATE, UPDATE, FINANCIAL | Deposit pages, Tenant Detail | `saveBusinessData` -> `deposits` | UI_PENDING_GUARD | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE + refresh verification | deposit permission | HIGH | deposit pages | deposit action service | MIGRATION_PENDING |
@@ -93,13 +93,13 @@ Additional known gaps:
 - `PROPERTY_NOTES`: local state may lead the server and failure can be console-only (`USER_VISIBLE_ERROR_GAP`).
 - `DEBT_WAIVER`: server duplicate detection exists and the tenant page now has a payment-specific pending/disabled guard (`CLIENT_PENDING_GAP = RESOLVED`).
 
-These are registration facts; the Debt Waiver client guard is the only production behavior hardening performed in 3.2a.
+These are registration facts; the Debt Waiver client guard was hardened in 3.2a and the Rent Payment core/side-effect feedback boundary was hardened in 3.2b.
 
 ## Financial Action Safety Matrix (3.2a)
 
 | Action ID | Core write | Side effects | Pending / duplicate guard | Server idempotency | Atomicity | Partial-success status | Confirmation | Visible error | Refresh / audit |
 |---|---|---|---|---|---|---|---|---|---|
-| `ACTION.RENT_PAYMENT.SAVE` | `rent_payments` via `saveBusinessData` | optional linked deposit, tenant monthly rent, attachment upload | shared `saving`; no action-level request key | none proven | NON_ATOMIC | `PARTIAL_SUCCESS_RISK` | NO_CONFIRM_REQUIRED | ALERT, attachment-specific alert | local state; payment/deposit writes and audit boundary are separate |
+| `ACTION.RENT_PAYMENT.SAVE` | `rent_payments` via `saveBusinessData` | optional linked deposit, tenant monthly rent, attachment upload | shared `saving`; no action-level request key | none proven (`RENT_PAYMENT_SERVER_IDEMPOTENCY_PENDING`) | NON_ATOMIC | `PARTIAL_SUCCESS_RISK`; core success is reported separately from side-effect failure | NO_CONFIRM_REQUIRED | visible full/partial/core-failure alerts | core payment local state first; targeted deposit/tenant refresh on side-effect failure |
 | `ACTION.EXPENSE.SAVE` | one `expenses` collection write | optional attachment upload | shared `saving` | none proven | NON_ATOMIC | attachment failure is explicitly reported after core success | NO_CONFIRM_REQUIRED | ALERT | local state; file refresh is separate |
 | `ACTION.DEPOSIT.SAVE` | one `deposits` collection write | none in the simple deposit page; tenant detail status update has final-state verification | shared `saving` | none proven | NON_ATOMIC | no cross-table transaction in the simple record path | NO_CONFIRM_REQUIRED | ALERT | refetch/final-state verification in tenant-detail status path |
 | `ACTION.DEBT.WAIVE` | append-only audit log through `/api/rent-collection` | derived debt/reminder presentation changes | tenant payment-specific pending/disabled guard; server audit duplicate check | SERVER_IDEMPOTENCY via audit duplicate check | ATOMIC at the single audit action boundary | none proven for the single action | CONSEQUENCE_CONFIRM | ALERT | local waived-payment state plus server audit |
@@ -112,6 +112,40 @@ These are registration facts; the Debt Waiver client guard is the only productio
 - `SETTLEMENT_TRANSACTION_RECOMMENDATION`: prefer **A. keep per-property settlement writes with a stable batch idempotency design** as the next investigation. Current evidence shows one RPC per property and no batch key; true atomic multi-property settlement would require a new server transaction/RPC. No redesign is implemented here.
 - Deposit status update is the `FINANCIAL_ACTION_REFERENCE_PATTERN`: retain its pending, save, refetch and final-state verification behavior for simple status mutations, without applying it to multi-record payment or settlement transactions.
 - Expense remains `NO_TRANSACTION_REFACTOR_REQUIRED` for 3.2a: its core write is one business record collection and optional attachments are already reported separately.
+
+## Rent Payment Action Root (3.2b)
+
+`ACTION.RENT_PAYMENT.SAVE` has one current UI Action Root in `app/rent-payments/page.tsx`.
+The page owns presentation validation and the existing shared `saving` pending guard;
+`saveBusinessData` remains the generic persistence boundary. No second payment writer,
+RPC, schema change or server idempotency key was introduced in 3.2b.
+
+### Core and side-effect contract
+
+- `CORE_ACTION`: save the `rent_payments` collection and confirm the core write.
+- `SIDE_EFFECTS`: linked deposit persistence, tenant monthly-rent persistence and optional
+  attachment uploads. Cache invalidation performed by `saveBusinessData` and targeted
+  recovery reads are consistency work, not additional payment records.
+- Core failure stops dependent side effects and keeps the form available for retry.
+- After core success, the payment list is updated before side effects run. A side-effect
+  failure never reports the core payment as failed and never asks the user to resubmit the
+  whole payment form.
+- Deposit or tenant-update failure attempts a targeted authoritative refresh of that
+  collection. Attachment failure preserves any files that did upload and reports the
+  attachment step separately.
+
+### Outcome contract
+
+- `FULL_SUCCESS`: core payment and all requested side effects complete; show `收款保存成功。`.
+- `CORE_SUCCESS_WITH_SIDE_EFFECT_FAILURE`: core payment is retained and visible; show the
+  failed side-effect categories and explicitly tell the user not to resubmit the payment.
+- `CORE_FAILURE`: no dependent payment side effects run; show `收款未保存，请重试。` and
+  keep the form open.
+
+`RENT_PAYMENT_SERVER_IDEMPOTENCY_PENDING` remains active: the existing UI `saving` guard
+prevents local duplicate submit, but the generic business-data API does not prove a
+server-side request key or database idempotency constraint. True retry of a failed
+side-effect is therefore a separate action decision and must not recreate the core payment.
 
 ## Safety contract
 

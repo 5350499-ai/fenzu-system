@@ -28,6 +28,7 @@ import {
   propertyKey,
   rentPaymentKey,
   roomKey,
+  refreshBusinessData,
   saveBusinessData,
   tenantKey
 } from "@/lib/business-data";
@@ -403,7 +404,7 @@ export default function RentPaymentsPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!loaded) return;
+    if (!loaded || saving) return;
     const incomeType = form.incomeType || "房租收入";
     const isRent = isRentPayment(form);
     const requiresBusinessLink = isRent;
@@ -517,15 +518,39 @@ export default function RentPaymentsPage() {
       : null;
     try {
       await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit });
+      // The core financial write is confirmed here.  From this point on,
+      // failures must be reported as side-effect failures, never as a failed
+      // rent payment, and the confirmed payment must remain visible locally.
+      setPayments(next);
+      const sideEffectFailures: string[] = [];
+
       if (JSON.stringify(deposits) !== JSON.stringify(nextDeposits)) {
-        await saveBusinessData(depositKey, nextDeposits, { ownerOnly: isHistoricalEdit });
-        setDeposits(nextDeposits);
+        try {
+          await saveBusinessData(depositKey, nextDeposits, { ownerOnly: isHistoricalEdit });
+          setDeposits(nextDeposits);
+        } catch {
+          sideEffectFailures.push("押金记录");
+          try {
+            setDeposits(await refreshBusinessData(depositKey, deposits));
+          } catch {
+            // The explicit partial-success notice remains the source of truth
+            // when the recovery read is also unavailable.
+          }
+        }
       }
       if (nextTenants) {
-        await saveBusinessData(tenantKey, nextTenants);
-        setTenants(nextTenants);
+        try {
+          await saveBusinessData(tenantKey, nextTenants);
+          setTenants(nextTenants);
+        } catch {
+          sideEffectFailures.push("租客月租更新");
+          try {
+            setTenants(await refreshBusinessData(tenantKey, tenants));
+          } catch {
+            // Keep the core payment visible even if the recovery read fails.
+          }
+        }
       }
-      setPayments(next);
       if (filesToUpload.length) {
         const uploadedFiles: RentPaymentFile[] = [];
         try {
@@ -533,12 +558,17 @@ export default function RentPaymentsPage() {
           setFiles((current) => [...uploadedFiles, ...current]);
         } catch (error: any) {
           if (uploadedFiles.length) setFiles((current) => [...uploadedFiles, ...current]);
-          window.alert(`收款已保存，但附件上传失败：${error?.message || error}`);
+          sideEffectFailures.push("附件上传");
         }
+      }
+      if (sideEffectFailures.length) {
+        window.alert(`收款记录已经保存，但部分后续操作未完成：${sideEffectFailures.join("、")}。请不要重新提交整笔收款。`);
+      } else {
+        window.alert("收款保存成功。");
       }
       close();
     } catch (error: any) {
-      window.alert(error.message || "保存收租记录失败，请稍后重试。");
+      window.alert(`收款未保存，请重试。${error?.message ? `\n${error.message}` : ""}`);
     } finally {
       setSaving(false);
     }

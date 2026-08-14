@@ -1080,3 +1080,9 @@
 - Added a payment-specific client pending/disabled guard and visible network-error feedback for Debt Waiver without changing server dedupe, DebtCase, Reminder Engine or persistence semantics.
 - Locked the existing non-atomic rent-payment and per-property settlement boundaries, Deposit final-state verification pattern and Settlement Reversal single-RPC ownership.
 - Added financial action regression coverage; no amount calculation, database, schema, migration, permission, real data or Production behavior was changed.
+## 2026-08-14 - Rent Payment Action Root hardening (3.2b)
+
+- Kept the existing core-first rent payment write and shared `saving` pending guard.
+- Confirmed the core payment in local state before optional deposit, tenant monthly-rent and attachment side effects run.
+- Side-effect failures now produce explicit partial-success feedback and targeted recovery reads; users are not told that an already-saved payment failed and are not asked to resubmit the whole payment.
+- No amount calculation, database schema, RPC, Reminder/DebtCase/RentPeriodState rule, historical data or Production deployment changed.
