@@ -51,7 +51,7 @@ export type OperationsRoom = {
   room: BusinessRoom;
   property: BusinessProperty | undefined;
   statusLabel: string;
-  statusTone: "green" | "amber" | "red" | "blue";
+  statusTone: "green" | "orange" | "amber" | "red" | "blue";
   currentTenantLabel: string;
   monthlyRent: number;
   coverageEnd: string;
@@ -280,7 +280,7 @@ function roomStatusLabel(status: string) {
 
 function roomStatusTone(status: string): OperationsRoom["statusTone"] {
   if (status === "已租") return "green";
-  if (status === "空置" || status === "空房") return "amber";
+  if (status === "空置" || status === "空房") return "orange";
   if (status === "维修中") return "red";
   return "blue";
 }

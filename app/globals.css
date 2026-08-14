@@ -1930,10 +1930,13 @@ a {
 }
 
 .operations-legend-end,
-.operations-flow-bar.end,
+.operations-flow-bar.end {
+  background: var(--amber);
+}
+
 .operations-room-status-segment.vacant,
 .operations-room-status-dot.vacant {
-  background: var(--amber);
+  background: #ea580c;
 }
 
 .operations-room-status-segment.maintenance,
