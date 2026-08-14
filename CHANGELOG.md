@@ -1036,3 +1036,9 @@
 - Reused existing renderers and action/data sources; Phone, Desktop, Tenant List, Tenant Detail, Reminder Engine, settlement formulas, attachment storage and business data remain unchanged.
 - BUG-01 deposit-selector clipping and SHELL-REVIEW-01 Medium/Desktop Shell handoff remain explicitly out of scope.
 - No database, schema, permissions, RLS, real-data or Production changes.
+
+# 2026-08-14 - Medium business layout governance, second batch
+
+- Added scoped Medium content-capacity contracts for Dashboard metrics/panels, Property Detail panels and Data Center module grids; long values now retain shrink/wrap ownership without changing field order or business behavior.
+- Tasks, Tenant Detail, shared forms and intentional table/chart scroll contracts were audited and required no change. BUG-01 and SHELL-REVIEW-01 remain out of scope.
+- No business logic, database, schema, permissions, RLS, real-data or Production changes.

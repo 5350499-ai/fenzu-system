@@ -174,6 +174,15 @@ page-local gap or nowrap/overflow variant.
 
 - `app/globals.css` owns the scoped `641px–1100px` Medium contracts for `.rent-finance-line`, `.expense-finance-line`, `.room-finance-line`, `.room-current-tenant`, shared reminder rows, attachment inventory/file rows, partner management rows and settlement summary rows/cards.
 - Finance rows use proportional/shrinkable text tracks; amounts and status remain intact, while date/partner/description and long names receive explicit `min-width: 0` plus ellipsis where the field is single-line.
+
 - Room rows preserve room/property/current-tenant ownership and use shrinkable names; status, rent and coverage remain separate fields. No room occupancy or payment logic is changed.
 - Reminder, attachment, partner and settlement roots keep their existing renderers and actions. Only Medium width allocation, shrink and overflow ownership is changed; no reminder engine, storage, settlement formula or business data source is changed.
 - Phone (`<=640px`) and Desktop (`>=1101px`) rules remain owned by their existing roots. BUG-01 (check-in deposit selector clipping) and SHELL-REVIEW-01 (Medium/Desktop handoff) are explicitly outside this batch.
+
+## Medium Business Layout Ownership - 2.4c Second Batch
+
+- `app/globals.css` owns the second-batch Medium content-capacity rules for Dashboard metrics/panels, Property Detail metric panels and Data Center module grids.
+- These roots use proportional `auto-fit`/`minmax(0, ...)` tracks between 641px and 1100px so the 640/641 and 980/981 transitions do not restore a fixed desktop column count prematurely.
+- Shared `mobile-record-*`, property-detail and data-center text owners keep `min-width: 0` and may wrap long descriptive values without changing business field order.
+- Tasks, Tenant Detail, shared form grids and intentional table/chart scroll roots were audited and require no second-batch layout change. Their existing owners remain authoritative.
+- Phone, Desktop, Tenant List, Reminder Engine, Modal, Shell, data and business contracts remain frozen. BUG-01 and SHELL-REVIEW-01 remain outside scope.

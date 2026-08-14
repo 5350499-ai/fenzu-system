@@ -6968,6 +6968,71 @@ td:last-child {
   }
 }
 
+/* 2.4c second batch: Medium content-capacity contracts. These rules smooth
+   the 640/641 and 980/981 content transitions without changing business
+   field order, Shell breakpoints or frozen Tenant List contracts. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  .app-shell .metrics {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  }
+
+  .app-shell .dashboard-panels,
+  .app-shell .property-profit-grid,
+  .app-shell .data-center-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  }
+
+  .app-shell .risk-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  }
+
+  .app-shell .mobile-record-card,
+  .app-shell .mobile-record-title,
+  .app-shell .mobile-record-fields,
+  .app-shell .mobile-record-field,
+  .app-shell .property-list-card,
+  .app-shell .property-detail-header,
+  .app-shell .property-summary-grid,
+  .app-shell .property-details-grid,
+  .app-shell .property-monthly-row,
+  .app-shell .property-monthly-values,
+  .app-shell .data-center-card,
+  .app-shell .data-center-card-header,
+  .app-shell .data-center-counts,
+  .app-shell .data-center-import-summary,
+  .app-shell .ui-section-card,
+  .app-shell .ui-detail-card,
+  .app-shell .ui-detail-grid {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .mobile-record-title > *,
+  .app-shell .mobile-record-field > *,
+  .app-shell .property-detail-heading > *,
+  .app-shell .property-summary-grid > *,
+  .app-shell .property-details-grid > *,
+  .app-shell .property-monthly-row > *,
+  .app-shell .property-monthly-values > *,
+  .app-shell .data-center-card-header > *,
+  .app-shell .data-center-counts > *,
+  .app-shell .data-center-import-summary > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .mobile-record-title strong,
+  .app-shell .mobile-record-title span,
+  .app-shell .mobile-record-field strong,
+  .app-shell .property-detail-heading p,
+  .app-shell .property-summary-item strong,
+  .app-shell .property-monthly-values span,
+  .app-shell .data-center-card-header .panel-title,
+  .app-shell .data-center-card-header p {
+    overflow-wrap: anywhere;
+  }
+}
+
 .unified-monthly-head,
 .unified-monthly-income,
 .unified-monthly-net {

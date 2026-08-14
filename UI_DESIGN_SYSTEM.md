@@ -800,6 +800,14 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 - The first Medium-width business batch is scoped to `641px–1100px`: rent finance rows, expense finance rows, room finance/current-tenant rows, reminder rows, attachment rows, partner rows and settlement rows/cards.
 - Medium business grids use `fr`/`minmax(0, ...)` where content can shrink. Long single-line names, descriptions, filenames and labels use an explicit shrink owner and ellipsis; amounts, statuses and actions retain readable minimums.
+
 - No Medium rule changes the Phone contract (`<=640px`), Desktop contract (`>=1101px`), Tenant List three-row/five-slot contract, Tenant Detail, Reminder Engine, settlement calculation, attachment storage or business data.
 - Fixed pixels remain valid for touch targets, icons, small badge/action minimums and semantic minimums. Desktop fixed finance columns are not reused blindly in Medium.
 - BUG-01 (check-in deposit selector clipping) and SHELL-REVIEW-01 (1100→1101 Shell handoff) remain separate follow-up items and are not part of this batch.
+
+## 59. Medium Business Layout Contract - 2.4c Second Batch
+
+- Dashboard metrics, Dashboard/Property Detail panels and Data Center module grids use content-capacity-driven `auto-fit`/`minmax` tracks only in the 641px-1100px Medium Shell.
+- Long descriptive values may wrap inside their owned cell; business field order, data sources, calculations and actions do not change. `min-width: 0` is required on grid/flex children that may shrink.
+- Tasks, Tenant Detail, shared form grids and intentional table/chart horizontal-scroll contracts are unchanged when their existing owner already satisfies the Medium contract.
+- The second batch does not modify Phone (`<=640px`), Desktop (`>=1101px`), Shell breakpoints, Tenant List contracts, Reminder Engine, Modal ownership, database or business logic.
