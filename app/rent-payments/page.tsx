@@ -111,6 +111,7 @@ export default function RentPaymentsPage() {
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");
   const filesRequestRef = useRef(0);
+  const attachmentDeleteLockRef = useRef(false);
   const historicalOriginalRef = useRef<BusinessRentPayment | null>(null);
 
   const refreshPaymentFiles = useCallback(async (paymentIds: string[]) => {
@@ -603,8 +604,18 @@ export default function RentPaymentsPage() {
 
   async function removeFile(file: RentPaymentFile) {
     if (!window.confirm("确定要删除这个收款附件吗？")) return;
-    await deleteRentPaymentFile(file);
-    setFiles((current) => current.filter((item) => item.id !== file.id));
+    if (attachmentDeleteLockRef.current) return;
+    attachmentDeleteLockRef.current = true;
+    setSaving(true);
+    try {
+      await deleteRentPaymentFile(file);
+      setFiles((current) => current.filter((item) => item.id !== file.id));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "删除收款附件失败，请稍后重试。");
+    } finally {
+      attachmentDeleteLockRef.current = false;
+      setSaving(false);
+    }
   }
 
   function resetFilters() {

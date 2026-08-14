@@ -90,7 +90,7 @@ The following remain explicitly registered as `PARTIAL_SUCCESS_RISK` until a fut
 
 Additional known gaps:
 
-- `PROPERTY_NOTES`: local state may lead the server and failure can be console-only (`USER_VISIBLE_ERROR_GAP`).
+- `PROPERTY_NOTES`: user-visible failure and stale optimistic state were hardened in the 3.x closeout (`PROPERTY_NOTES_USER_VISIBLE_FAILURE_FIXED`).
 - `DEBT_WAIVER`: server duplicate detection exists and the tenant page now has a payment-specific pending/disabled guard (`CLIENT_PENDING_GAP = RESOLVED`).
 
 These are registration facts; the Debt Waiver client guard was hardened in 3.2a and the Rent Payment core/side-effect feedback boundary was hardened in 3.2b.
@@ -364,6 +364,147 @@ side-effect is therefore a separate action decision and must not recreate the co
 | `CrudPage` vs `TasksServerManager` | LEGACY_COMPAT / MIGRATION_PENDING | Keep the compatibility path working; do not extend the legacy task writer. |
 | `business-*` vs `v1-*` resource keys | LEGACY_COMPAT / DO_NOT_EXTEND | Keep existing compatibility reads/writes; new resources use the current business key. |
 | Page-level payload orchestration | MIGRATION_PENDING | Multiple entries may call one shared API, but new cross-table sequences must be added to this registry and target a shared Action Root. |
+
+## Action Tree Governance Closeout (3.x)
+
+This section is the final 3.x governance closeout. It locks the remaining
+low-risk contracts without claiming that deferred transaction/idempotency work
+is complete.
+
+### Confirmation Policy
+
+| Level | Meaning | Contract |
+|---|---|---|
+| `LEVEL_0` | Navigation and UI state | No confirmation |
+| `LEVEL_1` | Ordinary reversible create/update | No confirmation by default |
+| `LEVEL_2` | Lifecycle or financial consequence | Explicit consequence confirmation where required |
+| `LEVEL_3` | Destructive, overwrite or irreversible action | Explicit consequence/typed confirmation |
+| `LEVEL_4` | High-risk data administration | Preview/dry-run plus explicit confirmation |
+
+Archive and restore remain separate from destructive actions. Restore is
+`NO_CONFIRM_REQUIRED / REVERSIBLE` while it only restores lifecycle visibility
+and does not overwrite or recreate financial facts.
+
+### Destructive Action Contract
+
+Tenant/property/room permanent delete, payment/expense void or delete, deposit
+delete, attachment delete, partner destructive operations, account destructive
+operations, task delete and restore/overwrite operations must each have a
+permission boundary, consequence-aware confirmation, pending protection,
+visible failure, authoritative refresh and an explicit recovery or
+irreversibility classification. Existing relation guards and typed confirmation
+remain the owner for permanent tenant/property/room deletion. This contract
+does not add a second confirmation UI or alter business semantics.
+
+### Data Admin Action Root
+
+Data Restore is `DATA_RESTORE_NO_CHANGE_REQUIRED`: it retains permission checks,
+dry-run validation, before-restore backup, restore RPC, consistency validation,
+structured report and rollback/unchanged reporting. Attachment cleanup requires
+managed-account/sensitive permission, explicit confirmation, an auditable report
+and per-item failure details. Google attachment migration requires a signed
+preview token, feature flag, confirmation modal, progress/result report and
+per-item outcomes. These roots are not reimplemented in 3.x.
+
+### Attachment Action Root
+
+Upload/prepare/complete failures remain distinct from the parent business write;
+the established payment/expense partial-success feedback is preserved. Property,
+tenant, rent-payment and expense attachment deletion have visible failure
+feedback; rent-payment and expense deletion additionally use a local in-flight
+guard, and a failed delete never removes the file from local state. Bulk cleanup
+retains its preview/confirmation/report root.
+`ATTACHMENT_DELETE_FEEDBACK_FIXED` is the current status.
+
+### Feedback Contract
+
+Mutation feedback uses semantic states rather than one mandatory visual control:
+`SUCCESS`, `PARTIAL_SUCCESS`, `FAILURE`, `WARNING`, `PENDING`, represented by
+`TOAST`, `INLINE`, `NOTICE`, `ALERT`, `MODAL_RESULT`, `PROGRESS` or
+`STRUCTURED_REPORT`. A user-triggered write must not have `CONSOLE_ONLY` as its
+only failure path. Partial success must identify completed and incomplete work;
+destructive failure must be visible; retry guidance must not imply that a
+successful core record should be submitted again.
+
+`PROPERTY_NOTES_USER_VISIBLE_FAILURE_FIXED`: Property Notes now refetches the
+authoritative property snapshot on the current request's failure and rolls back
+to the prior value if that recovery read also fails. Stale failures from an
+older keystroke cannot overwrite a newer request's state.
+
+### Refresh / Cache Contract
+
+| Refresh class | Owner rule |
+|---|---|
+| `LOCAL_STATE_ONLY` | Only when the server fact is already confirmed and no derived view is stale |
+| `TARGETED_REFETCH` | Preferred for lifecycle/status confirmation and attachment lists |
+| `CACHE_INVALIDATION` | Use the existing business-data dependency map after a confirmed write |
+| `ROUTER_REFRESH` | Use only when the route is the established authoritative owner |
+| `FULL_RELOAD_REQUIRED` | Reserved for existing data-admin restore/report reset behavior |
+
+High-risk actions keep their existing owners: check-in RPC result plus targeted
+cache invalidation; Deposit final-state refetch; Settlement per-property local
+result and history refresh; Move Out's future refresh contract remains design-only.
+No random full reload is introduced.
+
+### Pending / double-submit Contract
+
+Every governed mutation has one pending owner. Existing guards remain the
+authority for Check-in, Move Out, Rent Payment, Debt Waiver, Settlement and
+Property lifecycle. Attachment deletion now adds a local in-flight guard in the
+Rent Payment and Expense roots while reusing their existing `saving` state;
+Property and Tenant attachment roots retain their existing guarded callers.
+No competing pending state or Enter-specific bypass is introduced.
+
+### Idempotency Registry
+
+| Action | Client pending | Client request ID | Server idempotency | DB constraint | Atomicity | Partial success | Retry policy |
+|---|---|---|---|---|---|---|---|
+| `ACTION.CHECK_IN.CREATE` | `UI_PENDING_GUARD` | `CLIENT_REQUEST_ID` | `IDEMPOTENT` via atomic RPC | request record | `ATOMIC` | not applicable to core | safe replay |
+| `ACTION.TENANT.MOVE_OUT` | `UI_PENDING_GUARD` | none current | `SERVER_IDEMPOTENCY_PENDING` | none proven | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | no whole-form retry |
+| `ACTION.RENT_PAYMENT.SAVE` | `UI_PENDING_GUARD` | none | `SERVER_IDEMPOTENCY_PENDING` | none proven | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | do not recreate core payment |
+| `ACTION.SETTLEMENT.CONFIRM` | `UI_PENDING_GUARD` | client batch grouping only | `BATCH_IDEMPOTENCY_PENDING` | property-period conflict only | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | retry failed/unattempted properties only |
+| `ACTION.DEBT.WAIVE` | `UI_PENDING_GUARD` | none | `DB_CONSTRAINT_PROTECTED` by audit duplicate check | audit duplicate check | `ATOMIC` action boundary | none proven | safe duplicate rejection |
+| `ACTION.MOVE_ROOM.UPDATE` | `UI_PENDING_GUARD` | none | `DB_CONSTRAINT_PROTECTED` by RPC transaction | RPC boundary | `ATOMIC` | not applicable | safe retry after authoritative refresh |
+| `ACTION.DEPOSIT.SAVE` | `UI_PENDING_GUARD` | none | `UNKNOWN` | none proven | `NON_ATOMIC` | none in simple record path | refetch before retry |
+| `ACTION.DATA.RESTORE` | restoring guard | operation/report identity | `DB_CONSTRAINT_PROTECTED` by restore transaction | restore RPC | `ATOMIC` restore import | explicit report | preview before retry |
+
+Client disabled state is never treated as server idempotency. Deferred statuses
+are intentional and protected by the Action tests.
+
+### Legacy / duplicate owner disposition
+
+| Owner group | Disposition | Rule |
+|---|---|---|
+| `CrudPage` / `TasksServerManager` | `LEGACY_COMPATIBILITY` | Keep compatibility; do not extend the legacy writer |
+| `business-*` / `v1-*` keys | `DATA_COMPATIBILITY_LAYER` | Preserve restore/read compatibility; new work uses current keys |
+| Page-level payload orchestration | `MIGRATION_PENDING` | Existing paths remain; no new cross-table sequence may be added |
+| Move Out page sequence | `GOVERNED_WITH_DEFERRED_RISK` | Do not add a second owner until server persistence/idempotency is proven |
+
+### Final risk register
+
+| Risk ID | Action | Risk | Current protection | Deferred reason | Future trigger | Guard |
+|---|---|---|---|---|---|---|
+| `RISK.MOVE_OUT.NON_ATOMIC` | Move Out | P1 | client submission guard, explicit contract, lifecycle tests | requires server domain/persistence boundary | 3.3b server Action Root or transaction work | Move Out lifecycle contract |
+| `RISK.MOVE_OUT.IDEMPOTENCY` | Move Out | P1 | no whole-form retry contract | no durable request store | request-id persistence design | idempotency registry |
+| `RISK.RENT_PAYMENT.IDEMPOTENCY` | Rent Payment | P1 | core/side-effect contract and pending guard | no action-level server key | payment idempotency design | rent-payment tests |
+| `RISK.SETTLEMENT.BATCH_IDEMPOTENCY` | Settlement | P1 | property conflict protection and per-property result state | no batch server key | batch idempotency design | settlement tests |
+| `RISK.PROPERTY_NOTES.FEEDBACK` | Property Notes | FIXED | refetch/rollback plus visible alert | none | regression only | action-tree test |
+| `RISK.ATTACHMENT_DELETE.FEEDBACK` | Attachment delete | FIXED | visible error and local in-flight guard | none | regression only | attachment/action tests |
+
+There are no active P0 risks. Deferred P1 risks are explicit, bounded and
+regression-protected; they do not claim that the underlying transaction or
+server-idempotency work is complete.
+
+### 3.x closeout status
+
+`ACTION_TREE_3X_COMPLETE_WITH_DEFERRED_RISKS`
+
+`MOVE_OUT_3_3B_CONTRACT_ONLY` remains the Move Out implementation status.
+
+This status means ownership, safety contracts, feedback, refresh, pending,
+idempotency and deferred risks are governed. It does not authorize Production
+deployment or imply that Move Out, Rent Payment or Settlement have become
+atomic/idempotent.
 
 ## Frozen parallel contract
 

@@ -8,6 +8,8 @@ const moveOut = readFileSync("app/tenants/page.tsx", "utf8");
 const settlement = readFileSync("app/partnership-settlement/page.tsx", "utf8");
 const propertyDetail = readFileSync("app/properties/[id]/page.tsx", "utf8");
 const tenants = readFileSync("app/tenants/page.tsx", "utf8");
+const rentPayments = readFileSync("app/rent-payments/page.tsx", "utf8");
+const expenses = readFileSync("app/expenses/page.tsx", "utf8");
 
 const requiredIds = [
   "ACTION.CHECK_IN.CREATE",
@@ -60,10 +62,39 @@ test("known atomicity and risk claims match the current implementation", () => {
 
 test("known deferred gaps remain registered instead of being silently normalized", () => {
   assert.match(propertyDetail, /savePropertyNotes/);
-  assert.match(propertyDetail, /catch\(console\.error\)/);
+  assert.doesNotMatch(propertyDetail, /saveBusinessData\(propertyKey, next\)\.catch\(console\.error\)/);
   assert.match(tenants, /async function waiveDebtCase/);
-  assert.match(contract, /USER_VISIBLE_ERROR_GAP/);
+  assert.match(contract, /PROPERTY_NOTES_USER_VISIBLE_FAILURE_FIXED/);
   assert.match(contract, /CLIENT_PENDING_GAP = RESOLVED/);
+});
+
+test("final Action Tree governance records destructive, admin, feedback, refresh and idempotency contracts", () => {
+  for (const marker of [
+    "## Action Tree Governance Closeout (3.x)",
+    "Confirmation Policy",
+    "Destructive Action Contract",
+    "Data Admin Action Root",
+    "Attachment Action Root",
+    "Feedback Contract",
+    "Refresh / Cache Contract",
+    "Idempotency Registry",
+    "ACTION_TREE_3X_COMPLETE_WITH_DEFERRED_RISKS",
+    "MOVE_OUT_3_3B_CONTRACT_ONLY",
+    "PROPERTY_NOTES_USER_VISIBLE_FAILURE_FIXED",
+    "ATTACHMENT_DELETE_FEEDBACK_FIXED",
+  ]) assert.match(contract, new RegExp(marker.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")), marker);
+});
+
+test("Property Notes and attachment delete feedback have explicit recovery and pending ownership", () => {
+  assert.match(propertyDetail, /propertyNotesRequestRef/);
+  assert.match(propertyDetail, /refreshBusinessData<BusinessProperty>/);
+  assert.match(propertyDetail, /房源备注保存失败/);
+  for (const source of [rentPayments, expenses]) {
+    assert.match(source, /attachmentDeleteLockRef/);
+    assert.match(source, /删除.*附件失败/);
+    assert.match(source, /setSaving\(true\)/);
+    assert.match(source, /setSaving\(false\)/);
+  }
 });
 
 test("pages and components do not directly perform business-table mutations", () => {

@@ -20,6 +20,12 @@ production owner, while the proposed server Action Root is design-only until a
 shared server persistence boundary and durable request idempotency are proven.
 Do not add another page-level tenant/room/contract/deposit write sequence.
 
+The final 3.x Action Tree closeout is owned by `ACTION_TREE_CONTRACT.md`. This
+map only records UI boundaries: Property Notes owns its visible save failure and
+recovery path; attachment rows own presentation while their file helpers/API
+own storage mutation; destructive confirmation and data-admin preview/report
+contracts remain in the Action Tree document.
+
 Financial mutation ownership is documented only in `ACTION_TREE_CONTRACT.md`: payment, expense, deposit, debt-waiver and settlement pages own input/pending presentation, while API/RPC or shared persistence owners decide authorization, write scope, ordering, deduplication and final state. The 3.2a Debt Waiver client pending guard is a presentation safeguard; it is not server idempotency.
 
 ### Verified responsive status

@@ -17,6 +17,13 @@ structured full/partial/failure results. Do not implement a second snapshot
 writer or claim atomicity without a proven server persistence and idempotency
 boundary.
 
+The 3.x closeout uses semantic feedback states (`SUCCESS`, `PARTIAL_SUCCESS`,
+`FAILURE`, `WARNING`, `PENDING`) without requiring one visual primitive. UI
+owners must provide visible failure for user-triggered writes, preserve
+partial-success meaning, and use targeted refresh/invalidation before broad
+reload. Destructive confirmation and data-admin preview/report rules are
+defined only in `ACTION_TREE_CONTRACT.md`.
+
 This Action ownership contract is separate from responsive UI ownership and must not change the frozen Phone/Medium/Desktop, Tenant List, Modal, safe-area, Table or Chart contracts.
 
 Financial Action UI may collect values, show pending/disabled state, confirmation and visible errors. It must not redefine amount calculations, cross-record ordering, transaction boundaries or server idempotency; those remain Action Root/API/RPC responsibilities recorded in `ACTION_TREE_CONTRACT.md`.

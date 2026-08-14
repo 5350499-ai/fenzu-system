@@ -80,6 +80,7 @@ export default function ExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
   const filesRequestRef = useRef(0);
+  const attachmentDeleteLockRef = useRef(false);
 
   const refreshExpenseFiles = useCallback(async (expenseIds: string[]) => {
     const ids = [...new Set(expenseIds.filter(Boolean))];
@@ -278,8 +279,18 @@ export default function ExpensesPage() {
 
   async function removeFile(file: ExpenseFile) {
     if (!window.confirm("确定要删除这个支出附件吗？")) return;
-    await deleteExpenseFile(file);
-    setFiles((current) => current.filter((item) => item.id !== file.id));
+    if (attachmentDeleteLockRef.current) return;
+    attachmentDeleteLockRef.current = true;
+    setSaving(true);
+    try {
+      await deleteExpenseFile(file);
+      setFiles((current) => current.filter((item) => item.id !== file.id));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "删除支出附件失败，请稍后重试。");
+    } finally {
+      attachmentDeleteLockRef.current = false;
+      setSaving(false);
+    }
   }
 
   return (

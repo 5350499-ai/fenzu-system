@@ -27,6 +27,7 @@ import {
   getInitialTenants,
   loadBusinessData,
   propertyKey,
+  refreshBusinessData,
   rentPaymentKey,
   roomKey,
   saveBusinessData,
@@ -116,6 +117,7 @@ export default function PropertyDetailPage() {
   const [propertySaving, setPropertySaving] = useState(false);
   const [propertyLifecycleSaving, setPropertyLifecycleSaving] = useState(false);
   const propertyLifecycleLockRef = useRef(false);
+  const propertyNotesRequestRef = useRef(0);
   const [expandedTenantNoteIds, setExpandedTenantNoteIds] = useState<Set<string>>(new Set());
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
@@ -210,11 +212,24 @@ export default function PropertyDetailPage() {
     setExpenseForm(emptyExpense(propertyId));
   }
 
-  function savePropertyNotes(notes: string) {
+  async function savePropertyNotes(notes: string) {
     if (!access.can("properties", "edit")) return;
+    const requestId = ++propertyNotesRequestRef.current;
+    const previousNotes = property?.notes || "";
     const next = properties.map((item) => (item.id === propertyId ? { ...item, notes } : item));
     setProperties(next);
-    saveBusinessData(propertyKey, next).catch(console.error);
+    try {
+      await saveBusinessData(propertyKey, next);
+    } catch (error) {
+      if (requestId !== propertyNotesRequestRef.current) return;
+      try {
+        const refreshed = await refreshBusinessData<BusinessProperty>(propertyKey, properties);
+        setProperties(refreshed);
+      } catch {
+        setProperties((current) => current.map((item) => item.id === propertyId ? { ...item, notes: previousNotes } : item));
+      }
+      window.alert(error instanceof Error ? error.message : "房源备注保存失败，请稍后重试。");
+    }
   }
 
   function openPropertyEditor() {
@@ -508,7 +523,7 @@ export default function PropertyDetailPage() {
       {tab === "notes" ? (
         <section className="card panel property-notes-panel">
           <h2 className="panel-title">房源备注</h2>
-          <textarea className="notes-editor" value={property.notes || ""} readOnly={!access.can("properties", "edit")} onChange={(event) => savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
+          <textarea className="notes-editor" value={property.notes || ""} readOnly={!access.can("properties", "edit")} onChange={(event) => void savePropertyNotes(event.target.value)} placeholder="记录这套房子的特殊情况、房东沟通、维修注意事项等。" />
         </section>
       ) : null}
 

@@ -1104,3 +1104,9 @@
 - Reconfirmed the current Tenant Detail Move Out sequence and documented the proposed server Action Root, step result state machine, lifecycle invariants, refresh/feedback target and idempotency boundary.
 - Kept the phase contract-only because the generic snapshot persistence endpoint is not a proven reusable Move Out service and no durable Move Out request-id boundary exists.
 - No production code, database schema, RPC, migration, lifecycle rule, historical data or Production deployment changed.
+
+## 2026-08-14 - Action Tree 3.x governance closeout
+
+- Added the final destructive/confirmation, data-admin, attachment, feedback, refresh/cache, pending and idempotency contracts to `ACTION_TREE_CONTRACT.md`.
+- Fixed Property Notes user-visible failure handling with authoritative recovery/rollback, and hardened rent/expense attachment deletion feedback and in-flight guards.
+- Move Out, Rent Payment and Settlement remain explicitly non-atomic deferred risks; no database schema, high-risk RPC, business rule, historical data or Production deployment changed.
