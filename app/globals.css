@@ -6166,6 +6166,13 @@ td:last-child {
     overflow: hidden;
   }
 
+  /* The check-in advanced section contains the shared SearchableSelect.
+     Keep its existing DropdownListbox free to float over the following
+     optional-attachments section instead of clipping it at the field box. */
+  .check-in-form-grid > .collapsible-attachments {
+    overflow: visible;
+  }
+
   .combobox-field {
     overflow: visible;
   }

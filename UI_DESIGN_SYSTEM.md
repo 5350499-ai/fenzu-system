@@ -811,3 +811,11 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - Long descriptive values may wrap inside their owned cell; business field order, data sources, calculations and actions do not change. `min-width: 0` is required on grid/flex children that may shrink.
 - Tasks, Tenant Detail, shared form grids and intentional table/chart horizontal-scroll contracts are unchanged when their existing owner already satisfies the Medium contract.
 - The second batch does not modify Phone (`<=640px`), Desktop (`>=1101px`), Shell breakpoints, Tenant List contracts, Reminder Engine, Modal ownership, database or business logic.
+
+### 60. Responsive regression closeout - 2.4d
+
+The regression contract verifies the existing Phone/Medium/Desktop Shell modes without changing their breakpoints, rail widths, mobile clearance or safe-area ownership. Tenant List three-row/five-slot contracts, Modal ownership, intentional table/chart scrolling and business data contracts remain frozen. BUG-01 uses the existing shared selector path; no device-specific CSS or JavaScript layout calculation is permitted.
+
+### BUG-01: check-in deposit selector contract
+
+The one-click check-in fields 收款状态、付款方式 and 押金状态 use the same shared `SearchableSelect` / `DropdownListbox` interaction. The advanced-options wrapper must not clip that floating listbox on mobile; its local field container owns `overflow: visible`. Do not create a page-local selector, alter the deposit enum, or change save semantics.

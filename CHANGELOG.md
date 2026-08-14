@@ -1,4 +1,10 @@
+## 2026-08-14 - Fix check-in deposit selector clipping
+
+- Fixed the confirmed mobile BUG-01 by keeping the one-click check-in advanced-options wrapper from clipping the existing shared `SearchableSelect` / `DropdownListbox` used by 押金状态. 收款状态、付款方式、押金枚举、保存逻辑、数据库和真实数据 were unchanged.
+
 ## 2026-08-10 - Composite form-control convergence (Preview)
+
+- Completed the 2.4d static responsive regression pass for Phone/Medium/Desktop shell ownership, frozen Tenant List contracts, Modal ownership and intentional table/chart scrolling. Real iPhone acceptance remains a Preview follow-up.
 
 - Made the shared SearchableSelect shell the sole border and focus owner; its inner input is now explicitly excluded from broad field rules in normal, mobile and WebKit autofill states.
 - Aligned native ownership selectors and short custom select triggers with the shared single-line control height, width, padding and intrinsic-sizing contract.

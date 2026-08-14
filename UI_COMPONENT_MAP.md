@@ -186,3 +186,7 @@ page-local gap or nowrap/overflow variant.
 - Shared `mobile-record-*`, property-detail and data-center text owners keep `min-width: 0` and may wrap long descriptive values without changing business field order.
 - Tasks, Tenant Detail, shared form grids and intentional table/chart scroll roots were audited and require no second-batch layout change. Their existing owners remain authoritative.
 - Phone, Desktop, Tenant List, Reminder Engine, Modal, Shell, data and business contracts remain frozen. BUG-01 and SHELL-REVIEW-01 remain outside scope.
+
+### BUG-01: check-in deposit selector ownership
+
+`app/check-in/page.tsx` uses the shared `SearchableSelect` for 收款状态、付款方式和押金状态; all three consume `DropdownListbox` for the floating option layer. The check-in advanced-options field is the local overflow owner: its mobile `.collapsible-attachments` wrapper must remain `overflow: visible` so the shared dropdown is not clipped by the following optional-attachments section. This is presentation-only; deposit values, enums, persistence and save behavior remain unchanged.
