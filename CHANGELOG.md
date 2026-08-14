@@ -1067,3 +1067,10 @@
 - Added scoped Medium content-capacity contracts for Dashboard metrics/panels, Property Detail panels and Data Center module grids; long values now retain shrink/wrap ownership without changing field order or business behavior.
 - Tasks, Tenant Detail, shared forms and intentional table/chart scroll contracts were audited and required no change. BUG-01 and SHELL-REVIEW-01 remain out of scope.
 - No business logic, database, schema, permissions, RLS, real-data or Production changes.
+## 2026-08-14 - Action Tree ownership contract (3.1)
+
+- Added `ACTION_TREE_CONTRACT.md` as the single Action Registry and ownership contract.
+- Added `tests/action-tree-contract.test.ts` and `npm run validate:actions`.
+- Registered stable Action IDs, high-risk partial-success risks, pending/idempotency semantics, confirmation/feedback/refresh vocabulary, and legacy owners.
+- Updated `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md` to reference the Action Tree boundary.
+- No production behavior, business logic, database, schema, permissions, real data, responsive contract or Production deployment changed.

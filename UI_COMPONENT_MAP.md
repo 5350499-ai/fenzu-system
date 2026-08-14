@@ -8,6 +8,12 @@
 
 ## Global UI Roots
 
+## Action Tree ownership
+
+`ACTION_TREE_CONTRACT.md` is the single source of truth for user Action ownership. It maps `ENTRY -> UI_ORCHESTRATION -> ACTION_ROOT -> DOMAIN/API/RPC -> PERSISTENCE -> REFRESH/FEEDBACK` and records pending, idempotency, confirmation, permission, audit and risk state.
+
+Pages may collect input and open UI state, but must not introduce a second business write sequence. Before adding or changing a mutation Action, read `ACTION_TREE_CONTRACT.md` together with the relevant UI ownership documents. `UI_COMPONENT_MAP.md` remains the UI implementation map; it does not duplicate the Action Registry.
+
 ### Verified responsive status
 
 - `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; the check-in deposit selector keeps the shared `SearchableSelect` / `DropdownListbox` path and the local advanced-options overflow owner.

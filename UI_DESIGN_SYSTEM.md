@@ -6,6 +6,12 @@
 
 ## 1. Design principles
 
+### Action Root boundary
+
+`ACTION_TREE_CONTRACT.md` is the Action Tree source of truth. UI components own presentation, input collection, pending display and confirmation surfaces. Shared Action Roots/API/RPC own authorization, authoritative validation, persistence, cross-table ordering, idempotency and final business state. A page must not add a parallel business mutation path or direct business-table write.
+
+This Action ownership contract is separate from responsive UI ownership and must not change the frozen Phone/Medium/Desktop, Tenant List, Modal, safe-area, Table or Chart contracts.
+
 ### Verified responsive status
 
 - `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; keep the existing shared selector interaction and its local overflow contract.
