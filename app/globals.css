@@ -2480,6 +2480,8 @@ a {
 
 .table-wrap {
   overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 table {
@@ -3787,7 +3789,7 @@ td:last-child {
 }
 
 .tenant-monthly-payment-panel { display: grid; gap: 10px; }
-.tenant-month-track { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 8px 2px 6px; }
+.tenant-month-track { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 8px 2px 6px; }
 .tenant-month-track-inner { display: flex; min-width: max-content; align-items: flex-start; gap: 4px; position: relative; padding: 4px 10px 8px; }
 .tenant-month-track-inner::before { content: ""; position: absolute; left: 20px; right: 20px; top: 22px; height: 2px; background: var(--border); }
 .tenant-month-node { position: relative; z-index: 1; width: 52px; min-height: 66px; border: 0; background: transparent; color: var(--muted); display: grid; justify-items: center; gap: 4px; padding: 2px; cursor: pointer; }
@@ -3802,7 +3804,7 @@ td:last-child {
 .tenant-month-node small { font-size: 0.68rem; white-space: nowrap; }
 .tenant-month-year { color: var(--muted); font-size: 0.82rem; margin-top: -8px; }
 .tenant-month-chart-title { margin-top: 4px; }
-.tenant-rent-chart { min-height: 116px; display: flex; align-items: flex-end; gap: 8px; overflow-x: auto; padding: 10px 8px 4px; border: 1px solid var(--border); border-radius: 12px; }
+.tenant-rent-chart { min-width: 0; max-width: 100%; min-height: 116px; display: flex; align-items: flex-end; gap: 8px; overflow-x: auto; padding: 10px 8px 4px; border: 1px solid var(--border); border-radius: 12px; }
 .tenant-rent-bar { min-width: 48px; height: 100px; border: 0; background: transparent; display: grid; grid-template-rows: 22px 1fr 20px; align-items: end; justify-items: center; color: var(--muted); cursor: pointer; padding: 0 4px; }
 .tenant-rent-bar-value { font-size: 0.68rem; white-space: nowrap; }
 .tenant-rent-bar-fill { width: 22px; min-height: 8px; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: 0.75; }
@@ -3842,7 +3844,7 @@ td:last-child {
 .tenant-rent-bar.selected .tenant-rent-bar-fill { opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 .tenant-rent-bar small { font-size: .82rem; }
 .tenant-svg-chart-frame { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
-.tenant-svg-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: thin; }
+.tenant-svg-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: thin; }
 .tenant-status-svg, .tenant-income-svg { display: block; min-width: 768px; max-width: none; }
 .tenant-svg-month { cursor: pointer; outline: none; }
 .tenant-svg-month:focus-visible { filter: drop-shadow(0 0 3px var(--accent)); }
@@ -3976,6 +3978,7 @@ td:last-child {
   position: relative;
   height: 132px;
   min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -7739,6 +7742,8 @@ td:last-child {
 
 .data-center-restore-table-wrap {
   overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 12px;
 }

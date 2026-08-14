@@ -4,6 +4,13 @@
 
 - Fixed the confirmed mobile BUG-01 by keeping the one-click check-in advanced-options wrapper from clipping the existing shared `SearchableSelect` / `DropdownListbox` used by 押金状态. 收款状态、付款方式、押金枚举、保存逻辑、数据库和真实数据 were unchanged.
 
+## 2026-08-14 - High-risk business layout governance (2.6)
+
+- Audited table, chart/SVG, reminder, finance, room, attachment and settlement layout roots across Phone, Medium and Desktop contracts.
+- Added explicit bounded ownership to the shared table wrapper and SVG chart scroll wrapper: shrinking children no longer rely on document `overflow-x: clip`, while intentional table/chart horizontal scrolling remains intact.
+- Added regression coverage for table/chart scroll ownership, high-risk row shrink ownership, frozen Tenant List contracts and BUG-01 ownership.
+- No business fields, calculations, scroll semantics, navigation, database, schema, permissions, real data or Production were changed.
+
 ## 2026-08-10 - Composite form-control convergence (Preview)
 
 - Completed the 2.4d static responsive regression pass for Phone/Medium/Desktop shell ownership, frozen Tenant List contracts, Modal ownership and intentional table/chart scrolling. Real iPhone acceptance remains a Preview follow-up.

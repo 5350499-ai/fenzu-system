@@ -740,6 +740,14 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 - `.modal-backdrop` and `.modal-card` each have one base CSS owner, with mobile overrides kept in the same owner section. Do not append a second precision override block to repair modal behavior.
 - Before changing App Shell or Modal CSS, read `UI_COMPONENT_MAP.md`, identify the owner selector, and verify the existing cascade instead of creating a parallel root.
 
+### 61. High-risk business layout contracts - 2.6
+
+- Tables keep their business minimum width when necessary. `.table-wrap` is the only horizontal-scroll owner and must be bounded with `min-width: 0` and `max-width: 100%`; the page itself must not scroll horizontally.
+- SVG/timeline charts keep an intentional minimum drawing width when labels require it. `.tenant-svg-scroll` is the only chart scroll owner and is bounded to its parent; chart scrolling must not widen the page or create a second scrollbar.
+- Reminder, rent/expense finance, room, attachment and settlement rows keep their established business field order and semantic fixed minima. Only explicit shrink owners, `min-width: 0`, `max-width: 100%` and ellipsis/wrapping may be tightened without product review.
+- `overflow-x: clip` on the document is a last-resort guard, not a substitute for root-level overflow ownership. The 2.6 contract is frozen across Phone (`<=640px`), Medium (`641px-1100px`) and Desktop (`>=1101px`).
+- Tenant List, Tenant Detail, Modal ownership, BUG-01 and intentional table/chart scroll contracts remain frozen.
+
 ### Tenant Detail Density Ownership Contract
 
 - `.tenant-core-detail-group`, `.tenant-core-detail-grid` and `.compact-detail-row` own base-detail density; core rows use the scoped relative gap and rows do not add a second margin source.

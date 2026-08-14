@@ -152,6 +152,13 @@ page-local gap or nowrap/overflow variant.
 - App Shell pages must not add page-level `safe-area-inset-bottom` or navigation-sized padding as a substitute for `.main` clearance. Fixed overlays may derive their mobile offset from the shared nav structural-height fact, but must keep their own visual gap semantics.
 - `PropertyMultiSelect` owns only its bounded sheet internals (`.property-multi-select-backdrop`, `.property-multi-select-modal`); it does not own document scroll locking.
 
+## High-risk layout ownership - 2.6
+
+- `.table-wrap` is the shared table scroll owner. It is bounded by `min-width: 0` and `max-width: 100%`; the table may retain its business `min-width: 720px` and only the wrapper may scroll horizontally. The page and body must not become the table scroll surface.
+- `.tenant-svg-chart-frame` owns chart framing and clipping; `.tenant-svg-scroll` is the sole SVG timeline scroll owner and is bounded by `width: 100%`, `min-width: 0` and `max-width: 100%`. The intentional SVG minimum drawing width remains a chart contract, not a page-width contract.
+- Rent/expense, room, reminder, attachment and settlement rows retain their existing renderers and business field order. Their Medium contracts own shrink/ellipsis at the row root; fixed values remain only where they express touch targets, status/action minimums or semantic minimum content.
+- `html, body { overflow-x: clip; }` is only a final guard. A business root must not rely on it to conceal overflow; table and chart wrappers own their own bounded scrolling.
+
 ## Ownership Change Rule
 
 只有 ownership 发生变化时才需要同步更新本地图；普通数值调整不记录历史细节。若没有现有 owner，先说明缺口，再建立最小 shared root；不得以 duplicate selector 规避定位问题。
