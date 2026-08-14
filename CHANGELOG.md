@@ -1,3 +1,9 @@
+## 2026-08-14 - Final governance closeout (FINAL.1)
+
+- Established `FINAL_GOVERNANCE_BASELINE.md` for the original six-step governance route.
+- Confirmed `FINAL_1_RELEASE_READY_WITH_ACCEPTED_DEFERRED_RISKS`: all release gates passed, with no blocking P0/P1.
+- No Production code, database, schema, RPC, RLS, real data or Production deployment changed.
+
 ## 2026-08-14 - Fix check-in deposit selector clipping
 
 - Real iPhone verification subsequently confirmed `BUG-01 = FIXED_AND_IPHONE_VERIFIED`.
