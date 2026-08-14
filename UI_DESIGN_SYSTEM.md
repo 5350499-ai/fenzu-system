@@ -6,6 +6,17 @@
 
 ## 1. Design principles
 
+### Verified responsive status
+
+- `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; keep the existing shared selector interaction and its local overflow contract.
+- `SHELL-REVIEW-01 = ACCEPTED_STRUCTURAL_TRANSITION`; do not treat the 1100px-to-1101px navigation change as a bug unless a new usability regression is observed.
+
+### Shared responsive primitive map - 2.5
+
+- The generic `.grid` primitive consumes the existing `--ui-grid-gap` token; this is a value-preserving convergence only.
+- `--ui-space-*`, form spacing, Shell clearance, Modal safe-area, page visual spacing, overlay offsets and business-specific layout contracts retain separate ownership unless their semantics and breakpoint lifecycle are identical.
+- Responsive primitive convergence must not reinterpret Tenant List slots, finance rows, table/chart scrolling, selector behavior or Shell breakpoints.
+
 - 保持清晰、高信息密度、移动端优先。
 - Responsive ≠ Smaller Typography：窄屏优先调整布局、间距和次要信息，不自动缩小普通文字。
 - 先保护房源、房间、租客、日期、金额、状态和核心操作。

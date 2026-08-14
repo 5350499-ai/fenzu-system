@@ -8,6 +8,18 @@
 
 ## Global UI Roots
 
+### Verified responsive status
+
+- `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; the check-in deposit selector keeps the shared `SearchableSelect` / `DropdownListbox` path and the local advanced-options overflow owner.
+- `SHELL-REVIEW-01 = ACCEPTED_STRUCTURAL_TRANSITION`; the 1100px-to-1101px rail/sidebar change is a deliberate Shell transition with no reported usability regression.
+
+### Shared responsive primitive map
+
+- `--ui-space-*` owns the shared spacing scale; form rows/columns consume the existing form spacing aliases.
+- `--ui-grid-gap` is the shared spacing owner for the generic `.grid` primitive. Business-specific grids retain their own layout ownership and may consume shared spacing without inheriting generic columns.
+- `--ui-bottom-nav-clearance`, `--ui-mobile-nav-structural-height` and `--ui-mobile-nav-content-gap` remain the dedicated App Shell clearance owners.
+- Page padding, card padding, modal padding, fixed-overlay offsets and business slot contracts remain separate unless their semantic ownership is identical and covered by a contract test.
+
 | 页面/能力 | 实现 owner | Semantic class / selector | 责任 | 修改边界 |
 |---|---|---|---|---|
 | 全局视觉规范 | `UI_DESIGN_SYSTEM.md` | 规范章节与 shared tokens | 定义视觉、间距、触控和响应式契约 | 修改跨页面规则前必须更新并验证 |
