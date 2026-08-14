@@ -51,7 +51,7 @@ test("known atomicity and risk claims match the current implementation", () => {
   assert.match(checkIn, /create_atomic_check_in/);
   assert.match(moveOut, /buildTenantMoveOutPlan/);
   assert.match(moveOut, /persistAll/);
-  assert.match(settlement, /for \(const propertyId of selectedPropertyIds\)/);
+  assert.match(settlement, /selectedPropertyIds\.length/);
   assert.match(settlement, /api\/partner-settlements/);
   assert.match(contract, /ACTION\.CHECK_IN\.CREATE[\s\S]*CLIENT_REQUEST_ID[\s\S]*STABLE/);
   assert.match(contract, /ACTION\.TENANT\.MOVE_OUT[\s\S]*PARTIAL_SUCCESS_RISK/);

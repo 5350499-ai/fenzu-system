@@ -1086,3 +1086,8 @@
 - Confirmed the core payment in local state before optional deposit, tenant monthly-rent and attachment side effects run.
 - Side-effect failures now produce explicit partial-success feedback and targeted recovery reads; users are not told that an already-saved payment failed and are not asked to resubmit the whole payment.
 - No amount calculation, database schema, RPC, Reminder/DebtCase/RentPeriodState rule, historical data or Production deployment changed.
+## 2026-08-14 - Settlement Action Root hardening (3.2c)
+
+- Added client-side Settlement batch identity and per-property `SUCCESS` / `FAILED` / `NOT_ATTEMPTED` result tracking.
+- Independent property transactions now continue after a property failure and retain confirmed properties in local state.
+- Added visible full-success, partial-success and full-failure feedback without changing settlement calculations, RPCs, schema, historical data or Production.

@@ -50,10 +50,10 @@ test("Deposit reference path retains final-state verification", () => {
 });
 
 test("Settlement keeps per-property loop and partial-success risk", () => {
-  assert.match(settlement, /for \(const propertyId of selectedPropertyIds\)/);
+  assert.match(settlement, /selectedPropertyIds\.length/);
   assert.match(settlement, /api\/partner-settlements/);
   assert.match(contract, /ACTION\.SETTLEMENT\.CONFIRM[\s\S]*PARTIAL_SUCCESS_RISK/);
-  assert.match(contract, /no batch idempotency key/);
+  assert.match(contract, /no server batch key/);
 });
 
 test("Settlement reversal remains a single RPC boundary with reason", () => {

@@ -20,6 +20,8 @@ type RangeMode = "previous" | "threeMonths" | "custom";
 type Batch = { id: string; property_id: string; period_start: string; period_end: string; status: "confirmed" | "reversed"; total_income: number; total_expense: number; net_profit: number; confirmed_at: string; confirmed_by_account_id: string | null };
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
+type SettlementPropertyResult = { propertyId: string; propertyName: string; status: "SUCCESS" | "FAILED" | "NOT_ATTEMPTED"; batchId?: string; error?: string };
+type SettlementBatchExecution = { clientBatchId: string; status: "BATCH_FULL_SUCCESS" | "BATCH_PARTIAL_SUCCESS" | "BATCH_FULL_FAILURE"; results: SettlementPropertyResult[] };
 
 class SettlementPageError extends Error { constructor(message: string, readonly code: string) { super(message); } }
 
@@ -46,6 +48,7 @@ export default function PartnershipSettlementPage() {
   const [trialKey, setTrialKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [batchExecution, setBatchExecution] = useState<SettlementBatchExecution | null>(null);
 
   const activeRange = useMemo(() => rangeMode === "custom" ? { startDate: customStartDate, endDate: customEndDate } : presetRange(rangeMode), [customEndDate, customStartDate, rangeMode]);
   const currentKey = `${selectedPropertyIds.join(",")}|${activeRange.startDate}|${activeRange.endDate}`;
@@ -110,25 +113,44 @@ export default function PartnershipSettlementPage() {
   function resetFilters() { const next = presetRange("previous"); setRangeMode("previous"); setCustomStartDate(next.startDate); setCustomEndDate(next.endDate); setTrialKey(""); setMessage(""); }
 
   async function confirmSettlement() {
-    if (!settlement || !selectedPropertyIds.length || overlap || exactBatch || settlement.unknownAttributions.length || settlement.invalidRange) return;
+    if (busy || !settlement || !selectedPropertyIds.length || overlap || exactBatch || settlement.unknownAttributions.length || settlement.invalidRange) return;
     const propertyNames = selectedPropertyIds.map((id) => properties.find((property) => property.id === id)?.name || id).join("、");
     const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, payments, expenses, partnerData!.accountAlias) }));
     if (perProperty.some((item) => !item.result.coverageComplete || item.result.unknownAttributions.length)) { setMessage("所选房源中存在未完成的比例方案或无法识别归属，暂不能确认结算。"); return; }
     if (!window.confirm(`确认保存所选房源的结算快照吗？\n\n房源：${propertyNames}\n期间：${activeRange.startDate} 至 ${activeRange.endDate}\n总收入：${euro(settlement.totalIncome)}\n总支出：${euro(settlement.totalExpense)}\n净利润：${euro(settlement.netProfit)}\n\n确认后不会修改原始账目。`)) return;
-    setBusy(true); setMessage("");
+    const clientBatchId = crypto.randomUUID();
+    const executionResults: SettlementPropertyResult[] = selectedPropertyIds.map((propertyId) => ({ propertyId, propertyName: properties.find((property) => property.id === propertyId)?.name || propertyId, status: "NOT_ATTEMPTED" }));
+    setBatchExecution({ clientBatchId, status: "BATCH_FULL_FAILURE", results: executionResults });
+    setBusy(true); setMessage("结算处理中…");
     try {
       const session = await getValidSupabaseSession();
       if (!session) throw new SettlementPageError("登录已失效，请重新登录。", "unauthorized");
-      const createdBatches: Batch[] = [];
-      for (const propertyId of selectedPropertyIds) {
-        const propertySettlement = perProperty.find((item) => item.id === propertyId)!.result;
-        const response = await fetch("/api/partner-settlements", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ propertyId, startDate: activeRange.startDate, endDate: activeRange.endDate }) });
-        const payload = await readApi(response);
-        createdBatches.push({ id: payload.batchId, property_id: propertyId, period_start: activeRange.startDate, period_end: activeRange.endDate, status: "confirmed", total_income: propertySettlement.totalIncome, total_expense: propertySettlement.totalExpense, net_profit: propertySettlement.netProfit, confirmed_at: new Date().toISOString(), confirmed_by_account_id: null });
+      for (let index = 0; index < selectedPropertyIds.length; index += 1) {
+        const propertyId = selectedPropertyIds[index];
+        const propertySettlement = perProperty[index].result;
+        try {
+          const response = await fetch("/api/partner-settlements", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ propertyId, startDate: activeRange.startDate, endDate: activeRange.endDate }) });
+          const payload = await readApi(response);
+          executionResults[index] = { ...executionResults[index], status: "SUCCESS", batchId: payload.batchId };
+          const createdBatch: Batch = { id: payload.batchId, property_id: propertyId, period_start: activeRange.startDate, period_end: activeRange.endDate, status: "confirmed", total_income: propertySettlement.totalIncome, total_expense: propertySettlement.totalExpense, net_profit: propertySettlement.netProfit, confirmed_at: new Date().toISOString(), confirmed_by_account_id: null };
+          setBatches((current) => current.some((batch) => batch.id === createdBatch.id) ? current : [...current, createdBatch]);
+        } catch (error) {
+          executionResults[index] = { ...executionResults[index], status: "FAILED", error: error instanceof Error ? error.message : "结算失败，请稍后重试。" };
+        }
+        setBatchExecution({ clientBatchId, status: "BATCH_PARTIAL_SUCCESS", results: executionResults.map((result) => ({ ...result })) });
       }
-      setMessage("结算快照已保存");
-      setBatches((current) => [...current, ...createdBatches]);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "结算确认失败，请稍后重试。"); }
+      const successCount = executionResults.filter((result) => result.status === "SUCCESS").length;
+      const unfinishedCount = executionResults.length - successCount;
+      const status = successCount === executionResults.length ? "BATCH_FULL_SUCCESS" : successCount > 0 ? "BATCH_PARTIAL_SUCCESS" : "BATCH_FULL_FAILURE";
+      setBatchExecution({ clientBatchId, status, results: executionResults.map((result) => ({ ...result })) });
+      if (status === "BATCH_FULL_SUCCESS") setMessage(`结算完成，共 ${successCount} 个房源。`);
+      else if (status === "BATCH_PARTIAL_SUCCESS") setMessage(`部分结算已完成：成功 ${successCount} 个，未完成 ${unfinishedCount} 个。请仅处理标记为失败或未执行的房源，不要重复提交已成功房源。`);
+      else setMessage("本次结算未完成，没有房源成功结算。请检查失败原因后重试。");
+    } catch (error) {
+      const failedResults = executionResults.map((result) => result.status === "NOT_ATTEMPTED" ? { ...result, error: error instanceof Error ? error.message : "结算未开始，请稍后重试。" } : result);
+      setBatchExecution({ clientBatchId, status: failedResults.some((result) => result.status === "SUCCESS") ? "BATCH_PARTIAL_SUCCESS" : "BATCH_FULL_FAILURE", results: failedResults });
+      setMessage(failedResults.some((result) => result.status === "SUCCESS") ? "部分结算已完成，其余房源未执行。请不要重复提交已成功房源。" : error instanceof Error ? error.message : "结算未完成，请稍后重试。");
+    }
     finally { setBusy(false); }
   }
 
@@ -152,7 +174,9 @@ export default function PartnershipSettlementPage() {
       </div>
       <p className="muted">实际范围：{activeRange.startDate} 至 {activeRange.endDate}</p>
       <div className="button-row"><button className="btn primary" type="button" onClick={startTrial}>开始试算</button><button className="btn" type="button" onClick={resetFilters}>重置</button></div>
-      {message ? <p className={message.includes("失败") || message.includes("不得") ? "error-text" : "success-text"}>{message}</p> : null}
+      {message ? <p className={message.includes("失败") || message.includes("不得") || message.includes("未完成") ? "error-text" : "success-text"}>{message}</p> : null}
+      {busy ? <button className="btn primary" disabled type="button">结算处理中…</button> : null}
+      {batchExecution ? <div className="settlement-batch-execution" aria-live="polite"><p className="muted">批次标识：{batchExecution.clientBatchId}</p>{batchExecution.results.map((result) => <p key={result.propertyId}>{result.propertyName}：{result.status === "SUCCESS" ? "已成功" : result.status === "FAILED" ? `失败${result.error ? `：${result.error}` : ""}` : "未执行"}</p>)}</div> : null}
       {exactBatch ? <div className="success-text">已结算：确认时间 {new Date(exactBatch.confirmed_at).toLocaleString("zh-CN")}。<a href={`/partner-settlements/${exactBatch.id}`}>查看结算快照</a></div> : null}
       {overlap && !exactBatch ? <div className="warning-text">所选时间段与已结算记录重叠，请调整日期后重试。<a href={`/partner-settlements/${overlap.id}`}>查看重叠快照</a></div> : null}
     </section>

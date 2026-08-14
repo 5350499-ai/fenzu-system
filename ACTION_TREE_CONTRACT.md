@@ -73,7 +73,7 @@ Each registry row uses these fields:
 | `ACTION.TASK.DELETE` | Task delete | DESTRUCTIVE | Tasks | `/api/tasks/server` or generic root | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | INLINE / LOCAL_STATE | tasks delete permission | HIGH | dual task owners | task service | MIGRATION_PENDING |
 | `ACTION.PARTNER.SAVE` | Partner create/update/disable/delete | CREATE, UPDATE, DESTRUCTIVE | Partners | `/api/partners/*` | working guard | CONSEQUENCE_CONFIRM for disable/delete | INLINE / REFETCH | settings/account permissions + audit | HIGH | partners API | partner service | STABLE |
 | `ACTION.PARTNER_SHARE.SAVE` | Share plan save/cancel/adjust | CREATE, UPDATE, DESTRUCTIVE, FINANCIAL | Partners | `/api/partners/shares` | working guard | CONSEQUENCE_CONFIRM for cancel/adjust | INLINE / REFETCH | sensitive partner permission + audit | HIGH | partner share API | partner share service | STABLE |
-| `ACTION.SETTLEMENT.CONFIRM` | Settlement snapshot | CREATE, FINANCIAL, BULK | Settlement page | loop of `/api/partner-settlements` | busy guard; no batch key | CONSEQUENCE_CONFIRM | INLINE / LOCAL_STATE | owner/sensitive permission | HIGH | settlement page/API | settlement batch service | PARTIAL_SUCCESS_RISK |
+| `ACTION.SETTLEMENT.CONFIRM` | Settlement snapshot | CREATE, FINANCIAL, BULK | Settlement page | one client batch execution grouping independent `/api/partner-settlements` calls | `SETTLEMENT_CLIENT_PENDING_GUARD`; client batch UUID; no server batch key | CONSEQUENCE_CONFIRM | INLINE per-property result / local state | owner/sensitive permission | HIGH | settlement page/API | settlement batch service | PARTIAL_SUCCESS_RISK |
 | `ACTION.SETTLEMENT.REVERSE` | Settlement reversal | UPDATE, FINANCIAL, DESTRUCTIVE | Settlement Detail / `reverse` | `/api/partner-settlements/[id]` -> `reverse_partner_settlement` RPC | busy not explicit in handler | REASON_REQUIRED | INLINE / LOCAL_STATE | owner/sensitive permission + API audit boundary | HIGH | reversal API | settlement reversal service | STABLE |
 | `ACTION.DATA.BACKUP` | Backup/export | DATA_ADMIN | Data Center | `/api/data-backup`, export builders | backup state machine | NO_CONFIRM_REQUIRED | INLINE/status / download | sensitive export permission | HIGH | data center/API | backup service | STABLE |
 | `ACTION.DATA.RESTORE` | Restore workspace | DATA_ADMIN, DESTRUCTIVE, BULK | Data Center | dry-run + `/api/data-restore` -> restore RPC | restoring guard + before-restore backup | PREVIEW_AND_CONFIRM | INLINE/report / reload or state reset | owner/sensitive permission + diagnostics | HIGH | restore API/RPC | restore service | STABLE |
@@ -112,6 +112,48 @@ These are registration facts; the Debt Waiver client guard was hardened in 3.2a 
 - `SETTLEMENT_TRANSACTION_RECOMMENDATION`: prefer **A. keep per-property settlement writes with a stable batch idempotency design** as the next investigation. Current evidence shows one RPC per property and no batch key; true atomic multi-property settlement would require a new server transaction/RPC. No redesign is implemented here.
 - Deposit status update is the `FINANCIAL_ACTION_REFERENCE_PATTERN`: retain its pending, save, refetch and final-state verification behavior for simple status mutations, without applying it to multi-record payment or settlement transactions.
 - Expense remains `NO_TRANSACTION_REFACTOR_REQUIRED` for 3.2a: its core write is one business record collection and optional attachments are already reported separately.
+
+## Settlement Action Root (3.2c)
+
+`ACTION.SETTLEMENT.CONFIRM` has one current UI Action Root in
+`app/partnership-settlement/page.tsx`. The page owns local trial/build,
+presentation validation, confirmation and one shared pending guard; each property
+is persisted through the existing `/api/partner-settlements` endpoint and the
+existing `confirm_partner_settlement` RPC.
+
+### Batch and transaction contract
+
+- `ONE_USER_BATCH_ACTION`: one user confirmation over the selected property IDs,
+  date range and trial result.
+- `MULTIPLE_INDEPENDENT_PROPERTY_TRANSACTIONS`: each property POST/RPC commits
+  independently. No schema, RPC or amount-calculation change was made in 3.2c.
+- The client creates a UUID `clientBatchId` only to group this execution and its
+  displayed result; it is not a server idempotency key.
+- The database exclusion constraint protects confirmed overlapping periods for the
+  same workspace/property, but does not provide batch request deduplication.
+
+### Result state machine
+
+Each selected property is tracked as exactly one of `SUCCESS`, `FAILED` or
+`NOT_ATTEMPTED`. The batch outcome is one of:
+
+- `BATCH_FULL_SUCCESS`: every property succeeded.
+- `BATCH_PARTIAL_SUCCESS`: at least one succeeded and at least one failed or was not attempted.
+- `BATCH_FULL_FAILURE`: no property succeeded.
+
+Independent properties continue after an individual failure, so later properties
+are not incorrectly marked failed. A successful property is appended to local
+settlement state immediately and is never removed because a later property fails.
+
+### Recovery and feedback
+
+Partial feedback lists successful and unfinished properties and explicitly tells
+the user not to resubmit successful properties. Safe recovery is manual selection
+of only failed/not-attempted properties; there is no automatic whole-batch retry.
+`SETTLEMENT_BATCH_SERVER_IDEMPOTENCY_PENDING` remains active because the server
+does not accept or persist the client batch UUID. The property-period exclusion
+rejects duplicate confirmed overlap, but is conflict protection rather than a
+complete batch idempotency contract.
 
 ## Rent Payment Action Root (3.2b)
 
