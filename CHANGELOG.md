@@ -1074,3 +1074,9 @@
 - Registered stable Action IDs, high-risk partial-success risks, pending/idempotency semantics, confirmation/feedback/refresh vocabulary, and legacy owners.
 - Updated `UI_COMPONENT_MAP.md` and `UI_DESIGN_SYSTEM.md` to reference the Action Tree boundary.
 - No production behavior, business logic, database, schema, permissions, real data, responsive contract or Production deployment changed.
+## 2026-08-14 - Financial Action Root safety contracts (3.2a)
+
+- Added the six-root Financial Action Safety Matrix and transaction recommendations to `ACTION_TREE_CONTRACT.md`.
+- Added a payment-specific client pending/disabled guard and visible network-error feedback for Debt Waiver without changing server dedupe, DebtCase, Reminder Engine or persistence semantics.
+- Locked the existing non-atomic rent-payment and per-property settlement boundaries, Deposit final-state verification pattern and Settlement Reversal single-RPC ownership.
+- Added financial action regression coverage; no amount calculation, database, schema, migration, permission, real data or Production behavior was changed.

@@ -57,7 +57,7 @@ Each registry row uses these fields:
 | `ACTION.TENANT.MOVE_OUT` | Move out | LIFECYCLE, FINANCIAL | Tenant Detail / `moveOut` | `buildTenantMoveOutPlan` -> repeated `saveBusinessData` for tenant/room/contract/deposit | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | archive permission | HIGH | tenant page | lifecycle action service/RPC | MIGRATION_PENDING |
 | `ACTION.TENANT.ARCHIVE` | Tenant archive/restore | LIFECYCLE, UPDATE | Tenant Detail | `persistAll` -> `tenants` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM for archive; NO_CONFIRM_REQUIRED for restore | ALERT / LOCAL_STATE | archive permission | HIGH | tenant page | tenant lifecycle service | MIGRATION_PENDING |
 | `ACTION.TENANT.DELETE` | Empty tenant delete | DESTRUCTIVE | Tenant Detail | `business-data` + tenant delete check | UI_PENDING_GUARD | TYPED_CONFIRM | ALERT / LOCAL_STATE | delete permission + empty-shell guard | HIGH | tenant page/API | destructive action service | MIGRATION_PENDING |
-| `ACTION.DEBT.WAIVE` | Waive rent collection | FINANCIAL, UPDATE | Tenant and Reminder pages | `/api/rent-collection` -> audit log | SERVER_IDEMPOTENCY via audit duplicate check; client gap | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE + cache invalidation | rent payment edit permission + property access + audit | HIGH | rent-collection API | financial action service | MIGRATION_PENDING |
+| `ACTION.DEBT.WAIVE` | Waive rent collection | FINANCIAL, UPDATE | Tenant and Reminder pages | `/api/rent-collection` -> audit log | UI_PENDING_GUARD; SERVER_IDEMPOTENCY via audit duplicate check | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE + cache invalidation | rent payment edit permission + property access + audit | HIGH | rent-collection API | financial action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.SAVE` | Rent/payment save | CREATE, UPDATE, FINANCIAL | Rent Payments, Tenant Detail | `saveBusinessData` -> `rent_payments`, optional deposit/tenant updates | UI_PENDING_GUARD; no action-level key | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE + CACHE_INVALIDATION | payment permission | HIGH | payment pages + generic root | rent payment action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.VOID` | Void payment | UPDATE, FINANCIAL, DESTRUCTIVE | Rent Payments | `saveBusinessData` marking void | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | archive permission | HIGH | payment page | financial action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.DELETE` | Delete payment | DESTRUCTIVE, FINANCIAL | Rent Payments | file delete + `saveBusinessData` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | delete permission | HIGH | payment page | destructive action service | MIGRATION_PENDING |
@@ -91,9 +91,27 @@ The following remain explicitly registered as `PARTIAL_SUCCESS_RISK` until a fut
 Additional known gaps:
 
 - `PROPERTY_NOTES`: local state may lead the server and failure can be console-only (`USER_VISIBLE_ERROR_GAP`).
-- `DEBT_WAIVER`: server duplicate detection exists, but the tenant page lacks an independent client pending guard (`CLIENT_PENDING_GAP`).
+- `DEBT_WAIVER`: server duplicate detection exists and the tenant page now has a payment-specific pending/disabled guard (`CLIENT_PENDING_GAP = RESOLVED`).
 
-These are registration facts, not fixes in 3.1.
+These are registration facts; the Debt Waiver client guard is the only production behavior hardening performed in 3.2a.
+
+## Financial Action Safety Matrix (3.2a)
+
+| Action ID | Core write | Side effects | Pending / duplicate guard | Server idempotency | Atomicity | Partial-success status | Confirmation | Visible error | Refresh / audit |
+|---|---|---|---|---|---|---|---|---|---|
+| `ACTION.RENT_PAYMENT.SAVE` | `rent_payments` via `saveBusinessData` | optional linked deposit, tenant monthly rent, attachment upload | shared `saving`; no action-level request key | none proven | NON_ATOMIC | `PARTIAL_SUCCESS_RISK` | NO_CONFIRM_REQUIRED | ALERT, attachment-specific alert | local state; payment/deposit writes and audit boundary are separate |
+| `ACTION.EXPENSE.SAVE` | one `expenses` collection write | optional attachment upload | shared `saving` | none proven | NON_ATOMIC | attachment failure is explicitly reported after core success | NO_CONFIRM_REQUIRED | ALERT | local state; file refresh is separate |
+| `ACTION.DEPOSIT.SAVE` | one `deposits` collection write | none in the simple deposit page; tenant detail status update has final-state verification | shared `saving` | none proven | NON_ATOMIC | no cross-table transaction in the simple record path | NO_CONFIRM_REQUIRED | ALERT | refetch/final-state verification in tenant-detail status path |
+| `ACTION.DEBT.WAIVE` | append-only audit log through `/api/rent-collection` | derived debt/reminder presentation changes | tenant payment-specific pending/disabled guard; server audit duplicate check | SERVER_IDEMPOTENCY via audit duplicate check | ATOMIC at the single audit action boundary | none proven for the single action | CONSEQUENCE_CONFIRM | ALERT | local waived-payment state plus server audit |
+| `ACTION.SETTLEMENT.CONFIRM` | one `confirm_partner_settlement` RPC per property | batch UI state and snapshot list | page `busy`; no batch key | no batch idempotency key | NON_ATOMIC | `PARTIAL_SUCCESS_RISK` | CONSEQUENCE_CONFIRM | INLINE message | local batch state; each RPC creates its own snapshot |
+| `ACTION.SETTLEMENT.REVERSE` | one `reverse_partner_settlement` RPC | reversal metadata and snapshot status | no explicit action-level client key; button requires reason | single RPC boundary; server idempotency not separately proven | UNKNOWN | no separate batch loop | REASON_REQUIRED | INLINE message | local snapshot state; RPC/audit boundary |
+
+### Financial recommendations
+
+- `RENT_PAYMENT_TRANSACTION_RECOMMENDATION`: keep the current core-payment-first behavior in 3.2a. Treat the payment record as the core financial write and linked deposit, tenant monthly-rent update and attachments as explicitly reported side effects. A future atomic boundary should be designed around payment plus any required linked deposit/tenant facts; it requires a separate transaction/API decision and is not implemented here.
+- `SETTLEMENT_TRANSACTION_RECOMMENDATION`: prefer **A. keep per-property settlement writes with a stable batch idempotency design** as the next investigation. Current evidence shows one RPC per property and no batch key; true atomic multi-property settlement would require a new server transaction/RPC. No redesign is implemented here.
+- Deposit status update is the `FINANCIAL_ACTION_REFERENCE_PATTERN`: retain its pending, save, refetch and final-state verification behavior for simple status mutations, without applying it to multi-record payment or settlement transactions.
+- Expense remains `NO_TRANSACTION_REFACTOR_REQUIRED` for 3.2a: its core write is one business record collection and optional attachments are already reported separately.
 
 ## Safety contract
 
@@ -122,4 +140,3 @@ This Action contract is independent from the responsive contract. It must not ch
 - Tenant List three-row/five-slot contract;
 - BUG-01 selector ownership;
 - DebtCase, RentPeriodState, Reminder Engine, database, schema, RLS, permissions or real data.
-

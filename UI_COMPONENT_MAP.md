@@ -14,6 +14,8 @@
 
 Pages may collect input and open UI state, but must not introduce a second business write sequence. Before adding or changing a mutation Action, read `ACTION_TREE_CONTRACT.md` together with the relevant UI ownership documents. `UI_COMPONENT_MAP.md` remains the UI implementation map; it does not duplicate the Action Registry.
 
+Financial mutation ownership is documented only in `ACTION_TREE_CONTRACT.md`: payment, expense, deposit, debt-waiver and settlement pages own input/pending presentation, while API/RPC or shared persistence owners decide authorization, write scope, ordering, deduplication and final state. The 3.2a Debt Waiver client pending guard is a presentation safeguard; it is not server idempotency.
+
 ### Verified responsive status
 
 - `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; the check-in deposit selector keeps the shared `SearchableSelect` / `DropdownListbox` path and the local advanced-options overflow owner.

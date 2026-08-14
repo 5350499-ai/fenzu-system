@@ -12,6 +12,8 @@
 
 This Action ownership contract is separate from responsive UI ownership and must not change the frozen Phone/Medium/Desktop, Tenant List, Modal, safe-area, Table or Chart contracts.
 
+Financial Action UI may collect values, show pending/disabled state, confirmation and visible errors. It must not redefine amount calculations, cross-record ordering, transaction boundaries or server idempotency; those remain Action Root/API/RPC responsibilities recorded in `ACTION_TREE_CONTRACT.md`.
+
 ### Verified responsive status
 
 - `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; keep the existing shared selector interaction and its local overflow contract.

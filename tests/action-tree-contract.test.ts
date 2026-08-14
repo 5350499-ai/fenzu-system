@@ -27,8 +27,9 @@ const requiredIds = [
 
 test("Action Tree registry exists and contains unique stable high-risk IDs", () => {
   assert.match(contract, /^# Action Tree Ownership Contract/m);
+  const registrySection = contract.split("## Financial Action Safety Matrix")[0];
   for (const id of requiredIds) {
-    const registryRows = contract.split("\n").filter((line) => line.startsWith(`| \`${id}\` |`));
+    const registryRows = registrySection.split("\n").filter((line) => line.startsWith(`| \`${id}\` |`));
     assert.equal(registryRows.length, 1, id);
   }
   assert.match(contract, /PARTIAL_SUCCESS_RISK/);
@@ -62,7 +63,7 @@ test("known deferred gaps remain registered instead of being silently normalized
   assert.match(propertyDetail, /catch\(console\.error\)/);
   assert.match(tenants, /async function waiveDebtCase/);
   assert.match(contract, /USER_VISIBLE_ERROR_GAP/);
-  assert.match(contract, /CLIENT_PENDING_GAP/);
+  assert.match(contract, /CLIENT_PENDING_GAP = RESOLVED/);
 });
 
 test("pages and components do not directly perform business-table mutations", () => {

@@ -144,6 +144,7 @@ export default function TenantsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [waivingDebtPaymentId, setWaivingDebtPaymentId] = useState("");
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [ownershipMode, setOwnershipMode] = useState<string>("");
@@ -384,24 +385,32 @@ export default function TenantsPage() {
   }
 
   async function waiveDebtCase(debtCase: DebtCase) {
+    if (waivingDebtPaymentId === debtCase.paymentId) return;
     if (!window.confirm("确认放弃追缴这笔欠费吗？不会生成收入或支出，历史记录将保留。")) return;
-    const session = await getValidSupabaseSession();
-    if (!session) {
-      window.alert("登录已失效，请重新登录。");
-      return;
+    setWaivingDebtPaymentId(debtCase.paymentId);
+    try {
+      const session = await getValidSupabaseSession();
+      if (!session) {
+        window.alert("登录已失效，请重新登录。");
+        return;
+      }
+      const response = await fetch("/api/rent-collection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: "waive", rentPaymentId: debtCase.paymentId, reason: "" })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        window.alert(payload.error || "放弃追缴失败。");
+        return;
+      }
+      setWaivedPaymentIds((current) => new Set([...current, debtCase.paymentId]));
+      setDebtFocusPaymentId("");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "放弃追缴失败。");
+    } finally {
+      setWaivingDebtPaymentId("");
     }
-    const response = await fetch("/api/rent-collection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: "waive", rentPaymentId: debtCase.paymentId, reason: "" })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      window.alert(payload.error || "放弃追缴失败。");
-      return;
-    }
-    setWaivedPaymentIds((current) => new Set([...current, debtCase.paymentId]));
-    setDebtFocusPaymentId("");
   }
 
   function close() {
@@ -1052,6 +1061,7 @@ export default function TenantsPage() {
                   propertyName={property?.name || "-"}
                   roomName={room?.name || "-"}
                     saving={saving}
+                    waivingDebtPaymentId={waivingDebtPaymentId}
                     tenant={tenant}
                     depositStatus={depositStatus}
                     partnerDirectory={partnerDirectory}
@@ -1301,6 +1311,7 @@ function TenantDetail({
   canDeleteFiles,
   onArchive,
   saving,
+  waivingDebtPaymentId,
   onDeleteFile,
   onEdit,
   onMoveOut,
@@ -1337,6 +1348,7 @@ function TenantDetail({
   canUploadFiles: boolean;
   canDeleteFiles: boolean;
   saving: boolean;
+  waivingDebtPaymentId: string;
   onArchive: () => void;
   onDeleteFile: (file: ContractFile) => void;
   onEdit: () => void;
@@ -1381,6 +1393,7 @@ function TenantDetail({
         isAdmin={isAdmin}
         archived={archived}
         saving={saving}
+        waivingDebtPaymentId={waivingDebtPaymentId}
         onMoveOut={onMoveOut}
         onRestore={onRestore}
         onArchive={onArchive}
@@ -1506,7 +1519,7 @@ function TenantDetail({
   );
 }
 
-function TenantDetailActions({ tenant, debtCases, focusedDebtPaymentId, onWaiveDebt, canCollectRent, canEdit, canArchive, isAdmin, archived, saving, onMoveOut, onRestore, onArchive, onEdit, onPermanentDelete }: { tenant: BusinessTenant; debtCases: readonly DebtCase[]; focusedDebtPaymentId: string; onWaiveDebt: (debtCase: DebtCase) => void; canCollectRent: boolean; canEdit: boolean; canArchive: boolean; isAdmin: boolean; archived: boolean; saving: boolean; onMoveOut: () => void; onRestore: () => void; onArchive: () => void; onEdit: () => void; onPermanentDelete: () => void }) {
+function TenantDetailActions({ tenant, debtCases, focusedDebtPaymentId, onWaiveDebt, canCollectRent, canEdit, canArchive, isAdmin, archived, saving, waivingDebtPaymentId, onMoveOut, onRestore, onArchive, onEdit, onPermanentDelete }: { tenant: BusinessTenant; debtCases: readonly DebtCase[]; focusedDebtPaymentId: string; onWaiveDebt: (debtCase: DebtCase) => void; canCollectRent: boolean; canEdit: boolean; canArchive: boolean; isAdmin: boolean; archived: boolean; saving: boolean; waivingDebtPaymentId: string; onMoveOut: () => void; onRestore: () => void; onArchive: () => void; onEdit: () => void; onPermanentDelete: () => void }) {
   const movedOut = tenant.status.includes("已退租");
   const primaryDebtCase = debtCases[0] || null;
   return <div className="compact-action-grid tenant-detail-actions">
@@ -1515,12 +1528,12 @@ function TenantDetailActions({ tenant, debtCases, focusedDebtPaymentId, onWaiveD
     {canEdit ? <button className="btn tenant-detail-action-button" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑</button> : null}
     {canArchive && archived ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onRestore}><Archive size={15} /> 恢复</button> : canArchive ? <button className="btn tenant-detail-action-button" disabled={saving} type="button" onClick={onArchive}><Archive size={15} /> 归档</button> : null}
     {isAdmin ? <button className="btn danger tenant-detail-action-button" disabled={saving} type="button" onClick={onPermanentDelete}><Trash2 size={15} /> 永久删除</button> : null}
-    {primaryDebtCase?.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving} type="button" onClick={() => onWaiveDebt(primaryDebtCase)}>放弃追缴</button> : null}
+    {primaryDebtCase?.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving || waivingDebtPaymentId === primaryDebtCase.paymentId} type="button" onClick={() => onWaiveDebt(primaryDebtCase)}>{waivingDebtPaymentId === primaryDebtCase.paymentId ? "处理中…" : "放弃追缴"}</button> : null}
     {debtCases.slice(1).map((debtCase) => <div className={`tenant-detail-debt-extra-row${debtCase.paymentId === focusedDebtPaymentId ? " tenant-detail-debt-extra-row-focused" : ""}`} data-payment-id={debtCase.paymentId} key={debtCase.debtCaseId}>
       <span className="tenant-debt-action-status">已逾期{debtCase.daysOverdue}天</span>
       <span className="tenant-debt-action-buttons">
         {debtCase.canCollect ? <a className="btn tenant-detail-action-button" href={`/rent-payments?collectPayment=${encodeURIComponent(debtCase.paymentId)}&overdue=1`}>续交房租</a> : null}
-        {debtCase.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving} type="button" onClick={() => onWaiveDebt(debtCase)}>放弃追缴</button> : null}
+        {debtCase.canWaive ? <button className="btn warning tenant-detail-action-button" disabled={saving || waivingDebtPaymentId === debtCase.paymentId} type="button" onClick={() => onWaiveDebt(debtCase)}>{waivingDebtPaymentId === debtCase.paymentId ? "处理中…" : "放弃追缴"}</button> : null}
       </span>
     </div>)}
   </div>;
