@@ -12,6 +12,7 @@
     "validate:actions": "node --experimental-strip-types --test tests/action-tree-contract.test.ts tests/financial-action-contract.test.ts tests/rent-payment-action-contract.test.ts tests/settlement-action-contract.test.ts tests/lifecycle-action-contract.test.ts",
     "validate:data-state": "node --experimental-strip-types --test tests/data-state-contract.test.ts",
     "validate:domain": "node --experimental-strip-types --test tests/domain-rule-contract.test.ts",
+    "validate:server-boundary": "node --experimental-strip-types --test tests/server-boundary-contract.test.ts",
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs"
   },

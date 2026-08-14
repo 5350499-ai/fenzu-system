@@ -1123,3 +1123,8 @@
 - Added `DATA_STATE_TREE_CONTRACT.md` as the canonical registry for source-of-truth, derived state, cache, snapshot, restore and account-scope ownership.
 - Added `validate:data-state` guards for RentPeriodState, DebtCase, Reminder, cache invalidation, restore mapping and current-versus-historical boundaries.
 - Recorded the legacy unscoped business-data diff baseline as a deferred P1; no schema, RPC, financial rule, lifecycle rule or historical data changed.
+## 2026-08-14 - Persistence and API server-boundary governance (Step 6)
+
+- Added `SERVER_BOUNDARY_CONTRACT.md` as the single registry for 45 API routes, database write ownership, account/permission scope, validation, RPC and error contracts.
+- Added `npm run validate:server-boundary` with guards for route registration, canonical server write ownership, deferred non-atomic actions, compatibility aliases and the absence of direct client Supabase business writes.
+- Kept `business-data` as the registered legacy compatibility write boundary. Move Out, Rent Payment and Settlement server/batch idempotency remain explicitly deferred; no schema, RPC signature, business rule, real data or Production change was made.

@@ -869,6 +869,15 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 The regression contract verifies the existing Phone/Medium/Desktop Shell modes without changing their breakpoints, rail widths, mobile clearance or safe-area ownership. Tenant List three-row/five-slot contracts, Modal ownership, intentional table/chart scrolling and business data contracts remain frozen. BUG-01 uses the existing shared selector path; no device-specific CSS or JavaScript layout calculation is permitted.
 
+## 62. Server Boundary Contract - Step 6
+
+`SERVER_BOUNDARY_CONTRACT.md` owns the client-to-API-to-service/repository/RPC
+boundary. UI may collect and display data, but authentication, account scope,
+permissions, final validation, persistence, transaction classification and
+server idempotency belong to the server boundary. Existing compatibility and
+deferred non-atomic financial/lifecycle risks must remain registered rather
+than being hidden by UI abstractions.
+
 ## 61. Domain Rule Boundary
 
 `DOMAIN_RULE_CONTRACT.md` owns the domain-rule registry. UI is a consumer of

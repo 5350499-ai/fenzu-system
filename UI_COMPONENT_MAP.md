@@ -221,6 +221,15 @@ Reminder Engine, financial amount/date rules, occupancy rules or historical
 snapshot semantics. Compatibility helpers and semantically different metrics
 remain explicitly classified there rather than silently merged.
 
+## Server Boundary Ownership - Step 6
+
+`SERVER_BOUNDARY_CONTRACT.md` is the sole owner of API, persistence, permission,
+account-scope, RPC, validation, idempotency and error-boundary rules. Pages and
+ordinary client components request actions through API/action roots; they do
+not become direct Supabase business-write owners. `business-data` remains a
+registered compatibility boundary, and the non-atomic Move Out, Rent Payment
+and Settlement idempotency risks remain explicitly deferred there.
+
 ## App Shell Three-Mode Ownership
 
 - `app/layout.tsx` owns viewport metadata; `components/app-layout.tsx` owns the shared navigation data, permission filtering and active-route behavior for every shell mode.
