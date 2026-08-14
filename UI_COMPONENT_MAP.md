@@ -221,6 +221,15 @@ Reminder Engine, financial amount/date rules, occupancy rules or historical
 snapshot semantics. Compatibility helpers and semantically different metrics
 remain explicitly classified there rather than silently merged.
 
+## Security Boundary Ownership - Step 7
+
+`SECURITY_BOUNDARY_CONTRACT.md` owns authentication, server session authority,
+account scope, permissions, resource ownership, admin boundaries, attachment
+access and secret/error handling. UI permission checks are presentation only;
+the API/server boundary must revalidate every sensitive operation. The existing
+Responsive, Action, Data State, Domain and Server Boundary contracts remain
+parallel frozen owners.
+
 ## Server Boundary Ownership - Step 6
 
 `SERVER_BOUNDARY_CONTRACT.md` is the sole owner of API, persistence, permission,

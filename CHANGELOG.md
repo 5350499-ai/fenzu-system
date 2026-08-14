@@ -1128,3 +1128,8 @@
 - Added `SERVER_BOUNDARY_CONTRACT.md` as the single registry for 45 API routes, database write ownership, account/permission scope, validation, RPC and error contracts.
 - Added `npm run validate:server-boundary` with guards for route registration, canonical server write ownership, deferred non-atomic actions, compatibility aliases and the absence of direct client Supabase business writes.
 - Kept `business-data` as the registered legacy compatibility write boundary. Move Out, Rent Payment and Settlement server/batch idempotency remain explicitly deferred; no schema, RPC signature, business rule, real data or Production change was made.
+## 2026-08-14 - Authentication and account-isolation governance (Step 7)
+
+- Added `SECURITY_BOUNDARY_CONTRACT.md` as the single registry for Auth, session, account scope, permissions, resource ownership, admin, attachment, backup/restore, secret and error boundaries.
+- Added `npm run validate:security` with guards for API coverage, server authorization ownership, secret/client boundaries, destructive GETs, redirect and redaction contracts.
+- No schema, RLS policy, RPC signature, Auth architecture, real data, Storage operation or Production change was made. Existing localStorage, compatibility, headers and non-atomic idempotency risks remain explicitly deferred.

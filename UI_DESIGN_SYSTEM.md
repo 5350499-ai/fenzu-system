@@ -869,6 +869,14 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 The regression contract verifies the existing Phone/Medium/Desktop Shell modes without changing their breakpoints, rail widths, mobile clearance or safe-area ownership. Tenant List three-row/five-slot contracts, Modal ownership, intentional table/chart scrolling and business data contracts remain frozen. BUG-01 uses the existing shared selector path; no device-specific CSS or JavaScript layout calculation is permitted.
 
+## 63. Security Boundary Contract - Step 7
+
+`SECURITY_BOUNDARY_CONTRACT.md` owns security decisions around authentication,
+authorization, account isolation, resource ownership, admin actions,
+attachments, recovery and error exposure. UI hiding is never a permission
+boundary. Security hardening must preserve the existing Action, Data State,
+Domain and Server Boundary ownership contracts.
+
 ## 62. Server Boundary Contract - Step 6
 
 `SERVER_BOUNDARY_CONTRACT.md` owns the client-to-API-to-service/repository/RPC
