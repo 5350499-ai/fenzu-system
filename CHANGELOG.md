@@ -1111,6 +1111,13 @@
 - Fixed Property Notes user-visible failure handling with authoritative recovery/rollback, and hardened rent/expense attachment deletion feedback and in-flight guards.
 - Move Out, Rent Payment and Settlement remain explicitly non-atomic deferred risks; no database schema, high-risk RPC, business rule, historical data or Production deployment changed.
 
+## 2026-08-14 - Domain Rule Governance (Step 5)
+
+- Added `DOMAIN_RULE_CONTRACT.md` as the canonical registry for business-rule, calculation, status, metric, compatibility and snapshot ownership.
+- Converged Settlement's duplicate received-amount and accounting-date helpers to the existing `lib/profit.ts` canonical helpers; no calculation semantics changed.
+- Registered RentPeriodState, DebtCase, Reminder Engine, occupancy, metric and date-only boundaries, including deferred risks for legacy compatibility and UTC-derived page defaults.
+- Added `validate:domain` and domain-rule regression contracts. No schema, RPC, historical data, permission model or Production change.
+
 ## 2026-08-14 - Data / State / Derivation Tree governance
 
 - Added `DATA_STATE_TREE_CONTRACT.md` as the canonical registry for source-of-truth, derived state, cache, snapshot, restore and account-scope ownership.

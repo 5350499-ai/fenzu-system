@@ -11,6 +11,7 @@
     "validate:responsive": "node --experimental-strip-types --test tests/app-shell-responsive.test.ts tests/compact-action-grid.test.ts tests/medium-business-layout.test.ts tests/medium-second-batch-layout.test.ts tests/high-risk-layout-contract.test.ts tests/shared-responsive-primitives.test.ts tests/responsive-regression-contract.test.ts tests/bug-01-check-in-deposit-selector.test.ts tests/tenant-layout-contract.test.ts tests/tenant-detail-layout.test.ts",
     "validate:actions": "node --experimental-strip-types --test tests/action-tree-contract.test.ts tests/financial-action-contract.test.ts tests/rent-payment-action-contract.test.ts tests/settlement-action-contract.test.ts tests/lifecycle-action-contract.test.ts",
     "validate:data-state": "node --experimental-strip-types --test tests/data-state-contract.test.ts",
+    "validate:domain": "node --experimental-strip-types --test tests/domain-rule-contract.test.ts",
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs"
   },

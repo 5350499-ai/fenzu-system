@@ -212,6 +212,15 @@ page-local gap or nowrap/overflow variant.
 - Its responsive semantic slots are received amount, coverage/due status and coverage date, using proportional `31fr / 25fr / 44fr` tracks with no fixed pixel column widths.
 - Current, moved-out and archived tenants use the same rent-row renderer; coverage facts and threshold levels remain owned by RentPeriodState/TenantDebtDisplay.
 
+## Domain Rule Ownership - Step 5
+
+`DOMAIN_RULE_CONTRACT.md` is the single owner for domain-rule, calculation,
+status-machine and metric ownership. UI pages and shared components consume
+canonical domain outputs; they must not recreate RentPeriodState, DebtCase,
+Reminder Engine, financial amount/date rules, occupancy rules or historical
+snapshot semantics. Compatibility helpers and semantically different metrics
+remain explicitly classified there rather than silently merged.
+
 ## App Shell Three-Mode Ownership
 
 - `app/layout.tsx` owns viewport metadata; `components/app-layout.tsx` owns the shared navigation data, permission filtering and active-route behavior for every shell mode.

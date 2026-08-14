@@ -1,13 +1,7 @@
 import type { BusinessExpense, BusinessRentPayment } from "./business-data";
 import type { Partner, PartnerPropertyShare } from "./partners";
-// Keep settlement accounting aligned with lib/profit.ts: rent payments use amount_paid and payment_date, with rent_month as legacy fallback.
-function rentIncomeForPayment(payment: BusinessRentPayment) {
-  return Number(payment.amountPaid || 0);
-}
-
-function paymentAccountingDate(payment: BusinessRentPayment) {
-  return payment.paymentDate || (payment.rentMonth ? payment.rentMonth + "-01" : "");
-}
+// Settlement and profit use the same canonical accounting-date and received-amount rules.
+import { paymentAccountingDate, rentIncomeForPayment } from "./profit";
 
 function isMonthInRange(month: string | null | undefined, range: SettlementRange) {
   if (!month) return false;

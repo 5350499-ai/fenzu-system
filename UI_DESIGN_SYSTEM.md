@@ -869,6 +869,16 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 The regression contract verifies the existing Phone/Medium/Desktop Shell modes without changing their breakpoints, rail widths, mobile clearance or safe-area ownership. Tenant List three-row/five-slot contracts, Modal ownership, intentional table/chart scrolling and business data contracts remain frozen. BUG-01 uses the existing shared selector path; no device-specific CSS or JavaScript layout calculation is permitted.
 
+## 61. Domain Rule Boundary
+
+`DOMAIN_RULE_CONTRACT.md` owns the domain-rule registry. UI is a consumer of
+canonical facts and derived models, not a second business-rule owner. New UI
+must use `RentPeriodState`, `DebtCase`, `Reminder Engine`, shared amount/date
+helpers and scoped metric outputs. Formatting, compatibility adapters and
+historical snapshots must remain distinct from live business facts. Any change
+to financial formulas, status semantics, date boundaries or settlement rules
+requires a separate business-governed change.
+
 ### BUG-01: check-in deposit selector contract
 
 The one-click check-in fields 收款状态、付款方式 and 押金状态 use the same shared `SearchableSelect` / `DropdownListbox` interaction. The advanced-options wrapper must not clip that floating listbox on mobile; its local field container owns `overflow: visible`. Do not create a page-local selector, alter the deposit enum, or change save semantics.
