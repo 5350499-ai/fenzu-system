@@ -1110,3 +1110,9 @@
 - Added the final destructive/confirmation, data-admin, attachment, feedback, refresh/cache, pending and idempotency contracts to `ACTION_TREE_CONTRACT.md`.
 - Fixed Property Notes user-visible failure handling with authoritative recovery/rollback, and hardened rent/expense attachment deletion feedback and in-flight guards.
 - Move Out, Rent Payment and Settlement remain explicitly non-atomic deferred risks; no database schema, high-risk RPC, business rule, historical data or Production deployment changed.
+
+## 2026-08-14 - Data / State / Derivation Tree governance
+
+- Added `DATA_STATE_TREE_CONTRACT.md` as the canonical registry for source-of-truth, derived state, cache, snapshot, restore and account-scope ownership.
+- Added `validate:data-state` guards for RentPeriodState, DebtCase, Reminder, cache invalidation, restore mapping and current-versus-historical boundaries.
+- Recorded the legacy unscoped business-data diff baseline as a deferred P1; no schema, RPC, financial rule, lifecycle rule or historical data changed.

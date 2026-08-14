@@ -26,6 +26,11 @@ defined only in `ACTION_TREE_CONTRACT.md`.
 
 This Action ownership contract is separate from responsive UI ownership and must not change the frozen Phone/Medium/Desktop, Tenant List, Modal, safe-area, Table or Chart contracts.
 
+Data/state ownership is a parallel governance root. UI components render
+canonical or explicitly derived state from `DATA_STATE_TREE_CONTRACT.md`; they
+must not recreate DebtCase/RentPeriodState/Reminder rules, treat cache as
+canonical, or overwrite historical snapshots with current mutable facts.
+
 Financial Action UI may collect values, show pending/disabled state, confirmation and visible errors. It must not redefine amount calculations, cross-record ordering, transaction boundaries or server idempotency; those remain Action Root/API/RPC responsibilities recorded in `ACTION_TREE_CONTRACT.md`.
 
 ### Verified responsive status

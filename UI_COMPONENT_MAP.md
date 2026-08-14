@@ -28,6 +28,12 @@ contracts remain in the Action Tree document.
 
 Financial mutation ownership is documented only in `ACTION_TREE_CONTRACT.md`: payment, expense, deposit, debt-waiver and settlement pages own input/pending presentation, while API/RPC or shared persistence owners decide authorization, write scope, ordering, deduplication and final state. The 3.2a Debt Waiver client pending guard is a presentation safeguard; it is not server idempotency.
 
+Data/state/derivation ownership is documented only in
+`DATA_STATE_TREE_CONTRACT.md`: canonical business facts remain in API/database
+boundaries, while RentPeriodState, DebtCase, Reminder and metrics are named
+derived owners. CacheManager owns cache lifecycle; pages must not promote cache
+or local state to a second source of truth.
+
 ### Verified responsive status
 
 - `BUG-01 = FIXED_AND_IPHONE_VERIFIED`; the check-in deposit selector keeps the shared `SearchableSelect` / `DropdownListbox` path and the local advanced-options overflow owner.
