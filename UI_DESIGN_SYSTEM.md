@@ -10,6 +10,13 @@
 
 `ACTION_TREE_CONTRACT.md` is the Action Tree source of truth. UI components own presentation, input collection, pending display and confirmation surfaces. Shared Action Roots/API/RPC own authorization, authoritative validation, persistence, cross-table ordering, idempotency and final business state. A page must not add a parallel business mutation path or direct business-table write.
 
+Move Out is currently a documented non-atomic lifecycle boundary. Its page may
+collect the date/deposit decision and show pending/feedback, but future server
+convergence must use one registered Action Root, authoritative inputs and
+structured full/partial/failure results. Do not implement a second snapshot
+writer or claim atomicity without a proven server persistence and idempotency
+boundary.
+
 This Action ownership contract is separate from responsive UI ownership and must not change the frozen Phone/Medium/Desktop, Tenant List, Modal, safe-area, Table or Chart contracts.
 
 Financial Action UI may collect values, show pending/disabled state, confirmation and visible errors. It must not redefine amount calculations, cross-record ordering, transaction boundaries or server idempotency; those remain Action Root/API/RPC responsibilities recorded in `ACTION_TREE_CONTRACT.md`.

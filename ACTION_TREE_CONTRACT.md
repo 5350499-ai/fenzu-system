@@ -135,6 +135,124 @@ Out action root that owns validation, ordering, result reporting and retry-safe
 reconciliation; only then decide whether a new atomic RPC/transaction is needed.
 Do not begin with a client-only whole-batch retry.
 
+## Move Out Action Root (3.3b)
+
+### Current contract
+
+The active owner remains the Tenant Detail page:
+
+```text
+Tenant Detail / moveOut
+  -> buildTenantMoveOutPlan
+  -> client submission guard
+  -> persistAll
+  -> saveBusinessData(tenants)
+  -> saveBusinessData(rooms)
+  -> saveBusinessData(contracts)
+  -> saveBusinessData(deposits)
+  -> local state update
+  -> deposit reload and success feedback
+```
+
+`/api/business-data` is a generic snapshot-diff persistence endpoint. It is not a
+Move Out domain Action Root: it accepts client-built operations, performs a
+separate lookup/permission/write path per operation, and has no Move Out request
+identity or durable idempotency record. The client guard prevents concurrent
+clicks in one browser, but it is not server idempotency.
+
+The current boundary is therefore unchanged:
+
+- `ATOMICITY`: `NON_ATOMIC`.
+- `PARTIAL_SUCCESS`: `PARTIAL_SUCCESS_RISK`.
+- `UI_STATE_DIVERGENCE_RISK`: remains registered; earlier resource writes can
+  remain committed when a later `persistAll` write fails.
+- `SERVER_IDEMPOTENCY`: `SERVER_PERSISTENT_IDEMPOTENCY_PENDING`.
+- `CLIENT_REQUEST_ID`: not present for the current Move Out action.
+- `CLIENT_PENDING`: existing `createMoveOutSubmissionGuard` plus `saving`.
+
+The current implementation does not add rent payment, debt, reminder,
+attachment, settlement or audit-log mutations to the Move Out plan. Those remain
+separate Action Roots and are not implicitly included in this contract.
+
+### 3.3b target boundary (design only)
+
+The safe target is `MOVE_OUT_RECOMMENDATION_B`:
+
+```text
+Tenant Detail
+  -> Move Out command
+  -> POST /api/tenants/move-out (proposed; not implemented)
+  -> shared server Move Out service (proposed; not implemented)
+  -> authoritative validation and permission
+  -> existing persistence primitives
+  -> structured step results
+  -> targeted refresh
+  -> full/partial/failure feedback
+```
+
+The proposed request contains only authoritative inputs: tenant identity,
+move-out date, deposit decision, expected assignment identity when required by
+the existing rules, and one stable `clientRequestId`. The client must not send a
+complete replacement snapshot for tenant, room, contract or deposit.
+
+The proposed result has three batch states:
+
+- `MOVE_OUT_FULL_SUCCESS`: all required lifecycle facts succeeded.
+- `MOVE_OUT_PARTIAL_SUCCESS`: at least one fact succeeded and at least one fact
+  failed or was not attempted; each step is explicitly `SUCCESS`, `FAILED` or
+  `NOT_ATTEMPTED`.
+- `MOVE_OUT_FULL_FAILURE`: no lifecycle fact succeeded.
+
+The proposed step set is `TENANT`, `ROOM`, `CONTRACT` and `DEPOSIT`. The current
+client order is preserved as evidence, not as a guarantee for a future server
+orchestrator. Before implementation, the dependency policy must be decided for
+each failure: a tenant failure is `FAIL_FAST`; room/contract/deposit continuation
+cannot be declared safe without proving the existing lifecycle invariants and
+must not be guessed. This is the implementation gate for the server root.
+
+### Implementation safety boundary
+
+This phase is contract-only. A server root is not safely implementable by
+calling the existing HTTP endpoint from the server or by duplicating its table
+writes. Before production implementation, the repository must provide or
+extract a server-callable persistence/domain function that preserves:
+
+1. account and property authorization;
+2. existing resource-key compatibility and row ownership checks;
+3. current validation and `updatedAt`/version behavior;
+4. the existing tenant, room, contract and deposit write semantics; and
+5. a durable idempotency boundary for `clientRequestId`.
+
+The repository currently proves none of those as one reusable Move Out service
+with persistent request replay. No schema, RPC, migration or production route
+was added in 3.3b. The next implementation review must therefore decide the
+shared server persistence extraction and whether an atomic RPC is needed; it
+must not silently promote the current non-atomic client sequence to an atomic
+claim.
+
+### Move Out invariants
+
+The following are frozen for any future implementation and are enforced by the
+contract tests: move-out date meaning; tenant lifecycle status; room occupancy;
+contract end-date/status; deposit status; historical payments/contracts/deposits;
+DebtCase; Reminder Engine; RentPeriodState; financial calculations;
+archive/restore semantics; permissions; and one-effect-per-user-submission.
+
+### Refresh and feedback target
+
+After a successful server result, the client must refresh the authoritative
+tenant, room, contract and deposit facts (and only their known derived views),
+then close/update the Move Out UI. Partial success must keep the UI open or in a
+recoverable result state, refresh the successful facts, identify failed and
+unattempted steps, and must not invite a whole-form resubmission. Full failure
+must keep the flow recoverable and visibly explain that no Move Out fact was
+confirmed. These are target contracts, not claims about the current page.
+
+`MOVE_OUT_ATOMIC_RPC_NOT_REQUIRED_YET` is the current design conclusion: first
+establish the server Action Root and its durable idempotency/result contract;
+only then decide whether the lifecycle facts require a separate transaction or
+RPC. No atomic RPC is created by 3.3b.
+
 ## Financial Action Safety Matrix (3.2a)
 
 | Action ID | Core write | Side effects | Pending / duplicate guard | Server idempotency | Atomicity | Partial-success status | Confirmation | Visible error | Refresh / audit |

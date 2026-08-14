@@ -69,6 +69,30 @@ test("Move Out remains a deferred high-risk non-atomic root", () => {
   assert.match(contract, /3\.3b/);
 });
 
+test("3.3b keeps the current client owner explicit and records the safe server-root boundary", () => {
+  assert.match(contract, /## Move Out Action Root \(3\.3b\)/);
+  assert.match(contract, /The current boundary is therefore unchanged/);
+  assert.match(contract, /SERVER_PERSISTENT_IDEMPOTENCY_PENDING/);
+  assert.match(contract, /proposed; not implemented/);
+  assert.match(contract, /No schema, RPC, migration or production route\s+was added in 3\.3b/);
+  assert.match(contract, /MOVE_OUT_FULL_SUCCESS/);
+  assert.match(contract, /MOVE_OUT_PARTIAL_SUCCESS/);
+  assert.match(contract, /MOVE_OUT_FULL_FAILURE/);
+  assert.match(contract, /SUCCESS[\s\S]*FAILED[\s\S]*NOT_ATTEMPTED/);
+  assert.match(contract, /MOVE_OUT_ATOMIC_RPC_NOT_REQUIRED_YET/);
+});
+
+test("3.3b freezes Move Out lifecycle invariants and excludes unrelated action roots", () => {
+  assert.match(contract, /move-out date meaning/);
+  assert.match(contract, /tenant lifecycle status/);
+  assert.match(contract, /room occupancy/);
+  assert.match(contract, /DebtCase/);
+  assert.match(contract, /Reminder Engine/);
+  assert.match(contract, /RentPeriodState/);
+  assert.match(contract, /does not add rent payment, debt, reminder/);
+  assert.match(contract, /attachment, settlement or audit-log mutations/);
+});
+
 test("permanent delete remains outside reversible lifecycle semantics", () => {
   assert.match(tenants, /isTenantDeleteConfirmed/);
   assert.match(property, /删除后不可恢复/);

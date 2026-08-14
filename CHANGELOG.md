@@ -1098,3 +1098,9 @@
 - Added a dedicated Property Detail lifecycle pending lock for archive, restore and empty-property deletion to prevent repeated clicks while persistence is active.
 - Registered archive/restore confirmation boundaries and deferred Move Out's non-atomic multi-record migration, write-order and UI divergence risk to 3.3b.
 - No database schema, RPC, lifecycle business rule, historical data or Production change.
+
+## 2026-08-14 - Move Out Action Root contract (3.3b)
+
+- Reconfirmed the current Tenant Detail Move Out sequence and documented the proposed server Action Root, step result state machine, lifecycle invariants, refresh/feedback target and idempotency boundary.
+- Kept the phase contract-only because the generic snapshot persistence endpoint is not a proven reusable Move Out service and no durable Move Out request-id boundary exists.
+- No production code, database schema, RPC, migration, lifecycle rule, historical data or Production deployment changed.
