@@ -114,6 +114,8 @@ export default function PropertyDetailPage() {
   const [propertyEditorOpen, setPropertyEditorOpen] = useState(false);
   const [propertyForm, setPropertyForm] = useState<BusinessProperty>(emptyProperty());
   const [propertySaving, setPropertySaving] = useState(false);
+  const [propertyLifecycleSaving, setPropertyLifecycleSaving] = useState(false);
+  const propertyLifecycleLockRef = useRef(false);
   const [expandedTenantNoteIds, setExpandedTenantNoteIds] = useState<Set<string>>(new Set());
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
@@ -253,19 +255,31 @@ export default function PropertyDetailPage() {
   async function archiveProperty() {
     if (!access.can("properties", "archive")) return;
     if (!window.confirm("确认归档该房源吗？归档后历史业务数据仍会保留。")) return;
+    if (propertyLifecycleLockRef.current) return;
+    propertyLifecycleLockRef.current = true;
+    setPropertyLifecycleSaving(true);
     try {
       await updatePropertyNotes(markArchived(property?.notes));
     } catch (error: any) {
       window.alert(error.message || "房源归档失败，请稍后重试。");
+    } finally {
+      propertyLifecycleLockRef.current = false;
+      setPropertyLifecycleSaving(false);
     }
   }
 
   async function restoreProperty() {
     if (!access.can("properties", "archive")) return;
+    if (propertyLifecycleLockRef.current) return;
+    propertyLifecycleLockRef.current = true;
+    setPropertyLifecycleSaving(true);
     try {
       await updatePropertyNotes(cleanArchiveNote(property?.notes));
     } catch (error: any) {
       window.alert(error.message || "房源恢复失败，请稍后重试。");
+    } finally {
+      propertyLifecycleLockRef.current = false;
+      setPropertyLifecycleSaving(false);
     }
   }
 
@@ -277,11 +291,17 @@ export default function PropertyDetailPage() {
       return;
     }
     if (!window.confirm("确定要永久删除这个空房源吗？\n删除后不可恢复。")) return;
+    if (propertyLifecycleLockRef.current) return;
+    propertyLifecycleLockRef.current = true;
+    setPropertyLifecycleSaving(true);
     try {
       await saveBusinessData(propertyKey, properties.filter((item) => item.id !== propertyId));
       window.location.href = "/properties";
     } catch (error: any) {
       window.alert(error.message || "房源删除失败，请稍后重试。");
+    } finally {
+      propertyLifecycleLockRef.current = false;
+      setPropertyLifecycleSaving(false);
     }
   }
 
@@ -324,9 +344,9 @@ export default function PropertyDetailPage() {
         <div className="compact-action-grid property-management-actions">
           {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}
           {access.can("properties", "archive") ? (isArchived(property.notes)
-            ? <button className="btn property-management-action" type="button" onClick={() => void restoreProperty()}><RotateCcw size={15} /> 恢复</button>
-            : <button className="btn property-management-action" type="button" onClick={() => void archiveProperty()}><Archive size={15} /> 归档</button>) : <span aria-hidden="true" />}
-          {access.can("properties", "delete") ? <button className="btn danger property-management-action" type="button" onClick={() => void permanentlyDeleteProperty()}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
+            ? <button className="btn property-management-action" disabled={propertyLifecycleSaving || propertySaving} type="button" onClick={() => void restoreProperty()}><RotateCcw size={15} /> 恢复</button>
+            : <button className="btn property-management-action" disabled={propertyLifecycleSaving || propertySaving} type="button" onClick={() => void archiveProperty()}><Archive size={15} /> 归档</button>) : <span aria-hidden="true" />}
+          {access.can("properties", "delete") ? <button className="btn danger property-management-action" disabled={propertyLifecycleSaving || propertySaving} type="button" onClick={() => void permanentlyDeleteProperty()}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
         </div>
       </section>
 

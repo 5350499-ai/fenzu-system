@@ -27,7 +27,7 @@ const requiredIds = [
 
 test("Action Tree registry exists and contains unique stable high-risk IDs", () => {
   assert.match(contract, /^# Action Tree Ownership Contract/m);
-  const registrySection = contract.split("## Financial Action Safety Matrix")[0];
+  const registrySection = contract.split("## Lifecycle Action Root")[0];
   for (const id of requiredIds) {
     const registryRows = registrySection.split("\n").filter((line) => line.startsWith(`| \`${id}\` |`));
     assert.equal(registryRows.length, 1, id);

@@ -1091,3 +1091,10 @@
 - Added client-side Settlement batch identity and per-property `SUCCESS` / `FAILED` / `NOT_ATTEMPTED` result tracking.
 - Independent property transactions now continue after a property failure and retain confirmed properties in local state.
 - Added visible full-success, partial-success and full-failure feedback without changing settlement calculations, RPCs, schema, historical data or Production.
+
+## 2026-08-14 - Lifecycle Action Root contracts (3.3a)
+
+- Confirmed the atomic check-in RPC and tenant-room move RPC as the current lifecycle action boundaries; no core lifecycle semantics changed.
+- Added a dedicated Property Detail lifecycle pending lock for archive, restore and empty-property deletion to prevent repeated clicks while persistence is active.
+- Registered archive/restore confirmation boundaries and deferred Move Out's non-atomic multi-record migration, write-order and UI divergence risk to 3.3b.
+- No database schema, RPC, lifecycle business rule, historical data or Production change.

@@ -95,6 +95,46 @@ Additional known gaps:
 
 These are registration facts; the Debt Waiver client guard was hardened in 3.2a and the Rent Payment core/side-effect feedback boundary was hardened in 3.2b.
 
+## Lifecycle Action Root (3.3a)
+
+Lifecycle actions are classified by their authoritative business boundary, not by
+the number of UI buttons that expose them. Pages may collect input, confirm a
+consequence and display pending state; the API/RPC or registered action root owns
+authorization, preconditions, cross-record ordering and the final lifecycle fact.
+
+| Action | Current boundary | Atomicity | Risk / status | Contract result |
+|---|---|---|---|---|
+| `ACTION.CHECK_IN.CREATE` | `/api/check-in` -> `create_atomic_check_in` RPC; optional contact update is separate | ATOMIC core + side effect | HIGH / NO_CHANGE_REQUIRED | `clientRequestId`, submit lock, disabled state and visible contact-side-effect warning remain required. Core failure stops dependent client work. |
+| `ACTION.MOVE_ROOM.UPDATE` | `/api/tenants/move-room` -> `update_tenant_current_assignment` RPC | ATOMIC | HIGH / NO_CHANGE_REQUIRED | One server boundary owns tenant assignment and room occupancy; no second page writer is registered. |
+| `ACTION.ROOM.SET_VACANT` | Rooms page sequentially persists room, tenant and contract snapshots | NON_ATOMIC | HIGH / SAFE_TO_HARDEN_LATER | Existing saving guard and consequence confirmation remain; cross-record transaction migration is out of 3.3a scope. |
+| `ACTION.TENANT.ARCHIVE` | Tenant page `persistAll` for tenant archive state | NON_ATOMIC for the page persistence boundary | HIGH / NO_CHANGE_REQUIRED | Archive is presentation-only and preserves business history; restore is reversible and needs no destructive confirmation. |
+| `ACTION.PROPERTY.ARCHIVE` | Property Detail `saveBusinessData` note marker | NON_ATOMIC | HIGH / SAFE_TO_HARDEN | Property lifecycle actions now have a dedicated client lock and disabled controls; no business semantics changed. |
+| `ACTION.TENANT.DELETE` / property/room delete | permission + relation/empty-shell checks, then generic business writer | NON_ATOMIC | HIGH / NO_CHANGE_REQUIRED | Permanent deletion remains a destructive boundary and is not part of lifecycle migration. |
+| `ACTION.TENANT.MOVE_OUT` | `buildTenantMoveOutPlan` -> repeated `saveBusinessData` for tenant/room/contract/deposit | NON_ATOMIC | HIGH / MOVE_TO_3_3B | Current write order and UI divergence risk remain registered; no production behavior changed in 3.3a. |
+
+### Lifecycle confirmation decisions
+
+- Archive: `CONSEQUENCE_CONFIRM` because it changes visibility/management state but preserves history.
+- Restore: `NO_CONFIRM_REQUIRED / REVERSIBLE`; it restores the lifecycle presentation state without deleting, overwriting or creating financial facts.
+- Permanent delete: `TYPED_CONFIRM` or `CONSEQUENCE_CONFIRM` with permission and relation protection; this remains a Destructive Action boundary for 3.4.
+
+### Move Out boundary for 3.3b
+
+`buildTenantMoveOutPlan` derives the lifecycle facts for tenant, room, contract and
+deposit. The current Move Out plan passes those four collections to `persistAll`,
+which writes them sequentially in the order tenants, rooms, contracts, deposits
+(the generic helper also supports payments, but Move Out does not currently pass
+that collection). A failure can leave earlier writes committed while the UI keeps
+the detail open only when `persistAll` returns false; the current flow still has a
+`UI_STATE_DIVERGENCE_RISK` around partial success and refresh/close semantics. No client request id or server Move Out
+idempotency key is proven, and no existing Move Out RPC was found. Move Out is
+therefore explicitly deferred to 3.3b.
+
+Recommendation: `MOVE_OUT_RECOMMENDATION_B` — first establish a server-side Move
+Out action root that owns validation, ordering, result reporting and retry-safe
+reconciliation; only then decide whether a new atomic RPC/transaction is needed.
+Do not begin with a client-only whole-batch retry.
+
 ## Financial Action Safety Matrix (3.2a)
 
 | Action ID | Core write | Side effects | Pending / duplicate guard | Server idempotency | Atomicity | Partial-success status | Confirmation | Visible error | Refresh / audit |
