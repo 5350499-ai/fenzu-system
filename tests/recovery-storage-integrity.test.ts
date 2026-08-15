@@ -18,10 +18,23 @@ test("support recovery is owner-scoped metadata and dry-run only", () => {
   assert.match(route, /dryRun/);
   assert.doesNotMatch(route, /restore_workspace_backup/);
 });
+test("health endpoint classifies stored-object failures without exposing payloads", () => {
+  const route = readFileSync("app/api/admin/recovery-health/route.ts", "utf8");
+  assert.match(route, /inspectRecoveryPointStorage/);
+  assert.match(route, /storageIntegrityCounts/);
+  assert.match(route, /storageIntegrityStatus/);
+  assert.doesNotMatch(route, /signedUrl|payload/);
+});
 test("orphan, corruption, expiry and path security are fail-closed", () => {
   assert.equal(classifyRecoveryStorageState({ ...base, metadataExists: false }), "ORPHAN_REVIEW_REQUIRED");
   assert.equal(classifyRecoveryStorageState({ ...base, checksumValid: false }), "CORRUPT");
   assert.equal(classifyRecoveryStorageState({ ...base, zeroBytes: true }), "CORRUPT");
   assert.equal(classifyRecoveryStorageState({ ...base, expired: true }), "EXPIRED");
   assert.equal(classifyRecoveryStorageState({ ...base, pathBelongsToWorkspace: false }), "SECURITY_ERROR");
+});
+test("scheduler failure injection is localhost-only and opt-in", () => {
+  const service = readFileSync("lib/server/scheduled-recovery-service.ts", "utf8");
+  assert.match(service, /DATA_RESILIENCE_LOCAL_DRILL/);
+  assert.match(service, /127\\\.0\\\.0\\\.1\|localhost/);
+  assert.match(service, /DATA_RESILIENCE_LOCAL_DRILL_FAILURE_STAGE/);
 });

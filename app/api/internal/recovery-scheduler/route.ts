@@ -11,7 +11,8 @@ export async function POST(request: Request) {
   const now = new Date();
   const slot = scheduledRecoverySlot(now);
   const { data: existingRun } = await admin.from("account_recovery_scheduler_runs").select("status,success_count,failure_count,workspace_count").eq("schedule_slot", slot).maybeSingle();
-  if (existingRun?.status === "completed" || existingRun?.status === "partial") return NextResponse.json({ ok: true, slot, ...existingRun, idempotent: true });
+  if (existingRun?.status === "completed") return NextResponse.json({ ok: true, slot, ...existingRun, idempotent: true });
+  if (existingRun?.status === "running") return NextResponse.json({ ok: true, slot, ...existingRun, inProgress: true }, { status: 202 });
   const { data: profiles, error } = await admin.from("user_profiles").select("workspace_owner_id").eq("status", "active");
   if (error) return NextResponse.json({ ok: false, code: "WORKSPACE_ENUMERATION_FAILED" }, { status: 500 });
   const workspaces = [...new Set((profiles || []).map((row) => String(row.workspace_owner_id)).filter(Boolean))];

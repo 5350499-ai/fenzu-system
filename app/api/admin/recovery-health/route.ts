@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse, requireActiveAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { evaluateRecoveryPointHealth } from "@/lib/server/recovery-point-policy";
-import { listRecoveryStorageOrphans } from "@/lib/server/recovery-storage-integrity";
+import { inspectRecoveryPointStorage, listRecoveryStorageOrphans } from "@/lib/server/recovery-storage-integrity";
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +17,20 @@ export async function GET(request: Request) {
     const latestFailure = (runs.data || []).find((run) => run.status === "failed" || run.status === "partial");
     const consecutiveFailures = (runs.data || []).findIndex((run) => run.status === "completed") === -1
       ? (runs.data || []).filter((run) => run.status === "failed" || run.status === "partial").length : 0;
+    const storageChecks = await Promise.all((points.data || []).map((point) => inspectRecoveryPointStorage(admin, {
+      ...point,
+      workspace_owner_id: context.profile.workspace_owner_id,
+      status: point.status as "available" | "expired" | "failed"
+    })));
+    const integrityCounts = storageChecks.reduce<Record<string, number>>((counts, check) => {
+      counts[check.state] = (counts[check.state] || 0) + 1;
+      return counts;
+    }, {});
+    const integrityStatus = storageChecks.some((check) => check.state === "SECURITY_ERROR" || check.state === "ERROR" || check.state === "CORRUPT")
+      ? "ERROR"
+      : storageChecks.some((check) => check.state === "ORPHAN_REVIEW_REQUIRED" || check.state === "EXPIRED")
+        ? "WARNING"
+        : "HEALTHY";
     const knownPaths = new Set((points.data || []).map((point) => point.storage_path));
     const orphans = await listRecoveryStorageOrphans(admin, context.profile.workspace_owner_id, knownPaths);
     return NextResponse.json({
@@ -25,7 +39,9 @@ export async function GET(request: Request) {
       health: evaluateRecoveryPointHealth({ latestSuccessAt: latestSuccess?.created_at || null, latestFailureAt: latestFailure?.started_at || null, consecutiveFailures }),
       latestRun: runs.data?.[0] || null,
       pointCount: points.data?.length || 0,
-      storageIntegrity: (points.data || []).every((point) => Boolean(point.storage_bucket && point.storage_path && point.checksum)),
+      storageIntegrity: integrityStatus === "HEALTHY" && orphans.length === 0,
+      storageIntegrityStatus: orphans.length > 0 && integrityStatus === "HEALTHY" ? "WARNING" : integrityStatus,
+      storageIntegrityCounts: integrityCounts,
       orphanCount: orphans.length
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiErrorResponse(error); }

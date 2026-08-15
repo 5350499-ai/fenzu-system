@@ -5,14 +5,26 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 type AdminClient = ReturnType<typeof getSupabaseAdmin>;
 
+function localDrillFailure(workspaceOwnerId: string, stage: "storage_upload" | "metadata_insert") {
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const localOnly = /:\/\/(127\.0\.0\.1|localhost)(:|\/)/.test(configuredUrl);
+  return process.env.DATA_RESILIENCE_LOCAL_DRILL === "true"
+    && localOnly
+    && process.env.DATA_RESILIENCE_LOCAL_DRILL_FAILURE_WORKSPACE === workspaceOwnerId
+    && process.env.DATA_RESILIENCE_LOCAL_DRILL_FAILURE_STAGE === stage;
+}
+
 async function uploadAndRecord(admin: AdminClient, workspaceOwnerId: string, source: "scheduled" | "before_destructive", now: Date, scheduleSlot?: string | null) {
   const payload = await createDataBackup(admin, workspaceOwnerId, { backupType: "cloud", timezone: "UTC", exportReason: "AutoCloud" });
   const path = recoveryPointStoragePath(workspaceOwnerId, payload.metadata.backupId);
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  if (localDrillFailure(workspaceOwnerId, "storage_upload")) throw new Error("LOCAL_DRILL_STORAGE_UPLOAD_FAILURE");
   const upload = await admin.storage.from("system-backups").upload(path, bytes, { contentType: "application/json", upsert: false });
   if (upload.error) throw Object.assign(new Error("Recovery point payload upload failed"), { cause: upload.error });
-  try { return await recordRecoveryPoint(admin, payload, { workspaceOwnerId, source, storageBucket: "system-backups", storagePath: path, scheduleSlot }); }
-  catch (error) { await admin.storage.from("system-backups").remove([path]); throw error; }
+  try {
+    if (localDrillFailure(workspaceOwnerId, "metadata_insert")) throw new Error("LOCAL_DRILL_METADATA_INSERT_FAILURE");
+    return await recordRecoveryPoint(admin, payload, { workspaceOwnerId, source, storageBucket: "system-backups", storagePath: path, scheduleSlot });
+  } catch (error) { await admin.storage.from("system-backups").remove([path]); throw error; }
 }
 
 export async function createBeforeDestructiveRecoveryPoint(admin: AdminClient, workspaceOwnerId: string, now = new Date()) {

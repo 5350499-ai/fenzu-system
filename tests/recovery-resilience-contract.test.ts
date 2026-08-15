@@ -32,6 +32,8 @@ test("scheduler is disabled by default and cron route requires a secret", () => 
   assert.match(route, /DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED/);
   assert.match(route, /CRON_SECRET/);
   assert.match(route, /account_recovery_scheduler_runs/);
+  assert.match(route, /existingRun\?\.status === "completed"/);
+  assert.match(route, /existingRun\?\.status === "running"/);
 });
 
 test("production readiness contracts keep activation explicit", () => {
