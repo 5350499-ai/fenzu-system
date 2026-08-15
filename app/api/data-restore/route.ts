@@ -9,6 +9,7 @@ import {
 } from "@/lib/data-export";
 import { sanitizeFreeSingleExportData } from "@/lib/data-export";
 import { createDataBackup } from "@/lib/server/backup-service";
+import { recordRecoveryPoint } from "@/lib/server/recovery-point-service";
 
 const BACKUP_BUCKET = "system-backups";
 const RESTORE_RPC_TIMEOUT_MS = 120_000;
@@ -177,6 +178,13 @@ async function createBeforeRestorePackage(admin: ReturnType<typeof getSupabaseAd
       Object.assign(error, { ...upload.error, stage, objectPath: backupPath, storageResponse: upload.error, supabaseResponse: upload.error });
       throw error;
     }
+    await recordRecoveryPoint(admin, beforeRestore, {
+      workspaceOwnerId: workspaceId,
+      source: "before_restore",
+      storageBucket: BACKUP_BUCKET,
+      storagePath: backupPath,
+      createdBy: ownerId,
+    });
     return { fileName, storagePath: backupPath, payload: beforeRestore };
   } catch (error) {
     const source = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
@@ -375,6 +383,13 @@ export async function POST(request: Request) {
           logBeforeRestoreFailure(diagnostic);
           return NextResponse.json(diagnostic, { status: 503 });
         }
+        await recordRecoveryPoint(admin, beforeRestore, {
+          workspaceOwnerId: context.profile.workspace_owner_id,
+          source: "before_restore",
+          storageBucket: BACKUP_BUCKET,
+          storagePath: backupPath,
+          createdBy: context.userId,
+        });
         logRestoreStage(operationId, "BEFORE_RESTORE_STORAGE_UPLOAD_OK", { objectPath: backupPath });
         stage = "response";
         logRestoreStage(operationId, "BEFORE_RESTORE_RESPONSE");

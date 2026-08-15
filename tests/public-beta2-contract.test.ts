@@ -10,6 +10,7 @@ const backupRoute = readFileSync("app/api/data-backup/route.ts", "utf8");
 const partnersRoute = readFileSync("app/api/partners/route.ts", "utf8");
 const partnerIdRoute = readFileSync("app/api/partners/[id]/route.ts", "utf8");
 const dataCenter = readFileSync("app/data-center/page.tsx", "utf8");
+const restoreMigration = readFileSync("supabase/migrations/20260815140000_account_recovery_points.sql", "utf8");
 const checkInOccupancyMigration = readFileSync("supabase/migrations/20260815120000_check_in_occupancy_guard.sql", "utf8");
 const moveRoomOccupancyMigration = readFileSync("supabase/migrations/20260815130000_move_room_occupancy_guard.sql", "utf8");
 const moveRoomRoute = readFileSync("app/api/tenants/move-room/route.ts", "utf8");
@@ -39,6 +40,14 @@ test("ordinary Beta users can export an official JSON backup", () => {
   assert.match(backupRoute, /requireActiveAccount\(request\)/);
   assert.match(backupRoute, /can_export_data/);
   assert.doesNotMatch(backupRoute, /requireManagedAccount/);
+});
+
+test("BeforeRestore records an account-scoped server recovery point", () => {
+  assert.match(restoreRoute, /recordRecoveryPoint/);
+  assert.match(restoreRoute, /source: "before_restore"/);
+  assert.match(restoreMigration, /account_recovery_points/);
+  assert.match(restoreMigration, /enable row level security/);
+  assert.match(restoreMigration, /revoke all on table public\.account_recovery_points from anon, authenticated/);
 });
 
 test("ordinary Beta Restore UI requires a preview and exposes explicit restore copy", () => {

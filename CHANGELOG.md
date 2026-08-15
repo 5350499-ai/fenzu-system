@@ -1,3 +1,8 @@
+# 2026-08-15 - Data resilience local foundation
+
+- Added the account-scoped recovery-point inventory contract and additive local migration. Existing BeforeRestore payloads are now recorded as server-owned recovery-point metadata; the existing Restore engine and transaction remain canonical.
+- Added local recovery-point retention/eligibility helpers and contract tests. Production scheduler, platform backup activation, bucket changes and real data operations remain pending and were not executed.
+
 ## 2026-08-14 - Final governance closeout (FINAL.1)
 
 - Established `FINAL_GOVERNANCE_BASELINE.md` for the original six-step governance route.
