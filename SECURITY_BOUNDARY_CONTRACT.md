@@ -40,6 +40,7 @@ status.
 /api/admin/google-attachment-migration/run
 /api/admin/google-attachment-migration/scan
 /api/admin/recovery-health
+/api/admin/recovery-points
 /api/audit-logs
 /api/auth/change-password
 /api/auth/forgot-password

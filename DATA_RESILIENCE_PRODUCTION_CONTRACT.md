@@ -16,6 +16,10 @@ HEALTHY means a recent successful scheduled point. WARNING means more than one d
 
 Closed Beta support recovery remains an operationally gated capability: list metadata, dry-run, and actual restore require server-verified target workspace, mandatory reason, second confirmation, and audit logging. No operator may edit Supabase business rows manually. A full support impersonation endpoint is not enabled by this contract until its operator role and audit boundary are separately authorized.
 
+The local/Closed Beta support API therefore exposes only owner-scoped metadata and dry-run. The authenticated workspace owner performs any actual Restore through the existing Restore route. This is the intentional least-privilege alternative.
+
+Storage integrity states are `HEALTHY`, `ERROR`, `ORPHAN_REVIEW_REQUIRED`, `CORRUPT`, `EXPIRED`, and `SECURITY_ERROR`. Orphans are reported and never automatically deleted.
+
 ## Account deletion
 
 Recommended design: deletion request, seven-day cancellation window, no new writes while pending, final recovery point before cleanup, live-data cleanup, recovery-point retention for 30 days, audit logs for 90 days, and Auth deletion last. Self-service permanent deletion is out of scope for Closed Beta.

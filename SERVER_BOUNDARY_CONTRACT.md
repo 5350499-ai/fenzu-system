@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 48 route files. Every route is listed here and is checked by
+There are 49 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -38,6 +38,7 @@ There are 48 route files. Every route is listed here and is checked by
 | `/api/admin/google-attachment-migration/run` | ADMIN/ATTACHMENT | write | migration service / sensitive permission | HIGH_RISK |
 | `/api/admin/google-attachment-migration/scan` | ADMIN/ATTACHMENT | read | migration service / sensitive permission | ACTIVE_CANONICAL |
 | `/api/admin/recovery-health` | ADMIN/RECOVERY | read | aggregate recovery health / owner | ACTIVE_CANONICAL |
+| `/api/admin/recovery-points` | ADMIN/RECOVERY | read/dry-run | owner-scoped recovery metadata / canonical Restore | ACTIVE_CANONICAL |
 | `/api/audit-logs` | ADMIN | read | audit repository / sensitive permission | ACTIVE_CANONICAL |
 | `/api/auth/change-password` | AUTH | write | account auth/management | HIGH_RISK |
 | `/api/auth/forgot-password` | AUTH | write | Supabase recovery | PUBLIC_AUTH_FLOW |
