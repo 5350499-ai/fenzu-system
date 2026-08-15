@@ -333,8 +333,9 @@ if (/sortKey === "status"|toggleSort\("status"/.test(tenantsPage)) {
 if (!tenantDelete.includes("tenantHasBusinessData") || !tenantDelete.includes("tenantDeleteBusinessDataMessage")) {
   failures.push("Tenant permanent deletion must use the shared business-history guard");
 }
-if (!tenantDeleteApi.includes("assertTenantHasNoBusinessData") || !tenantDeleteApi.includes("dryRun")) {
-  failures.push("Tenant permanent deletion must have a server-side preflight and final recheck");
+const tenantPermanentDeleteDisabled = tenantDeleteApi.includes("TENANT_PERMANENT_DELETE_DISABLED");
+if ((!tenantDeleteApi.includes("assertTenantHasNoBusinessData") || !tenantDeleteApi.includes("dryRun")) && !tenantPermanentDeleteDisabled) {
+  failures.push("Tenant permanent deletion must have a server-side preflight and final recheck, or an explicit server-side disabled contract");
 }
 if (!tenantArchive.includes("filterTenantsByArchiveMode") || !tenantsPage.includes("filterTenantsByArchiveMode(tenants, effectiveShowArchived)")) {
   failures.push("Tenant normal/archive modes must share one archive filter primitive");

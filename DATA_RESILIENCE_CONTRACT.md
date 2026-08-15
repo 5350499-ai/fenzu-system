@@ -36,6 +36,15 @@ Verify workspace, list only its eligible points, dry-run, show record deltas, cr
 
 Current minimum is whole-workspace Restore plus existing archive/void semantics. Record/property-level undo is future work where a high-value hard delete cannot be recovered without rolling back unrelated work. Project/database recovery is a platform operation, not an application route.
 
+Tenant destructive contract: a tenant is an occupant/tenancy entity and the
+current schema requires `property_id` and `room_id`. Closed Beta therefore
+does not expose tenant permanent delete. Move-out and archive preserve the
+tenant row and its historical business relationships. The tenant delete
+boundary rejects legacy hard-delete requests with
+`TENANT_PERMANENT_DELETE_DISABLED`; the existing relation guard remains
+defense-in-depth for any future contract change. The schema is intentionally
+not relaxed to create an unassigned contact-like tenant state.
+
 ## Health and compatibility
 
 The inventory records source, checksum, size, schema/format, status and expiry. A future scheduler must report last success, last failure, consecutive failures, overdue state and storage usage. Unknown format/schema versions must be rejected or handled by an explicit adapter.

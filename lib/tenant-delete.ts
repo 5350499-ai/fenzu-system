@@ -1,4 +1,14 @@
 export const TENANT_DELETE_CONFIRMATION = "DELETE";
+export const TENANT_PERMANENT_DELETE_DISABLED = "TENANT_PERMANENT_DELETE_DISABLED";
+
+/** The current tenant schema models an occupant, not an unassigned contact. */
+export function isTenantPermanentDeleteEnabled() {
+  return false;
+}
+
+export function tenantPermanentDeleteDisabledMessage() {
+  return "\u79df\u5ba2\u8bb0\u5f55\u4ec5\u652f\u6301\u9000\u79df\u548c\u5f52\u6863\uff0c\u5386\u53f2\u4e1a\u52a1\u8bb0\u5f55\u4f1a\u88ab\u4fdd\u7559\u3002\u5f53\u524d\u7248\u672c\u4e0d\u652f\u6301\u6c38\u4e45\u5220\u9664\u79df\u5ba2\u3002";
+}
 
 export type TenantBusinessDataSummary = {
   roomRelation: number;
@@ -33,5 +43,6 @@ export function isTenantDeleteConfirmed(value: string) {
 }
 
 export function tenantDeletePermissionMessage(canDelete: boolean) {
+  if (canDelete && !isTenantPermanentDeleteEnabled()) return tenantPermanentDeleteDisabledMessage();
   return canDelete ? "" : "当前账号没有永久删除租客的权限。";
 }

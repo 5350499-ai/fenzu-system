@@ -83,6 +83,7 @@ The backup trace route is disabled in Production and is not a business write.
 | Action / data | Canonical server owner | Persistence boundary | Classification |
 |---|---|---|---|
 | Property, room, tenant, contract CRUD | `/api/business-data` + account auth | Supabase tables | LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY |
+| Tenant permanent delete | `/api/business-data` explicit contract guard | no mutation; move-out/archive preserve history | SERVER_REJECT / `TENANT_PERMANENT_DELETE_DISABLED` |
 | Rent payment edit/void | `/api/rent-collection` or compatibility path | `rent_payments` + audit | SERVER_REPOSITORY_WRITE / NON_ATOMIC |
 | Check-in | `/api/check-in` | `create_atomic_check_in` | RPC_WRITE / ATOMIC_RPC |
 | Move room | `/api/tenants/move-room` | `update_tenant_current_assignment` | RPC_WRITE / ATOMIC_RPC |

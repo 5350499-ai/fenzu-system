@@ -54,7 +54,7 @@ import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, spl
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { getTenantStatusSlots } from "@/lib/tenant-status-slots";
-import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
+import { isTenantDeleteConfirmed, isTenantPermanentDeleteEnabled, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
@@ -1047,7 +1047,7 @@ export default function TenantsPage() {
                     attachmentLoadState={contractFilesLoadState}
                     attachmentLoadError={contractFilesLoadError}
                     onRetryFiles={() => void refreshContractFiles(contracts.filter((item) => item.tenantId === tenant.id).map((item) => item.id), [tenant.id])}
-                    isAdmin={access.can("tenants", "delete")}
+                    isAdmin={access.can("tenants", "delete") && isTenantPermanentDeleteEnabled()}
                     canEdit={access.can("tenants", "edit")}
                     canArchive={access.can("tenants", "archive")}
                     canCollectRent={access.can("rent_payments", "create") && isCurrentRentalRelationship(tenant) && tenantDebtCases.length === 0}

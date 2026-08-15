@@ -4,8 +4,9 @@ import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-s
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
 import { classifyBusinessDeleteError } from "@/lib/server/delete-error";
-import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
 import { createBeforeDestructiveRecoveryPoint } from "@/lib/server/scheduled-recovery-service";
+import { TENANT_PERMANENT_DELETE_DISABLED, isTenantPermanentDeleteEnabled, tenantPermanentDeleteDisabledMessage } from "@/lib/tenant-delete";
+import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -174,11 +175,17 @@ export async function POST(request: Request) {
       if (operation.action === "delete") {
         await requireModulePermission(context, resource.module, "delete");
         if (resource.table === "tenants") {
-          await assertTenantHasNoBusinessData(context, before as { id: string; status?: string; room_id?: string | null });
-          if (body.dryRun === true) {
-            savedRows.push({ id });
-            continue;
+          if (isTenantPermanentDeleteEnabled()) {
+            await assertTenantHasNoBusinessData(context, before as { id: string; status?: string; room_id?: string | null });
+            if (body.dryRun === true) {
+              savedRows.push({ id });
+              continue;
+            }
           }
+          // A valid tenant is an occupant with required property_id/room_id.
+          // Preserve its history through move-out/archive; do not weaken the
+          // schema to make an unreachable hard-delete fixture possible.
+          throw new AccountApiError(tenantPermanentDeleteDisabledMessage(), 409, TENANT_PERMANENT_DELETE_DISABLED);
         }
         if (body.dryRun === true) continue;
         if (resource.table === "properties" || resource.table === "tenants") {
