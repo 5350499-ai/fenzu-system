@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 46 route files. Every route is listed here and is checked by
+There are 48 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -37,6 +37,7 @@ There are 46 route files. Every route is listed here and is checked by
 | `/api/admin/attachments/summary` | ADMIN/ATTACHMENT | read | inventory service / sensitive permission | ACTIVE_CANONICAL |
 | `/api/admin/google-attachment-migration/run` | ADMIN/ATTACHMENT | write | migration service / sensitive permission | HIGH_RISK |
 | `/api/admin/google-attachment-migration/scan` | ADMIN/ATTACHMENT | read | migration service / sensitive permission | ACTIVE_CANONICAL |
+| `/api/admin/recovery-health` | ADMIN/RECOVERY | read | aggregate recovery health / owner | ACTIVE_CANONICAL |
 | `/api/audit-logs` | ADMIN | read | audit repository / sensitive permission | ACTIVE_CANONICAL |
 | `/api/auth/change-password` | AUTH | write | account auth/management | HIGH_RISK |
 | `/api/auth/forgot-password` | AUTH | write | Supabase recovery | PUBLIC_AUTH_FLOW |
@@ -66,6 +67,7 @@ There are 46 route files. Every route is listed here and is checked by
 | `/api/partner-settlements` | SETTLEMENT | read/write | settlement RPC/service / workspace | PARTIAL_SUCCESS_RISK |
 | `/api/partner-settlements/[id]` | SETTLEMENT | read/write | reversal RPC / workspace | HIGH_RISK |
 | `/api/rent-collection` | FINANCIAL | read/write | rent service / property | PARTIAL_SUCCESS_RISK |
+| `/api/internal/recovery-scheduler` | INTERNAL/RECOVERY | scheduled write | CRON_SECRET + feature flag / server-only | DISABLED_UNTIL_ACTIVATION |
 | `/api/tasks/migration` | TASK | write | task management | LEGACY_COMPATIBILITY |
 | `/api/tasks/migration-preview` | TASK | read | task management | LEGACY_COMPATIBILITY |
 | `/api/tasks/server` | TASK | read/write | task management | ACTIVE_CANONICAL |

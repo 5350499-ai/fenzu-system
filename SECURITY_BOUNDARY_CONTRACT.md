@@ -39,6 +39,7 @@ status.
 /api/admin/attachments/summary
 /api/admin/google-attachment-migration/run
 /api/admin/google-attachment-migration/scan
+/api/admin/recovery-health
 /api/audit-logs
 /api/auth/change-password
 /api/auth/forgot-password
@@ -68,6 +69,7 @@ status.
 /api/partner-settlements
 /api/partner-settlements/[id]
 /api/rent-collection
+/api/internal/recovery-scheduler
 /api/tasks/migration
 /api/tasks/migration-preview
 /api/tasks/server

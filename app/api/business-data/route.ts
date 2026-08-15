@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess } from "@/lib/server/account-auth";
 import { FREE_SINGLE_PROPERTY_LIMIT, FREE_SINGLE_ROOM_LIMIT } from "@/lib/free-single";
-import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
 import { classifyBusinessDeleteError } from "@/lib/server/delete-error";
 import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
+import { createBeforeDestructiveRecoveryPoint } from "@/lib/server/scheduled-recovery-service";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -180,6 +181,9 @@ export async function POST(request: Request) {
           }
         }
         if (body.dryRun === true) continue;
+        if (resource.table === "properties" || resource.table === "tenants") {
+          await createBeforeDestructiveRecoveryPoint(getSupabaseAdmin(), context.profile.workspace_owner_id);
+        }
         const { error } = await client.from(resource.table).delete().eq("id", id);
         if (error) {
           const classified = classifyBusinessDeleteError(error);
