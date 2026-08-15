@@ -34,6 +34,7 @@ test("move out has one authenticated atomic RPC boundary", () => {
   assert.match(migration, /auth\.uid\(\) is null/);
   assert.match(migration, /user_id = v_actor\.workspace_owner_id/);
   assert.match(migration, /for update/);
+  assert.match(migration, /set status = U&'\\5df2\\7ed3\\675f',[\s\S]*is_active = false/);
   assert.match(migration, /alreadyMovedOut/);
   assert.match(moveOutRoute, /requireActiveAccount/);
   assert.match(moveOutRoute, /move_out_tenant_atomic/);

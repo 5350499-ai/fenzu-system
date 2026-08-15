@@ -116,6 +116,7 @@ begin
 
     update public.contracts
     set status = U&'\5df2\7ed3\675f',
+        is_active = false,
         end_date = coalesce(p_actual_move_out_date, end_date, current_date),
         updated_at = now()
     where id = any(v_contract_ids);
