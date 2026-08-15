@@ -6,7 +6,7 @@ import { CheckCircle2, Lightbulb, ListTodo, Wrench } from "lucide-react";
 const roadmapGroups = [
   { title: "已完成", icon: CheckCircle2, tone: "completed", items: ["Backup / Restore", "Global Cache V3"] },
   { title: "开发中", icon: Wrench, tone: "in-progress", items: ["产品路线图"] },
-  { title: "已规划", icon: ListTodo, tone: "planned", items: ["本地附件导入/导出", "全软件页面跳转优化", "UI细节优化", "多房源支持", "会员/订阅系统（暂不开放）", "云备份", "历史恢复增强", "附件容量管理", "多人协作（高级合伙人）"] },
+  { title: "已规划", icon: ListTodo, tone: "planned", items: ["本地附件导入/导出", "全软件页面跳转优化", "UI细节优化", "多房源支持", "订阅系统（后续功能，暂未开放）", "云备份", "历史恢复增强", "附件容量管理", "多人协作（高级合伙人）"] },
   { title: "想法", icon: Lightbulb, tone: "idea", items: [] }
 ] as const;
 

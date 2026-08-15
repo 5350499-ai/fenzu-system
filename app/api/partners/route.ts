@@ -13,7 +13,9 @@ function cleanName(value: unknown) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    if (context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
+    // Free-single accounts still need the self member for core attribution
+    // fields, but the partner-management surface remains closed in Beta.
+    if (!isFreeSingleAccount(context) && context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
     if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;

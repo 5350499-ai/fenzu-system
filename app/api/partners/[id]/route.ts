@@ -22,17 +22,14 @@ function lifecycleError(error: { message?: string }, fallback: string) {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireActiveAccount(request);
+    if (isFreeSingleAccount(context)) throw new AccountApiError("普通 Beta 用户暂不开放合伙成员管理。", 403, "ordinary_beta_partner_disabled");
     const { id } = await params;
     const body = await parseJson(request) as Record<string, unknown>;
     const admin = getSupabaseAdmin();
     const ownerId = context.profile.workspace_owner_id;
     const { data: partner, error: readError } = await admin.from("partners").select("*").eq("id", id).eq("workspace_owner_id", ownerId).maybeSingle();
     if (readError || !partner) throw new AccountApiError("合伙人不存在", 404);
-    if (isFreeSingleAccount(context)) {
-      if (partner.linked_account_id !== context.userId) throw new AccountApiError("免费版只能修改本人成员名称。", 403);
-      if (body.isActive !== undefined || body.sortOrder !== undefined) throw new AccountApiError("免费版成员固定为本人且占比 100%。", 403);
-    }
-    if (!isFreeSingleAccount(context) && context.profile.account_type !== "owner") throw new AccountApiError("没有权限管理合伙成员。", 403);
+    if (context.profile.account_type !== "owner") throw new AccountApiError("没有权限管理合伙成员。", 403);
 
     if (body.isActive !== undefined && !Boolean(body.isActive) && partner.is_active) {
       const futureResult = await admin.from("partner_property_shares").select("property_id", { count: "exact" }).eq("partner_id", id).gt("effective_from", new Date().toISOString().slice(0, 10));
@@ -91,7 +88,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const ownerId = context.profile.workspace_owner_id;
     const { data: partner, error: readError } = await admin.from("partners").select("id,legacy_code,is_active,linked_account_id").eq("id", id).eq("workspace_owner_id", ownerId).maybeSingle();
     if (readError || !partner) throw new AccountApiError("合伙人不存在", 404);
-    if (isFreeSingleAccount(context)) throw new AccountApiError("免费版必须保留本人成员。", 403);
+    if (isFreeSingleAccount(context)) throw new AccountApiError("普通 Beta 用户暂不开放合伙成员管理。", 403, "ordinary_beta_partner_disabled");
     if (context.profile.account_type !== "owner") throw new AccountApiError("没有权限管理合伙成员。", 403);
     const { error } = await admin.rpc("delete_partner_with_future_cleanup", { p_workspace_owner_id: ownerId, p_partner_id: id });
     if (error) throw lifecycleError(error, "删除合伙人失败，请稍后重试");

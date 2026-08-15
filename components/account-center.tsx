@@ -105,7 +105,7 @@ export function AccountCenter() {
             <div className="account-center-summary">
               <span>显示名称<strong>{access.profileDisplayName || "-"}</strong></span>
               <span>登录账号<strong>{access.profileUsername || "-"}</strong></span>
-              <span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "订阅用户"}</strong></span>
+              <span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span>
               <span>账号状态<strong className="success-text">已启用</strong></span>
             </div>
             <details className="account-section" open>

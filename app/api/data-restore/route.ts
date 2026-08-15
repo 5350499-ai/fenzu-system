@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, parseJson, requireActiveAccount, requireManagedAccount } from "@/lib/server/account-auth";
+import { apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   dryRunRestore,
   isDataExportPayload,
   type DataExportPayload
 } from "@/lib/data-export";
+import { sanitizeFreeSingleExportData } from "@/lib/data-export";
 import { createDataBackup } from "@/lib/server/backup-service";
 
 const BACKUP_BUCKET = "system-backups";
@@ -337,8 +338,10 @@ function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId
 
 export async function POST(request: Request) {
   try {
-    const context = await requireActiveAccount(request, true);
-    requireManagedAccount(context, "云端恢复");
+    const context = await requireActiveAccount(request);
+    if (context.profile.account_type !== "owner" && !isFreeSingleAccount(context)) {
+      return NextResponse.json({ error: "当前账号没有恢复数据权限。", code: "restore_permission_denied" }, { status: 403 });
+    }
     const operationId = crypto.randomUUID();
     logRestoreStage(operationId, "REQUEST_RECEIVED", { action: "data_restore" });
     const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string };
@@ -382,10 +385,13 @@ export async function POST(request: Request) {
       }
     }
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
+    const restorePayload = isFreeSingleAccount(context)
+      ? { ...body.payload, data: sanitizeFreeSingleExportData(body.payload.data) }
+      : body.payload;
     const mode = body.action === "restore" ? "restore" : body.action === "dry_run" ? "dry_run" : null;
     if (!mode) return NextResponse.json({ error: "无效的 Restore 操作。", code: "invalid_restore_action" }, { status: 400 });
     logRestoreStage(operationId, "PAYLOAD_VALIDATION_START", { mode });
-    const integrity = await dryRunRestore(body.payload);
+    const integrity = await dryRunRestore(restorePayload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     logRestoreStage(operationId, "PAYLOAD_VALIDATION_OK", { mode });
     const admin = getSupabaseAdmin();
@@ -396,7 +402,7 @@ export async function POST(request: Request) {
     const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
     if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
     }
-    const normalized = normalizeRestoreDataFromDatabaseSchema(body.payload, context.profile.workspace_owner_id);
+    const normalized = normalizeRestoreDataFromDatabaseSchema(restorePayload, context.profile.workspace_owner_id);
     if (mode === "restore") {
       let freshBeforeRestore: Awaited<ReturnType<typeof createBeforeRestorePackage>>;
       try {
