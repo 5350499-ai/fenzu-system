@@ -13,10 +13,11 @@ function cleanName(value: unknown) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    // Free-single accounts still need the self member for core attribution
-    // fields, but the partner-management surface remains closed in Beta.
-    if (!isFreeSingleAccount(context) && context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
-    if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
+    // The free-single self member remains an internal attribution primitive;
+    // this route is the user-facing Partner management surface and is closed
+    // for ordinary Closed Beta accounts.
+    if (isFreeSingleAccount(context)) throw new AccountApiError("普通 Beta 用户暂不开放合伙人管理。", 403, "ordinary_beta_partner_disabled");
+    if (context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;
     const [partnersResult, sharesResult, propertiesResult, historyResult] = await Promise.all([

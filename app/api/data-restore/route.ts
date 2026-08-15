@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
+  createDataExportPayload,
   dryRunRestore,
   isDataExportPayload,
   type DataExportPayload
@@ -385,16 +386,51 @@ export async function POST(request: Request) {
       }
     }
     if (!isDataExportPayload(body.payload)) return NextResponse.json({ error: "备份文件格式不正确，无法恢复。", code: "invalid_backup" }, { status: 400 });
+    const uploadedPayload = body.payload;
+    // Validate the uploaded artifact before free-single sanitization and
+    // server-owned restricted-data rehydration. This keeps tampered source
+    // checksum/schema failures visible instead of masking them.
+    const sourceIntegrity = await dryRunRestore(uploadedPayload);
+    if (!sourceIntegrity.valid) return NextResponse.json({ error: sourceIntegrity.errors[0] || "invalid_backup", code: "invalid_backup" }, { status: 400 });
+    const admin = getSupabaseAdmin();
     const restorePayload = isFreeSingleAccount(context)
-      ? { ...body.payload, data: sanitizeFreeSingleExportData(body.payload.data) }
-      : body.payload;
+      ? await (async () => {
+        const currentBackup = await createDataBackup(admin, context.profile.workspace_owner_id, {
+          backupType: "cloud",
+          exportedBy: context.userId,
+          exportReason: "BeforeRestore",
+          timezone: uploadedPayload.metadata.timezone
+        });
+        const sanitizedData = sanitizeFreeSingleExportData(uploadedPayload.data);
+        const currentRestrictedData = currentBackup.data;
+        return createDataExportPayload(
+          {
+            ...sanitizedData,
+            // Free-single restore never imports user-controlled partnership or
+            // settlement records. Keep the server-owned attribution boundary
+            // intact so the existing atomic RPC can preserve invariants.
+            partners: currentRestrictedData.partners,
+            partnerShares: currentRestrictedData.partnerShares,
+            partnerNameHistory: currentRestrictedData.partnerNameHistory,
+            settlementBatches: currentRestrictedData.settlementBatches,
+            settlementSnapshots: currentRestrictedData.settlementSnapshots
+          },
+          uploadedPayload.metadata.exportedAt,
+          {
+            backupType: uploadedPayload.metadata.backupType,
+            exportedBy: context.userId,
+            timezone: uploadedPayload.metadata.timezone,
+            exportReason: uploadedPayload.metadata.exportReason
+          }
+        );
+      })()
+      : uploadedPayload;
     const mode = body.action === "restore" ? "restore" : body.action === "dry_run" ? "dry_run" : null;
     if (!mode) return NextResponse.json({ error: "无效的 Restore 操作。", code: "invalid_restore_action" }, { status: 400 });
     logRestoreStage(operationId, "PAYLOAD_VALIDATION_START", { mode });
     const integrity = await dryRunRestore(restorePayload);
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     logRestoreStage(operationId, "PAYLOAD_VALIDATION_OK", { mode });
-    const admin = getSupabaseAdmin();
     let backupPath = body.beforeRestoreBackupPath || "";
     if (mode === "dry_run") {
     const expectedPrefix = `${context.profile.workspace_owner_id}/before-restore/`;

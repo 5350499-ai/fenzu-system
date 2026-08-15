@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     });
 
     if (error) {
+      if (error.message.includes("room unavailable")) throw new AccountApiError("目标房间已有在租租客，请选择其他房间。", 409, "room_unavailable");
       if (error.code === "42501") throw new AccountApiError("没有权限调整租客当前房间。", 403);
       if (error.code === "22023") throw new AccountApiError("请检查租客资料。", 400);
       if (error.code === "P0002") throw new AccountApiError("租客或房间不存在，请刷新后重试。", 404);
