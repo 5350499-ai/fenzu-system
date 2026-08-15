@@ -6,6 +6,7 @@ const freeSingle = readFileSync("lib/free-single.ts", "utf8");
 const accountAuth = readFileSync("lib/server/account-auth.ts", "utf8");
 const accountMe = readFileSync("app/api/accounts/me/route.ts", "utf8");
 const restoreRoute = readFileSync("app/api/data-restore/route.ts", "utf8");
+const backupRoute = readFileSync("app/api/data-backup/route.ts", "utf8");
 const partnersRoute = readFileSync("app/api/partners/route.ts", "utf8");
 const partnerIdRoute = readFileSync("app/api/partners/[id]/route.ts", "utf8");
 const dataCenter = readFileSync("app/data-center/page.tsx", "utf8");
@@ -28,6 +29,12 @@ test("ordinary Beta Restore is server-authenticated, workspace-scoped and busine
   assert.match(restoreRoute, /context\.profile\.workspace_owner_id/);
   assert.match(restoreRoute, /restore_workspace_backup/);
   assert.doesNotMatch(restoreRoute, /requireManagedAccount\(context, "云端恢复"\)/);
+});
+
+test("ordinary Beta users can export an official JSON backup", () => {
+  assert.match(backupRoute, /requireActiveAccount\(request\)/);
+  assert.match(backupRoute, /can_export_data/);
+  assert.doesNotMatch(backupRoute, /requireManagedAccount/);
 });
 
 test("ordinary Beta Restore UI requires a preview and exposes explicit restore copy", () => {
