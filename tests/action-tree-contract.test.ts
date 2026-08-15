@@ -51,12 +51,12 @@ test("registry defines the required ownership and safety vocabulary", () => {
 test("known atomicity and risk claims match the current implementation", () => {
   assert.match(checkIn, /clientRequestId/);
   assert.match(checkIn, /create_atomic_check_in/);
-  assert.match(moveOut, /buildTenantMoveOutPlan/);
-  assert.match(moveOut, /persistAll/);
+  assert.match(moveOut, /api\/tenants\/move-out/);
+  assert.match(moveOut, /invalidateBusinessData/);
   assert.match(settlement, /selectedPropertyIds\.length/);
   assert.match(settlement, /api\/partner-settlements/);
   assert.match(contract, /ACTION\.CHECK_IN\.CREATE[\s\S]*CLIENT_REQUEST_ID[\s\S]*STABLE/);
-  assert.match(contract, /ACTION\.TENANT\.MOVE_OUT[\s\S]*PARTIAL_SUCCESS_RISK/);
+  assert.match(contract, /ACTION\.TENANT\.MOVE_OUT[\s\S]*MOVE_OUT_ATOMIC_TRANSACTION_CLOSED/);
   assert.match(contract, /ACTION\.SETTLEMENT\.CONFIRM[\s\S]*PARTIAL_SUCCESS_RISK/);
 });
 
@@ -80,6 +80,7 @@ test("final Action Tree governance records destructive, admin, feedback, refresh
     "Idempotency Registry",
     "ACTION_TREE_3X_COMPLETE_WITH_DEFERRED_RISKS",
     "MOVE_OUT_3_3B_CONTRACT_ONLY",
+    "FEATURE_PUBLIC_BETA_2A_WRITE_HARDENING_COMPLETE",
     "PROPERTY_NOTES_USER_VISIBLE_FAILURE_FIXED",
     "ATTACHMENT_DELETE_FEEDBACK_FIXED",
   ]) assert.match(contract, new RegExp(marker.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")), marker);

@@ -21,7 +21,7 @@ function routePath(file: string) {
 test("server boundary contract and complete API registry exist", () => {
   assert.ok(existsSync("SERVER_BOUNDARY_CONTRACT.md"));
   const routes = routeFiles(join(process.cwd(), "app", "api")).map(routePath).sort();
-  assert.equal(routes.length, 45);
+  assert.equal(routes.length, 46);
   for (const route of routes) assert.ok(contract.includes(`\`${route}\``), route);
   assert.match(contract, /LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY/);
   assert.match(contract, /SERVER_BOUNDARY_6X_COMPLETE_WITH_DEFERRED_RISKS/);
@@ -47,9 +47,10 @@ test("shared server ownership and write boundaries remain explicit", () => {
   ]) assert.ok(contract.includes(marker), marker);
 });
 
-test("known non-atomic actions cannot be relabeled as atomic", () => {
-  assert.match(contract, /Move out[\s\S]*SERVER_IDEMPOTENCY_PENDING[\s\S]*NON_ATOMIC/);
-  assert.match(contract, /Rent payment[\s\S]*SERVER_IDEMPOTENCY_PENDING[\s\S]*NON_ATOMIC/);
+test("known atomic and deferred action boundaries remain explicit", () => {
+  assert.match(contract, /move_out_tenant_atomic/);
+  assert.match(contract, /RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED/);
+  assert.match(contract, /MOVE_OUT_ATOMIC_TRANSACTION_CLOSED/);
   assert.match(contract, /Settlement confirm[\s\S]*BATCH_IDEMPOTENCY_PENDING/);
   assert.match(contract, /NON_ATOMIC batch/);
 });
@@ -87,6 +88,7 @@ test("error, compatibility and deferred-risk policy is locked", () => {
     "v1-properties",
     "v1-tasks",
     "No P0 cross-account write was proven",
-    "RPC signatures and semantics are frozen"
+    "RPC signatures and semantics are frozen",
+    "FEATURE_PUBLIC_BETA_2A_WRITE_HARDENING_COMPLETE"
   ]) assert.ok(contract.includes(marker), marker);
 });

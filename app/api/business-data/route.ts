@@ -50,6 +50,16 @@ type BusinessOperation = {
   id?: string;
 };
 
+const RENT_PAYMENT_IDENTITY_FIELDS = [
+  "tenant_id", "property_id", "room_id", "rent_month", "income_type", "income_item",
+  "payment_date", "amount_due", "amount_paid", "amount_unpaid", "coverage_start_date",
+  "coverage_end_date", "received_by", "payment_status", "payment_method", "is_overdue", "notes"
+] as const;
+
+function rentPaymentIdentityFingerprint(row: Record<string, unknown>) {
+  return JSON.stringify(RENT_PAYMENT_IDENTITY_FIELDS.map((field) => [field, row[field] == null ? null : String(row[field])]));
+}
+
 async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof requireActiveAccount>>, resource: { table: string }, row: Record<string, unknown>, existing?: Record<string, unknown>) {
   if (!isFreeSingleAccount(context)) return;
   const client = getSupabaseAuthVerifier(context.accessToken);
@@ -135,6 +145,20 @@ export async function POST(request: Request) {
         await requirePropertyAccess(context, propertyId as string | undefined);
         if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
         const { data, error } = await client.from(resource.table).insert(row).select("id");
+        if (error && resource.table === "rent_payments" && row.client_request_id && error.code === "23505") {
+          const { data: existingPayment, error: existingPaymentError } = await client
+            .from("rent_payments")
+            .select("*")
+            .eq("user_id", context.profile.workspace_owner_id)
+            .eq("client_request_id", row.client_request_id)
+            .maybeSingle();
+          if (existingPaymentError || !existingPayment) throw new AccountApiError("收款请求重复但原始结果不可读取，请刷新后确认收款记录。", 409, "rent_payment_retry_unresolved");
+          if (rentPaymentIdentityFingerprint(existingPayment as Record<string, unknown>) !== rentPaymentIdentityFingerprint(row)) {
+            throw new AccountApiError("同一收款请求不能复用不同金额或业务内容。", 409, "rent_payment_request_conflict");
+          }
+          savedRows.push({ id: String(existingPayment.id) });
+          continue;
+        }
         if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
         savedRows.push(...((data || []) as Array<{ id: string }>));
         if (resource.table === "properties" && isFreeSingleAccount(context)) await ensureFreeSingleMember(context);

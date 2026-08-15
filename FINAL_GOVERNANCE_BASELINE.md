@@ -29,8 +29,8 @@ Blocking gate: `P0 = 0`, `P1 = 0`.
 
 | Risk | Classification | Why it does not block release | Reopen trigger |
 |---|---|---|---|
-| Move Out non-atomic and persistent idempotency pending | Architecture deferred | Existing lifecycle facts and regression contract are explicit; no P0/P1 release gate | Server Move Out action or transaction design |
-| Rent Payment server idempotency pending | Architecture deferred | Client/pending/partial-success contract is guarded | Durable request-key or database idempotency design |
+| Move Out non-atomic and persistent idempotency pending | CLOSED in FEATURE-PUBLIC-BETA.2A | `move_out_tenant_atomic` owns the authenticated lifecycle transaction and safe final-state replay | Regression only |
+| Rent Payment server idempotency pending | CLOSED in FEATURE-PUBLIC-BETA.2A | Workspace-scoped `client_request_id` unique boundary replays exact retries and rejects changed payloads | Regression only |
 | Settlement batch idempotency pending | Architecture deferred | Per-property transaction and result states are explicit | Batch idempotency design |
 | diff-baseline localStorage account isolation | Data/cache maintenance | Not canonical business data; authoritative reads and scoped cache remain protected | Account-scoped migration with rollback |
 | UTC-derived page default dates | Date maintenance | No current proven data corruption; risk is boundary-specific | Europe/Madrid date fixture audit and Preview |
@@ -66,3 +66,15 @@ FINAL.1 only establishes release readiness. FINAL.2 must separately verify the
 intended release target, environment configuration and deployment approval,
 then deploy Production under the approved release procedure. No Production
 deployment is authorized by this document.
+
+## Post-release Beta 2A write hardening
+
+`RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED`
+
+`MOVE_OUT_ATOMIC_TRANSACTION_CLOSED`
+
+The Beta 2A implementation is additive: rent-payment retry identity is
+workspace-scoped, and Move Out uses the authenticated
+`move_out_tenant_atomic` transaction boundary. The migration has not been
+executed against Production; no Production data, deployment, Restore or
+Cleanup was performed.

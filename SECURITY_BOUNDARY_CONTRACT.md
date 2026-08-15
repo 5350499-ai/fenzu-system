@@ -72,6 +72,7 @@ status.
 /api/tasks/migration-preview
 /api/tasks/server
 /api/tenants/move-room
+/api/tenants/move-out
 ```
 
 | Security ID | Domain / entry | Auth | Session source | Scope/permission owner | Resource check | Risk/status |
@@ -87,8 +88,8 @@ status.
 | `SEC.PERMISSION.PROPERTY` | `requirePropertyAccess` | required | server context | `user_property_access` | property ID | PERMISSION_ROOT |
 | `SEC.PERMISSION.OWNER` | owner-only/admin routes | required | server context | account type + managed plan | workspace owner | ADMIN_SERVER_GUARDED |
 | `SEC.RESOURCE.PROPERTY` | property routes/business-data | required | server context | account-auth + RLS | property owner/access | OWNERSHIP_VERIFIED |
-| `SEC.RESOURCE.TENANT` | tenant/check-in/move-room | required | server context | property + account | tenant/property relation | PARENT_OWNERSHIP_VERIFIED |
-| `SEC.RESOURCE.ROOM` | room/move-room | required | server context | property + account | room/property relation | PARENT_OWNERSHIP_VERIFIED |
+| `SEC.RESOURCE.TENANT` | tenant/check-in/move-room/move-out | required | server context | property + account | tenant/property relation | PARENT_OWNERSHIP_VERIFIED |
+| `SEC.RESOURCE.ROOM` | room/move-room/move-out | required | server context | property + account | room/property relation | PARENT_OWNERSHIP_VERIFIED |
 | `SEC.RESOURCE.FINANCIAL` | payment/deposit/expense | required | server context | property/account | payment parent scope | OWNERSHIP_VERIFIED |
 | `SEC.RESOURCE.PARTNER` | partner/share/settlement | required | server context | workspace owner | partner/property scope | OWNERSHIP_VERIFIED |
 | `SEC.RESOURCE.ATTACHMENT` | file prepare/read/complete/delete | required | bearer + ticket | parent + sensitive permission | parent and workspace | OWNERSHIP_VERIFIED |

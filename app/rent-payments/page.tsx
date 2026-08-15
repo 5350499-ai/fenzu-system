@@ -113,6 +113,7 @@ export default function RentPaymentsPage() {
   const filesRequestRef = useRef(0);
   const attachmentDeleteLockRef = useRef(false);
   const historicalOriginalRef = useRef<BusinessRentPayment | null>(null);
+  const newPaymentIdRef = useRef<string | null>(null);
 
   const refreshPaymentFiles = useCallback(async (paymentIds: string[]) => {
     const ids = [...new Set(paymentIds.filter(Boolean))];
@@ -273,6 +274,7 @@ export default function RentPaymentsPage() {
     setNewTenantName("");
     setNewTenantPhone("");
     setPendingFiles([]);
+    newPaymentIdRef.current = null;
   }
 
   async function persist(next: BusinessRentPayment[]) {
@@ -457,7 +459,10 @@ export default function RentPaymentsPage() {
     const originalPayment = historicalOriginalRef.current;
     const isHistoricalEdit = Boolean(originalPayment?.id);
     const filesToUpload = !form.id ? pendingFiles : [];
-    const paymentId = originalPayment?.id || form.id || crypto.randomUUID();
+    const paymentId = originalPayment?.id || form.id || newPaymentIdRef.current || crypto.randomUUID();
+    if (!originalPayment?.id && !form.id) newPaymentIdRef.current = paymentId;
+    const clientRequestId = originalPayment?.clientRequestId || form.clientRequestId || paymentId;
+    if (!originalPayment?.id && !form.clientRequestId) setForm((current) => ({ ...current, clientRequestId }));
     const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const depositIncomeAmount = isRent ? Number(depositAmount || 0) : 0;
     const amountPaid = isRent
@@ -473,6 +478,7 @@ export default function RentPaymentsPage() {
     const nextPayment = {
       ...form,
       id: paymentId,
+      clientRequestId,
       tenantId: isHistoricalEdit ? originalPayment?.tenantId || "" : tenantId,
       propertyId: isHistoricalEdit ? originalPayment?.propertyId || "" : form.propertyId,
       roomId: isHistoricalEdit ? originalPayment?.roomId || "" : form.roomId,
@@ -657,7 +663,7 @@ export default function RentPaymentsPage() {
       <section className="card panel">
         <div className="panel-header">
           <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
-          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
+          {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; newPaymentIdRef.current = null; const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">

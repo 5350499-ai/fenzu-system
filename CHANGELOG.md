@@ -1134,6 +1134,12 @@
 - Added `SERVER_BOUNDARY_CONTRACT.md` as the single registry for 45 API routes, database write ownership, account/permission scope, validation, RPC and error contracts.
 - Added `npm run validate:server-boundary` with guards for route registration, canonical server write ownership, deferred non-atomic actions, compatibility aliases and the absence of direct client Supabase business writes.
 - Kept `business-data` as the registered legacy compatibility write boundary. Move Out, Rent Payment and Settlement server/batch idempotency remain explicitly deferred; no schema, RPC signature, business rule, real data or Production change was made.
+## 2026-08-15 - FEATURE-PUBLIC-BETA.2A write hardening
+
+- Added additive workspace-scoped `rent_payments.client_request_id` persistence with duplicate replay and changed-payload conflict handling at the existing business-data boundary.
+- Replaced the client-side Move Out multi-write sequence with the authenticated `move_out_tenant_atomic` transaction boundary covering tenant lifecycle, active contract, room occupancy and current deposit state.
+- Added API/client ownership checks, post-success cache invalidation and regression contract coverage. The migration was not executed against Production; no real business data or Production deployment changed.
+
 ## 2026-08-14 - Authentication and account-isolation governance (Step 7)
 
 - Added `SECURITY_BOUNDARY_CONTRACT.md` as the single registry for Auth, session, account scope, permissions, resource ownership, admin, attachment, backup/restore, secret and error boundaries.

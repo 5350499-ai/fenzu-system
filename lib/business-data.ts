@@ -70,6 +70,8 @@ export type BusinessContract = {
 
 export type BusinessRentPayment = {
   id: string;
+  /** Stable identity for retrying a newly submitted payment. */
+  clientRequestId?: string;
   createdAt?: string;
   propertyId: string;
   roomId: string;
@@ -261,6 +263,7 @@ const tableConfigs: Record<string, TableConfig> = {
     order: "created_at",
     fromDb: (row) => ({
       id: row.id,
+      clientRequestId: row.client_request_id || undefined,
       createdAt: row.created_at || "",
       propertyId: row.property_id || "",
       roomId: row.room_id || "",
@@ -283,6 +286,7 @@ const tableConfigs: Record<string, TableConfig> = {
     toDb: (row, userId) => ({
       id: row.id,
       user_id: userId,
+      ...(row.clientRequestId ? { client_request_id: row.clientRequestId } : {}),
       property_id: row.propertyId || null,
       room_id: row.roomId || null,
       tenant_id: row.tenantId || null,
@@ -510,10 +514,18 @@ async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value:
   const removedIds = previousIds.filter((id) => !nextIds.includes(id));
   const changedRows = value.filter((row) => row.id && previousById.get(row.id) !== JSON.stringify(row));
   const operations = [
-    ...changedRows.map((row) => ({
-      action: previousIds.includes(row.id) ? "update" : "create",
-      row: config.toDb(row, account.workspaceOwnerId)
-    })),
+    ...changedRows.map((row) => {
+      const action = previousIds.includes(row.id) ? "update" : "create";
+      const dbRow = config.toDb(row, account.workspaceOwnerId);
+      // Legacy/new callers may not carry the optional field yet. A new
+      // payment's immutable row ID is already client-generated and stable
+      // across the generic snapshot retry, so use it as the persisted action
+      // identity without retroactively changing historical rows on update.
+      if (key === rentPaymentKey && action === "create" && !dbRow.client_request_id) {
+        dbRow.client_request_id = row.clientRequestId || row.id;
+      }
+      return { action, row: dbRow };
+    }),
     ...removedIds.map((id) => ({ action: "delete", id }))
   ];
   if (!operations.length) return [];

@@ -19,7 +19,7 @@ test("the existing saving guard covers the form submit path", () => {
   assert.match(page, /if \(!loaded \|\| saving\) return;/);
   assert.match(page, /disabled=\{saving\} type="submit"/);
   assert.match(page, /finally \{\s*setSaving\(false\);/);
-  assert.match(contract, /RENT_PAYMENT_SERVER_IDEMPOTENCY_PENDING/);
+  assert.match(contract, /RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED/);
 });
 
 test("core success is committed to local payment state before side effects", () => {
@@ -46,6 +46,7 @@ test("side-effect failures are partial success, not core payment failure", () =>
 
 test("rent payment contract keeps unresolved server idempotency explicit", () => {
   assert.match(contract, /`ACTION\.RENT_PAYMENT\.SAVE`[\s\S]*PARTIAL_SUCCESS_RISK/);
-  assert.match(contract, /RENT_PAYMENT_SERVER_IDEMPOTENCY_PENDING/);
+  assert.match(contract, /RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED/);
+  assert.match(contract, /client_request_id/);
   assert.match(contract, /must not recreate the core payment/);
 });

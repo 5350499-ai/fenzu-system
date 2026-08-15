@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 45 route files. Every route is listed here and is checked by
+There are 46 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -70,6 +70,7 @@ There are 45 route files. Every route is listed here and is checked by
 | `/api/tasks/migration-preview` | TASK | read | task management | LEGACY_COMPATIBILITY |
 | `/api/tasks/server` | TASK | read/write | task management | ACTIVE_CANONICAL |
 | `/api/tenants/move-room` | LIFECYCLE | write | `update_tenant_current_assignment` RPC | ATOMIC_RPC |
+| `/api/tenants/move-out` | LIFECYCLE | write | `move_out_tenant_atomic` RPC | ATOMIC_RPC |
 
 Auth/recovery routes intentionally have a public protocol where appropriate.
 The backup trace route is disabled in Production and is not a business write.
@@ -82,7 +83,7 @@ The backup trace route is disabled in Production and is not a business write.
 | Rent payment edit/void | `/api/rent-collection` or compatibility path | `rent_payments` + audit | SERVER_REPOSITORY_WRITE / NON_ATOMIC |
 | Check-in | `/api/check-in` | `create_atomic_check_in` | RPC_WRITE / ATOMIC_RPC |
 | Move room | `/api/tenants/move-room` | `update_tenant_current_assignment` | RPC_WRITE / ATOMIC_RPC |
-| Move out | legacy Tenant Detail orchestration | business-data compatibility path | CLIENT_ORCHESTRATED_SERVER_WRITE / NON_ATOMIC |
+| Move out | `/api/tenants/move-out` | `move_out_tenant_atomic` | RPC_WRITE / ATOMIC_RPC |
 | Deposit | deposit action owner | `deposits` | CANONICAL_SERVER_WRITE |
 | Expense | compatibility write path | `expenses` | CANONICAL_SERVER_WRITE |
 | Debt waiver | debt action API/service | debt + audit boundary | CANONICAL_SERVER_WRITE |
@@ -124,6 +125,7 @@ full-row compatibility protocol is recorded as deferred overposting risk.
 |---|---|---|---|
 | `create_atomic_check_in` | `/api/check-in` | check-in transaction | ATOMIC_RPC |
 | `update_tenant_current_assignment` | `/api/tenants/move-room` | move-room transaction | ATOMIC_RPC |
+| `move_out_tenant_atomic` | `/api/tenants/move-out` | tenant lifecycle transaction | ATOMIC_RPC |
 | `confirm_partner_settlement` | settlement route | one settlement batch persistence | NON_ATOMIC batch |
 | `reverse_partner_settlement` | settlement detail route | reversal | SINGLE_SERVER_WRITE |
 | `restore_workspace_backup` | `/api/data-restore` | restore persistence | RESTORE_RPC |
@@ -155,8 +157,8 @@ Supabase errors as the only user-facing response.
 |---|---|---|---|---|
 | Check-in | guarded | present | atomic RPC request identity | ATOMIC_RPC |
 | Move room | guarded | route contract | RPC conflict protection | ATOMIC_RPC |
-| Move out | guarded | client contract | SERVER_IDEMPOTENCY_PENDING | NON_ATOMIC |
-| Rent payment | guarded | client contract | SERVER_IDEMPOTENCY_PENDING | NON_ATOMIC |
+| Move out | guarded | none required; final-state replay | `move_out_tenant_atomic` ownership/row lock | ATOMIC_RPC |
+| Rent payment | guarded | `client_request_id` | workspace unique index + replay/conflict check | CORE_WRITE_IDEMPOTENT |
 | Debt waiver | guarded | action contract | server dedupe | SINGLE_SERVER_WRITE |
 | Settlement confirm | guarded | client batch identity | BATCH_IDEMPOTENCY_PENDING | NON_ATOMIC batch |
 | Settlement reversal | guarded | action contract | RPC/state conflict | SINGLE_SERVER_WRITE |
@@ -164,8 +166,9 @@ Supabase errors as the only user-facing response.
 | Attachment cleanup | sensitive pending | report/task identity | report contract | MULTI_STEP_NON_ATOMIC |
 | Account destructive | owner pending | action request | permission + audit | MULTI_STEP_NON_ATOMIC |
 
-Client disabled/pending is not server idempotency. Move Out, Rent Payment and
-Settlement batch protections remain deferred and must not be relabeled atomic.
+Client disabled/pending is not server idempotency. Settlement batch protection
+remains deferred; Rent Payment and Move Out have the server boundaries recorded
+above.
 
 ## Attachment and restore boundary
 
@@ -186,8 +189,9 @@ validation remain canonical. This contract performs no restore or cleanup.
   `LEGACY_COMPATIBILITY_KEEP` until callers and historical dependencies are
   proven absent.
 - Full-row `saveBusinessData` overposting and lost-update hardening are deferred.
-- Move Out server persistent idempotency is deferred.
-- Rent Payment server idempotency is deferred.
+- Move Out server persistent idempotency is closed by `move_out_tenant_atomic`.
+- Rent Payment server idempotency is closed by `client_request_id` and its
+  workspace-scoped unique index.
 - Settlement batch idempotency is deferred.
 - Step 4/5 diff-baseline account scope and UTC page-date risks remain owned by
   their original contracts.
@@ -195,6 +199,27 @@ validation remain canonical. This contract performs no restore or cleanup.
 No P0 cross-account write was proven by this static audit. A credible future
 cross-account path is a stop-the-line review item.
 
+## FEATURE-PUBLIC-BETA.2A write hardening
+
+- `POST /api/business-data` remains the compatibility route for rent-payment
+  writes. New payment creates carry `client_request_id`; the database enforces
+  `(user_id, client_request_id)` uniqueness. A duplicate with the same business
+  payload replays the existing row, while a changed payload returns conflict.
+- `POST /api/tenants/move-out` is the sole Move Out API write entry. It requires
+  authenticated account context and tenant archive permission, then calls
+  `move_out_tenant_atomic`. The RPC derives workspace ownership from the
+  authenticated actor and locks/updates lifecycle rows in one transaction.
+- The old client-side Move Out multi-write path is no longer used.
+
+`RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED`
+
+`MOVE_OUT_ATOMIC_TRANSACTION_CLOSED`
+
+The migration is additive and was not executed against Production. No
+Production data was modified.
+
 ## Final status
 
 `SERVER_BOUNDARY_6X_COMPLETE_WITH_DEFERRED_RISKS`
+
+`FEATURE_PUBLIC_BETA_2A_WRITE_HARDENING_COMPLETE`

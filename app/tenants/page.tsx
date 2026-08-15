@@ -24,6 +24,7 @@ import {
   getInitialRentPayments,
   getInitialRooms,
   getInitialTenants,
+  invalidateBusinessData,
   loadBusinessData,
   refreshBusinessData,
   rentPaymentKey,
@@ -51,7 +52,7 @@ import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-s
 import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
-import { buildTenantMoveOutPlan, createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
+import { createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { getTenantStatusSlots } from "@/lib/tenant-status-slots";
 import { isTenantDeleteConfirmed, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
@@ -653,27 +654,35 @@ export default function TenantsPage() {
       window.alert("请输入有效的实际退租日期。");
       return;
     }
-    let plan: { tenants: BusinessTenant[]; rooms: BusinessRoom[]; contracts: BusinessContract[]; deposits: BusinessDeposit[] };
-    try {
-      plan = buildTenantMoveOutPlan({
-        tenant, tenants, rooms, contracts, deposits, depositStatus, actualMoveOutDate,
-        actualMoveOutDateEnabled, isCurrentRelationship: isCurrentRentalRelationship, isVoidedDeposit
-      });
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "退租资料校验失败，请刷新后重试。");
-      return;
-    }
     await moveOutSubmissionGuardRef.current.run(async () => {
-      const saved = await persistAll(plan, "退租保存失败，请重新进入租客详情确认押金状态。");
-      if (!saved) return false;
       try {
-        const refreshedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, plan.deposits);
+        const session = await getValidSupabaseSession();
+        if (!session) throw new Error("登录状态已失效，请重新登录。");
+        const response = await fetch("/api/tenants/move-out", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ tenantId: tenant.id, depositStatus, actualMoveOutDate: actualMoveOutDateEnabled ? actualMoveOutDate : null })
+        });
+        const payload = await response.json().catch(() => null) as { error?: string; result?: { alreadyMovedOut?: boolean } } | null;
+        if (!response.ok) throw new Error(payload?.error || "退租未完成，数据库事务已回滚，请稍后重试。");
+        await invalidateBusinessData([tenantKey, roomKey, contractKey, depositKey, rentPaymentKey]);
+        const [refreshedTenants, refreshedRooms, refreshedContracts, refreshedDeposits, refreshedPayments] = await Promise.all([
+          refreshBusinessData<BusinessTenant>(tenantKey, tenants),
+          refreshBusinessData<BusinessRoom>(roomKey, rooms),
+          refreshBusinessData<BusinessContract>(contractKey, contracts),
+          refreshBusinessData<BusinessDeposit>(depositKey, deposits),
+          refreshBusinessData<BusinessRentPayment>(rentPaymentKey, payments)
+        ]);
+        setTenants(refreshedTenants);
+        setRooms(refreshedRooms);
+        setContracts(refreshedContracts);
         setDeposits(refreshedDeposits);
+        setPayments(refreshedPayments);
         setMoveOutTenant(null);
-        window.alert("退租办理成功。房间、租客、合同和押金状态已更新。");
+        window.alert(payload?.result?.alreadyMovedOut ? "该租客已完成退租，当前状态已刷新。" : "退租办理成功。房间、租客、合同和押金状态已更新。");
         return true;
-      } catch {
-        window.alert("退租已提交，但押金状态无法确认，请重新进入租客详情确认。");
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "退租未完成，数据库事务已回滚，请稍后重试。");
         return false;
       }
     });

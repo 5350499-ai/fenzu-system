@@ -20,7 +20,7 @@ test("lifecycle registry and decisions are explicit", () => {
     "ACTION.TENANT.DELETE",
   ]) assert.match(contract, new RegExp(`\\x60${id.replaceAll(".", "\\.")}\\x60`), id);
   assert.match(contract, /CHECK_IN_NO_CHANGE_REQUIRED|NO_CHANGE_REQUIRED/);
-  assert.match(contract, /MOVE_TO_3_3B/);
+  assert.match(contract, /FEATURE-PUBLIC-BETA\.2A/);
   assert.match(contract, /MOVE_OUT_RECOMMENDATION_B/);
 });
 
@@ -59,27 +59,19 @@ test("room vacancy preserves its existing explicit multi-record boundary", () =>
   assert.match(contract, /ACTION\.ROOM\.SET_VACANT[\s\S]*NON_ATOMIC/);
 });
 
-test("Move Out remains a deferred high-risk non-atomic root", () => {
-  assert.match(tenants, /buildTenantMoveOutPlan/);
+test("Move Out uses the server atomic lifecycle root", () => {
+  assert.match(tenants, /api\/tenants\/move-out/);
   assert.match(tenants, /moveOutSubmissionGuardRef/);
-  assert.match(tenants, /persistAll\(plan/);
-  assert.match(contract, /ACTION\.TENANT\.MOVE_OUT[\s\S]*NON_ATOMIC/);
-  assert.match(contract, /UI_STATE_DIVERGENCE_RISK/);
-  assert.match(contract, /No client request id or server Move Out\s+idempotency key is proven/);
-  assert.match(contract, /3\.3b/);
+  assert.doesNotMatch(tenants, /persistAll\(plan/);
+  assert.match(contract, /ACTION\.TENANT\.MOVE_OUT[\s\S]*MOVE_OUT_ATOMIC_TRANSACTION_CLOSED/);
+  assert.match(contract, /move_out_tenant_atomic/);
 });
 
 test("3.3b keeps the current client owner explicit and records the safe server-root boundary", () => {
   assert.match(contract, /## Move Out Action Root \(3\.3b\)/);
-  assert.match(contract, /The current boundary is therefore unchanged/);
-  assert.match(contract, /SERVER_PERSISTENT_IDEMPOTENCY_PENDING/);
-  assert.match(contract, /proposed; not implemented/);
-  assert.match(contract, /No schema, RPC, migration or production route\s+was added in 3\.3b/);
-  assert.match(contract, /MOVE_OUT_FULL_SUCCESS/);
-  assert.match(contract, /MOVE_OUT_PARTIAL_SUCCESS/);
-  assert.match(contract, /MOVE_OUT_FULL_FAILURE/);
-  assert.match(contract, /SUCCESS[\s\S]*FAILED[\s\S]*NOT_ATTEMPTED/);
-  assert.match(contract, /MOVE_OUT_ATOMIC_RPC_NOT_REQUIRED_YET/);
+  assert.match(contract, /FEATURE-PUBLIC-BETA\.2A closeout/);
+  assert.match(contract, /MOVE_OUT_ATOMIC_TRANSACTION_CLOSED/);
+  assert.match(contract, /authenticated database transaction/);
 });
 
 test("3.3b freezes Move Out lifecycle invariants and excludes unrelated action roots", () => {

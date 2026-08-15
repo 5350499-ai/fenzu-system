@@ -54,11 +54,11 @@ Each registry row uses these fields:
 | `ACTION.TENANT.SAVE` | Tenant create/update | CREATE, UPDATE | `app/tenants/page.tsx` | `saveBusinessData` -> `tenants` and related records | UI_PENDING_GUARD | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE + CACHE_INVALIDATION | tenant permission | HIGH | tenant page | tenant action service | MIGRATION_PENDING |
 | `ACTION.CHECK_IN.CREATE` | Atomic check-in | CREATE, FINANCIAL, LIFECYCLE | `app/check-in/page.tsx` / submit | `/api/check-in` -> `create_atomic_check_in` RPC; optional contact update | CLIENT_REQUEST_ID + UI_PENDING_GUARD | NO_CONFIRM_REQUIRED | ALERT/status / cache invalidation | check-in + tenant/room/payment/deposit permissions | HIGH | check-in API/RPC | check-in action root | STABLE |
 | `ACTION.MOVE_ROOM.UPDATE` | Move current tenant room | UPDATE, LIFECYCLE | tenant/property detail | `lib/tenant-room-move.ts` -> `/api/tenants/move-room` -> RPC | UI_PENDING_GUARD | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE | tenant/room permissions | HIGH | move-room RPC | tenant assignment service | STABLE |
-| `ACTION.TENANT.MOVE_OUT` | Move out | LIFECYCLE, FINANCIAL | Tenant Detail / `moveOut` | `buildTenantMoveOutPlan` -> repeated `saveBusinessData` for tenant/room/contract/deposit | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | archive permission | HIGH | tenant page | lifecycle action service/RPC | MIGRATION_PENDING |
+| `ACTION.TENANT.MOVE_OUT` | Move out | LIFECYCLE, FINANCIAL | Tenant Detail / `moveOut` | `/api/tenants/move-out` -> `move_out_tenant_atomic` | UI_PENDING_GUARD; final-state replay | CONSEQUENCE_CONFIRM | ALERT / REFETCH + CACHE_INVALIDATION | archive permission | HIGH | server lifecycle RPC | `move_out_tenant_atomic` | COMPLETE |
 | `ACTION.TENANT.ARCHIVE` | Tenant archive/restore | LIFECYCLE, UPDATE | Tenant Detail | `persistAll` -> `tenants` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM for archive; NO_CONFIRM_REQUIRED for restore | ALERT / LOCAL_STATE | archive permission | HIGH | tenant page | tenant lifecycle service | MIGRATION_PENDING |
 | `ACTION.TENANT.DELETE` | Empty tenant delete | DESTRUCTIVE | Tenant Detail | `business-data` + tenant delete check | UI_PENDING_GUARD | TYPED_CONFIRM | ALERT / LOCAL_STATE | delete permission + empty-shell guard | HIGH | tenant page/API | destructive action service | MIGRATION_PENDING |
 | `ACTION.DEBT.WAIVE` | Waive rent collection | FINANCIAL, UPDATE | Tenant and Reminder pages | `/api/rent-collection` -> audit log | UI_PENDING_GUARD; SERVER_IDEMPOTENCY via audit duplicate check | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE + cache invalidation | rent payment edit permission + property access + audit | HIGH | rent-collection API | financial action service | MIGRATION_PENDING |
-| `ACTION.RENT_PAYMENT.SAVE` | Rent/payment save | CREATE, UPDATE, FINANCIAL | Rent Payments, Tenant Detail | `saveBusinessData` -> `rent_payments`, optional deposit/tenant updates | UI_PENDING_GUARD; no action-level key | NO_CONFIRM_REQUIRED | ALERT / core local state + targeted side-effect refresh | payment permission | HIGH | payment pages + generic root | rent payment action service | MIGRATION_PENDING |
+| `ACTION.RENT_PAYMENT.SAVE` | Rent/payment save | CREATE, UPDATE, FINANCIAL | Rent Payments, Tenant Detail | `saveBusinessData` -> `/api/business-data` -> `rent_payments` | UI_PENDING_GUARD; workspace-scoped persisted `client_request_id` | NO_CONFIRM_REQUIRED | ALERT / core local state + targeted side-effect refresh | payment permission | HIGH | generic root + database identity | persisted payment identity | COMPLETE |
 | `ACTION.RENT_PAYMENT.VOID` | Void payment | UPDATE, FINANCIAL, DESTRUCTIVE | Rent Payments | `saveBusinessData` marking void | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | archive permission | HIGH | payment page | financial action service | MIGRATION_PENDING |
 | `ACTION.RENT_PAYMENT.DELETE` | Delete payment | DESTRUCTIVE, FINANCIAL | Rent Payments | file delete + `saveBusinessData` | UI_PENDING_GUARD | CONSEQUENCE_CONFIRM | ALERT / LOCAL_STATE | delete permission | HIGH | payment page | destructive action service | MIGRATION_PENDING |
 | `ACTION.DEPOSIT.SAVE` | Deposit create/update/status | CREATE, UPDATE, FINANCIAL | Deposit pages, Tenant Detail | `saveBusinessData` -> `deposits` | UI_PENDING_GUARD | NO_CONFIRM_REQUIRED | ALERT / LOCAL_STATE + refresh verification | deposit permission | HIGH | deposit pages | deposit action service | MIGRATION_PENDING |
@@ -110,7 +110,7 @@ authorization, preconditions, cross-record ordering and the final lifecycle fact
 | `ACTION.TENANT.ARCHIVE` | Tenant page `persistAll` for tenant archive state | NON_ATOMIC for the page persistence boundary | HIGH / NO_CHANGE_REQUIRED | Archive is presentation-only and preserves business history; restore is reversible and needs no destructive confirmation. |
 | `ACTION.PROPERTY.ARCHIVE` | Property Detail `saveBusinessData` note marker | NON_ATOMIC | HIGH / SAFE_TO_HARDEN | Property lifecycle actions now have a dedicated client lock and disabled controls; no business semantics changed. |
 | `ACTION.TENANT.DELETE` / property/room delete | permission + relation/empty-shell checks, then generic business writer | NON_ATOMIC | HIGH / NO_CHANGE_REQUIRED | Permanent deletion remains a destructive boundary and is not part of lifecycle migration. |
-| `ACTION.TENANT.MOVE_OUT` | `buildTenantMoveOutPlan` -> repeated `saveBusinessData` for tenant/room/contract/deposit | NON_ATOMIC | HIGH / MOVE_TO_3_3B | Current write order and UI divergence risk remain registered; no production behavior changed in 3.3a. |
+| `ACTION.TENANT.MOVE_OUT` | historical client plan; superseded by `move_out_tenant_atomic` | ATOMIC | CLOSED / BETA_2A | RPC owns lifecycle transaction; UI refresh follows commit. |
 
 ### Lifecycle confirmation decisions
 
@@ -257,7 +257,7 @@ RPC. No atomic RPC is created by 3.3b.
 
 | Action ID | Core write | Side effects | Pending / duplicate guard | Server idempotency | Atomicity | Partial-success status | Confirmation | Visible error | Refresh / audit |
 |---|---|---|---|---|---|---|---|---|---|
-| `ACTION.RENT_PAYMENT.SAVE` | `rent_payments` via `saveBusinessData` | optional linked deposit, tenant monthly rent, attachment upload | shared `saving`; no action-level request key | none proven (`RENT_PAYMENT_SERVER_IDEMPOTENCY_PENDING`) | NON_ATOMIC | `PARTIAL_SUCCESS_RISK`; core success is reported separately from side-effect failure | NO_CONFIRM_REQUIRED | visible full/partial/core-failure alerts | core payment local state first; targeted deposit/tenant refresh on side-effect failure |
+| `ACTION.RENT_PAYMENT.SAVE` | `rent_payments` via `saveBusinessData` | optional linked deposit, tenant monthly rent, attachment upload | shared `saving`; persisted `client_request_id` | workspace unique identity (`RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED`) | CORE_WRITE_IDEMPOTENT / side effects separate | `PARTIAL_SUCCESS_RISK`; core success is reported separately from side-effect failure | NO_CONFIRM_REQUIRED | visible full/partial/core-failure alerts | core payment local state first; targeted deposit/tenant refresh on side-effect failure |
 | `ACTION.EXPENSE.SAVE` | one `expenses` collection write | optional attachment upload | shared `saving` | none proven | NON_ATOMIC | attachment failure is explicitly reported after core success | NO_CONFIRM_REQUIRED | ALERT | local state; file refresh is separate |
 | `ACTION.DEPOSIT.SAVE` | one `deposits` collection write | none in the simple deposit page; tenant detail status update has final-state verification | shared `saving` | none proven | NON_ATOMIC | no cross-table transaction in the simple record path | NO_CONFIRM_REQUIRED | ALERT | refetch/final-state verification in tenant-detail status path |
 | `ACTION.DEBT.WAIVE` | append-only audit log through `/api/rent-collection` | derived debt/reminder presentation changes | tenant payment-specific pending/disabled guard; server audit duplicate check | SERVER_IDEMPOTENCY via audit duplicate check | ATOMIC at the single audit action boundary | none proven for the single action | CONSEQUENCE_CONFIRM | ALERT | local waived-payment state plus server audit |
@@ -460,16 +460,17 @@ No competing pending state or Enter-specific bypass is introduced.
 | Action | Client pending | Client request ID | Server idempotency | DB constraint | Atomicity | Partial success | Retry policy |
 |---|---|---|---|---|---|---|---|
 | `ACTION.CHECK_IN.CREATE` | `UI_PENDING_GUARD` | `CLIENT_REQUEST_ID` | `IDEMPOTENT` via atomic RPC | request record | `ATOMIC` | not applicable to core | safe replay |
-| `ACTION.TENANT.MOVE_OUT` | `UI_PENDING_GUARD` | none current | `SERVER_IDEMPOTENCY_PENDING` | none proven | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | no whole-form retry |
-| `ACTION.RENT_PAYMENT.SAVE` | `UI_PENDING_GUARD` | none | `SERVER_IDEMPOTENCY_PENDING` | none proven | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | do not recreate core payment |
+| `ACTION.TENANT.MOVE_OUT` | `UI_PENDING_GUARD` | none required; final-state replay | `MOVE_OUT_ATOMIC_TRANSACTION_CLOSED` | tenant row lock and workspace ownership | `ATOMIC_RPC` | no partial core state | return `alreadyMovedOut` |
+| `ACTION.RENT_PAYMENT.SAVE` | `UI_PENDING_GUARD` | `client_request_id` | `RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED` | `(user_id, client_request_id)` unique index | core write idempotent | side effects remain explicitly partial | same payload replays; changed payload conflicts |
 | `ACTION.SETTLEMENT.CONFIRM` | `UI_PENDING_GUARD` | client batch grouping only | `BATCH_IDEMPOTENCY_PENDING` | property-period conflict only | `NON_ATOMIC` | `PARTIAL_SUCCESS_RISK` | retry failed/unattempted properties only |
 | `ACTION.DEBT.WAIVE` | `UI_PENDING_GUARD` | none | `DB_CONSTRAINT_PROTECTED` by audit duplicate check | audit duplicate check | `ATOMIC` action boundary | none proven | safe duplicate rejection |
 | `ACTION.MOVE_ROOM.UPDATE` | `UI_PENDING_GUARD` | none | `DB_CONSTRAINT_PROTECTED` by RPC transaction | RPC boundary | `ATOMIC` | not applicable | safe retry after authoritative refresh |
 | `ACTION.DEPOSIT.SAVE` | `UI_PENDING_GUARD` | none | `UNKNOWN` | none proven | `NON_ATOMIC` | none in simple record path | refetch before retry |
 | `ACTION.DATA.RESTORE` | restoring guard | operation/report identity | `DB_CONSTRAINT_PROTECTED` by restore transaction | restore RPC | `ATOMIC` restore import | explicit report | preview before retry |
 
-Client disabled state is never treated as server idempotency. Deferred statuses
-are intentional and protected by the Action tests.
+Client disabled state is never treated as server idempotency. Settlement batch
+idempotency remains deferred; Rent Payment and Move Out now have their own
+server persistence/transaction boundaries documented above.
 
 ### Legacy / duplicate owner disposition
 
@@ -484,27 +485,49 @@ are intentional and protected by the Action tests.
 
 | Risk ID | Action | Risk | Current protection | Deferred reason | Future trigger | Guard |
 |---|---|---|---|---|---|---|
-| `RISK.MOVE_OUT.NON_ATOMIC` | Move Out | P1 | client submission guard, explicit contract, lifecycle tests | requires server domain/persistence boundary | 3.3b server Action Root or transaction work | Move Out lifecycle contract |
-| `RISK.MOVE_OUT.IDEMPOTENCY` | Move Out | P1 | no whole-form retry contract | no durable request store | request-id persistence design | idempotency registry |
-| `RISK.RENT_PAYMENT.IDEMPOTENCY` | Rent Payment | P1 | core/side-effect contract and pending guard | no action-level server key | payment idempotency design | rent-payment tests |
+| `RISK.MOVE_OUT.NON_ATOMIC` | Move Out | CLOSED | authenticated atomic RPC and transaction rollback | none for current scope | regression only | Move Out atomicity tests |
+| `RISK.MOVE_OUT.IDEMPOTENCY` | Move Out | CLOSED | safe already-moved-out replay under locked tenant row | no separate request table; final-state conflict protection is sufficient | regression only | Move Out atomicity tests |
+| `RISK.RENT_PAYMENT.IDEMPOTENCY` | Rent Payment | CLOSED | workspace-scoped persisted request identity and payload conflict check | historical rows intentionally remain nullable | regression only | rent-payment idempotency tests |
 | `RISK.SETTLEMENT.BATCH_IDEMPOTENCY` | Settlement | P1 | property conflict protection and per-property result state | no batch server key | batch idempotency design | settlement tests |
 | `RISK.PROPERTY_NOTES.FEEDBACK` | Property Notes | FIXED | refetch/rollback plus visible alert | none | regression only | action-tree test |
 | `RISK.ATTACHMENT_DELETE.FEEDBACK` | Attachment delete | FIXED | visible error and local in-flight guard | none | regression only | attachment/action tests |
 
-There are no active P0 risks. Deferred P1 risks are explicit, bounded and
-regression-protected; they do not claim that the underlying transaction or
-server-idempotency work is complete.
+There are no active P0 risks. Remaining deferred P1 risks are explicit,
+bounded and regression-protected; the Rent Payment and Move Out risks above
+are closed by the Beta 2A write boundaries.
 
 ### 3.x closeout status
 
 `ACTION_TREE_3X_COMPLETE_WITH_DEFERRED_RISKS`
 
-`MOVE_OUT_3_3B_CONTRACT_ONLY` remains the Move Out implementation status.
+`MOVE_OUT_3_3B_CONTRACT_ONLY` remains the historical pre-implementation status.
+
+`FEATURE_PUBLIC_BETA_2A_WRITE_HARDENING_COMPLETE`
 
 This status means ownership, safety contracts, feedback, refresh, pending,
 idempotency and deferred risks are governed. It does not authorize Production
 deployment or imply that Move Out, Rent Payment or Settlement have become
 atomic/idempotent.
+
+## FEATURE-PUBLIC-BETA.2A closeout
+
+The following implementation supersedes the earlier deferred status for the two
+authorized Beta blockers:
+
+| Action | Current canonical boundary | Idempotency / atomicity | Status |
+|---|---|---|---|
+| `ACTION.RENT_PAYMENT.SAVE` | `saveBusinessData` -> `/api/business-data` -> `rent_payments` | `rent_payments.client_request_id` with workspace-scoped unique index; same payload replays, changed payload conflicts | `RENT_PAYMENT_SERVER_IDEMPOTENCY_CLOSED` |
+| `ACTION.TENANT.MOVE_OUT` | `/api/tenants/move-out` -> `move_out_tenant_atomic` | One authenticated database transaction for tenant, active contract, room and current deposit state | `MOVE_OUT_ATOMIC_TRANSACTION_CLOSED` |
+
+Existing rows without `client_request_id` remain valid. The new identity is
+assigned only to newly created generic rent-payment writes; historical payment
+semantics are not rewritten. Move Out retries return the current final state
+with `alreadyMovedOut` and do not repeat lifecycle mutations.
+
+Cache invalidation and consumer refresh occur after successful RPC completion;
+they are intentionally outside the database transaction. No Reminder,
+RentPeriodState, financial calculation, Partner/Settlement or attachment root
+is included in the transaction.
 
 ## Frozen parallel contract
 
