@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-16 - Closed Beta pre-human validation closeout
+
+- Removed the ordinary free-single member-management subscription/upgrade CTA; server-side managed-account capabilities remain unchanged.
+- Added the concise `CLOSED_BETA_HUMAN_VALIDATION_CHECKLIST.md` for later real-device acceptance.
+- SMTP, synthetic authenticated-session and Production Synthetic Drill blockers remain pending; no Production data or deployment changed.
+
 - Added the account-scoped recovery-point inventory contract and additive local migration. Existing BeforeRestore payloads are now recorded as server-owned recovery-point metadata; the existing Restore engine and transaction remain canonical.
 - Added local recovery-point retention/eligibility helpers and contract tests. Production scheduler, platform backup activation, bucket changes and real data operations remain pending and were not executed.
 

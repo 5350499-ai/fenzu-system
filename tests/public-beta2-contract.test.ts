@@ -14,6 +14,7 @@ const restoreMigration = readFileSync("supabase/migrations/20260815140000_accoun
 const checkInOccupancyMigration = readFileSync("supabase/migrations/20260815120000_check_in_occupancy_guard.sql", "utf8");
 const moveRoomOccupancyMigration = readFileSync("supabase/migrations/20260815130000_move_room_occupancy_guard.sql", "utf8");
 const moveRoomRoute = readFileSync("app/api/tenants/move-room/route.ts", "utf8");
+const partnersPage = readFileSync("app/partners/page.tsx", "utf8");
 
 test("ordinary Beta capability root closes Partner and Settlement", () => {
   assert.match(freeSingle, /partnership_settlement/);
@@ -25,6 +26,9 @@ test("ordinary Beta Partner management is denied while internal attribution rema
   assert.match(partnersRoute, /ordinary_beta_partner_disabled/);
   assert.match(readFileSync("lib/server/free-single-member.ts", "utf8"), /ensureFreeSingleMember/);
   assert.match(partnerIdRoute, /ordinary_beta_partner_disabled/);
+});
+test("ordinary Beta member management does not expose subscription or upgrade CTA", () => {
+  assert.doesNotMatch(partnersPage, /订阅功能|升级后/);
 });
 
 test("ordinary Beta Restore is server-authenticated, workspace-scoped and business-only", () => {
