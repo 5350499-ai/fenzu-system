@@ -4,9 +4,9 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { scheduledRecoverySlot } from "@/lib/server/recovery-point-policy";
 
 export async function POST(request: Request) {
-  if (process.env.DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED !== "true") return NextResponse.json({ ok: false, code: "SCHEDULER_DISABLED" }, { status: 503 });
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ ok: false, code: "UNAUTHORIZED" }, { status: 401 });
+  if (process.env.DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED !== "true") return NextResponse.json({ ok: false, code: "SCHEDULER_DISABLED" }, { status: 503 });
   const admin = getSupabaseAdmin();
   const now = new Date();
   const slot = scheduledRecoverySlot(now);
