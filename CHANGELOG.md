@@ -1,5 +1,12 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-16 - Closed Beta operational readiness
+
+- Added Closed Beta support, recovery, severity, abuse, emergency-disable, monitoring and feedback procedures.
+- Added the Closed Beta data inventory and release/rollback runbook; expanded the human checklist with timestamps, retry/offline and PWA checks.
+- Upgraded Next.js to the compatible security patch `15.5.21`; remaining audit findings require a future major dependency decision and were not force-fixed.
+- No Production deployment, scheduler activation, Restore, cleanup or real-user business-data modification.
+
 ## 2026-08-16 - Closed Beta pre-human validation closeout
 
 - Removed the ordinary free-single member-management subscription/upgrade CTA; server-side managed-account capabilities remain unchanged.
