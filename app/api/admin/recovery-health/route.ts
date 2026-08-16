@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const context = await requireActiveAccount(request, true);
     const admin = getSupabaseAdmin();
     const [runs, points] = await Promise.all([
-      admin.from("account_recovery_scheduler_runs").select("status,started_at,completed_at,success_count,failure_count,error_summary").order("started_at", { ascending: false }).limit(30),
+      admin.from("account_recovery_scheduler_runs").select("status,started_at,completed_at,success_count,failure_count,workspace_count").order("started_at", { ascending: false }).limit(30),
       admin.from("account_recovery_points").select("source,status,created_at,storage_bucket,storage_path,checksum").eq("workspace_owner_id", context.profile.workspace_owner_id).order("created_at", { ascending: false }).limit(100)
     ]);
     if (runs.error || points.error) throw new Error("Recovery health data unavailable");

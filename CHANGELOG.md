@@ -1150,3 +1150,4 @@
 - Added `SECURITY_BOUNDARY_CONTRACT.md` as the single registry for Auth, session, account scope, permissions, resource ownership, admin, attachment, backup/restore, secret and error boundaries.
 - Added `npm run validate:security` with guards for API coverage, server authorization ownership, secret/client boundaries, destructive GETs, redirect and redaction contracts.
 - No schema, RLS policy, RPC signature, Auth architecture, real data, Storage operation or Production change was made. Existing localStorage, compatibility, headers and non-atomic idempotency risks remain explicitly deferred.
+- Hardened the disabled-by-default recovery scheduler so run-record lookup/start/finalization failures fail closed, and kept admin recovery health aggregate-only by excluding cross-workspace scheduler error details.

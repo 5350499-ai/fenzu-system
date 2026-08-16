@@ -34,6 +34,15 @@ test("scheduler is disabled by default and cron route requires a secret", () => 
   assert.match(route, /account_recovery_scheduler_runs/);
   assert.match(route, /existingRun\?\.status === "completed"/);
   assert.match(route, /existingRun\?\.status === "running"/);
+  assert.match(route, /SCHEDULER_RUN_LOOKUP_FAILED/);
+  assert.match(route, /SCHEDULER_RUN_START_FAILED/);
+  assert.match(route, /SCHEDULER_RUN_FINALIZE_FAILED/);
+});
+
+test("health aggregate does not expose scheduler error details", () => {
+  const route = readFileSync("app/api/admin/recovery-health/route.ts", "utf8");
+  assert.doesNotMatch(route, /error_summary/);
+  assert.match(route, /workspace_count/);
 });
 
 test("production readiness contracts keep activation explicit", () => {
