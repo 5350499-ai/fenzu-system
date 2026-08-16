@@ -104,7 +104,7 @@ begin
   from public.contracts
   where tenant_id = p_tenant_id
     and user_id = v_actor.workspace_owner_id
-    and status not in ('已结束', '已归档', '已退租', 'ended', 'archived')
+    and status not in (U&'\5df2\7ed3\675f', U&'\5df2\5f52\6863', U&'\5df2\9000\79df', 'ended', 'archived')
     and (end_date is null or end_date >= current_date);
 
   select coalesce(array_agg(id order by id), array[]::uuid[])
@@ -112,8 +112,8 @@ begin
   from public.deposits
   where tenant_id = p_tenant_id
     and user_id = v_actor.workspace_owner_id
-    and transaction_type in ('收取', 'collected')
-    and status not in ('已退', '已退还', '已作废', '已归档', 'refunded', 'voided', 'archived');
+    and transaction_type in (U&'\6536\53d6', 'collected')
+    and status not in (U&'\5df2\9000', U&'\5df2\9000\56de', U&'\5df2\4f5c\5e9f', U&'\5df2\5f52\6863', 'refunded', 'voided', 'archived');
 
   select max(coverage_end_date)
   into v_current_coverage_end
@@ -121,9 +121,9 @@ begin
   where tenant_id = p_tenant_id
     and user_id = v_actor.workspace_owner_id
     and coverage_end_date is not null
-    and income_type in ('房租收入', '续交房租')
-    and payment_status not in ('已作废', '作废')
-    and coalesce(notes, '') not like '%[已作废]%';
+    and income_type in (U&'\623f\79df\6536\5165', U&'\7eed\4ea4\623f\79df')
+    and payment_status not in (U&'\5df2\4f5c\5e9f', U&'\4f5c\5e9f')
+    and coalesce(notes, '') not like ('%[' || U&'\5df2\4f5c\5e9f' || ']%');
 
   if v_current_coverage_end is not null then
     select coalesce(array_agg(id order by id), array[]::uuid[])
@@ -132,15 +132,15 @@ begin
     where tenant_id = p_tenant_id
       and user_id = v_actor.workspace_owner_id
       and coverage_end_date = v_current_coverage_end
-      and income_type in ('房租收入', '续交房租')
-      and payment_status not in ('已作废', '作废')
-      and coalesce(notes, '') not like '%[已作废]%';
+      and income_type in (U&'\623f\79df\6536\5165', U&'\7eed\4ea4\623f\79df')
+      and payment_status not in (U&'\5df2\4f5c\5e9f', U&'\4f5c\5e9f')
+      and coalesce(notes, '') not like ('%[' || U&'\5df2\4f5c\5e9f' || ']%');
   end if;
 
   if v_new_room.id <> v_old_room.id and exists (
     select 1 from public.tenants
     where room_id = v_new_room.id
-      and status in ('在租', 'current')
+      and status in (U&'\5728\79df', 'current')
       and id <> p_tenant_id
   ) then
     raise exception using errcode = 'P0001', message = 'room unavailable';
@@ -152,7 +152,7 @@ begin
       name = btrim(p_name),
       phone = nullif(btrim(coalesce(p_phone, '')), ''),
       wechat = nullif(btrim(coalesce(p_wechat, '')), ''),
-      source = coalesce(nullif(btrim(coalesce(p_source, '')), ''), '其他'),
+      source = coalesce(nullif(btrim(coalesce(p_source, '')), ''), U&'\5176\4ed6'),
       monthly_rent = coalesce(p_monthly_rent, 0),
       deposit_amount = coalesce(p_deposit_amount, 0),
       payment_day = p_payment_day,
@@ -175,20 +175,20 @@ begin
 
   select count(*) into v_old_active_count
   from public.tenants
-  where room_id = v_old_room.id and status = '在租';
+  where room_id = v_old_room.id and status = U&'\5728\79df';
 
   select count(*) into v_new_active_count
   from public.tenants
-  where room_id = v_new_room.id and status = '在租';
+  where room_id = v_new_room.id and status = U&'\5728\79df';
 
   update public.rooms
-  set status = case when v_old_active_count > 0 then '已租' else '空置' end,
+  set status = case when v_old_active_count > 0 then U&'\5df2\79df' else U&'\7a7a\7f6e' end,
       updated_at = now()
   where id = v_old_room.id;
 
   if v_new_room.id <> v_old_room.id then
     update public.rooms
-    set status = case when v_new_active_count > 0 then '已租' else '空置' end,
+    set status = case when v_new_active_count > 0 then U&'\5df2\79df' else U&'\7a7a\7f6e' end,
         updated_at = now()
     where id = v_new_room.id;
   end if;
@@ -203,9 +203,9 @@ begin
     'activeDepositIds', to_jsonb(v_deposit_ids),
     'currentPaymentIds', to_jsonb(v_payment_ids),
     'oldRoomStatusBefore', v_old_room_status,
-    'oldRoomStatusAfter', case when v_old_active_count > 0 then '已租' else '空置' end,
+    'oldRoomStatusAfter', case when v_old_active_count > 0 then U&'\5df2\79df' else U&'\7a7a\7f6e' end,
     'newRoomStatusBefore', v_new_room_status,
-    'newRoomStatusAfter', case when v_new_active_count > 0 then '已租' else '空置' end
+    'newRoomStatusAfter', case when v_new_active_count > 0 then U&'\5df2\79df' else U&'\7a7a\7f6e' end
   );
 
   insert into public.audit_logs (
@@ -221,7 +221,7 @@ begin
       'tenantName', v_tenant.name, 'oldRoomStatus', v_old_room_status
     ),
     v_result || jsonb_build_object('tenantName', btrim(p_name)),
-    format('租客 %s 当前有效租赁关系由房间 %s 整体调整至 %s', btrim(p_name), v_tenant.room_id, p_room_id),
+    format('Tenant %s current active rental relationship moved from room %s to %s', btrim(p_name), v_tenant.room_id, p_room_id),
     true
   );
 

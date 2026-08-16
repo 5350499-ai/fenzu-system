@@ -9,7 +9,7 @@ test("compensation migration replaces the complete Move Room function without te
   assert.match(migration, /create or replace function public\.update_tenant_current_assignment/);
   assert.doesNotMatch(migration, /pg_get_functiondef|replace\s*\(/);
   assert.match(migration, /v_new_room\.id <> v_old_room\.id and exists/);
-  assert.match(migration, /status in \('在租', 'current'\)/);
+  assert.match(migration, /status in \(U&'\\5728\\79df', 'current'\)/);
   assert.match(migration, /errcode = 'P0001', message = 'room unavailable'/);
   assert.match(migration, /security definer/);
   assert.match(migration, /set search_path = ''/);
