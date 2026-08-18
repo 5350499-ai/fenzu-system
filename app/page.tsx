@@ -222,7 +222,12 @@ export default function DashboardPage() {
 
       <section className="card compact-shortcuts home-shortcuts">
         <div className="shortcut-grid compact-icon-grid">
-          {shortcuts.filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
+          {shortcuts.map((item) => {
+            if (item.href === "/partnership-settlement" && access.isFreeSingle) {
+              return { ...item, href: "/property-profits", module: "profits" as const, sensitive: "canViewProfits" as const };
+            }
+            return item;
+          }).filter((item) => (!item.module || access.can(item.module)) && (!item.sensitive || access.canSensitive(item.sensitive))).map((item) => {
             const Icon = item.icon;
             return (
               <Link className="shortcut-card compact-icon-card" href={item.href} key={item.title}>
