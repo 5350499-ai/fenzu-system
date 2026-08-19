@@ -8115,11 +8115,6 @@ input[type="radio"] {
 
 /* Mobile overflow fixes: account center and list search controls. */
 .account-center-backdrop {
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
   padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }
 
@@ -10489,7 +10484,7 @@ textarea:-webkit-autofill:focus,
   max-width: 100%;
 }
 
-.modal-backdrop:not(.account-center-backdrop),
+.modal-backdrop,
 .attachment-modal-backdrop,
 .data-center-sheet-backdrop,
 .data-center-dialog-backdrop {
@@ -10531,6 +10526,27 @@ textarea:-webkit-autofill:focus,
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
   padding: 20px;
+}
+
+/* Account Center has one vertical scroll owner. The panel stays viewport-bound
+   while this body preserves intrinsic form height for iOS touch scrolling. */
+.account-center-card {
+  overflow: hidden;
+}
+
+.account-center-card:hover {
+  transform: none;
+}
+
+.account-center-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-block: 12px max(24px, env(safe-area-inset-bottom));
 }
 
 .modal-card > .panel-header:first-child {
@@ -10810,6 +10826,18 @@ input[type="radio"] {
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
+  }
+
+  .account-center-backdrop {
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .account-center-card {
+    height: auto;
+    max-height: 100%;
+    overflow: hidden;
   }
 
   .property-multi-select-backdrop {

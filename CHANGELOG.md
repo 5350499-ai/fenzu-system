@@ -1185,3 +1185,9 @@
 
 - Updated the Production Supabase Auth custom SMTP sender display name to “蜜蜂分租” while preserving Brevo transport, credentials, From address, templates, URLs and security settings.
 - Updated the Closed Beta release runbook to record the verified sender name without storing credentials.
+
+## 2026-08-19 - Personal Center iOS scroll root fix (Preview)
+
+- Replaced the competing Account Center panel/backdrop scroll layers with one named internal scroll body while preserving the shared modal background lock, dynamic viewport and safe-area contract.
+- Disabled the generic card hover lift for Account Center so iOS touch gestures no longer appear as a false two-pixel bounce.
+- No password, Auth, SMTP, database, permission, business-data or Production behavior changed.

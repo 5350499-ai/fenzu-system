@@ -102,31 +102,33 @@ export function AccountCenter() {
               <div><h2 className="panel-title">个人中心</h2><p className="muted">管理当前登录账号和会话。</p></div>
               <button className="icon-btn" type="button" onClick={() => setOpen(false)} aria-label="关闭"><X size={18} /></button>
             </div>
-            <div className="account-center-summary">
-              <span>显示名称<strong>{access.profileDisplayName || "-"}</strong></span>
-              <span>登录账号<strong>{access.profileUsername || "-"}</strong></span>
-              <span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span>
-              <span>账号状态<strong className="success-text">已启用</strong></span>
-            </div>
-            <details className="account-section" open>
-              <summary><KeyRound size={16} /> 修改密码</summary>
-              <form className="form-grid" onSubmit={changePassword}>
-                <PasswordField label="当前密码" value={currentPassword} onChange={setCurrentPassword} show={showPasswords} current />
-                <PasswordField label="新密码" value={newPassword} onChange={setNewPassword} show={showPasswords} />
-                <PasswordField label="确认新密码" value={confirmation} onChange={setConfirmation} show={showPasswords} />
-                <button className="btn" type="button" onClick={() => setShowPasswords((value) => !value)}>
-                  {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
-                  {showPasswords ? "隐藏密码" : "显示密码"}
-                </button>
-                {notice ? <p className={notice.includes("成功") ? "success-text" : "danger-text"}>{notice}</p> : null}
-                <div className="modal-actions">
-                  <button className="btn" type="button" onClick={() => setOpen(false)}>取消</button>
-                  <button className="btn primary" disabled={changing} type="submit">{changing ? "修改中..." : "保存新密码"}</button>
-                </div>
-              </form>
-            </details>
-            <div className="modal-actions">
-              <button className="btn danger" type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><LogOut size={16} /> {loggingOut ? "正在退出…" : "退出登录"}</button>
+            <div className="account-center-scroll">
+              <div className="account-center-summary">
+                <span>显示名称<strong>{access.profileDisplayName || "-"}</strong></span>
+                <span>登录账号<strong>{access.profileUsername || "-"}</strong></span>
+                <span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span>
+                <span>账号状态<strong className="success-text">已启用</strong></span>
+              </div>
+              <details className="account-section" open>
+                <summary><KeyRound size={16} /> 修改密码</summary>
+                <form className="form-grid" onSubmit={changePassword}>
+                  <PasswordField label="当前密码" value={currentPassword} onChange={setCurrentPassword} show={showPasswords} current />
+                  <PasswordField label="新密码" value={newPassword} onChange={setNewPassword} show={showPasswords} />
+                  <PasswordField label="确认新密码" value={confirmation} onChange={setConfirmation} show={showPasswords} />
+                  <button className="btn" type="button" onClick={() => setShowPasswords((value) => !value)}>
+                    {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPasswords ? "隐藏密码" : "显示密码"}
+                  </button>
+                  {notice ? <p className={notice.includes("成功") ? "success-text" : "danger-text"}>{notice}</p> : null}
+                  <div className="modal-actions">
+                    <button className="btn" type="button" onClick={() => setOpen(false)}>取消</button>
+                    <button className="btn primary" disabled={changing} type="submit">{changing ? "修改中..." : "保存新密码"}</button>
+                  </div>
+                </form>
+              </details>
+              <div className="modal-actions">
+                <button className="btn danger" type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><LogOut size={16} /> {loggingOut ? "正在退出…" : "退出登录"}</button>
+              </div>
             </div>
           </section>
         </div>

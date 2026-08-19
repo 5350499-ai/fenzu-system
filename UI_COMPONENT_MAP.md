@@ -167,6 +167,7 @@ page-local gap or nowrap/overflow variant.
 - `app/globals.css` is the sole CSS owner for those shell selectors and the existing `980px` shell switch. `--ui-bottom-nav-clearance` remains the main-content clearance owner and is intentionally outside the 2.2 scope.
 - `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration. Pages and modal components must not add a second body-lock lifecycle.
 - `app/globals.css` owns the shared `.modal-backdrop` and `.modal-card` base, dynamic viewport, safe-area and internal-scroll contract. Mobile overrides remain in the same CSS owner; a later precision block must not recreate a parallel modal base.
+- `components/account-center.tsx` keeps its header outside `.account-center-scroll`; that named body is the only Account Center vertical scroll owner. The shared backdrop continues to lock the background and must not become a second scroll surface.
 
 ### Mobile main clearance ownership
 
