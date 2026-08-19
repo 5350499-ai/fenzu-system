@@ -8,7 +8,7 @@ export const SOFTWARE_EDITION = "Community" as const;
 export const APPLICATION_NAME = "咱家分租" as const;
 export const APPLICATION_ID = "zanjia-rental" as const;
 
-const DESCRIPTION = "分租房管理系统官方备份文件，仅支持官方恢复功能，请勿手工修改。";
+const DESCRIPTION = "蜜蜂分租官方备份文件，仅支持官方恢复功能，请勿手工修改。";
 const SENSITIVE_EXPORT_KEY = /password|password_hash|access[_-]?token|refresh[_-]?token|session|secret|service[_-]?role|api[_-]?key|authorization|cookie|private[_-]?key/i;
 const REQUIRED_COLLECTIONS = [
   "properties", "rooms", "tenants", "contracts", "rentPayments", "expenses", "deposits",

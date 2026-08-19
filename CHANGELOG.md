@@ -1177,3 +1177,7 @@
 - Added `npm run validate:security` with guards for API coverage, server authorization ownership, secret/client boundaries, destructive GETs, redirect and redaction contracts.
 - No schema, RLS policy, RPC signature, Auth architecture, real data, Storage operation or Production change was made. Existing localStorage, compatibility, headers and non-atomic idempotency risks remain explicitly deferred.
 - Hardened the disabled-by-default recovery scheduler so run-record lookup/start/finalization failures fail closed, and kept admin recovery health aggregate-only by excluding cross-workspace scheduler error details.
+## 2026-08-19 - FEATURE-BRAND-RENAME-BEE-RENTAL
+
+- Unified user-visible product branding as “蜜蜂分租”, retaining “分租管理” as the descriptor where appropriate.
+- Updated login, registration, app shell, metadata, PWA manifest, account sharing, and export labels without changing technical identifiers or backup compatibility fields.

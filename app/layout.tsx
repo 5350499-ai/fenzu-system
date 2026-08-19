@@ -5,16 +5,17 @@ import { ClientErrorReporter } from "@/components/client-error-reporter";
 import { AttachmentUploadProgress } from "@/components/attachment-upload-progress";
 import { CacheRuntime } from "@/components/cache-runtime";
 import { ModalLayerManager } from "@/components/modal-layer-manager";
+import { PRODUCT_BRAND } from "@/lib/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "分租管理",
+  title: PRODUCT_BRAND,
   description: "面向西班牙小房东和分租经营者的管理系统",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "分租管理"
+    title: PRODUCT_BRAND
   },
   formatDetection: {
     telephone: false
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-title": "分租管理",
+    "apple-mobile-web-app-title": PRODUCT_BRAND,
     "apple-mobile-web-app-status-bar-style": "default",
     "theme-color": "#111827"
   }

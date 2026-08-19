@@ -25,10 +25,11 @@ import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, rememberAccountAccessPath, useAccountAccess } from "@/components/account-access";
 import { AccountCenter } from "@/components/account-center";
 import type { AccountModuleKey } from "@/lib/account-permissions";
+import { PRODUCT_BRAND } from "@/lib/brand";
 
 export const navGroups = [
   {
-    title: "分租管理",
+    title: PRODUCT_BRAND,
     items: [
       { href: "/", label: "首页", icon: Home, module: "home" },
       { href: "/check-in", label: "一键入住", icon: LogIn, module: "check_in" },
@@ -180,8 +181,8 @@ export function AppLayout({ children, title, description }: { children: React.Re
         <div className="brand">
           <div className="brand-mark">租</div>
           <div>
-            <div className="brand-title">西班牙分租房</div>
-            <div className="brand-subtitle">经营管理系统</div>
+            <div className="brand-title">{PRODUCT_BRAND}</div>
+            <div className="brand-subtitle">分租管理</div>
           </div>
         </div>
         {navGroups.map((group) => ({ ...group, items: group.items.filter((item) => canOpenModule(item.module as AccountModuleKey)) })).filter((group) => group.items.length).map((group) => (

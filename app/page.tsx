@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { PRODUCT_BRAND } from "@/lib/brand";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 import { MetricCard } from "@/components/metric-card";
@@ -201,7 +202,7 @@ export default function DashboardPage() {
   const upcomingAppointments = pendingAppointments.slice(0, 3);
 
   return (
-    <AppLayout title="分租管理" description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
+    <AppLayout title={PRODUCT_BRAND} description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
       {dataStatus !== "ready" ? (
         <section className="card panel">
           <p className={dataStatus === "error" ? "danger-text" : "muted"}>

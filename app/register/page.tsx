@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { PRODUCT_BRAND } from "@/lib/brand";
 
 const PENDING_EMAIL_KEY = "fenzu_pending_verification_email";
 
@@ -76,7 +77,7 @@ export default function RegisterPage() {
         <div className="brand" style={{ padding: 0 }}>
           <div className="brand-mark"><Building2 size={22} /></div>
           <div>
-            <div className="brand-title">分租房管理系统</div>
+            <div className="brand-title">{PRODUCT_BRAND}</div>
             <div className="brand-subtitle">免费单人账户</div>
           </div>
         </div>

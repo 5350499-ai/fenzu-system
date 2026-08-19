@@ -27,6 +27,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { PRODUCT_BRAND } from "@/lib/brand";
 import { backupReminderLabel, loadBackupReminderSettings, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { downloadFile } from "@/lib/download-adapter";
@@ -127,9 +128,9 @@ export default function SettingsPage() {
       const exportedAt = new Date().toISOString();
       const payload = JSON.stringify({ exportedAt, version: 1, data, settlement }, null, 2);
       if (!isSupabaseConfigured || !supabase) {
-        const file = new File([payload], `分租管理备份-${stamp(exportedAt)}.json`, { type: "application/json;charset=utf-8" });
+        const file = new File([payload], `${PRODUCT_BRAND}备份-${stamp(exportedAt)}.json`, { type: "application/json;charset=utf-8" });
         setWorking(false);
-        void downloadFile(file, { title: "咱家分租备份" });
+        void downloadFile(file, { title: `${PRODUCT_BRAND}备份` });
         window.localStorage.setItem("last-system-backup-at", exportedAt);
         setLastBackupAt(exportedAt);
         return;
@@ -156,11 +157,11 @@ export default function SettingsPage() {
   }
 
   function exportCsv() {
-    void downloadFile(new File(["\uFEFF", buildCsvExport(data, settlement)], `分租管理数据-${stamp(new Date().toISOString())}.csv`, { type: "text/csv;charset=utf-8" }), { title: "咱家分租 CSV 导出" });
+    void downloadFile(new File(["\uFEFF", buildCsvExport(data, settlement)], `${PRODUCT_BRAND}数据-${stamp(new Date().toISOString())}.csv`, { type: "text/csv;charset=utf-8" }), { title: `${PRODUCT_BRAND} CSV 导出` });
   }
 
   function exportExcel() {
-    void downloadFile(new File(["\uFEFF", buildExcelExport(data, settlement)], `分租管理数据-${stamp(new Date().toISOString())}.xls`, { type: "application/vnd.ms-excel;charset=utf-8" }), { title: "咱家分租 Excel 导出" });
+    void downloadFile(new File(["\uFEFF", buildExcelExport(data, settlement)], `${PRODUCT_BRAND}数据-${stamp(new Date().toISOString())}.xls`, { type: "application/vnd.ms-excel;charset=utf-8" }), { title: `${PRODUCT_BRAND} Excel 导出` });
   }
 
   return (

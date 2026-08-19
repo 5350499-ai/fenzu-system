@@ -1,7 +1,7 @@
 {
-  "name": "分租管理",
-  "short_name": "分租管理",
-  "description": "西班牙分租房管理系统",
+  "name": "蜜蜂分租",
+  "short_name": "蜜蜂分租",
+  "description": "蜜蜂分租：分租管理",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

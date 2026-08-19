@@ -1,6 +1,6 @@
-# 西班牙分租房管理系统 V1
+# 蜜蜂分租 V1
 
-中文界面的分租房管理系统，第一版优先完成：
+中文界面的分租管理系统，第一版优先完成：
 
 - 登录页
 - 首页分租管理仪表盘
@@ -76,7 +76,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 项目已加入 PWA 配置：
 
-- 应用名称：分租管理
+- 应用名称：蜜蜂分租
 - 主屏幕图标：`public/icons/apple-touch-icon.png`
 - Web App Manifest：`public/manifest.webmanifest`
 - Service Worker：`public/sw.js`
@@ -86,7 +86,7 @@ iPhone 使用方式：
 1. 用 Safari 打开系统网址。
 2. 点击底部分享按钮。
 3. 选择“添加到主屏幕”。
-4. 名称会显示为“分租管理”。
+4. 名称会显示为“蜜蜂分租”。
 
 
 ## How Codex and GPT-5.6 were used

@@ -15,6 +15,7 @@ import {
 import { getPartners, type Partner, type PartnerNameHistory, type PartnerPropertyShare } from "@/lib/partners";
 import { loadPartnerRatios, type PartnerRatios } from "@/lib/partner-settings";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { PRODUCT_BRAND } from "@/lib/brand";
 import {
   BACKUP_FORMAT_VERSION,
   SCHEMA_VERSION,
@@ -331,15 +332,15 @@ export default function DataCenterPage() {
     const rawExportData = await loadExportData();
     const exportDataForTable = access.isFreeSingle ? sanitizeFreeSingleExportData(rawExportData) : rawExportData;
     const now = new Date(); const stamp = now.toISOString().replace(/[:.]/g, "-");
-    if (format === "excel") void downloadFile(buildExportFile(`分租管理数据-${stamp}.xls`, buildExcelDataExport(exportDataForTable), "application/vnd.ms-excel;charset=utf-8"), { title: "咱家分租 Excel 导出" });
-    else void downloadFile(buildExportFile(`分租管理数据-${stamp}.csv`, buildCsvDataExport(exportDataForTable), "text/csv;charset=utf-8"), { title: "咱家分租 CSV 导出" });
+    if (format === "excel") void downloadFile(buildExportFile(`${PRODUCT_BRAND}数据-${stamp}.xls`, buildExcelDataExport(exportDataForTable), "application/vnd.ms-excel;charset=utf-8"), { title: `${PRODUCT_BRAND} Excel 导出` });
+    else void downloadFile(buildExportFile(`${PRODUCT_BRAND}数据-${stamp}.csv`, buildCsvDataExport(exportDataForTable), "text/csv;charset=utf-8"), { title: `${PRODUCT_BRAND} CSV 导出` });
     setExportSheetOpen(false);
   }
 
   async function exportFreeSingleJson() {
     const payload = await createDataExportPayload(sanitizeFreeSingleExportData(await loadExportData()), undefined, { backupType: "local", exportReason: "Manual" });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = buildExportFile(`分租管理本地数据-${stamp}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+    const file = buildExportFile(`${PRODUCT_BRAND}本地数据-${stamp}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
     await saveFileWithSystemFallback(file);
     const session = await getValidSupabaseSession();
     if (session) markSuccessfulBackup(session.user.id);

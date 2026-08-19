@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { ACCOUNT_MODULES, emptyModulePermissions, emptySensitivePermissions, SENSITIVE_PERMISSIONS, type ModulePermission, type SensitivePermissions } from "@/lib/account-permissions";
 import type { AccountPlan } from "@/lib/free-single";
+import { PRODUCT_BRAND } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
 import { Copy, KeyRound, LockKeyhole, Plus, RotateCcw, Save, Share2, ShieldCheck, UserRoundCheck, UserRoundX, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -80,7 +81,7 @@ export default function AccountsPage() {
   const activeAccount = useMemo(() => accounts.find((account) => account.id === editor.id) || null, [accounts, editor.id]);
   const shareableAccounts = useMemo(() => accounts.filter((account) => account.accountType === "custom"), [accounts]);
   const selectedShareAccount = useMemo(() => shareableAccounts.find((account) => account.id === shareAccountId) || null, [shareAccountId, shareableAccounts]);
-  const shareText = selectedShareAccount ? `分租管理系统
+  const shareText = selectedShareAccount ? `${PRODUCT_BRAND}
 登录地址：https://fenzu-system.vercel.app
 登录账号：${selectedShareAccount.username}
 请使用管理员提供的密码登录。` : "";
@@ -255,7 +256,7 @@ export default function AccountsPage() {
 
     try {
       await navigator.share({
-        title: "分租管理系统登录信息",
+        title: `${PRODUCT_BRAND}登录信息`,
         text: shareText
       });
       await recordLoginShare("shared");

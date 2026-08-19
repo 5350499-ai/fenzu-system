@@ -6,6 +6,7 @@ import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
+import { PRODUCT_BRAND, PRODUCT_TAGLINE } from "@/lib/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,8 +102,8 @@ export default function LoginPage() {
             <Building2 size={22} />
           </div>
           <div>
-            <div className="brand-title">分租房管理系统</div>
-            <div className="brand-subtitle">V1 分租管理优先</div>
+            <div className="brand-title">{PRODUCT_BRAND}</div>
+            <div className="brand-subtitle">{PRODUCT_TAGLINE}</div>
           </div>
         </div>
         <form className="grid" onSubmit={submit} autoComplete="on">
