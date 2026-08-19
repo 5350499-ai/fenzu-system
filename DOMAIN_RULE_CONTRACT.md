@@ -47,6 +47,21 @@ database schema, RPC signatures, historical data or permissions.
 | `RULE.BACKUP_RESTORE_MAPPING` | Export/restore business mapping | data export/restore services and validation script | export payload -> canonical/compatibility rows | persisted operation | historical snapshot mapping | account | HIGH | CANONICAL |
 | `RULE.ACCOUNT_PERMISSION_SCOPE` | Account and permission boundary | server account API/Auth/RLS | session/account -> allowed scope | persisted/server | AccountAccess is visibility snapshot only | account | P0-SENSITIVE | CANONICAL |
 
+## Settlement product semantics
+
+Settlement is one product concept with two deliberately distinct calculation
+and permission paths:
+
+- A single-owner (`free_single`) account is treated as 100% owner, profit and
+  expense recipient. The homepage `结算` entry points to the existing
+  `/property-profits` personal operating-results view.
+- A managed/partner account with `canViewPartnershipSettlement` uses the
+  existing `/partnership-settlement` flow, which applies partner shares and
+  persisted settlement snapshots.
+- The single-owner homepage entry does not grant or imply partnership
+  settlement permission. Server-side free-single restrictions remain
+  authoritative.
+
 ## Canonical calculation boundaries
 
 ### Rent and debt

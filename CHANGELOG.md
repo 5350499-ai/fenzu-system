@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-19 - Closed Beta Production closeout
+
+- Recorded the verified Brevo Custom SMTP sender and successful email-confirmation, Password Reset and new-password login E2E. SMTP credentials are intentionally excluded from repository documentation.
+- Restored the unified homepage `结算` entry for free-single accounts by routing it to personal operating results, while managed/partner accounts continue to use the permission-protected partnership settlement flow.
+- No database, business data, SMTP configuration, Scheduler activation or Restore/Cleanup was changed by this closeout.
+
 ## 2026-08-16 - Closed Beta operational readiness
 
 - Added Closed Beta support, recovery, severity, abuse, emergency-disable, monitoring and feedback procedures.

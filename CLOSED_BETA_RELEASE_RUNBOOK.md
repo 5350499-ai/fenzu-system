@@ -7,7 +7,7 @@
 - Run the complete validation gate, TypeScript, build, UI interaction tests and `git diff --check`.
 - Review migration inventory; never run unknown or destructive migrations.
 - Confirm `DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED=false` and real workspace scheduled backup is OFF.
-- Record SMTP status as blocked/pending; do not claim password recovery delivery is ready.
+- Record the verified Brevo Custom SMTP sender (`Zanjia Fenzu` / `s641776255s@outlook.com`) without recording credentials. Password reset and email-confirmation E2E are verified; never revert to an unverified sender.
 - Confirm no secrets, logs, local DB files, credentials or backup payloads are in the commit.
 
 ## After Preview/Production deployment
@@ -18,6 +18,7 @@
 - Check aggregate schema/recovery health read-only; do not create points or Restore.
 - Compare aggregate business row counts where authorized; do not inspect user payloads.
 - Confirm Scheduler remains disabled and no scheduler run/point was created unexpectedly.
+- Read-only confirm Supabase Auth Custom SMTP remains enabled with the verified sender; do not send test mail during release smoke.
 - Preserve deployment ID, time window and observed status in the release record.
 
 ## Rollback
