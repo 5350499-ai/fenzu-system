@@ -38,6 +38,7 @@ test("personal center keeps the modal surface scrollable on phone viewports", ()
 
 test("personal center uses one scroll body with reachable actions and a fixed header", () => {
   assert.match(accountCenter, /<div className="account-center-scroll">[\s\S]*?保存新密码[\s\S]*?退出登录[\s\S]*?<\/div>/);
+  assert.match(accountCenter, /<div className="account-center-scroll">\s*<div className="account-center-content">[\s\S]*?account-center-logout-actions[\s\S]*?<\/div>\s*<\/div>/);
   assert.match(accountCenter, /<div className="panel-header account-center-header">[\s\S]*?aria-label="关闭个人中心"[\s\S]*?<\/div>\s*<div className="account-center-scroll">/);
   assert.match(css, /\.account-center-card\s*\{[\s\S]*?overflow:\s*hidden/);
   assert.match(css, /\.account-center-card\s*\{[\s\S]*?scrollbar-gutter:\s*auto/);
@@ -67,6 +68,24 @@ test("password form is compact and remains in the sole scroll owner", () => {
   assert.match(css, /\.account-center-password-section\s*\{[\s\S]*?overflow:\s*visible[\s\S]*?background:\s*transparent/);
   assert.match(css, /\.account-center-card \.account-center-password-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/);
   assert.doesNotMatch(css, /\.account-center-password-(?:section|form)\s*\{[^}]*overflow-y:\s*(?:auto|scroll)/);
+});
+
+test("personal center uses a shared inline boundary for every section", () => {
+  assert.match(accountCenter, /account-center-content[\s\S]*?account-center-summary[\s\S]*?account-center-password-section[\s\S]*?account-center-logout-actions/);
+  assert.match(accountCenter, /account-center-summary-item-grid[\s\S]*?账号类型[\s\S]*?账号状态/);
+  assert.match(css, /\.account-center-content\s*\{[\s\S]*?width:\s*100%[\s\S]*?box-sizing:\s*border-box/);
+  assert.match(css, /\.account-center-summary-item-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /--account-center-inline-padding/);
+  assert.match(css, /--account-center-section-gap/);
+  assert.match(css, /--account-center-card-gap/);
+});
+
+test("personal center keeps equal-width fields and actions without fixed content widths", () => {
+  assert.match(css, /\.account-center-password-form input,[\s\S]*?width:\s*100%/);
+  assert.match(css, /\.account-center-password-actions,[\s\S]*?width:\s*100%/);
+  assert.match(css, /\.account-center-password-actions \.btn,[\s\S]*?min-width:\s*0/);
+  assert.doesNotMatch(css, /\.account-center-content\s*\{[^}]*width:\s*\d+px/);
+  assert.doesNotMatch(css, /\.account-center-content\s*\{[^}]*margin-(?:left|right):/);
 });
 
 test("display name defaults to 用户 and is edited only through the current-account route", () => {

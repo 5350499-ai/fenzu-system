@@ -10769,6 +10769,105 @@ textarea:-webkit-autofill:focus,
   margin-top: 0;
 }
 
+/* Personal Center layout root: every section shares one inline boundary. */
+.account-center-card {
+  --account-center-inline-padding: 16px;
+  --account-center-section-gap: 12px;
+  --account-center-card-gap: 8px;
+  --account-center-control-gap: 10px;
+}
+
+.account-center-scroll {
+  gap: 0;
+  padding-inline: var(--account-center-inline-padding);
+}
+
+.account-center-content {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: var(--account-center-section-gap);
+}
+
+.account-center-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  gap: var(--account-center-card-gap);
+  margin: 0;
+}
+
+.account-center-summary-item,
+.account-center-summary-item-grid,
+.account-center-password-section,
+.account-center-logout-actions {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.account-center-summary-item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--account-center-card-gap);
+}
+
+.account-center-summary-item-grid .account-center-summary-item {
+  min-width: 0;
+}
+
+.account-center-card .account-center-password-section > summary {
+  padding-inline: 0;
+}
+
+.account-center-card .account-center-password-section > .account-center-password-form {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: var(--account-center-control-gap);
+  margin: 0;
+}
+
+.account-center-password-form .field,
+.account-center-password-form input,
+.account-center-show-password,
+.account-center-password-actions,
+.account-center-password-actions .btn,
+.account-center-logout-actions .btn {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.account-center-card .account-center-password-actions {
+  gap: var(--account-center-card-gap);
+}
+
+.account-center-name-editor {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .account-center-card {
+    --account-center-inline-padding: 14px;
+    --account-center-section-gap: 10px;
+  }
+
+  .account-center-scroll {
+    padding-inline: var(--account-center-inline-padding);
+  }
+}
+
+@media (max-width: 359px) {
+  .account-center-summary-item-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
   .account-center-card {
     max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);

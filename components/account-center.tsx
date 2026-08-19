@@ -166,45 +166,49 @@ export function AccountCenter() {
               <button className="account-center-close" type="button" onClick={() => setOpen(false)} aria-label="关闭个人中心"><X size={20} /></button>
             </div>
             <div className="account-center-scroll">
-              <div className="account-center-summary">
-                <div className="account-center-summary-item account-center-name-row">
-                  <span>显示名称<strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></span>
-                  {!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}
+              <div className="account-center-content">
+                <div className="account-center-summary">
+                  <div className="account-center-summary-item account-center-name-row">
+                    <span>显示名称<strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></span>
+                    {!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}
+                  </div>
+                  {editingDisplayName ? (
+                    <form className="account-center-name-editor" onSubmit={saveDisplayName}>
+                      <label htmlFor="account-center-display-name">新的显示名称</label>
+                      <input id="account-center-display-name" autoComplete="nickname" maxLength={80} value={displayNameDraft} onChange={(event) => setDisplayNameDraft(event.target.value)} autoFocus />
+                      <div className="account-center-inline-actions">
+                        <button className="btn compact" type="button" disabled={savingDisplayName} onClick={() => { setEditingDisplayName(false); setDisplayNameNotice(""); }}>取消</button>
+                        <button className="btn primary compact" type="submit" disabled={savingDisplayName} aria-busy={savingDisplayName}><Check size={15} />{savingDisplayName ? "保存中…" : "保存"}</button>
+                      </div>
+                    </form>
+                  ) : null}
+                  {displayNameNotice ? <p className={displayNameNotice.includes("已保存") ? "success-text account-center-name-notice" : "danger-text account-center-name-notice"} role="status">{displayNameNotice}</p> : null}
+                  <div className="account-center-summary-item"><span>登录账号<strong title={access.profileUsername || ""}>{access.profileUsername || "-"}</strong></span></div>
+                  <div className="account-center-summary-item-grid">
+                    <div className="account-center-summary-item"><span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span></div>
+                    <div className="account-center-summary-item"><span>账号状态<strong className={access.accountStatus === "disabled" ? "danger-text" : "success-text"}>{access.accountStatus === "disabled" ? "已停用" : "已启用"}</strong></span></div>
+                  </div>
                 </div>
-                {editingDisplayName ? (
-                  <form className="account-center-name-editor" onSubmit={saveDisplayName}>
-                    <label htmlFor="account-center-display-name">新的显示名称</label>
-                    <input id="account-center-display-name" autoComplete="nickname" maxLength={80} value={displayNameDraft} onChange={(event) => setDisplayNameDraft(event.target.value)} autoFocus />
-                    <div className="account-center-inline-actions">
-                      <button className="btn compact" type="button" disabled={savingDisplayName} onClick={() => { setEditingDisplayName(false); setDisplayNameNotice(""); }}>取消</button>
-                      <button className="btn primary compact" type="submit" disabled={savingDisplayName} aria-busy={savingDisplayName}><Check size={15} />{savingDisplayName ? "保存中…" : "保存"}</button>
+                <details className="account-section account-center-password-section" open>
+                  <summary><KeyRound size={16} /> 修改密码</summary>
+                  <form className="form-grid account-center-password-form" onSubmit={changePassword}>
+                    <PasswordField label="当前密码" value={currentPassword} onChange={setCurrentPassword} show={showPasswords} current />
+                    <PasswordField label="新密码" value={newPassword} onChange={setNewPassword} show={showPasswords} />
+                    <PasswordField label="确认新密码" value={confirmation} onChange={setConfirmation} show={showPasswords} />
+                    <button className="btn account-center-show-password" type="button" onClick={() => setShowPasswords((value) => !value)}>
+                      {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPasswords ? "隐藏密码" : "显示密码"}
+                    </button>
+                    {notice ? <p className={notice.includes("成功") ? "success-text" : "danger-text"}>{notice}</p> : null}
+                    <div className="modal-actions account-center-password-actions">
+                      <button className="btn" type="button" onClick={() => setOpen(false)}>取消</button>
+                      <button className="btn primary" disabled={changing} type="submit">{changing ? "修改中..." : "保存新密码"}</button>
                     </div>
                   </form>
-                ) : null}
-                {displayNameNotice ? <p className={displayNameNotice.includes("已保存") ? "success-text account-center-name-notice" : "danger-text account-center-name-notice"} role="status">{displayNameNotice}</p> : null}
-                <div className="account-center-summary-item"><span>登录账号<strong title={access.profileUsername || ""}>{access.profileUsername || "-"}</strong></span></div>
-                <div className="account-center-summary-item"><span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span></div>
-                <div className="account-center-summary-item"><span>账号状态<strong className={access.accountStatus === "disabled" ? "danger-text" : "success-text"}>{access.accountStatus === "disabled" ? "已停用" : "已启用"}</strong></span></div>
-              </div>
-              <details className="account-section account-center-password-section" open>
-                <summary><KeyRound size={16} /> 修改密码</summary>
-                <form className="form-grid account-center-password-form" onSubmit={changePassword}>
-                  <PasswordField label="当前密码" value={currentPassword} onChange={setCurrentPassword} show={showPasswords} current />
-                  <PasswordField label="新密码" value={newPassword} onChange={setNewPassword} show={showPasswords} />
-                  <PasswordField label="确认新密码" value={confirmation} onChange={setConfirmation} show={showPasswords} />
-                  <button className="btn account-center-show-password" type="button" onClick={() => setShowPasswords((value) => !value)}>
-                    {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
-                    {showPasswords ? "隐藏密码" : "显示密码"}
-                  </button>
-                  {notice ? <p className={notice.includes("成功") ? "success-text" : "danger-text"}>{notice}</p> : null}
-                  <div className="modal-actions account-center-password-actions">
-                    <button className="btn" type="button" onClick={() => setOpen(false)}>取消</button>
-                    <button className="btn primary" disabled={changing} type="submit">{changing ? "修改中..." : "保存新密码"}</button>
-                  </div>
-                </form>
-              </details>
-              <div className="modal-actions account-center-logout-actions">
-                <button className="btn danger" type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><LogOut size={16} /> {loggingOut ? "正在退出…" : "退出登录"}</button>
+                </details>
+                <div className="modal-actions account-center-logout-actions">
+                  <button className="btn danger" type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><LogOut size={16} /> {loggingOut ? "正在退出…" : "退出登录"}</button>
+                </div>
               </div>
             </div>
           </section>
