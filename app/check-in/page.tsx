@@ -28,7 +28,7 @@ import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
-import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
+import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
@@ -97,11 +97,6 @@ export default function CheckInPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextPartnerOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
-      setPartnerOptions(nextPartnerOptions);
-      setPartnersLoading(false);
-      setOwnershipMode(nextPartnerOptions[0]?.value || "");
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -112,6 +107,11 @@ export default function CheckInPage() {
       setTenants(loadedTenants);
       setContracts(loadedContracts);
       setPayments(loadedPayments);
+      const partnerData = await getPartners().catch(() => null);
+      const nextPartnerOptions = buildAttributionOptions(partnerData, access.isFreeSingle);
+      setPartnerOptions(nextPartnerOptions);
+      setPartnersLoading(false);
+      setOwnershipMode(nextPartnerOptions[0]?.value || "");
     }
     load().catch((error) => {
       setPartnersLoading(false);

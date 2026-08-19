@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       modulePermissions,
       sensitivePermissions: context.profile.account_type === "owner"
         ? Object.fromEntries(Object.keys(clientSensitivePermissions(null)).map((key) => [key, true]))
-        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle ? (key === "canViewAuditLogs" || key === "canViewPartnershipSettlement" ? true : (isFreeSingleRestrictedSensitivePermission(key) ? false : value)) : value])),
+        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle ? (isFreeSingleRestrictedSensitivePermission(key) ? false : value) : value])),
       propertyIds: (propertyResult.data || [])
         .map((row) => row.property_id)
         .filter((propertyId): propertyId is string => typeof propertyId === "string" && propertyId.length > 0)

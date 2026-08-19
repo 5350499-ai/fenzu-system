@@ -133,7 +133,8 @@ status.
 | Rent Payment/Deposit/Expense | full permitted access | module permission + property access | API/action boundary |
 | Reminder | derived/read/action permission | same account-scoped action path | Action/Data State contracts |
 | Task | task module permission | task module permission + property rules | task management service |
-| Partner/Share/Settlement | owner/sensitive access | sensitive permission and workspace scope | partner/settlement routes |
+| Partner self-directory | owner/sensitive access | free-single may read only its Auth-linked self member and edit its display name | partner routes scope by workspace + linked account |
+| Partner/Share/Settlement administration | owner/sensitive access | sensitive permission and workspace scope; free-single denied | partner/share/settlement routes |
 | Attachment | module + sensitive permission | same plus file-specific sensitive permission | parent ownership + ticket |
 | Backup/Restore | owner + managed + sensitive permission | denied by managed-account boundary | backup/restore route |
 | Account management | owner only | denied | `requireActiveAccount(..., true)` |
@@ -152,7 +153,8 @@ ownership as applicable.
 | `propertyId` | yes | `requirePropertyAccess` or owner-scoped server query |
 | `roomId` / `tenantId` | yes | parent relation and scoped query/RLS |
 | payment/deposit/expense IDs | yes | authenticated scoped read before mutation |
-| partner/share/settlement IDs | yes | workspace owner filter and sensitive permission |
+| partner ID | yes | workspace owner filter; free-single additionally requires its Auth-linked self member and display-name-only PATCH |
+| share/settlement IDs | yes | workspace owner filter and sensitive permission |
 | attachment ID/path | yes | parent record/ticket/workspace verification; path is not authority |
 | backup/restore identity | yes | owner-only server target and restore mapping |
 

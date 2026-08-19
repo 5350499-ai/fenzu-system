@@ -33,7 +33,7 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
+import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import {
@@ -149,9 +149,6 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
-      const nextOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -159,13 +156,16 @@ export default function RentPaymentsPage() {
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
       setProperties(loadedProperties);
       setRooms(loadedRooms);
-      setPartnerDirectory(nextDirectory);
-      setPartnerOptions(nextOptions);
       const repairedTenants = repairMissingTenantMonthlyRents(loadedTenants, loadedPayments);
       if (repairedTenants !== loadedTenants) await saveBusinessData(tenantKey, repairedTenants);
       setTenants(repairedTenants);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
+      const partnerData = await getPartners().catch(() => null);
+      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
+      const nextOptions = buildAttributionOptions(partnerData, access.isFreeSingle);
+      setPartnerDirectory(nextDirectory);
+      setPartnerOptions(nextOptions);
       const renewTenantId = new URLSearchParams(window.location.search).get("renewTenantId");
       const renewTenant = repairedTenants.find((tenant) => tenant.id === renewTenantId);
       if (renewTenant) {

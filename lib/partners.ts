@@ -70,6 +70,16 @@ export function buildActivePartnerOptions(data: PartnerWorkspaceData): PartnerOp
     .map((partner) => ({ value: partner.legacyCode || partner.id, label: partner.displayName }));
 }
 
+/**
+ * A free-single workspace still has one real owner member. This fallback is
+ * presentation-only continuity when a directory read is temporarily down;
+ * server write roots always replace it with the canonical owner member id.
+ */
+export function buildAttributionOptions(data: PartnerWorkspaceData | null, isFreeSingle = false): PartnerOption[] {
+  const options = data ? buildActivePartnerOptions(data) : [];
+  return options.length || !isFreeSingle ? options : [{ value: "本人", label: "当前 Owner（100%）" }];
+}
+
 /** Keeps a stored legacy/inactive attribution selectable only while editing it. */
 export function preserveStoredPartnerOption(options: PartnerOption[], value?: string, directory: Record<string, string> = {}) {
   const storedValue = (value || "").trim();

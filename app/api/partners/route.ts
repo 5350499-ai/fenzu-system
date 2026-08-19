@@ -13,10 +13,28 @@ function cleanName(value: unknown) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    // The free-single self member remains an internal attribution primitive;
-    // this route is the user-facing Partner management surface and is closed
-    // for ordinary Closed Beta accounts.
-    if (isFreeSingleAccount(context)) throw new AccountApiError("普通 Beta 用户暂不开放合伙人管理。", 403, "ordinary_beta_partner_disabled");
+    const freeSingle = isFreeSingleAccount(context);
+    // A free-single workspace has one real owner member. Reading that sole
+    // member is not partnership administration and supplies core attribution.
+    const self = freeSingle ? await ensureFreeSingleMember(context) : null;
+    if (freeSingle) {
+      const admin = getSupabaseAdmin();
+      const workspaceOwnerId = context.profile.workspace_owner_id;
+      const [partnerResult, sharesResult, propertiesResult] = await Promise.all([
+        admin.from("partners").select("id,workspace_owner_id,legacy_code,display_name,color_key,sort_order,is_active,linked_account_id").eq("workspace_owner_id", workspaceOwnerId).eq("id", self!.id).eq("linked_account_id", context.userId).maybeSingle(),
+        admin.from("partner_property_shares").select("id,workspace_owner_id,property_id,partner_id,percentage,effective_from,effective_to").eq("workspace_owner_id", workspaceOwnerId).eq("partner_id", self!.id).order("effective_from", { ascending: false }),
+        admin.from("properties").select("id,name,address,city").eq("user_id", workspaceOwnerId).order("name", { ascending: true })
+      ]);
+      if (partnerResult.error || !partnerResult.data || sharesResult.error || propertiesResult.error) throw new Error("加载本人成员资料失败");
+      const partner = partnerResult.data;
+      return NextResponse.json({
+        partners: [{ id: partner.id, workspaceOwnerId: partner.workspace_owner_id, legacyCode: partner.legacy_code, displayName: partner.display_name, colorKey: partner.color_key, sortOrder: partner.sort_order, isActive: partner.is_active, linkedAccountId: partner.linked_account_id, role: "Owner", propertyCount: (propertiesResult.data || []).length, currentPropertyCount: (propertiesResult.data || []).length, futurePropertyCount: 0 }],
+        shares: (sharesResult.data || []).map((share) => ({ id: share.id, workspaceOwnerId: share.workspace_owner_id, propertyId: share.property_id, partnerId: share.partner_id, percentage: Number(share.percentage), effectiveFrom: share.effective_from, effectiveTo: share.effective_to })),
+        properties: (propertiesResult.data || []).map((property) => ({ id: property.id, name: property.name, address: property.address, city: property.city })),
+        accountAlias: context.profile.username || null,
+        nameHistory: []
+      });
+    }
     if (context.profile.account_type !== "owner") await requireSensitivePermission(context, "can_view_partnership_settlement");
     const admin = getSupabaseAdmin();
     const workspaceOwnerId = context.profile.workspace_owner_id;

@@ -49,7 +49,7 @@ import { getDebtCases, getTenantDebtCases, type DebtCase } from "@/lib/debt-case
 import { getTenantDebtDisplay, tenantRentRowLabel, tenantRentRowTone, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
 import { rentPeriodToday } from "@/lib/rent-period-state";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
-import { buildActivePartnerOptions, getPartners } from "@/lib/partners";
+import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
@@ -193,7 +193,6 @@ export default function TenantsPage() {
 
   useEffect(() => {
     async function load() {
-      const activePartnerOptions = buildActivePartnerOptions(await getPartners());
       // The rent-status list and Reminder Engine must derive from the same
       // authoritative snapshot. A cache-first payment set can otherwise show a
       // different current period from the debt reminder for the same tenant.
@@ -225,7 +224,8 @@ export default function TenantsPage() {
        }
        setPayments(loadedPayments);
        setDeposits(loadedDeposits);
-      setPartnerOptions(activePartnerOptions);
+      const partnerData = await getPartners().catch(() => null);
+      setPartnerOptions(buildAttributionOptions(partnerData, access.isFreeSingle));
       setPartnersLoading(false);
       if (!access.isFreeSingle) await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
        const requestedNavigation = resolveTenantNavigationContext(`${window.location.pathname}${window.location.search}`);

@@ -22,13 +22,25 @@ function lifecycleError(error: { message?: string }, fallback: string) {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireActiveAccount(request);
-    if (isFreeSingleAccount(context)) throw new AccountApiError("普通 Beta 用户暂不开放合伙成员管理。", 403, "ordinary_beta_partner_disabled");
     const { id } = await params;
     const body = await parseJson(request) as Record<string, unknown>;
     const admin = getSupabaseAdmin();
     const ownerId = context.profile.workspace_owner_id;
     const { data: partner, error: readError } = await admin.from("partners").select("*").eq("id", id).eq("workspace_owner_id", ownerId).maybeSingle();
     if (readError || !partner) throw new AccountApiError("合伙人不存在", 404);
+    if (isFreeSingleAccount(context)) {
+      const keys = Object.keys(body);
+      if (partner.linked_account_id !== context.userId || keys.length !== 1 || keys[0] !== "displayName") {
+        throw new AccountApiError("免费版只能修改本人的显示名称。", 403, "free_single_self_member_only");
+      }
+      const nextDisplayName = cleanName(body.displayName);
+      if (nextDisplayName !== partner.display_name) {
+        const { error: renameError } = await admin.rpc("rename_partner_with_history", { p_workspace_owner_id: ownerId, p_partner_id: id, p_new_display_name: nextDisplayName, p_changed_by_account_id: context.userId });
+        if (renameError) throw new Error(renameError.message);
+        await writeAuditLog(context, { actionType: "rename_partner", moduleKey: "settings", entityType: "partner", entityId: id, beforeData: { displayName: partner.display_name }, afterData: { displayName: nextDisplayName }, description: "修改本人成员名称" });
+      }
+      return NextResponse.json({ ok: true });
+    }
     if (context.profile.account_type !== "owner") throw new AccountApiError("没有权限管理合伙成员。", 403);
 
     if (body.isActive !== undefined && !Boolean(body.isActive) && partner.is_active) {

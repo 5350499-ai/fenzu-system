@@ -20,7 +20,7 @@ import {
 } from "@/lib/business-data";
 import { euro, noteSummary } from "@/lib/format";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
-import { buildActivePartnerOptions, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
+import { buildAttributionOptions, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { isLinkedRentDeposit } from "@/lib/profit";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -61,7 +61,6 @@ export default function DepositsPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
       const loadedProperties = await loadBusinessData<BusinessProperty>("business-properties", getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>("business-rooms", getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>("business-tenants", getInitialTenants(loadedProperties, loadedRooms));
@@ -70,11 +69,12 @@ export default function DepositsPage() {
       setRooms(loadedRooms);
       setTenants(loadedTenants);
       setDeposits(loadedDeposits);
-      setPartnerOptions(buildActivePartnerOptions(partnerData));
+      const partnerData = await getPartners().catch(() => null);
+      setPartnerOptions(buildAttributionOptions(partnerData, access.isFreeSingle));
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载押金记录失败：${error.message || error}`));
-  }, []);
+  }, [access.isFreeSingle]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);

@@ -22,9 +22,12 @@ test("ordinary Beta capability root closes Partner and Settlement", () => {
   assert.doesNotMatch(accountAuth, /moduleKey === "partnership_settlement"\) return/);
   assert.doesNotMatch(accountAuth, /can_view_partnership_settlement"\) return/);
 });
-test("ordinary Beta Partner management is denied while internal attribution remains separate", () => {
-  assert.match(partnersRoute, /ordinary_beta_partner_disabled/);
+test("ordinary Beta keeps a self-only member directory while multi-member management remains denied", () => {
+  assert.match(partnersRoute, /const self = freeSingle \? await ensureFreeSingleMember\(context\) : null/);
+  assert.match(partnersRoute, /linked_account_id", context\.userId/);
+  assert.match(partnersRoute, /free_single_member_limit/);
   assert.match(readFileSync("lib/server/free-single-member.ts", "utf8"), /ensureFreeSingleMember/);
+  assert.match(partnerIdRoute, /free_single_self_member_only/);
   assert.match(partnerIdRoute, /ordinary_beta_partner_disabled/);
 });
 test("ordinary Beta member management does not expose subscription or upgrade CTA", () => {

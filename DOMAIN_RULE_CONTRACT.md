@@ -62,6 +62,17 @@ and permission paths:
   settlement permission. Server-side free-single restrictions remain
   authoritative.
 
+### Single-owner member model
+
+`free_single` is a real single-member workspace, not a workspace without a
+member model. `ensureFreeSingleMember` owns lazy creation of the authenticated
+Owner's persisted member row and the 100% property-share plan. The Owner is
+Active and receives 100% ownership, profit, expense and rent/income
+attribution. A free-single account may read that self-only directory and edit
+only its own display name; it cannot add, remove, disable or edit another
+member, change shares, or view/execute partnership settlement. Core operating
+flows must never depend on multi-member management being available.
+
 ## Canonical calculation boundaries
 
 ### Rent and debt

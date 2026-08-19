@@ -34,7 +34,7 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { buildActivePartnerOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
+import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerClass, partnerLabel } from "@/lib/partner-settings";
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
@@ -115,18 +115,16 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
-      const partnerData = await getPartners();
-      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
-      const nextOptions = partnerData ? buildActivePartnerOptions(partnerData) : [];
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       setExpenses(loadedExpenses);
-      setPartnerDirectory(nextDirectory);
-      setPartnerOptions(nextOptions);
       await refreshExpenseFiles(loadedExpenses.map((expense) => expense.id));
+      const partnerData = await getPartners().catch(() => null);
+      setPartnerDirectory(partnerData ? buildPartnerDirectory(partnerData) : {});
+      setPartnerOptions(buildAttributionOptions(partnerData, access.isFreeSingle));
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));

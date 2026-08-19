@@ -1,5 +1,12 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-19 - Free single-owner member-model recovery
+
+- Restored the free-single self-only member directory: the current Owner is a persisted Active member with 100% ownership, profit, expense and rent/income attribution.
+- Kept multi-member administration, share-plan changes and partnership settlement closed to free-single accounts, while allowing the Owner to view and rename only its own member record.
+- Decoupled check-in, rent-payment, expense, deposit and tenant core loading from the partner-directory request so a directory failure cannot block ordinary operation.
+- No database schema, Production data, SMTP, Scheduler, Restore or Cleanup change.
+
 ## 2026-08-19 - Closed Beta Production closeout
 
 - Recorded the verified Brevo Custom SMTP sender and successful email-confirmation, Password Reset and new-password login E2E. SMTP credentials are intentionally excluded from repository documentation.

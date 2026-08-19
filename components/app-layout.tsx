@@ -299,7 +299,9 @@ function moduleForPath(pathname: string): AccountModuleKey | null {
   if (pathname.startsWith("/archive")) return "archive";
   if (pathname.startsWith("/tasks")) return "tasks";
   if (pathname.startsWith("/settings")) return "settings";
-  if (pathname.startsWith("/partners")) return "partnership_settlement";
+  // /partners is a self-member settings surface for free-single accounts;
+  // partnership settlement remains separately protected above.
+  if (pathname.startsWith("/partners")) return "settings";
   if (pathname.startsWith("/admin/attachments") || pathname.startsWith("/admin/google-attachment-migration")) return "attachments";
   if (pathname.startsWith("/accounts")) return "accounts";
   if (pathname.startsWith("/audit-logs")) return "audit_logs";
