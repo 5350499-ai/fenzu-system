@@ -123,6 +123,37 @@ function normalizeCollection(value: unknown, ownerColumn: string | undefined, ow
   return rows(value).map((row) => normalizeDatabaseRow(row, ownerColumn, ownerId));
 }
 
+/**
+ * Free-single exports deliberately remove attribution fields because they are
+ * server-owned and must not be restored from user-controlled JSON.  The
+ * database still requires those columns, so rehydrate them from the current
+ * server snapshot before the atomic restore RPC runs.
+ */
+function rehydrateFreeSingleAttributionFields(
+  data: Record<string, unknown>,
+  currentData: Record<string, unknown>
+) {
+  const currentRows = (key: string) => new Map(
+    rows(currentData[key]).map((row) => [String(row.id), row])
+  );
+  const restoreRows = (key: string, fields: string[]) => {
+    const current = currentRows(key);
+    return rows(data[key]).map((row) => {
+      const snapshot = current.get(String(row.id));
+      return {
+        ...row,
+        ...Object.fromEntries(fields.map((field) => [field, snapshot?.[field] ?? "A"]))
+      };
+    });
+  };
+  return {
+    ...data,
+    rentPayments: restoreRows("rentPayments", ["receivedBy"]),
+    expenses: restoreRows("expenses", ["paidBy"]),
+    deposits: restoreRows("deposits", ["receivedBy", "paidBy"])
+  };
+}
+
 function restoreDiagnostic(error: unknown, dryRun: Record<string, unknown> | null, mode: "dry_run" | "restore" = "dry_run") {
   const source = (error && typeof error === "object" ? error : dryRun || {}) as Record<string, unknown>;
   const message = text(source.message || source.error, "Restore transaction failed");
@@ -416,7 +447,10 @@ export async function POST(request: Request) {
           exportReason: "BeforeRestore",
           timezone: uploadedPayload.metadata.timezone
         });
-        const sanitizedData = sanitizeFreeSingleExportData(uploadedPayload.data);
+        const sanitizedData = rehydrateFreeSingleAttributionFields(
+          sanitizeFreeSingleExportData(uploadedPayload.data),
+          currentBackup.data
+        );
         const currentRestrictedData = currentBackup.data;
         return createDataExportPayload(
           {
