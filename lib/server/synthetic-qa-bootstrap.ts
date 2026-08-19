@@ -79,20 +79,50 @@ async function loadBootstrapActor(): Promise<AccountRequestContext> {
 export async function bootstrapSyntheticQaAccount(options: SyntheticQaBootstrapOptions): Promise<SyntheticQaBootstrapResult> {
   assertSyntheticBootstrapEnabled(options);
   const actor = await loadBootstrapActor();
+  const admin = getSupabaseAdmin();
+  const { data: existingProfiles, error: existingProfileError } = await admin
+    .from("user_profiles")
+    .select("auth_user_id,username,display_name,workspace_owner_id,account_plan,status")
+    .eq("display_name", SYNTHETIC_MARKER)
+    .eq("account_plan", FREE_SINGLE_PLAN)
+    .like("username", "synthetic_automated_qa_%")
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (existingProfileError) throw new AccountApiError("Synthetic bootstrap lookup failed.", 503, "synthetic_bootstrap_lookup_failed");
+
   const suffix = randomUUID().replaceAll("-", "");
-  const email = `synthetic-automated-qa-${suffix}@${SYNTHETIC_EMAIL_DOMAIN}`;
   const password = createSyntheticPassword();
-  const username = `synthetic_automated_qa_${suffix}`;
-  const userId = await createCustomAccount(actor, {
-    username,
-    displayName: SYNTHETIC_MARKER,
-    email,
-    password,
-    passwordConfirmation: password,
-    accountPlan: FREE_SINGLE_PLAN,
-    propertyAccessMode: "all",
-    mustChangePassword: false
-  }, { failureStage: options.failureStage });
+  const existing = existingProfiles?.[0];
+  let userId: string;
+  let username: string;
+  let email: string;
+  if (existing) {
+    const { data: identity, error: identityError } = await admin
+      .from("account_auth_identities")
+      .select("auth_email")
+      .eq("auth_user_id", existing.auth_user_id)
+      .maybeSingle();
+    if (identityError || !identity?.auth_email) throw new AccountApiError("Synthetic bootstrap identity is unavailable.", 503, "synthetic_bootstrap_identity_unavailable");
+    const { error: passwordError } = await admin.auth.admin.updateUserById(existing.auth_user_id, { password, email_confirm: true });
+    if (passwordError) throw new AccountApiError("Synthetic bootstrap password reset failed.", 503, "synthetic_bootstrap_password_reset_failed");
+    userId = existing.auth_user_id;
+    username = existing.username;
+    email = identity.auth_email;
+  } else {
+    email = `synthetic-automated-qa-${suffix}@${SYNTHETIC_EMAIL_DOMAIN}`;
+    username = `synthetic_automated_qa_${suffix}`;
+    userId = await createCustomAccount(actor, {
+      username,
+      displayName: SYNTHETIC_MARKER,
+      email,
+      password,
+      passwordConfirmation: password,
+      accountPlan: FREE_SINGLE_PLAN,
+      propertyAccessMode: "all",
+      mustChangePassword: false
+    }, { failureStage: options.failureStage });
+  }
   return { userId, email, username, password, workspaceOwnerId: userId, marker: SYNTHETIC_MARKER };
 }
 

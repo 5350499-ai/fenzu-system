@@ -12,9 +12,9 @@ function matchesSecret(provided: string | null, expected: string | undefined) {
   return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
 }
 
-async function jsonCall(origin: string, path: string, token: string, body: unknown) {
+async function jsonCall(origin: string, path: string, token: string, body: unknown, method = "POST") {
   const response = await fetch(new URL(path, origin), {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body)
   });
@@ -22,8 +22,8 @@ async function jsonCall(origin: string, path: string, token: string, body: unkno
   return { response, payload };
 }
 
-async function assertOk(origin: string, path: string, token: string, body: unknown) {
-  const result = await jsonCall(origin, path, token, body);
+async function assertOk(origin: string, path: string, token: string, body: unknown, method = "POST") {
+  const result = await jsonCall(origin, path, token, body, method);
   if (!result.response.ok) throw new Error(`${path}:${result.response.status}`);
   return result.payload as Record<string, any>;
 }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const login = await assertOk(origin, "/api/auth/login", "", { identifier: account.username, password: account.password });
     const token = String(login.accessToken || "");
     if (!token) throw new Error("synthetic_signin_failed");
-    const me = await assertOk(origin, "/api/accounts/me", token, {});
+    const me = await assertOk(origin, "/api/accounts/me", token, null, "GET");
     if (me.accountPlan !== "free_single") throw new Error("synthetic_account_plan_mismatch");
     const partners = await assertOk(origin, "/api/partners", token, {});
     const denied = await fetch(new URL("/api/partner-settlements", origin), { headers: { Authorization: `Bearer ${token}` } });
