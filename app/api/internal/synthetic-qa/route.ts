@@ -13,10 +13,11 @@ function matchesSecret(provided: string | null, expected: string | undefined) {
 }
 
 async function jsonCall(origin: string, path: string, token: string, body: unknown, method = "POST") {
+  const isBodyless = method === "GET" || method === "HEAD";
   const response = await fetch(new URL(path, origin), {
     method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body)
+    ...(isBodyless ? {} : { body: JSON.stringify(body) })
   });
   const payload = await response.json().catch(() => null);
   return { response, payload };
