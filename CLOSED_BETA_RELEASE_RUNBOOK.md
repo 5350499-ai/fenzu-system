@@ -7,7 +7,7 @@
 - Run the complete validation gate, TypeScript, build, UI interaction tests and `git diff --check`.
 - Review migration inventory; never run unknown or destructive migrations.
 - Confirm `DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED=false` and real workspace scheduled backup is OFF.
-- Record the verified Brevo Custom SMTP sender (`Zanjia Fenzu` / `s641776255s@outlook.com`) without recording credentials. Password reset and email-confirmation E2E are verified; never revert to an unverified sender.
+- Record the verified Brevo Custom SMTP sender (`蜜蜂分租` / `s641776255s@outlook.com`) without recording credentials. Password reset and email-confirmation E2E are verified; never revert to an unverified sender.
 - Confirm no secrets, logs, local DB files, credentials or backup payloads are in the commit.
 
 ## After Preview/Production deployment

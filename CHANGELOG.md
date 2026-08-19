@@ -1181,3 +1181,7 @@
 
 - Unified user-visible product branding as “蜜蜂分租”, retaining “分租管理” as the descriptor where appropriate.
 - Updated login, registration, app shell, metadata, PWA manifest, account sharing, and export labels without changing technical identifiers or backup compatibility fields.
+## 2026-08-19 - FEATURE-BEE-RENTAL-BRAND-FINAL-CLOSEOUT
+
+- Updated the Production Supabase Auth custom SMTP sender display name to “蜜蜂分租” while preserving Brevo transport, credentials, From address, templates, URLs and security settings.
+- Updated the Closed Beta release runbook to record the verified sender name without storing credentials.
