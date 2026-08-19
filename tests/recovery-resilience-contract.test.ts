@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 // @ts-expect-error Node's strip-types test runner needs the explicit extension.
-import { evaluateRecoveryPointHealth, scheduledRecoverySlot, selectRecoveryPointCleanupCandidates, stableWorkspaceMinute } from "../lib/server/recovery-point-policy.ts";
+import { evaluateRecoveryPointHealth, scheduledRecoverySlot, schedulerWorkspaceAllowlist, selectRecoveryPointCleanupCandidates, stableWorkspaceMinute } from "../lib/server/recovery-point-policy.ts";
 import { readFileSync } from "node:fs";
 
 test("scheduled recovery slots are UTC-day stable and workspace staggering is deterministic", () => {
@@ -29,6 +29,7 @@ test("health escalates from warning to error and critical", () => {
 
 test("scheduler is disabled by default and cron route requires a secret", () => {
   const route = readFileSync("app/api/internal/recovery-scheduler/route.ts", "utf8");
+  const policy = readFileSync("lib/server/recovery-point-policy.ts", "utf8");
   assert.match(route, /DATA_RESILIENCE_SCHEDULED_BACKUP_ENABLED/);
   assert.match(route, /CRON_SECRET/);
   assert.match(route, /account_recovery_scheduler_runs/);
@@ -37,6 +38,13 @@ test("scheduler is disabled by default and cron route requires a secret", () => 
   assert.match(route, /SCHEDULER_RUN_LOOKUP_FAILED/);
   assert.match(route, /SCHEDULER_RUN_START_FAILED/);
   assert.match(route, /SCHEDULER_RUN_FINALIZE_FAILED/);
+  assert.match(route, /schedulerWorkspaceAllowlist/);
+  assert.match(policy, /DATA_RESILIENCE_SCHEDULER_WORKSPACE_ALLOWLIST/);
+});
+
+test("scheduler workspace allowlist defaults to deny and accepts only explicit IDs", () => {
+  assert.deepEqual([...schedulerWorkspaceAllowlist("")], []);
+  assert.deepEqual([...schedulerWorkspaceAllowlist(" synthetic-a, synthetic-b,synthetic-a ")], ["synthetic-a", "synthetic-b"]);
 });
 
 test("health aggregate does not expose scheduler error details", () => {

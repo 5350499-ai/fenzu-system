@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createScheduledRecoveryPoint } from "@/lib/server/scheduled-recovery-service";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { scheduledRecoverySlot } from "@/lib/server/recovery-point-policy";
+import { scheduledRecoverySlot, schedulerWorkspaceAllowlist } from "@/lib/server/recovery-point-policy";
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -16,7 +16,8 @@ export async function POST(request: Request) {
   if (existingRun?.status === "running") return NextResponse.json({ ok: true, slot, ...existingRun, inProgress: true }, { status: 202 });
   const { data: profiles, error } = await admin.from("user_profiles").select("workspace_owner_id").eq("status", "active");
   if (error) return NextResponse.json({ ok: false, code: "WORKSPACE_ENUMERATION_FAILED" }, { status: 500 });
-  const workspaces = [...new Set((profiles || []).map((row) => String(row.workspace_owner_id)).filter(Boolean))];
+  const allowlist = schedulerWorkspaceAllowlist();
+  const workspaces = [...new Set((profiles || []).map((row) => String(row.workspace_owner_id)).filter((workspaceOwnerId) => allowlist.has(workspaceOwnerId)))];
   const { error: runStartError } = await admin.from("account_recovery_scheduler_runs").upsert({ schedule_slot: slot, status: "running", workspace_count: workspaces.length, started_at: now.toISOString() }, { onConflict: "schedule_slot" });
   if (runStartError) return NextResponse.json({ ok: false, code: "SCHEDULER_RUN_START_FAILED" }, { status: 500 });
   let successCount = 0; let failureCount = 0; const failures: string[] = [];

@@ -19,6 +19,10 @@ export function scheduledRecoverySlot(createdAt = new Date()) {
   return createdAt.toISOString().slice(0, 10);
 }
 
+export function schedulerWorkspaceAllowlist(raw = process.env.DATA_RESILIENCE_SCHEDULER_WORKSPACE_ALLOWLIST) {
+  return new Set((raw || "").split(",").map((value) => value.trim()).filter(Boolean));
+}
+
 export function stableWorkspaceMinute(workspaceOwnerId: string, bucketSize = 1440) {
   let hash = 2166136261;
   for (const character of workspaceOwnerId) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
