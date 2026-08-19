@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const me = await assertOk(origin, "/api/accounts/me", token, null, "GET");
     const meProfile = (me.profile || me) as Record<string, any>;
     if (meProfile.accountPlan !== "free_single") throw new Error("synthetic_account_plan_mismatch");
-    const partners = await assertOk(origin, "/api/partners", token, {});
+    const partners = await assertOk(origin, "/api/partners", token, null, "GET");
     const denied = await fetch(new URL("/api/partner-settlements", origin), { headers: { Authorization: `Bearer ${token}` } });
     if (denied.status !== 403) throw new Error(`partnership_boundary:${denied.status}`);
 
