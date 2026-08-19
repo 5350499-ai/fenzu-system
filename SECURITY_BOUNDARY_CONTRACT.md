@@ -191,6 +191,24 @@ data endpoint.
 - Client error reporting redacts bearer/token/password/cookie values before
   transport. No real secret values are included in this contract or tests.
 
+### Synthetic QA account bootstrap
+
+- `bootstrapSyntheticQaAccount` is a server-only wrapper around the canonical
+  custom-account bootstrap; it does not create `auth.users` in isolation.
+- `SYNTHETIC_QA_BOOTSTRAP_ENABLED` defaults to disabled. The wrapper also
+  requires the server-only `SYNTHETIC_QA_BOOTSTRAP_SECRET` and generates the
+  synthetic identity, email and password internally.
+- The wrapper forces the `free_single` plan and `SYNTHETIC AUTOMATED QA`
+  marker. It accepts no caller-supplied email, password, workspace, role or
+  permissions, and it never returns credentials through an HTTP response.
+- After Auth creation, profile, identity, module permissions, sensitive
+  permissions and audit records use the existing canonical account service.
+  Failure compensation removes dependent application rows before attempting
+  Auth deletion; failure injection is unavailable in Production.
+- The service-role key is limited to this server-side account bootstrap. All
+  later synthetic business QA must use the synthetic user's normal password
+  sign-in session and must remain outside the service-role path.
+
 ## Client storage and cache security
 
 | Storage | Classification | Contract |

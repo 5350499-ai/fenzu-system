@@ -14,10 +14,16 @@ import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-
 import { isDeliverableAccountEmail, passwordValidationMessage } from "@/lib/password-security";
 import { FREE_SINGLE_PLAN, MANAGED_PLAN, isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 
-const OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
+export const PRIMARY_OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
 
 type RawModulePermission = Partial<ModulePermission> & { moduleKey?: string };
 type RawSensitivePermissions = Partial<SensitivePermissions>;
+
+export type AccountBootstrapFailureStage = "auth" | "profile" | "identity" | "permissions" | "audit";
+
+type AccountBootstrapOptions = {
+  failureStage?: AccountBootstrapFailureStage;
+};
 
 export type AccountConfigurationInput = {
   username?: string;
@@ -326,7 +332,7 @@ export async function createPublicFreeSingleAccount(input: {
     });
     return { userId: targetId, email, displayName };
   } catch (error) {
-    await admin.auth.admin.deleteUser(targetId).catch(() => undefined);
+    await cleanupProvisionedAccount(targetId);
     throw new AccountApiError("创建免费账户失败，已自动回滚登录账户。", 500);
   }
 }
@@ -344,7 +350,27 @@ async function savePropertyAccess(userId: string, ownerId: string, mode: Propert
   return validIds;
 }
 
-export async function createCustomAccount(context: AccountRequestContext, input: AccountConfigurationInput & { password: unknown; passwordConfirmation: unknown; status?: string }) {
+async function cleanupProvisionedAccount(targetId: string) {
+  const admin = getSupabaseAdmin();
+  // Auth deletion is intentionally last: user_profiles protects auth.users with
+  // ON DELETE RESTRICT, so every dependent application row must be removed first.
+  try { await admin.from("user_property_access").delete().eq("user_id", targetId); } catch { /* continue cleanup */ }
+  try { await admin.from("user_permissions").delete().eq("user_id", targetId); } catch { /* continue cleanup */ }
+  try { await admin.from("user_sensitive_permissions").delete().eq("user_id", targetId); } catch { /* continue cleanup */ }
+  try { await admin.from("account_auth_identities").delete().eq("auth_user_id", targetId); } catch { /* continue cleanup */ }
+  try { await admin.from("user_profiles").delete().eq("auth_user_id", targetId); } catch { /* continue cleanup */ }
+  await admin.auth.admin.deleteUser(targetId).catch(() => undefined);
+}
+
+function injectBootstrapFailure(options: AccountBootstrapOptions, stage: AccountBootstrapFailureStage) {
+  if (options.failureStage === stage) throw new Error(`synthetic bootstrap failure: ${stage}`);
+}
+
+export async function createCustomAccount(
+  context: AccountRequestContext,
+  input: AccountConfigurationInput & { password: unknown; passwordConfirmation: unknown; status?: string },
+  options: AccountBootstrapOptions = {}
+) {
   const username = normalizeLoginIdentifier(requireText(input.username, "登录账号"));
   const displayName = requireText(input.displayName, "显示名称");
   const email = normalizeAccountEmail(input.email);
@@ -359,6 +385,7 @@ export async function createCustomAccount(context: AccountRequestContext, input:
   const status = input.status === "disabled" ? "disabled" : "active";
   const admin = getSupabaseAdmin();
 
+  injectBootstrapFailure(options, "auth");
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -370,6 +397,7 @@ export async function createCustomAccount(context: AccountRequestContext, input:
 
   const targetId = authData.user.id;
   try {
+    injectBootstrapFailure(options, "profile");
     const { error: profileError } = await admin.from("user_profiles").insert({
       auth_user_id: targetId,
       workspace_owner_id: accountPlan === FREE_SINGLE_PLAN ? targetId : context.profile.workspace_owner_id,
@@ -387,6 +415,7 @@ export async function createCustomAccount(context: AccountRequestContext, input:
     });
     if (profileError) throw profileError;
 
+    injectBootstrapFailure(options, "identity");
     const { error: identityError } = await admin.from("account_auth_identities").insert({
       auth_user_id: targetId,
       normalized_username: username,
@@ -395,12 +424,14 @@ export async function createCustomAccount(context: AccountRequestContext, input:
     });
     if (identityError) throw identityError;
 
+    injectBootstrapFailure(options, "permissions");
     await savePermissionRows(targetId, permissions);
     await saveSensitiveRows(targetId, sensitivePermissions);
     const propertyIds = accountPlan === FREE_SINGLE_PLAN
       ? []
       : await savePropertyAccess(targetId, context.profile.workspace_owner_id, mode, input.propertyIds || [], context.userId);
 
+    injectBootstrapFailure(options, "audit");
     await writeAuditLog(context, {
       actionType: "account_created",
       moduleKey: "accounts",
@@ -412,13 +443,13 @@ export async function createCustomAccount(context: AccountRequestContext, input:
 
     return targetId;
   } catch (error) {
-    await admin.auth.admin.deleteUser(targetId).catch(() => undefined);
+    await cleanupProvisionedAccount(targetId);
     throw new AccountApiError(error instanceof Error ? "创建账号失败，已自动回滚登录账号。" : "创建账号失败。", 500);
   }
 }
 
 export async function updateCustomAccount(context: AccountRequestContext, targetId: string, input: AccountConfigurationInput) {
-  if (targetId === OWNER_ID) throw new AccountApiError("主管理员账号不可修改。", 403);
+  if (targetId === PRIMARY_OWNER_ID) throw new AccountApiError("主管理员账号不可修改。", 403);
   const admin = getSupabaseAdmin();
   const { data: beforeData, error: targetError } = await admin
     .from("user_profiles")
