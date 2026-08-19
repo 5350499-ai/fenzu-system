@@ -51,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: `(()=>{try{const s=localStorage.getItem("theme");const t=s==="dark"||s==="light"?s:"dark";document.documentElement.dataset.theme=t}catch{}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(()=>{try{const s=localStorage.getItem("theme");const t=s==="dark"||s==="light"?s:"light";document.documentElement.dataset.theme=t}catch{document.documentElement.dataset.theme="light"}})()` }} />
         <PwaRegister />
         <ClientErrorReporter />
         <AttachmentUploadProgress />

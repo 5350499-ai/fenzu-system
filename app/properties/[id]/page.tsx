@@ -353,8 +353,10 @@ export default function PropertyDetailPage() {
           <DetailField label="房东" value={property.landlordName || "-"} />
           <DetailField className="wide property-detail-field-block" label="完整地址" value={property.address || "-"} />
           <DetailField className="wide property-detail-field-block" label="房源备注" value={cleanArchiveNote(property.notes) || "-"} />
-          <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
-          <DetailField label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts, scopedPayments) || "尚无入住记录"} />
+          <div className="property-detail-allocation-grid">
+            <DetailField label="分租" value={property.subletAllowed ? "允许" : "不允许"} />
+            <DetailField className="property-detail-rate-start" label="出租率统计起始日" value={property.occupancyTrackingStartDate || resolvePropertyOccupancyStart(property, scopedTenants, scopedContracts, scopedPayments) || "尚无入住记录"} />
+          </div>
         </div> : null}
         <div className="compact-action-grid property-management-actions">
           {access.can("properties", "edit") ? <button className="btn property-management-action" type="button" onClick={openPropertyEditor}><Edit3 size={15} /> 编辑房源</button> : <span aria-hidden="true" />}

@@ -490,8 +490,9 @@ function CategoryInput({ value, onChange }: { value: string; onChange: (value: s
     <div className="field">
       <label>支出类型</label>
       <input
+        className="expense-category-input"
         list="expense-category-options"
-        placeholder="可选预设，也可输入自定义类型"
+        placeholder="选择或输入"
         required
         value={value}
         onChange={(event) => onChange(event.target.value)}
