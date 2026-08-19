@@ -25,7 +25,7 @@ async function jsonCall(origin: string, path: string, token: string, body: unkno
 
 async function assertOk(origin: string, path: string, token: string, body: unknown, method = "POST") {
   const result = await jsonCall(origin, path, token, body, method);
-  if (!result.response.ok) throw new Error(`${path}:${result.response.status}`);
+  if (!result.response.ok) throw new Error(`${path}:${result.response.status}:${String(result.payload?.code || result.payload?.error || "unknown")}`);
   return result.payload as Record<string, any>;
 }
 
