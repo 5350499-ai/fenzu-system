@@ -8116,6 +8116,10 @@ input[type="radio"] {
 /* Mobile overflow fixes: account center and list search controls. */
 .account-center-backdrop {
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }
 
@@ -10485,7 +10489,7 @@ textarea:-webkit-autofill:focus,
   max-width: 100%;
 }
 
-.modal-backdrop,
+.modal-backdrop:not(.account-center-backdrop),
 .attachment-modal-backdrop,
 .data-center-sheet-backdrop,
 .data-center-dialog-backdrop {
