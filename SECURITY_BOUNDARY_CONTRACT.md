@@ -71,7 +71,6 @@ status.
 /api/partner-settlements/[id]
 /api/rent-collection
 /api/internal/recovery-scheduler
-/api/internal/synthetic-qa
 /api/tasks/migration
 /api/tasks/migration-preview
 /api/tasks/server
