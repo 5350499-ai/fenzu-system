@@ -42,12 +42,13 @@ export async function POST(request: Request) {
     const token = String(login.accessToken || "");
     if (!token) throw new Error("synthetic_signin_failed");
     const me = await assertOk(origin, "/api/accounts/me", token, null, "GET");
-    if (me.accountPlan !== "free_single") throw new Error("synthetic_account_plan_mismatch");
+    const meProfile = (me.profile || me) as Record<string, any>;
+    if (meProfile.accountPlan !== "free_single") throw new Error("synthetic_account_plan_mismatch");
     const partners = await assertOk(origin, "/api/partners", token, {});
     const denied = await fetch(new URL("/api/partner-settlements", origin), { headers: { Authorization: `Bearer ${token}` } });
     if (denied.status !== 403) throw new Error(`partnership_boundary:${denied.status}`);
 
-    const workspaceOwnerId = String(me.workspaceOwnerId || me.workspace_owner_id || account.workspaceOwnerId);
+    const workspaceOwnerId = String(meProfile.workspaceOwnerId || meProfile.workspace_owner_id || account.workspaceOwnerId);
     const propertyId = randomUUID();
     const roomIds = [randomUUID(), randomUUID(), randomUUID()];
     await assertOk(origin, "/api/business-data", token, { key: "business-properties", operations: [{ action: "create", row: { id: propertyId, user_id: workspaceOwnerId, name: "SYNTHETIC AUTOMATED QA Property", address: "TEST ONLY", city: "SYNTHETIC", sublet_allowed: true, notes: "SYNTHETIC AUTOMATED QA" } }] });
