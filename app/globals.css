@@ -10531,7 +10531,11 @@ textarea:-webkit-autofill:focus,
 /* Account Center has one vertical scroll owner. The panel stays viewport-bound
    while this body preserves intrinsic form height for iOS touch scrolling. */
 .account-center-card {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
   overflow: hidden;
+  padding: 0;
+  scrollbar-gutter: auto;
 }
 
 .account-center-card:hover {
@@ -10539,6 +10543,9 @@ textarea:-webkit-autofill:focus,
 }
 
 .account-center-scroll {
+  display: grid;
+  align-content: start;
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -10546,6 +10553,7 @@ textarea:-webkit-autofill:focus,
   overscroll-behavior-y: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+  padding: 14px 16px max(16px, env(safe-area-inset-bottom));
   scroll-padding-block: 12px max(24px, env(safe-area-inset-bottom));
 }
 
@@ -10561,6 +10569,239 @@ textarea:-webkit-autofill:focus,
 
 .modal-card > .panel-header:first-child .btn {
   min-height: var(--ui-touch-target, 44px);
+}
+
+/* Personal Center: the header is outside the sole scroll owner. Keep account
+   details and password actions compact without creating a nested scroll card. */
+.modal-card.account-center-card > .panel-header.account-center-header:first-child {
+  position: static;
+  z-index: 2;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.account-center-header > div {
+  min-width: 0;
+}
+
+.account-center-header .muted {
+  margin: 5px 0 0;
+  line-height: 1.45;
+}
+
+.account-center-close {
+  display: inline-flex;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+.account-center-close:hover {
+  background: var(--surface-hover);
+}
+
+.account-center-close:focus-visible,
+.account-center-edit-name:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.account-center-summary {
+  gap: 8px;
+  margin: 0;
+}
+
+.account-center-summary-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.account-center-summary-item > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-center-summary-item strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.account-center-edit-name {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.account-center-edit-name:hover {
+  background: var(--surface-hover);
+}
+
+.account-center-name-editor {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 8px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--border));
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.account-center-name-editor label {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.account-center-name-editor input {
+  width: 100%;
+}
+
+.account-center-inline-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.account-center-inline-actions .btn {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.account-center-name-notice {
+  grid-column: 1 / -1;
+  margin: -1px 2px 0;
+  font-size: 12px;
+}
+
+.account-center-password-section {
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.account-center-password-section > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 2px;
+  list-style-position: inside;
+}
+
+.account-center-password-section > .account-center-password-form {
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.account-center-password-form .field {
+  gap: 5px;
+}
+
+.account-center-password-form .field label {
+  font-size: 13px;
+}
+
+.account-center-password-form input {
+  min-height: 44px;
+}
+
+.account-center-show-password {
+  width: 100%;
+  justify-content: center;
+}
+
+.account-center-card .account-center-password-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 0;
+}
+
+.account-center-card .account-center-password-actions .btn,
+.account-center-logout-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.account-center-logout-actions {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .account-center-card {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);
+    padding: 0;
+  }
+
+  .modal-card.account-center-card > .panel-header.account-center-header:first-child {
+    padding: 13px 14px 10px;
+  }
+
+  .account-center-scroll {
+    gap: 10px;
+    padding: 11px 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .account-center-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-center-name-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-center-inline-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-center-inline-actions .btn,
+  .account-center-password-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 /* PropertyMultiSelect owns a bounded sheet: the header and actions stay

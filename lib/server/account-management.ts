@@ -13,6 +13,7 @@ import { AccountApiError, type AccountRequestContext, type AccountProfileRow, re
 import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-admin";
 import { isDeliverableAccountEmail, passwordValidationMessage } from "@/lib/password-security";
 import { FREE_SINGLE_PLAN, MANAGED_PLAN, isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
+import { DEFAULT_ACCOUNT_DISPLAY_NAME } from "@/lib/self-profile";
 
 export const PRIMARY_OWNER_ID = "57b1a78b-d3fe-4e6f-bd9a-055ce1527936";
 
@@ -257,7 +258,7 @@ export async function createPublicFreeSingleAccount(input: {
   const password = validatePassword(input.password, input.passwordConfirmation);
   const username = normalizeLoginIdentifier(email);
   const suppliedName = typeof input.displayName === "string" ? input.displayName.trim() : "";
-  const displayName = suppliedName || email.split("@")[0] || "新用户";
+  const displayName = suppliedName || DEFAULT_ACCOUNT_DISPLAY_NAME;
   if (!(await usernameAvailable(username))) throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409);
   if (!(await emailAvailable(email))) throw new AccountApiError("该邮箱已经注册，请直接登录或使用忘记密码。", 409);
 

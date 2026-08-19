@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, isFreeSingleAccount, requireActiveAccount } from "@/lib/server/account-auth";
+import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount, writeAuditLog } from "@/lib/server/account-auth";
 import { isFreeSingleRestrictedModule, isFreeSingleRestrictedSensitivePermission } from "@/lib/free-single";
 import { emptyModulePermissions } from "@/lib/account-permissions";
 import { clientSensitivePermissions } from "@/lib/server/account-management";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { DEFAULT_ACCOUNT_DISPLAY_NAME, normalizeSelfDisplayNameUpdate } from "@/lib/self-profile";
 
 export async function GET(request: Request) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
       profile: {
         id: context.profile.auth_user_id,
         username: context.profile.username || "",
-        displayName: context.profile.display_name || "",
+        displayName: context.profile.display_name || DEFAULT_ACCOUNT_DISPLAY_NAME,
         accountType: context.profile.account_type,
         accountPlan: context.profile.account_plan,
         status: context.profile.status,
@@ -48,6 +49,48 @@ export async function GET(request: Request) {
         .map((row) => row.property_id)
         .filter((propertyId): propertyId is string => typeof propertyId === "string" && propertyId.length > 0)
     });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const context = await requireActiveAccount(request);
+    let update: { displayName: string };
+    try {
+      update = normalizeSelfDisplayNameUpdate(await parseJson(request));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "INVALID_SELF_PROFILE_UPDATE";
+      if (code === "DISPLAY_NAME_REQUIRED") throw new AccountApiError("显示名称不能为空。", 400, "display_name_required");
+      if (code === "DISPLAY_NAME_TOO_LONG") throw new AccountApiError("显示名称不能超过80个字符。", 400, "display_name_too_long");
+      throw new AccountApiError("只能修改当前账号的显示名称。", 400, "self_profile_fields_only");
+    }
+
+    const before = context.profile.display_name || DEFAULT_ACCOUNT_DISPLAY_NAME;
+    if (update.displayName === before) return NextResponse.json({ ok: true, displayName: before });
+
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin
+      .from("user_profiles")
+      .update({ display_name: update.displayName, updated_by: context.userId })
+      .eq("auth_user_id", context.userId)
+      .eq("workspace_owner_id", context.profile.workspace_owner_id)
+      .select("auth_user_id,display_name")
+      .maybeSingle();
+    if (error) throw new Error("保存显示名称失败");
+    if (!data || data.auth_user_id !== context.userId) throw new AccountApiError("当前账号资料不存在。", 404, "profile_not_found");
+
+    await writeAuditLog(context, {
+      actionType: "update_own_display_name",
+      moduleKey: "settings",
+      entityType: "user_profile",
+      entityId: context.userId,
+      beforeData: { displayName: before },
+      afterData: { displayName: data.display_name },
+      description: "修改当前账号显示名称"
+    });
+    return NextResponse.json({ ok: true, displayName: data.display_name });
   } catch (error) {
     return apiErrorResponse(error);
   }

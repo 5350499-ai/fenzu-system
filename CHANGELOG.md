@@ -1,5 +1,12 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-19 - Personal Center mobile closeout
+
+- Kept `.account-center-scroll` as the only vertical scroll owner while compacting the mobile account and password surfaces.
+- Moved the close action into a stable, touch-sized modal header and added a self-only display-name editor.
+- Set the canonical default display name for new public `free_single` registrations to `用户`; account type remains a separate field.
+- Updated the documented Production Auth sender display name to `Bee Rental` without changing the verified From address or SMTP credentials.
+
 ## 2026-08-19 - Free single-owner member-model recovery
 
 - Restored the free-single self-only member directory: the current Owner is a persisted Active member with 100% ownership, profit, expense and rent/income attribution.

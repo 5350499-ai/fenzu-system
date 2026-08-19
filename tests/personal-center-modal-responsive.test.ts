@@ -5,6 +5,8 @@ import test from "node:test";
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const accountCenter = readFileSync(new URL("../components/account-center.tsx", import.meta.url), "utf8");
 const modalManager = readFileSync(new URL("../components/modal-layer-manager.tsx", import.meta.url), "utf8");
+const accountMe = readFileSync(new URL("../app/api/accounts/me/route.ts", import.meta.url), "utf8");
+const registration = readFileSync(new URL("../lib/server/account-management.ts", import.meta.url), "utf8");
 
 const phoneViewports = [
   [375, 667],
@@ -36,13 +38,44 @@ test("personal center keeps the modal surface scrollable on phone viewports", ()
 
 test("personal center uses one scroll body with reachable actions and a fixed header", () => {
   assert.match(accountCenter, /<div className="account-center-scroll">[\s\S]*?保存新密码[\s\S]*?退出登录[\s\S]*?<\/div>/);
-  assert.match(accountCenter, /<div className="panel-header">[\s\S]*?aria-label="关闭"[\s\S]*?<\/div>\s*<div className="account-center-scroll">/);
+  assert.match(accountCenter, /<div className="panel-header account-center-header">[\s\S]*?aria-label="关闭个人中心"[\s\S]*?<\/div>\s*<div className="account-center-scroll">/);
   assert.match(css, /\.account-center-card\s*\{[\s\S]*?overflow:\s*hidden/);
+  assert.match(css, /\.account-center-card\s*\{[\s\S]*?scrollbar-gutter:\s*auto/);
   assert.match(css, /\.account-center-backdrop\s*\{[\s\S]*?overflow:\s*hidden/);
   assert.doesNotMatch(css, /\.account-center-backdrop\s*\{[^}]*overflow-y:\s*auto/);
-  assert.match(accountCenter, /aria-label="关闭"/);
+  assert.match(accountCenter, /aria-label="关闭个人中心"/);
   assert.match(accountCenter, /保存新密码/);
   assert.match(accountCenter, /退出登录/);
+});
+
+test("personal center close action belongs to a stable touch-sized header", () => {
+  assert.match(accountCenter, /className="account-center-close"/);
+  assert.match(css, /\.modal-card\.account-center-card > \.panel-header\.account-center-header:first-child\s*\{[\s\S]*?position:\s*static[\s\S]*?flex:\s*0 0 auto/);
+  assert.match(css, /\.account-center-close\s*\{[\s\S]*?width:\s*44px[\s\S]*?height:\s*44px/);
+  assert.match(css, /\.account-center-close\s*\{[\s\S]*?touch-action:\s*manipulation/);
+});
+
+test("personal center keeps long identity text inside the modal", () => {
+  assert.match(accountCenter, /maxLength=\{80\}/);
+  assert.match(accountCenter, /title=\{access\.profileDisplayName \|\| "用户"\}/);
+  assert.match(css, /\.account-center-summary-item strong\s*\{[\s\S]*?overflow-wrap:\s*anywhere/);
+  assert.match(css, /\.account-center-card\s*\{[\s\S]*?max-height:\s*calc\(100dvh/);
+});
+
+test("password form is compact and remains in the sole scroll owner", () => {
+  assert.match(accountCenter, /account-center-password-section[\s\S]*?account-center-password-form[\s\S]*?保存新密码/);
+  assert.match(css, /\.account-center-password-section\s*\{[\s\S]*?overflow:\s*visible[\s\S]*?background:\s*transparent/);
+  assert.match(css, /\.account-center-card \.account-center-password-actions\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/);
+  assert.doesNotMatch(css, /\.account-center-password-(?:section|form)\s*\{[^}]*overflow-y:\s*(?:auto|scroll)/);
+});
+
+test("display name defaults to 用户 and is edited only through the current-account route", () => {
+  assert.match(registration, /suppliedName \|\| DEFAULT_ACCOUNT_DISPLAY_NAME/);
+  assert.doesNotMatch(registration, /email\.split\("@"\)\[0\]/);
+  assert.match(accountCenter, /fetch\("\/api\/accounts\/me",\s*\{[\s\S]*?method:\s*"PATCH"/);
+  assert.match(accountCenter, /body:\s*JSON\.stringify\(\{ displayName \}\)/);
+  assert.match(accountCenter, /await access\.refresh\(\)/);
+  assert.match(accountMe, /\.eq\("auth_user_id", context\.userId\)[\s\S]*?\.eq\("workspace_owner_id", context\.profile\.workspace_owner_id\)/);
 });
 
 test("background scroll remains owned by the global modal manager", () => {
