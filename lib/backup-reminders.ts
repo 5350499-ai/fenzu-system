@@ -44,6 +44,29 @@ export function markSuccessfulBackup(userId: string, at = new Date().toISOString
   return next;
 }
 
+export async function loadServerBackupReminderSettings(userId: string, accessToken: string): Promise<BackupReminderSettings> {
+  const local = loadBackupReminderSettings(userId);
+  try {
+    const response = await fetch("/api/data-backup/status", { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const payload = await response.json().catch(() => ({})) as { lastSuccessfulBackupAt?: unknown };
+    if (!response.ok) return local;
+    return { ...local, lastSuccessfulBackupAt: typeof payload.lastSuccessfulBackupAt === "string" ? payload.lastSuccessfulBackupAt : "" };
+  } catch {
+    return local;
+  }
+}
+
+export async function recordSuccessfulBackup(accessToken: string): Promise<string> {
+  const response = await fetch("/api/data-backup/complete", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store"
+  });
+  const payload = await response.json().catch(() => ({})) as { lastSuccessfulBackupAt?: unknown; error?: string };
+  if (!response.ok || typeof payload.lastSuccessfulBackupAt !== "string") throw new Error(payload.error || "备份记录同步失败，请稍后刷新确认。");
+  return payload.lastSuccessfulBackupAt;
+}
+
 export function isBackupReminderDue(settings: BackupReminderSettings, now = new Date()) {
   const dueAt = nextBackupReminderAt(settings);
   return Boolean(dueAt && now.getTime() >= dueAt.getTime());

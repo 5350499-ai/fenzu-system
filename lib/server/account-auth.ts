@@ -275,6 +275,13 @@ export async function requireWorkspaceCurrencyPermission(context: AccountRequest
   if (!data || !Boolean(data.can_manage_settings)) throw new AccountApiError("当前账号没有修改工作区货币的权限。", 403, "workspace_currency_permission_denied");
 }
 
+export async function requireDataBackupExportPermission(context: AccountRequestContext) {
+  if (context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context)) return;
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("user_sensitive_permissions").select("can_export_data").eq("user_id", context.userId).maybeSingle();
+  if (!data || !Boolean(data.can_export_data)) throw new AccountApiError("当前账号没有数据备份权限。", 403, "data_backup_permission_denied");
+}
+
 export function requireManagedAccount(context: AccountRequestContext, feature = "此功能") {
   if (isFreeSingleAccount(context)) throw new AccountApiError(`免费单人版不提供${feature}。`, 403);
 }

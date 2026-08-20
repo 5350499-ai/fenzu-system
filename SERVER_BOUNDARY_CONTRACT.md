@@ -53,6 +53,8 @@ There are 49 route files. Every route is listed here and is checked by
 | `/api/check-in` | LIFECYCLE | write | `create_atomic_check_in` RPC | ATOMIC_RPC |
 | `/api/client-errors` | OBSERVABILITY | write/log | error-reporting sink | NO_BUSINESS_WRITE |
 | `/api/data-backup` | BACKUP_RESTORE | read/export | backup service / owner + sensitive permission | HIGH_RISK |
+| `/api/data-backup/status` | BACKUP_RESTORE | read | authenticated workspace backup audit source | ACTIVE_CANONICAL |
+| `/api/data-backup/complete` | BACKUP_RESTORE | write/log | authenticated completed-export audit event | HIGH_RISK |
 | `/api/data-restore` | BACKUP_RESTORE | write | restore service + RPC | HIGH_RISK |
 | `/api/debug/backup-trace` | OBSERVABILITY | write/log | non-production diagnostic | NON_PRODUCTION_ONLY |
 | `/api/files/google-drive/complete` | ATTACHMENT | write | upload completion + owner | HIGH_RISK |

@@ -55,6 +55,8 @@ status.
 /api/check-in
 /api/client-errors
 /api/data-backup
+/api/data-backup/status
+/api/data-backup/complete
 /api/data-restore
 /api/debug/backup-trace
 /api/files/google-drive/complete
@@ -170,7 +172,7 @@ stop-the-line review item.
 |---|---|
 | `/api/admin/attachments/*` | ADMIN_SERVER_GUARDED |
 | `/api/admin/google-attachment-migration/*` | ADMIN_SERVER_GUARDED |
-| `/api/data-backup` and `/api/data-restore` | ADMIN_SERVER_GUARDED |
+| `/api/data-backup`, `/api/data-backup/status`, `/api/data-backup/complete` and `/api/data-restore` | ADMIN_SERVER_GUARDED |
 | `/api/accounts*` | ADMIN_SERVER_GUARDED |
 | `/debug/*` and `/api/debug/*` | NON_PRODUCTION_ONLY / middleware guarded |
 | visible admin pages | UI convenience only; API remains authoritative |

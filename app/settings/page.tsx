@@ -29,7 +29,7 @@ import {
 } from "@/lib/business-data";
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { PRODUCT_BRAND } from "@/lib/brand";
-import { backupReminderLabel, loadBackupReminderSettings, nextBackupReminderAt, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { backupReminderLabel, loadBackupReminderSettings, loadServerBackupReminderSettings, nextBackupReminderAt, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY, normalizeCurrencyCode, type CurrencyCode } from "@/lib/currency";
 import { downloadFile } from "@/lib/download-adapter";
@@ -69,7 +69,12 @@ export default function SettingsPage() {
   const [currencyMessage, setCurrencyMessage] = useState("");
 
   useEffect(() => {
-    if (access.ready && access.userId) setBackupReminderSettings(loadBackupReminderSettings(access.userId));
+    if (!access.ready || !access.userId) return;
+    void (async () => {
+      const session = await getValidSupabaseSession();
+      if (session) setBackupReminderSettings(await loadServerBackupReminderSettings(access.userId, session.access_token));
+      else setBackupReminderSettings(loadBackupReminderSettings(access.userId));
+    })();
   }, [access.ready, access.userId]);
 
   useEffect(() => {
@@ -247,7 +252,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="card panel settings-entry-card">
-        <div className="panel-header"><div><h2 className="panel-title">数据备份提醒</h2><p className="muted">按最近一次成功导出备份的时间重新计算提醒周期。</p></div></div>
+        <div className="panel-header"><div><h2 className="panel-title">数据备份提醒（应用内）</h2><p className="muted">打开蜜蜂分租时，根据最近一次成功备份时间提醒你再次备份。不发送手机推送或邮件。</p></div></div>
         <div className="settings-list backup-reminder-settings">
           <label className="field"><span>提醒周期</span><select value={backupReminderSettings.frequency} onChange={(event) => {
             const frequency = event.target.value as BackupReminderFrequency;
@@ -256,7 +261,7 @@ export default function SettingsPage() {
             saveBackupReminderSettings(access.userId, next);
           }}><option value="never">不提醒</option><option value="monthly">每月提醒</option><option value="quarterly">每3个月提醒</option><option value="halfYearly">每6个月提醒</option></select></label>
           <div><span>备份提醒</span><strong>{backupReminderLabel(backupReminderSettings.frequency)}</strong></div>
-          <div><span>最近备份</span><strong>{backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt ? formatDateTime(backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt) : "暂无记录"}</strong></div>
+          <div><span>最近备份</span><strong>{backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt ? formatDateTime(backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt) : "暂无可确认记录"}</strong></div>
           <div><span>下一次提醒</span><strong>{backupReminderSettings.frequency === "never" ? "不提醒" : nextBackupReminderAt(backupReminderSettings) ? formatDateTime(nextBackupReminderAt(backupReminderSettings)!.toISOString()) : "完成首次数据备份后开始计算提醒时间。"}</strong></div>
         </div>
       </section>

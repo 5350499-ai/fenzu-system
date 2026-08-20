@@ -34,7 +34,7 @@ import { downloadFile } from "@/lib/download-adapter";
 import { saveFileWithSystemFallback, UserCancelledFileHandoffError } from "@/lib/file-handoff";
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 import { cacheManager } from "@/lib/cache/cache-manager";
-import { markSuccessfulBackup } from "@/lib/backup-reminders";
+import { markSuccessfulBackup, recordSuccessfulBackup } from "@/lib/backup-reminders";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -267,7 +267,8 @@ export default function DataCenterPage() {
       traceBackupRuntimeEvent("DOWNLOAD_START");
       try {
         await saveFileWithSystemFallback(file);
-        markSuccessfulBackup(session.user.id);
+        const recordedAt = await recordSuccessfulBackup(session.access_token);
+        markSuccessfulBackup(session.user.id, recordedAt);
         setBackupRetryFile(file);
         setBackupStatus("complete");
         setBackupNotice(`备份已创建：${file.name}`);
@@ -302,7 +303,10 @@ export default function DataCenterPage() {
     try {
       await saveFileWithSystemFallback(file);
       const session = await getValidSupabaseSession();
-      if (session) markSuccessfulBackup(session.user.id);
+      if (session) {
+        const recordedAt = await recordSuccessfulBackup(session.access_token);
+        markSuccessfulBackup(session.user.id, recordedAt);
+      }
       setBackupStatus("ready");
       setBackupNotice("下载已结束，可再次创建备份。");
     } catch {
@@ -343,7 +347,10 @@ export default function DataCenterPage() {
     const file = buildExportFile(`${PRODUCT_BRAND}本地数据-${stamp}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
     await saveFileWithSystemFallback(file);
     const session = await getValidSupabaseSession();
-    if (session) markSuccessfulBackup(session.user.id);
+    if (session) {
+      const recordedAt = await recordSuccessfulBackup(session.access_token);
+      markSuccessfulBackup(session.user.id, recordedAt);
+    }
     setExportSheetOpen(false);
   }
 

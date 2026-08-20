@@ -27,7 +27,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { buildEffectiveReminders, type ReminderItem } from "@/lib/reminder-engine";
-import { defaultBackupReminderSettings, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { defaultBackupReminderSettings, loadBackupReminderSettings, loadServerBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
@@ -74,7 +74,7 @@ export default function RemindersPage() {
       setDeposits(loadedDeposits);
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
-      setBackupReminderSettings(loadBackupReminderSettings(session.user.id));
+      setBackupReminderSettings(await loadServerBackupReminderSettings(session.user.id, session.access_token));
       {
         const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
         if (!response.ok) throw new Error("Reminder state load failed");

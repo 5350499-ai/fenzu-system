@@ -46,7 +46,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
-import { defaultBackupReminderSettings, loadBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { defaultBackupReminderSettings, loadBackupReminderSettings, loadServerBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
@@ -108,7 +108,8 @@ export default function DashboardPage() {
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
       const scope = session.user.id;
-      setBackupReminderSettings(loadBackupReminderSettings(scope));
+      const serverReminderSettings = await loadServerBackupReminderSettings(scope, session.access_token);
+      setBackupReminderSettings(serverReminderSettings || loadBackupReminderSettings(scope));
       const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
       if (memorySnapshot) applySnapshot(memorySnapshot);
       else setDataStatus("loading");
