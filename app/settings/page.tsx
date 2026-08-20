@@ -29,7 +29,7 @@ import {
 } from "@/lib/business-data";
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { PRODUCT_BRAND } from "@/lib/brand";
-import { backupReminderLabel, loadBackupReminderSettings, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { backupReminderLabel, loadBackupReminderSettings, nextBackupReminderAt, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY, normalizeCurrencyCode, type CurrencyCode } from "@/lib/currency";
 import { downloadFile } from "@/lib/download-adapter";
@@ -257,6 +257,7 @@ export default function SettingsPage() {
           }}><option value="never">不提醒</option><option value="monthly">每月提醒</option><option value="quarterly">每3个月提醒</option><option value="halfYearly">每6个月提醒</option></select></label>
           <div><span>备份提醒</span><strong>{backupReminderLabel(backupReminderSettings.frequency)}</strong></div>
           <div><span>最近备份</span><strong>{backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt ? formatDateTime(backupReminderSettings.lastSuccessfulBackupAt || lastBackupAt) : "暂无记录"}</strong></div>
+          <div><span>下一次提醒</span><strong>{backupReminderSettings.frequency === "never" ? "不提醒" : nextBackupReminderAt(backupReminderSettings) ? formatDateTime(nextBackupReminderAt(backupReminderSettings)!.toISOString()) : "完成首次数据备份后开始计算提醒时间。"}</strong></div>
         </div>
       </section>
 
@@ -264,7 +265,7 @@ export default function SettingsPage() {
         <h2 className="panel-title">基础设置</h2>
         <div className="settings-list">
           <div className="settings-currency-control">
-            <label className="field"><span>工作区货币</span><select aria-label="工作区货币" disabled={!access.canSensitive("canManageSettings") || currencySaving} value={draftCurrency} onChange={(event) => { setDraftCurrency(normalizeCurrencyCode(event.target.value)); setCurrencyMessage(""); }}>{CURRENCY_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
+            <label className="settings-currency-row"><span>工作区货币</span><select aria-label="工作区货币" disabled={!access.canSensitive("canManageSettings") || currencySaving} value={draftCurrency} onChange={(event) => { setDraftCurrency(normalizeCurrencyCode(event.target.value)); setCurrencyMessage(""); }}>{CURRENCY_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
             {access.canSensitive("canManageSettings") ? <button className="btn primary" type="button" disabled={currencySaving || draftCurrency === currencyCode} onClick={() => void saveCurrency()}>{currencySaving ? "保存中…" : "保存货币设置"}</button> : <p className="muted">仅工作区所有者或管理员可修改货币。</p>}
             <Toast message={currencyMessage} tone={currencyMessage === "货币设置已保存" ? "success" : "danger"} />
           </div>

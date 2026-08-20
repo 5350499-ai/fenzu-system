@@ -6806,6 +6806,44 @@ td:last-child {
   }
 }
 
+.settings-list .settings-currency-control {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: var(--ui-space-3, 12px);
+}
+
+.settings-list .settings-currency-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.9fr);
+  align-items: center;
+  gap: var(--ui-space-3, 12px);
+}
+
+.settings-list .settings-currency-row > span {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.settings-list .settings-currency-row > select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 359px) {
+  .settings-list .settings-currency-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* 2.4c first batch: Medium-width business rows. The Shell owns the outer
    width; these scoped roots own shrink/ellipsis inside 641-1100px only. */
 @media (min-width: 641px) and (max-width: 1100px) {

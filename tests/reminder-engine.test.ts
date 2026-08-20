@@ -74,7 +74,7 @@ test("contract, deposit, moving-out, vacant and backup reminders share stable en
   const deposit = { id: "deposit-1", tenantId: tenant("已退租").id, propertyId: property.id, roomId: room.id, amount: 500, status: "待退", notes: "" } as BusinessDeposit;
   const items = buildEffectiveReminders(snapshot({
     rooms: [room, movingRoom, vacantRoom], tenants: [tenant("已退租")], contracts: [endedContract, activeContract, voidContract], deposits: [deposit], rentPayments: [],
-    includeBackupReminder: true, backupReminderSettings: { frequency: "monthly", firstEnabledAt: "2026-06-01T00:00:00.000Z", lastSuccessfulBackupAt: "" }
+    includeBackupReminder: true, backupReminderSettings: { frequency: "monthly", firstEnabledAt: "2026-06-01T00:00:00.000Z", lastSuccessfulBackupAt: "2026-06-01T00:00:00.000Z" }
   }));
   assert.equal(items.some((entry) => entry.id === "contract-expiry:contract-open"), true);
   assert.equal(items.some((entry) => entry.id === "contract-expiry:contract-ended"), false);

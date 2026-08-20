@@ -97,8 +97,8 @@ export default function RemindersPage() {
   }, [access.ready, access.permissionVersion, loadAttempt]);
 
   const reminders = useMemo(
-    () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments: payments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: !access.isFreeSingle }),
-    [access.isFreeSingle, backupReminderSettings, contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
+    () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments: payments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: access.canSensitive("canExportData") }),
+    [access.canSensitive, backupReminderSettings, contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
   );
 
   async function waiveReminder() {

@@ -186,8 +186,8 @@ export default function DashboardPage() {
   }, 0), [rentPayments, tenants, waivedPaymentIds]);
   const dashboardTotals = { ...totals, unpaid: Math.max(0, totals.unpaid - waivedUnpaid) };
   const reminders = useMemo(
-    () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: !access.isFreeSingle }),
-    [access.isFreeSingle, backupReminderSettings, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
+    () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: access.canSensitive("canExportData") }),
+    [access.canSensitive, backupReminderSettings, contracts, deposits, properties, rentPayments, rooms, tenants, waivedPaymentIds]
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
