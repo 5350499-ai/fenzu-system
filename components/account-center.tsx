@@ -187,12 +187,12 @@ export function AccountCenter() {
                 <div className="account-center-summary">
                   <div className="account-center-summary-item-grid account-center-name-share-grid">
                     <div className="account-center-summary-item account-center-name-row">
-                      <span>显示名称<strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></span>
-                      {!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}
+                      <div className="account-center-card-header"><span>显示名称</span>{!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}</div>
+                      <div className="account-center-card-content"><strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></div>
                     </div>
                     <div className="account-center-summary-item account-center-share-row">
-                      <span>分享给朋友<strong>分享蜜蜂分租</strong></span>
-                      <button className="account-center-share-button" type="button" onClick={() => void shareProduct()}><Share2 size={15} />分享</button>
+                      <div className="account-center-card-header"><span>分享给朋友</span><button className="account-center-share-button" type="button" onClick={() => void shareProduct()}><Share2 size={15} />分享</button></div>
+                      <div className="account-center-card-content"><strong>分享蜜蜂分租</strong></div>
                     </div>
                   </div>
                   {editingDisplayName ? (
