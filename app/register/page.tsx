@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PRODUCT_BRAND } from "@/lib/brand";
+import { AuthBrand } from "@/components/auth-brand";
 
 const PENDING_EMAIL_KEY = "fenzu_pending_verification_email";
 
@@ -74,13 +73,7 @@ export default function RegisterPage() {
   return (
     <main className="login-page">
       <section className="card login-card">
-        <div className="brand" style={{ padding: 0 }}>
-          <div className="brand-mark"><Building2 size={22} /></div>
-          <div>
-            <div className="brand-title">{PRODUCT_BRAND}</div>
-            <div className="brand-subtitle">免费单人账户</div>
-          </div>
-        </div>
+        <AuthBrand subtitle="免费单人账户" />
         <form className="grid" onSubmit={submit} autoComplete="on">
           {verificationSent ? (
             <div className="grid" role="status">

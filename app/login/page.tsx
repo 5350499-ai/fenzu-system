@@ -2,11 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
-import { PRODUCT_BRAND, PRODUCT_TAGLINE } from "@/lib/brand";
+import { AuthBrand } from "@/components/auth-brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -97,15 +96,7 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="card login-card">
-        <div className="brand" style={{ padding: 0 }}>
-          <div className="brand-mark">
-            <Building2 size={22} />
-          </div>
-          <div>
-            <div className="brand-title">{PRODUCT_BRAND}</div>
-            <div className="brand-subtitle">{PRODUCT_TAGLINE}</div>
-          </div>
-        </div>
+        <AuthBrand />
         <form className="grid" onSubmit={submit} autoComplete="on">
           {emailVerified ? <p className="success-text" role="status">邮箱验证成功，请使用邮箱和密码登录。</p> : null}
           {registered ? <p className="success-text" role="status">验证邮件已发送，请前往邮箱完成验证后再登录。</p> : null}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { AuthBrand } from "@/components/auth-brand";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -33,5 +34,5 @@ export default function ForgotPasswordPage() {
   }
 
   const buttonLabel = loading ? "发送中…" : cooldown > 0 ? `${cooldown} 秒后可重新发送` : message ? "重新发送重置邮件" : "发送重置邮件";
-  return <main className="login-page"><section className="card login-card password-security-page"><h1 className="panel-title">忘记密码</h1><p className="muted">请输入已绑定的邮箱。没有绑定邮箱的子账号请联系管理员重置密码。</p><form className="grid" onSubmit={submit}><div className="field"><label htmlFor="forgot-email">邮箱</label><input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></div><button className="btn primary" type="submit" disabled={loading || cooldown > 0}>{buttonLabel}</button>{message ? <p className="success-text">{message}</p> : null}{error ? <p className="danger-text">{error}</p> : null}<Link className="btn" href="/login">返回登录</Link></form></section></main>;
+  return <main className="login-page"><section className="card login-card password-security-page"><AuthBrand subtitle="密码找回" /><h1 className="panel-title">忘记密码</h1><p className="muted">请输入已绑定的邮箱。没有绑定邮箱的子账号请联系管理员重置密码。</p><form className="grid" onSubmit={submit}><div className="field"><label htmlFor="forgot-email">邮箱</label><input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></div><button className="btn primary" type="submit" disabled={loading || cooldown > 0}>{buttonLabel}</button>{message ? <p className="success-text">{message}</p> : null}{error ? <p className="danger-text">{error}</p> : null}<Link className="btn" href="/login">返回登录</Link></form></section></main>;
 }

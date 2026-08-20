@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, Eye, EyeOff, KeyRound, LogOut, Pencil, UserRound, X } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, LogOut, Pencil, Share2, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
+import { BEE_RENTAL_SHARE_URL, copyBeeRentalLink, shareBeeRental } from "@/lib/share-bee-rental";
 
 export function AccountCenter() {
   const router = useRouter();
@@ -21,13 +22,29 @@ export function AccountCenter() {
   const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [displayNameNotice, setDisplayNameNotice] = useState("");
+  const [shareNotice, setShareNotice] = useState("");
+  const [shareFallback, setShareFallback] = useState(false);
 
   function openCenter() {
     setOpen(true);
     setNotice("");
     setDisplayNameNotice("");
+    setShareNotice("");
+    setShareFallback(false);
     setEditingDisplayName(false);
     setDisplayNameDraft(access.profileDisplayName || "用户");
+  }
+
+  async function shareProduct() {
+    setShareNotice("");
+    setShareFallback(false);
+    const result = await shareBeeRental();
+    if (result === "copied") setShareNotice("分享链接已复制");
+    if (result === "fallback") setShareFallback(true);
+  }
+
+  async function copyFallbackLink() {
+    if (await copyBeeRentalLink()) setShareNotice("分享链接已复制");
   }
 
   function beginDisplayNameEdit() {
@@ -168,9 +185,15 @@ export function AccountCenter() {
             <div className="account-center-scroll">
               <div className="account-center-content">
                 <div className="account-center-summary">
-                  <div className="account-center-summary-item account-center-name-row">
-                    <span>显示名称<strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></span>
-                    {!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}
+                  <div className="account-center-summary-item-grid account-center-name-share-grid">
+                    <div className="account-center-summary-item account-center-name-row">
+                      <span>显示名称<strong title={access.profileDisplayName || "用户"}>{access.profileDisplayName || "用户"}</strong></span>
+                      {!editingDisplayName ? <button className="account-center-edit-name" type="button" onClick={beginDisplayNameEdit}><Pencil size={14} />修改</button> : null}
+                    </div>
+                    <div className="account-center-summary-item account-center-share-row">
+                      <span>分享给朋友<strong>分享蜜蜂分租</strong></span>
+                      <button className="account-center-share-button" type="button" onClick={() => void shareProduct()}><Share2 size={15} />分享</button>
+                    </div>
                   </div>
                   {editingDisplayName ? (
                     <form className="account-center-name-editor" onSubmit={saveDisplayName}>
@@ -183,6 +206,8 @@ export function AccountCenter() {
                     </form>
                   ) : null}
                   {displayNameNotice ? <p className={displayNameNotice.includes("已保存") ? "success-text account-center-name-notice" : "danger-text account-center-name-notice"} role="status">{displayNameNotice}</p> : null}
+                  {shareNotice ? <p className="success-text account-center-share-notice" role="status">{shareNotice}</p> : null}
+                  {shareFallback ? <div className="account-center-share-fallback" role="status"><code>{BEE_RENTAL_SHARE_URL}</code><button className="account-center-edit-name" type="button" onClick={() => void copyFallbackLink}><Share2 size={14} />复制链接</button></div> : null}
                   <div className="account-center-summary-item"><span>登录账号<strong title={access.profileUsername || ""}>{access.profileUsername || "-"}</strong></span></div>
                   <div className="account-center-summary-item-grid">
                     <div className="account-center-summary-item"><span>账号类型<strong>{access.isOwner ? "主管理员" : access.isFreeSingle ? "普通用户" : "受管账号"}</strong></span></div>
