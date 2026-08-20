@@ -252,7 +252,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="card panel settings-entry-card">
-        <div className="panel-header"><div><h2 className="panel-title">数据备份提醒（应用内）</h2><p className="muted">打开蜜蜂分租时，根据最近一次成功备份时间提醒你再次备份。不发送手机推送或邮件。</p></div></div>
+        <div className="panel-header"><div><h2 className="panel-title">数据备份提醒</h2><p className="muted">打开蜜蜂分租时，根据最近一次成功备份时间，在提醒中心提醒你再次备份。</p></div></div>
         <div className="settings-list backup-reminder-settings">
           <label className="field"><span>提醒周期</span><select value={backupReminderSettings.frequency} onChange={(event) => {
             const frequency = event.target.value as BackupReminderFrequency;
