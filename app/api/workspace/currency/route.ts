@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireSensitivePermission, writeAuditLog } from "@/lib/server/account-auth";
+import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireWorkspaceCurrencyPermission, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode, type CurrencyCode } from "@/lib/currency";
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    await requireSensitivePermission(context, "canManageSettings");
+    await requireWorkspaceCurrencyPermission(context);
     const body = await parseJson(request) as { currencyCode?: unknown };
     const requested = normalizeCurrencyCode(body.currencyCode);
     if (typeof body.currencyCode !== "string" || requested !== body.currencyCode.toUpperCase()) {

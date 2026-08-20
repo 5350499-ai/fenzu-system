@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AccountApiError, apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount, writeAuditLog } from "@/lib/server/account-auth";
+import { AccountApiError, apiErrorResponse, isFreeSingleAccount, isFreeSingleWorkspaceOwner, parseJson, requireActiveAccount, writeAuditLog } from "@/lib/server/account-auth";
 import { isFreeSingleRestrictedModule, isFreeSingleRestrictedSensitivePermission } from "@/lib/free-single";
 import { emptyModulePermissions } from "@/lib/account-permissions";
 import { clientSensitivePermissions } from "@/lib/server/account-management";
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       modulePermissions,
       sensitivePermissions: context.profile.account_type === "owner"
         ? Object.fromEntries(Object.keys(clientSensitivePermissions(null)).map((key) => [key, true]))
-        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle ? (isFreeSingleRestrictedSensitivePermission(key) ? false : value) : value])),
+        : Object.fromEntries(Object.entries(clientSensitivePermissions(sensitiveResult.data)).map(([key, value]) => [key, freeSingle && isFreeSingleWorkspaceOwner(context) && key === "canManageSettings" ? true : (freeSingle ? (isFreeSingleRestrictedSensitivePermission(key) ? false : value) : value)])),
       propertyIds: (propertyResult.data || [])
         .map((row) => row.property_id)
         .filter((propertyId): propertyId is string => typeof propertyId === "string" && propertyId.length > 0)

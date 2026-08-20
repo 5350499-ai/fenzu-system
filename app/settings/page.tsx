@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
+import { Toast } from "@/components/ui";
 import {
   BusinessContract,
   BusinessDeposit,
@@ -63,7 +64,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(access.currencyCode || DEFAULT_CURRENCY);
+  const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>(access.currencyCode || DEFAULT_CURRENCY);
   const [currencySaving, setCurrencySaving] = useState(false);
+  const [currencyMessage, setCurrencyMessage] = useState("");
 
   useEffect(() => {
     if (access.ready && access.userId) setBackupReminderSettings(loadBackupReminderSettings(access.userId));
@@ -71,20 +74,22 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!access.ready || !access.authenticated) return;
-    setCurrencyCode(access.currencyCode || DEFAULT_CURRENCY);
+    const next = access.currencyCode || DEFAULT_CURRENCY;
+    setCurrencyCode(next);
+    setDraftCurrency(next);
   }, [access.ready, access.authenticated, access.currencyCode]);
 
-  async function saveCurrency(next: CurrencyCode) {
-    setCurrencyCode(next);
-    if (!access.canSensitive("canManageSettings")) return;
+  async function saveCurrency() {
+    if (draftCurrency === currencyCode || !access.canSensitive("canManageSettings")) return;
     setCurrencySaving(true);
+    setCurrencyMessage("");
     try {
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("登录已失效，请重新登录。");
       const response = await fetch("/api/workspace/currency", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ currencyCode: next })
+        body: JSON.stringify({ currencyCode: draftCurrency })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -97,10 +102,13 @@ export default function SettingsPage() {
               : payload.error || "保存货币失败，请稍后重试。";
         throw new Error(message);
       }
-      await access.refresh();
+      const refreshed = await access.refresh();
+      const saved = refreshed.currencyCode || draftCurrency;
+      setCurrencyCode(saved);
+      setDraftCurrency(saved);
+      setCurrencyMessage("货币设置已保存");
     } catch (error: any) {
-      setCurrencyCode(access.currencyCode || DEFAULT_CURRENCY);
-      window.alert(error.message || "保存货币失败，请稍后重试。");
+      setCurrencyMessage(error.message || "货币设置保存失败，请稍后重试。");
     } finally {
       setCurrencySaving(false);
     }
@@ -255,7 +263,11 @@ export default function SettingsPage() {
       <section className="card panel">
         <h2 className="panel-title">基础设置</h2>
         <div className="settings-list">
-          <label className="field"><span>工作区货币</span><select aria-label="工作区货币" disabled={!access.canSensitive("canManageSettings") || currencySaving} value={currencyCode} onChange={(event) => void saveCurrency(normalizeCurrencyCode(event.target.value))}>{CURRENCY_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
+          <div className="settings-currency-control">
+            <label className="field"><span>工作区货币</span><select aria-label="工作区货币" disabled={!access.canSensitive("canManageSettings") || currencySaving} value={draftCurrency} onChange={(event) => { setDraftCurrency(normalizeCurrencyCode(event.target.value)); setCurrencyMessage(""); }}>{CURRENCY_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
+            {access.canSensitive("canManageSettings") ? <button className="btn primary" type="button" disabled={currencySaving || draftCurrency === currencyCode} onClick={() => void saveCurrency()}>{currencySaving ? "保存中…" : "保存货币设置"}</button> : <p className="muted">仅工作区所有者或管理员可修改货币。</p>}
+            <Toast message={currencyMessage} tone={currencyMessage === "货币设置已保存" ? "success" : "danger"} />
+          </div>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>
         </div>

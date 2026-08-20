@@ -260,6 +260,21 @@ export function isFreeSingleAccount(context: Pick<AccountRequestContext, "profil
   return context.profile.account_type !== "owner" && isFreeSinglePlan(context.profile.account_plan);
 }
 
+export function isFreeSingleWorkspaceOwner(context: Pick<AccountRequestContext, "userId" | "profile">) {
+  return isFreeSingleAccount(context) && context.userId === context.profile.workspace_owner_id;
+}
+
+export async function requireWorkspaceCurrencyPermission(context: AccountRequestContext) {
+  if (context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context)) return;
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from("user_sensitive_permissions")
+    .select("can_manage_settings")
+    .eq("user_id", context.userId)
+    .maybeSingle();
+  if (!data || !Boolean(data.can_manage_settings)) throw new AccountApiError("当前账号没有修改工作区货币的权限。", 403, "workspace_currency_permission_denied");
+}
+
 export function requireManagedAccount(context: AccountRequestContext, feature = "此功能") {
   if (isFreeSingleAccount(context)) throw new AccountApiError(`免费单人版不提供${feature}。`, 403);
 }
