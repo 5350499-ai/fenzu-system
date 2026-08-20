@@ -15,6 +15,7 @@
     "validate:server-boundary": "node --experimental-strip-types --test tests/server-boundary-contract.test.ts",
     "validate:security": "node --experimental-strip-types --test tests/security-boundary-contract.test.ts tests/self-profile.test.ts",
     "test:workspace-currency": "node --experimental-strip-types --test tests/workspace-currency.test.ts",
+    "test:workspace-currency-save": "node --experimental-strip-types --test tests/workspace-currency-save.test.ts",
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs"
   },

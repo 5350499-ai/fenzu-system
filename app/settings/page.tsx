@@ -26,7 +26,7 @@ import {
   roomKey,
   tenantKey
 } from "@/lib/business-data";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { PRODUCT_BRAND } from "@/lib/brand";
 import { backupReminderLabel, loadBackupReminderSettings, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
@@ -79,13 +79,24 @@ export default function SettingsPage() {
     if (!access.canSensitive("canManageSettings")) return;
     setCurrencySaving(true);
     try {
+      const session = await getValidSupabaseSession();
+      if (!session) throw new Error("登录已失效，请重新登录。");
       const response = await fetch("/api/workspace/currency", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ currencyCode: next })
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "保存货币失败");
+      if (!response.ok) {
+        const message = response.status === 401
+          ? "登录已失效，请重新登录。"
+          : response.status === 403
+            ? "当前账号没有修改工作区货币的权限。"
+            : response.status === 409
+              ? "工作区货币状态已变化，请刷新后重试。"
+              : payload.error || "保存货币失败，请稍后重试。";
+        throw new Error(message);
+      }
       await access.refresh();
     } catch (error: any) {
       setCurrencyCode(access.currencyCode || DEFAULT_CURRENCY);
