@@ -1,5 +1,7 @@
 import type { BusinessContract, BusinessDeposit, BusinessRentPayment, BusinessTenant } from "./business-data";
 import { isCurrentRentalRelationship, isRentIncome, paymentCoverageEnd, paymentCoverageStart } from "./rent-coverage";
+// @ts-expect-error Node's strip-types test runner needs the explicit extension.
+import { formatCurrency } from "./currency.ts";
 
 export type PaymentDelayLevel = "on-time" | "yellow" | "red";
 
@@ -376,11 +378,11 @@ export function buildTenantTimeline(tenant: BusinessTenant, contract: BusinessCo
     const delay = delayByPayment.get(payment.id);
     const coverage = paymentCoverageStart(payment) && paymentCoverageEnd(payment) ? `覆盖 ${paymentCoverageStart(payment)} 至 ${paymentCoverageEnd(payment)}` : undefined;
     const paymentDeposit = deposits.find((deposit) => deposit.notes?.includes(`[收租押金:${payment.id}]`))?.amount || Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
-    const detail = [payment.incomeType || "房租收款", `实收 €${Number(payment.amountPaid || 0).toFixed(2)}`, coverage, delay?.included && delay.days > 0 ? `迟交${delay.days}天` : delay?.included ? "按时" : "未纳入迟交统计"].filter(Boolean).join(" · ");
+    const detail = [payment.incomeType || "房租收款", `实收 ${formatCurrency(payment.amountPaid)}`, coverage, delay?.included && delay.days > 0 ? `迟交${delay.days}天` : delay?.included ? "按时" : "未纳入迟交统计"].filter(Boolean).join(" · ");
     events.push({ id: payment.id, date, type: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", title: payment.incomeType === "续交房租" ? "续交房租" : "房租收款", detail, delay, payment, depositAmount: paymentDeposit });
   }
   for (const deposit of deposits) {
-    events.push({ id: `${deposit.id}-deposit`, date: deposit.transactionDate, type: "押金", title: deposit.type === "收取" ? "押金收取" : `押金${deposit.type}`, detail: `€${Number(deposit.amount || 0).toFixed(2)} · ${deposit.status}` });
+    events.push({ id: `${deposit.id}-deposit`, date: deposit.transactionDate, type: "押金", title: deposit.type === "收取" ? "押金收取" : `押金${deposit.type}`, detail: `${formatCurrency(deposit.amount)} · ${deposit.status}` });
   }
   if (performance.currentOverdueDays != null) events.push({ id: `${tenant.id}-overdue`, date: today, type: "当前逾期", title: `当前逾期 ${performance.currentOverdueDays} 天` });
   if (tenant.actualMoveOutDate) events.push({ id: `${tenant.id}-move-out`, date: tenant.actualMoveOutDate, type: "实际退租", title: "实际退租" });

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BusinessRentPayment, BusinessTenant } from "@/lib/business-data";
 import { euro } from "@/lib/format";
+import { formatCurrency } from "@/lib/currency";
 import { buildCalendarYearMonths, buildMonthlyPaymentStatus, buildMonthlyRentIncome, calculateMonthlyPaymentStatusDays, type TenantPaymentPerformance, type TenantTimelineEvent } from "@/lib/tenant-timeline";
 
 type Props = { tenant: BusinessTenant; payments: BusinessRentPayment[]; events: TenantTimelineEvent[]; performance: TenantPaymentPerformance; today: string };
@@ -65,5 +66,5 @@ export function TenantMonthlyPaymentPanel({ tenant, payments, events, performanc
 
 function amountLabel(amount: number) {
   const rounded = Math.round(amount * 100) / 100;
-  return `€${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)}`;
+  return formatCurrency(rounded);
 }

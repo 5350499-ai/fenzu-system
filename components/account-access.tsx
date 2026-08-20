@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { emptyModulePermissions, emptySensitivePermissions, type AccountModuleKey, type ModulePermission, type PermissionAction, type SensitivePermissionKey, type SensitivePermissions } from "@/lib/account-permissions";
 import { clearEstablishedSupabaseSession, getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode, setActiveCurrency, type CurrencyCode } from "@/lib/currency";
 
 type AccountAccessState = {
   ready: boolean;
@@ -27,6 +28,7 @@ type AccountAccessState = {
   sensitivePermissions: SensitivePermissions;
   lastVerifiedAt: string;
   permissionVersion: string;
+  currencyCode: CurrencyCode;
 };
 
 type AccountAccessValue = AccountAccessState & {
@@ -52,6 +54,7 @@ type AccountApiPayload = {
   propertyIds?: unknown;
   modulePermissions?: unknown;
   sensitivePermissions?: unknown;
+  currencyCode?: string;
 };
 
 type AccountAccessSnapshot = {
@@ -69,6 +72,7 @@ type AccountAccessSnapshot = {
   sensitivePermissions: SensitivePermissions;
   lastVerifiedAt: string;
   permissionVersion: string;
+  currencyCode: CurrencyCode;
   lastPath: string;
 };
 
@@ -97,7 +101,8 @@ const emptyState = (): AccountAccessState => ({
   modulePermissions: emptyModulePermissions(),
   sensitivePermissions: emptySensitivePermissions(),
   lastVerifiedAt: "",
-  permissionVersion: ""
+  permissionVersion: "",
+  currencyCode: DEFAULT_CURRENCY
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -170,6 +175,7 @@ function readAccessSnapshot(): AccountAccessSnapshot | null {
       sensitivePermissions: normalizeSensitivePermissions(parsed.sensitivePermissions),
       lastVerifiedAt: safeText(parsed.lastVerifiedAt),
       permissionVersion: safeText(parsed.permissionVersion),
+      currencyCode: normalizeCurrencyCode(parsed.currencyCode),
       lastPath: normalizeLastPath(parsed.lastPath)
     };
   } catch {
@@ -199,7 +205,8 @@ function snapshotState(snapshot: AccountAccessSnapshot): AccountAccessState {
     modulePermissions: normalizeModulePermissions(snapshot.modulePermissions),
     sensitivePermissions: normalizeSensitivePermissions(snapshot.sensitivePermissions),
     lastVerifiedAt: snapshot.lastVerifiedAt,
-    permissionVersion: snapshot.permissionVersion
+    permissionVersion: snapshot.permissionVersion,
+    currencyCode: normalizeCurrencyCode(snapshot.currencyCode)
   };
 }
 
@@ -221,6 +228,7 @@ function persistAccessSnapshot(state: AccountAccessState) {
     sensitivePermissions: normalizeSensitivePermissions(state.sensitivePermissions),
     lastVerifiedAt: state.lastVerifiedAt,
     permissionVersion: state.permissionVersion,
+    currencyCode: state.currencyCode,
     lastPath: previous?.accountId === state.userId ? previous.lastPath : "/"
   };
   try {
@@ -337,6 +345,7 @@ async function resolveAccessState(): Promise<AccountAccessState> {
   const verifiedAt = new Date().toISOString();
   const accountType = profile.accountType === "owner" ? "owner" : "custom";
   const accountPlan = isFreeSinglePlan(profile.accountPlan) ? "free_single" : "managed";
+  const currencyCode = normalizeCurrencyCode(payload.currencyCode);
   return {
     ready: true,
     authenticated: true,
@@ -358,7 +367,8 @@ async function resolveAccessState(): Promise<AccountAccessState> {
     modulePermissions: normalizeModulePermissions(payload.modulePermissions),
     sensitivePermissions: normalizeSensitivePermissions(payload.sensitivePermissions),
     lastVerifiedAt: verifiedAt,
-    permissionVersion: verifiedAt
+    permissionVersion: verifiedAt,
+    currencyCode
   };
 }
 
@@ -393,6 +403,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     const snapshot = readAccessSnapshot();
     if (!snapshot) return;
     const restored = snapshotState(snapshot);
+    setActiveCurrency(restored.currencyCode);
     latestAccessState = restored;
     bootstrappedRef.current = true;
     commitState(restored);
@@ -429,6 +440,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
           return preserved;
         }
         latestAccessState = next;
+        setActiveCurrency(next.currencyCode || DEFAULT_CURRENCY);
         if (next.authenticated && next.isServerVerified) persistAccessSnapshot(next);
         else if (["unauthenticated", "session_revoked", "account_disabled"].includes(next.authState)) clearAccountAccessSnapshot();
         commitState(next);

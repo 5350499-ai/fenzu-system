@@ -30,6 +30,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { PRODUCT_BRAND } from "@/lib/brand";
 import { backupReminderLabel, loadBackupReminderSettings, saveBackupReminderSettings, type BackupReminderFrequency, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { rentIncomeForPayment } from "@/lib/profit";
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY, normalizeCurrencyCode, type CurrencyCode } from "@/lib/currency";
 import { downloadFile } from "@/lib/download-adapter";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -61,10 +62,38 @@ export default function SettingsPage() {
   const [backupReminderSettings, setBackupReminderSettings] = useState<BackupReminderSettings>(() => loadBackupReminderSettings(""));
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(access.currencyCode || DEFAULT_CURRENCY);
+  const [currencySaving, setCurrencySaving] = useState(false);
 
   useEffect(() => {
     if (access.ready && access.userId) setBackupReminderSettings(loadBackupReminderSettings(access.userId));
   }, [access.ready, access.userId]);
+
+  useEffect(() => {
+    if (!access.ready || !access.authenticated) return;
+    setCurrencyCode(access.currencyCode || DEFAULT_CURRENCY);
+  }, [access.ready, access.authenticated, access.currencyCode]);
+
+  async function saveCurrency(next: CurrencyCode) {
+    setCurrencyCode(next);
+    if (!access.canSensitive("canManageSettings")) return;
+    setCurrencySaving(true);
+    try {
+      const response = await fetch("/api/workspace/currency", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currencyCode: next })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "保存货币失败");
+      await access.refresh();
+    } catch (error: any) {
+      setCurrencyCode(access.currencyCode || DEFAULT_CURRENCY);
+      window.alert(error.message || "保存货币失败，请稍后重试。");
+    } finally {
+      setCurrencySaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!access.ready) return;
@@ -215,7 +244,7 @@ export default function SettingsPage() {
       <section className="card panel">
         <h2 className="panel-title">基础设置</h2>
         <div className="settings-list">
-          <span>默认货币</span>
+          <label className="field"><span>工作区货币</span><select aria-label="工作区货币" disabled={!access.canSensitive("canManageSettings") || currencySaving} value={currencyCode} onChange={(event) => void saveCurrency(normalizeCurrencyCode(event.target.value))}>{CURRENCY_OPTIONS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
           <span>默认押金月数</span>
           <span>默认租金收款日</span>
         </div>

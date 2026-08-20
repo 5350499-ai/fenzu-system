@@ -30,6 +30,7 @@ import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
+import { formatCurrency } from "@/lib/currency";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -331,7 +332,7 @@ export default function CheckInPage() {
             <MoneyInput label="本次押金" value={form.depositAmount} onChange={(depositAmount) => setForm((current) => ({ ...current, depositAmount }))} />
           </div>
           <div className="form-grid-row check-in-row" data-layout-row="income">
-            <div className="field"><label>本次合计收入</label><input readOnly value={`€${(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /></div>
+            <div className="field"><label>本次合计收入</label><input readOnly value={formatCurrency(Number(form.amountPaid || 0) + (form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0))} /></div>
             <div className="field"><label>每月缴费日</label><input inputMode="numeric" max="31" min="1" placeholder="不设置可留空" type="number" value={form.paymentDay ?? ""} onChange={(event) => setForm((current) => ({ ...current, paymentDay: event.target.value === "" ? undefined : Number(event.target.value) }))} /></div>
           </div>
           <div className="form-grid-row check-in-row" data-layout-row="coverage">

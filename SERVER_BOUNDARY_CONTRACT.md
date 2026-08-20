@@ -30,6 +30,7 @@ There are 49 route files. Every route is listed here and is checked by
 | `/api/accounts/[id]/security` | ACCOUNT | write | account management / owner | HIGH_RISK |
 | `/api/accounts/[id]/share-login` | ACCOUNT | write | account management / owner | HIGH_RISK |
 | `/api/accounts/me` | ACCOUNT | read | account auth / account | ACTIVE_CANONICAL |
+| `/api/workspace/currency` | SETTINGS | read/write | workspace owner currency / sensitive settings permission | ACTIVE_CANONICAL |
 | `/api/admin/attachments/cleanup` | ADMIN/ATTACHMENT | write | cleanup service / sensitive permission | HIGH_RISK |
 | `/api/admin/attachments/cleanup-candidates` | ADMIN/ATTACHMENT | read | inventory service / sensitive permission | ACTIVE_CANONICAL |
 | `/api/admin/attachments/export` | ADMIN/ATTACHMENT | read | export service / sensitive permission | ACTIVE_CANONICAL |

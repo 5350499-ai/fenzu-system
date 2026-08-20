@@ -32,6 +32,7 @@ status.
 /api/accounts/[id]/security
 /api/accounts/[id]/share-login
 /api/accounts/me
+/api/workspace/currency
 /api/admin/attachments/cleanup
 /api/admin/attachments/cleanup-candidates
 /api/admin/attachments/export

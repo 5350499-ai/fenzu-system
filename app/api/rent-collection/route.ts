@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         remaining_amount: remaining,
         reason
       },
-      description: `放弃追缴欠租 ${body.rentPaymentId}，金额 €${remaining.toFixed(2)}${reason ? `，原因：${reason}` : ""}`,
+      description: `放弃追缴欠租 ${body.rentPaymentId}，金额数值 ${remaining.toFixed(2)}（显示货币由工作区设置决定）${reason ? `，原因：${reason}` : ""}`,
       logCategory: "business"
     });
     return NextResponse.json({ ok: true, rentPaymentId: body.rentPaymentId, status: "waived" });

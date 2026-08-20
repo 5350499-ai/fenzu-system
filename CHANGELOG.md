@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-20 - Workspace currency foundation
+
+- Added a workspace-owner currency setting with EUR default and EUR/USD/GBP/CNY/JPY support.
+- Routed user-visible amount formatting through one currency formatter; changing currency changes display only and never converts stored amounts.
+- Added Owner/Admin-gated settings persistence without coupling currency to interface language.
+
 ## 2026-08-19 - Personal Center mobile closeout
 
 - Kept `.account-center-scroll` as the only vertical scroll owner while compacting the mobile account and password surfaces.

@@ -1,12 +1,9 @@
 import type { RoomStatus } from "./types";
+// @ts-expect-error Node's strip-types test runner needs the explicit extension.
+import { formatCurrency } from "./currency.ts";
 
 export function euro(value: number) {
-  return new Intl.NumberFormat("zh-CN", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(Number(value || 0));
+  return formatCurrency(value);
 }
 
 export const roomStatusLabel: Record<RoomStatus, string> = {

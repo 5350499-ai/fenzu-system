@@ -2,6 +2,8 @@
 
 import { AppLayout } from "@/components/app-layout";
 import { supabase } from "@/lib/supabase";
+import { useAccountAccess } from "@/components/account-access";
+import { formatCurrency } from "@/lib/currency";
 import { useCallback, useEffect, useState } from "react";
 
 type AuditLog = {
@@ -18,6 +20,7 @@ type AuditLog = {
 };
 
 export default function AuditLogsPage() {
+  const access = useAccountAccess();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -71,10 +74,10 @@ export default function AuditLogsPage() {
           {logs.filter((log) => !action || actionLabel(log.action_type) === action).map((log) => (
             <article className="audit-row" key={log.id}>
               <button type="button" onClick={() => setExpanded(expanded === log.id ? null : log.id)}>
-                <span><strong>{businessDescription(log)}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "本人"}</small></span>
+                <span><strong>{businessDescription(log, access.currencyCode)}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "本人"}</small></span>
                 <span className={"badge " + (log.success ? "success" : "danger")}>{log.success ? "成功" : "失败"}</span>
               </button>
-              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{safeSummary(log) ? <p>{safeSummary(log)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
+              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{safeSummary(log, access.currencyCode) ? <p>{safeSummary(log, access.currencyCode)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
             </article>
           ))}
           {!logs.filter((log) => !action || actionLabel(log.action_type) === action).length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
@@ -95,19 +98,19 @@ function actionLabel(value: string) {
   if (value.includes("settlement")) return "结算";
   return "操作";
 }
-function businessDescription(log: AuditLog) {
+function businessDescription(log: AuditLog, currencyCode: Parameters<typeof formatCurrency>[1]) {
   const action = actionLabel(log.action_type);
   const module = moduleLabel(log.module_key);
-  const summary = safeSummary(log);
+  const summary = safeSummary(log, currencyCode);
   return summary ? `${action}${module} · ${summary}` : `${action}${module}`;
 }
-function safeSummary(log: AuditLog) {
+function safeSummary(log: AuditLog, currencyCode: Parameters<typeof formatCurrency>[1]) {
   const row = (log.after_data && typeof log.after_data === "object" ? log.after_data : log.before_data) as Record<string, unknown> | null;
   if (!row) return "";
   const text = [row.name, row.displayName, row.category, row.incomeItem].find((value) => typeof value === "string" && value.trim());
   if (text) return String(text).slice(0, 80);
   const amount = [row.amount, row.amountPaid, row.monthlyRent].find((value) => typeof value === "number" || (typeof value === "string" && value.trim()));
-  return amount === undefined ? "" : `€${Number(amount).toFixed(2)}`;
+  return amount === undefined ? "" : formatCurrency(Number(amount), currencyCode);
 }
 
 function formatTime(value: string) {

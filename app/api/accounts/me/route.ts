@@ -28,6 +28,8 @@ export async function GET(request: Request) {
         ? { ...base, canView: true, canCreate: true, canEdit: true, canArchive: true, canDelete: true }
         : { moduleKey: base.moduleKey, canView: Boolean(row?.can_view), canCreate: Boolean(row?.can_create), canEdit: Boolean(row?.can_edit), canArchive: Boolean(row?.can_archive), canDelete: Boolean(row?.can_delete) };
     });
+    const workspaceProfileResult = await admin.from("user_profiles").select("currency_code").eq("auth_user_id", context.profile.workspace_owner_id).maybeSingle();
+    const currencyCode = workspaceProfileResult.error?.code === "42703" ? "EUR" : (workspaceProfileResult.data?.currency_code || "EUR");
     return NextResponse.json({
       profile: {
         id: context.profile.auth_user_id,
@@ -40,6 +42,7 @@ export async function GET(request: Request) {
         propertyAccessMode: context.profile.property_access_mode,
         mustChangePassword: context.profile.must_change_password
       },
+      currencyCode,
       isOwner: context.profile.account_type === "owner",
       modulePermissions,
       sensitivePermissions: context.profile.account_type === "owner"
