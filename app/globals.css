@@ -10724,8 +10724,17 @@ textarea:-webkit-autofill:focus,
   object-fit: cover;
 }
 
+.account-center-name-row,
 .account-center-share-row {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-width: 0;
+}
+
+.account-center-name-row > span,
+.account-center-share-row > span {
+  min-width: 0;
 }
 
 .account-center-share-button {

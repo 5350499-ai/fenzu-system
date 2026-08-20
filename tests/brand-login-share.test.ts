@@ -32,5 +32,7 @@ test("Personal Center exposes the share action inside the existing responsive gr
   assert.match(component, /分享给朋友/);
   assert.match(component, /BEE_RENTAL_SHARE_URL/);
   assert.match(component, /account-center-name-share-grid/);
+  assert.match(css, /\.account-center-name-row,[\s\S]*\.account-center-share-row[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/);
+  assert.match(css, /\.account-center-name-row > span,[\s\S]*\.account-center-share-row > span[\s\S]*min-width: 0/);
   assert.match(css, /@media \(max-width: 359px\)[\s\S]*account-center-summary-item-grid/);
 });
