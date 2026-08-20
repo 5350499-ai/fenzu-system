@@ -4,6 +4,7 @@ import test from "node:test";
 
 const settings = readFileSync("app/settings/page.tsx", "utf8");
 const route = readFileSync("app/api/workspace/currency/route.ts", "utf8");
+const styles = readFileSync("app/globals.css", "utf8");
 
 test("currency save uses the authenticated Supabase access token", () => {
   assert.match(settings, /getValidSupabaseSession/);
@@ -40,4 +41,11 @@ test("currency save maps auth, permission, conflict and server failures separate
   assert.match(settings, /response\.status === 403/);
   assert.match(settings, /response\.status === 409/);
   assert.match(settings, /保存货币失败，请稍后重试/);
+});
+
+test("currency settings reuses the grouped settings row inset and control contract", () => {
+  assert.match(styles, /\.settings-list \.settings-currency-control[\s\S]*?padding: 10px 12px;/);
+  assert.match(styles, /\.settings-list \.settings-currency-row[\s\S]*?gap: var\(--ui-space-3, 12px\);/);
+  assert.match(styles, /\.settings-list \.settings-currency-row > select[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/);
+  assert.match(settings, /className="btn primary"/);
 });
