@@ -14,6 +14,7 @@ test("Auth pages use the frozen V8 brand asset through one shared brand componen
     assert.match(source, /AuthBrand/);
     assert.doesNotMatch(source, /Building2/);
   }
+  assert.match(read(`${root}/app/auth/confirmed/page.tsx`), /AuthBrand/);
 });
 
 test("Product sharing is canonical and cannot include private session context", () => {

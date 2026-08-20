@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { clearAccountAccessSnapshot } from "@/components/account-access";
 import { supabase } from "@/lib/supabase";
+import { AuthBrand } from "@/components/auth-brand";
 
 /**
  * Supabase's browser confirmation flow can briefly establish an implicit
@@ -46,5 +47,5 @@ export default function EmailConfirmedPage() {
     return () => { cancelled = true; };
   }, []);
 
-  return <main className="login-page"><section className="card login-card"><p className="muted">正在确认邮箱并返回登录页…</p></section></main>;
+  return <main className="login-page"><section className="card login-card"><AuthBrand subtitle="邮箱验证" /><p className="muted">正在确认邮箱并返回登录页…</p></section></main>;
 }
