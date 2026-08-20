@@ -12,4 +12,4 @@
 | Bee Honey Yellow | `#F8C141` | `248, 193, 65` | 蜜蜂身体主色 |
 | Window Edge Gold | `#E8AB2F` | `232, 171, 47` | 窗户边缘辅助色 |
 
-`bee-rental-icon-master.svg` 是标准图形源。`bee-rental-icon-maskable.svg` 只为系统 mask 留出额外安全区；`bee-rental-icon-favicon.svg` 是 16px/32px 的轻微光学校正版本。
+`bee-rental-icon-master.svg` 是已批准 V8 的唯一标准图形源。`bee-rental-icon-maskable.svg` 只为系统 mask 留出额外安全区；所有正式 raster（包括 favicon 尺寸）均从 V8 master 导出。

@@ -1,4 +1,4 @@
-const CACHE_NAME = "sublet-manager-v5";
+const CACHE_NAME = "sublet-manager-v6";
 const STATIC_ASSETS = ["/favicon.ico", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-1024.png", "/icons/icon-maskable-192.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"];
 const STATIC_PATHS = new Set(STATIC_ASSETS);
 

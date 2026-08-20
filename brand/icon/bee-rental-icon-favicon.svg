@@ -1,9 +1,68 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="蜜蜂分租小尺寸图标">
-  <defs><linearGradient id="background" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#06255F"/><stop offset="1" stop-color="#000615"/></linearGradient></defs>
-  <rect width="1024" height="1024" rx="218" fill="url(#background)"/>
-  <g fill="none" stroke="#FDFDFF" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"><path d="M164 457 490 172Q511 154 533 172L845 449"/><path d="M210 470V808Q210 849 251 849H407V735Q407 667 510 667Q613 667 613 735V849H699"/></g>
-  <g fill="#FDD261"><rect x="445" y="430" width="54" height="54" rx="9"/><rect x="524" y="430" width="54" height="54" rx="9"/><rect x="445" y="510" width="54" height="54" rx="9"/><rect x="524" y="510" width="54" height="54" rx="9"/></g>
-  <path d="M751 721c54-34 112-20 137 28-33 16-62 35-91 58-20-33-34-60-46-86ZM861 741c52-31 103-4 115 44-36 8-69 22-100 42-10-32-14-59-15-86Z" fill="#FDFDFF"/>
-  <ellipse cx="834" cy="856" rx="83" ry="92" transform="rotate(-24 834 856)" fill="#F8C141"/>
-  <path d="M751 840 907 772 925 815 768 883ZM765 911 922 843 940 886 783 954Z" fill="#000615"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="490" y1="36" x2="520" y2="1010" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#123F94"/>
+      <stop offset="0.48" stop-color="#06255F"/>
+      <stop offset="1" stop-color="#001644"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientTransform="translate(500 390) rotate(90) scale(630)">
+      <stop stop-color="#17499F" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#001644" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="white" x1="520" y1="80" x2="505" y2="930" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".56" stop-color="#FDFDFF"/>
+      <stop offset="1" stop-color="#E9F0FF"/>
+    </linearGradient>
+    <linearGradient id="window" x1="420" y1="410" x2="575" y2="585" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE58A"/>
+      <stop offset=".55" stop-color="#FDD261"/>
+      <stop offset="1" stop-color="#E8AB2F"/>
+    </linearGradient>
+    <linearGradient id="bee" x1="760" y1="730" x2="884" y2="985" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE17B"/>
+      <stop offset=".55" stop-color="#F8C141"/>
+      <stop offset="1" stop-color="#E9A82C"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="680" y1="625" x2="930" y2="765" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="1" stop-color="#DCE7FA" stop-opacity="1"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <clipPath id="bodyClip">
+      <path d="M805 731C862 723 910 752 930 804C949 862 935 926 900 965C880 987 839 996 803 986C761 975 729 945 714 901C700 855 710 801 738 760C754 742 780 733 805 731Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" rx="138" fill="url(#bg)"/>
+  <rect x="10" y="10" width="1004" height="1004" rx="130" fill="url(#bgGlow)"/>
+  <rect x="12" y="12" width="1000" height="1000" rx="130" stroke="#6E9FEA" stroke-opacity=".38" stroke-width="4"/>
+
+  <path d="M180 466C151 463 123 450 111 427C99 404 108 381 132 359L459 85C480 68 511 68 534 87L886 371C908 388 917 410 907 433C899 452 880 463 851 468" stroke="url(#white)" stroke-width="47" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 466V897C180 909 187 915 200 915H375C386 915 391 908 391 897V778C391 731 433 704 491 704C549 704 591 731 591 778V897C591 908 596 915 607 915H833C846 915 853 909 853 897V466" stroke="url(#white)" stroke-width="47" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g>
+    <rect x="411" y="409" width="76" height="76" rx="16" fill="#9B6B1B" fill-opacity=".26"/>
+    <rect x="411" y="405" width="76" height="76" rx="16" fill="url(#window)" stroke="#FFEAA7" stroke-opacity=".5" stroke-width="3"/>
+    <rect x="511" y="409" width="76" height="76" rx="16" fill="#9B6B1B" fill-opacity=".26"/>
+    <rect x="511" y="405" width="76" height="76" rx="16" fill="url(#window)" stroke="#FFEAA7" stroke-opacity=".5" stroke-width="3"/>
+    <rect x="411" y="507" width="76" height="76" rx="16" fill="#9B6B1B" fill-opacity=".26"/>
+    <rect x="411" y="503" width="76" height="76" rx="16" fill="url(#window)" stroke="#FFEAA7" stroke-opacity=".5" stroke-width="3"/>
+    <rect x="511" y="507" width="76" height="76" rx="16" fill="#9B6B1B" fill-opacity=".26"/>
+    <rect x="511" y="503" width="76" height="76" rx="16" fill="url(#window)" stroke="#FFEAA7" stroke-opacity=".5" stroke-width="3"/>
+  </g>
+
+  <g>
+    <path d="M780 760C750 785 711 790 680 765C650 741 646 704 658 672C671 640 707 625 741 635C775 645 810 675 815 708C818 735 796 756 780 760Z" fill="url(#wing)" stroke="#001644" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M845 760C829 730 829 693 842 663C858 632 890 620 921 631C953 642 969 671 964 705C959 739 940 765 906 782C885 790 852 780 835 760Z" fill="url(#wing)" stroke="#001644" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M805 731C862 723 910 752 930 804C949 862 935 926 900 965C880 987 839 996 803 986C761 975 729 945 714 901C700 855 710 801 738 760C754 742 780 733 805 731Z" fill="#00102F" fill-opacity=".18" transform="translate(0 5)"/>
+    <path d="M805 731C862 723 910 752 930 804C949 862 935 926 900 965C880 987 839 996 803 986C761 975 729 945 714 901C700 855 710 801 738 760C754 742 780 733 805 731Z" fill="url(#bee)" stroke="#001644" stroke-width="10"/>
+    <g clip-path="url(#bodyClip)" fill="#001644">
+      <path d="M700 837L960 735L972 758L714 862Z"/>
+      <path d="M704 917L976 815L988 838L716 946Z"/>
+    </g>
+    <path d="M805 731C862 723 910 752 930 804C949 862 935 926 900 965C880 987 839 996 803 986C761 975 729 945 714 901C700 855 710 801 738 760C754 742 780 733 805 731Z" stroke="#001644" stroke-width="10"/>
+  </g>
 </svg>

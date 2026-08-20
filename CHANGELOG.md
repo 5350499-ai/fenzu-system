@@ -1203,3 +1203,9 @@
 
 - Replaced the user-visible house-plus-euro icon family with the editable 蜜蜂分租 house-and-bee SVG master and derived browser, Apple and PWA assets, including dedicated maskable safe-area variants.
 - Updated metadata, manifest and Service Worker cache version/reference paths for the new icon family; no business, Auth, SMTP, database, permission or Production behavior changed.
+
+## 2026-08-20 - FEATURE-BEE-RENTAL-ICON-V8-FINAL-PRODUCTION-RELEASE
+
+- Froze the approved V8 house-and-bee SVG as the canonical `brand/icon` master.
+- Regenerated browser, Apple, PWA and maskable raster assets from that master and advanced the Service Worker icon cache version.
+- No business logic, Auth, SMTP, database, permission, scheduler or real-user data changed.
