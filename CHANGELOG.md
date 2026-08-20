@@ -1198,3 +1198,8 @@
 - Replaced the competing Account Center panel/backdrop scroll layers with one named internal scroll body while preserving the shared modal background lock, dynamic viewport and safe-area contract.
 - Disabled the generic card hover lift for Account Center so iOS touch gestures no longer appear as a false two-pixel bounce.
 - No password, Auth, SMTP, database, permission, business-data or Production behavior changed.
+
+## 2026-08-20 - FEATURE-BEE-RENTAL-FINAL-ICON-ASSET
+
+- Replaced the user-visible house-plus-euro icon family with the editable 蜜蜂分租 house-and-bee SVG master and derived browser, Apple and PWA assets, including dedicated maskable safe-area variants.
+- Updated metadata, manifest and Service Worker cache version/reference paths for the new icon family; no business, Auth, SMTP, database, permission or Production behavior changed.

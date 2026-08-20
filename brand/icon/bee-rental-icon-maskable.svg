@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">蜜蜂分租 Maskable 图标</title>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#06255F"/><stop offset="0.62" stop-color="#001644"/><stop offset="1" stop-color="#000615"/></linearGradient>
+    <linearGradient id="honey" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FDD261"/><stop offset="1" stop-color="#F8C141"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#background)"/>
+  <g transform="translate(102.4 102.4) scale(.8)">
+    <g fill="none" stroke="#FDFDFF" stroke-width="56" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M111 418 473 100Q511 67 549 100L893 406Q920 431 897 454Q876 475 850 455L823 433"/>
+      <path d="M168 442V854Q168 920 234 920H409V814Q409 688 510 688Q611 688 611 814V920H739"/>
+      <path d="M823 433V650"/>
+    </g>
+    <g fill="url(#honey)" stroke="#E8AB2F" stroke-width="3"><rect x="414" y="407" width="75" height="75" rx="13"/><rect x="511" y="407" width="75" height="75" rx="13"/><rect x="414" y="505" width="75" height="75" rx="13"/><rect x="511" y="505" width="75" height="75" rx="13"/></g>
+    <ellipse cx="715" cy="698" rx="66" ry="97" transform="rotate(-33 715 698)" fill="#FAFBFD"/>
+    <ellipse cx="904" cy="700" rx="62" ry="94" transform="rotate(34 904 700)" fill="#FAFBFD"/>
+    <clipPath id="beeBody"><ellipse cx="813" cy="876" rx="102" ry="119" transform="rotate(-24 813 876)"/></clipPath>
+    <ellipse cx="813" cy="876" rx="102" ry="119" transform="rotate(-24 813 876)" fill="url(#honey)"/>
+    <g clip-path="url(#beeBody)" fill="#000615"><path d="M690 847 924 745 944 789 710 891Z"/><path d="M692 925 926 823 946 867 712 969Z"/></g>
+  </g>
+</svg>

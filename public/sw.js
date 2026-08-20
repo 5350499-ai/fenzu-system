@@ -1,5 +1,5 @@
-const CACHE_NAME = "sublet-manager-v4";
-const STATIC_ASSETS = ["/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-1024.png", "/icons/apple-touch-icon.png"];
+const CACHE_NAME = "sublet-manager-v5";
+const STATIC_ASSETS = ["/favicon.ico", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-1024.png", "/icons/icon-maskable-192.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"];
 const STATIC_PATHS = new Set(STATIC_ASSETS);
 
 self.addEventListener("install", (event) => {
