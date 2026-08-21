@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20260821130000_move_out_permission_context.sql", "utf8");
+const grantHardeningMigration = readFileSync("supabase/migrations/20260821150000_move_out_grant_hardening.sql", "utf8");
 const route = readFileSync("app/api/tenants/move-out/route.ts", "utf8");
 const tenantPage = readFileSync("app/tenants/page.tsx", "utf8");
 const debtState = readFileSync("lib/rent-period-state.ts", "utf8");
@@ -42,4 +43,11 @@ test("client retains duplicate submission protection and canonical debt actions"
   assert.match(tenantPage, /primaryDebtCase\?\.canWaive/);
   assert.match(tenantPage, /debtCase\.canWaive/);
   assert.match(tenantPage, /api\/rent-collection/);
+});
+
+test("move-out grant hardening keeps only authenticated RPC execution", () => {
+  assert.match(grantHardeningMigration, /revoke all on function app_private\.enforce_business_update_permission\(\) from public, anon, authenticated, service_role/i);
+  assert.match(grantHardeningMigration, /revoke all on function public\.move_out_tenant_atomic\(uuid, text, date\) from public, anon, service_role/i);
+  assert.match(grantHardeningMigration, /grant execute on function public\.move_out_tenant_atomic\(uuid, text, date\) to authenticated/i);
+  assert.doesNotMatch(grantHardeningMigration, /update\s+|delete\s+from\s+|insert\s+into\s+/i);
 });
