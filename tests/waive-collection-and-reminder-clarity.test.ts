@@ -14,7 +14,7 @@ const remindersSource = readFileSync("app/reminders/page.tsx", "utf8");
 test("waive supports payment-backed and derived DebtCase identifiers", () => {
   assert.match(routeSource, /parseDerivedDebtId/);
   assert.match(routeSource, /getDebtCases\(/);
-  assert.match(routeSource, /eq\("user_id", context\.profile\.workspace_owner_id\)/);
+  assert.match(routeSource, /assertWorkspaceProperty\(admin, tenantRow\.property_id, context\.profile\.workspace_owner_id\)/);
   assert.match(routeSource, /debtCase\?\.isDerived/);
   assert.match(routeSource, /audit_logs/);
 });

@@ -54,13 +54,13 @@ export async function POST(request: Request) {
       const { data: tenantRow, error: tenantError } = await admin.from("tenants")
         .select("id,property_id,room_id,name,phone,wechat,source,monthly_rent,deposit_amount,occupant_count,payment_day,move_in_date,actual_move_out_date,status,notes")
         .eq("id", derivedTarget.tenantId)
-        .eq("user_id", context.profile.workspace_owner_id)
         .maybeSingle();
       if (tenantError || !tenantRow) throw new AccountApiError("对应租客不存在或无权访问。", 404);
+      await assertWorkspaceProperty(admin, tenantRow.property_id, context.profile.workspace_owner_id);
       const { data: paymentRows, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,rent_month,income_type,payment_status,payment_method,notes,created_at")
         .eq("tenant_id", derivedTarget.tenantId)
-        .eq("user_id", context.profile.workspace_owner_id);
+        .eq("property_id", tenantRow.property_id);
       if (paymentError) throw new AccountApiError("读取欠租周期失败，请稍后重试。", 500);
       propertyId = tenantRow.property_id;
       roomId = tenantRow.room_id;
@@ -90,9 +90,14 @@ export async function POST(request: Request) {
       const { data: payment, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,income_type,payment_status,notes")
         .eq("id", body.rentPaymentId)
-        .eq("user_id", context.profile.workspace_owner_id)
         .maybeSingle();
       if (paymentError || !payment) throw new AccountApiError("对应租金周期不存在或无权访问。", 404);
+      await assertWorkspaceProperty(admin, payment.property_id, context.profile.workspace_owner_id);
+      const { data: tenantRow, error: tenantError } = await admin.from("tenants")
+        .select("id,property_id")
+        .eq("id", payment.tenant_id)
+        .maybeSingle();
+      if (tenantError || !tenantRow || tenantRow.property_id !== payment.property_id) throw new AccountApiError("对应租客不存在或无权访问。", 404);
       propertyId = payment.property_id;
       roomId = payment.room_id;
       tenantId = payment.tenant_id;
@@ -144,4 +149,14 @@ export async function POST(request: Request) {
 function parseDerivedDebtId(value: string) {
   const match = /^derived_rent_debt:([^:]+):(\d{4}-\d{2}-\d{2})$/.exec(value);
   return match ? { tenantId: match[1], periodStart: match[2] } : null;
+}
+
+async function assertWorkspaceProperty(admin: ReturnType<typeof getSupabaseAdmin>, propertyId: string | null, workspaceOwnerId: string) {
+  if (!propertyId) throw new AccountApiError("对应房源不存在或无权访问。", 404);
+  const { data: property, error } = await admin.from("properties")
+    .select("id")
+    .eq("id", propertyId)
+    .eq("user_id", workspaceOwnerId)
+    .maybeSingle();
+  if (error || !property) throw new AccountApiError("对应租客不存在或无权访问。", 404);
 }
