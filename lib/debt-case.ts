@@ -181,6 +181,11 @@ function deriveExpiredCoverageDebtCases({
   property?: BusinessProperty;
   room?: BusinessRoom;
 }): DebtCase[] {
+  // Derived periods represent a new rent obligation, so they may only be
+  // created while the tenant is still in an active/current lifecycle. A
+  // moved-out or archived tenant can still have payment-backed historical
+  // debt; that path is handled above and must not be blocked here.
+  if (classifyLifecycle(tenant.status) !== "current") return [];
   if (!latestPayment || !isRentPaymentEligibleForDerivedDebt(latestPayment)) return [];
   const latestCoverageEnd = latestPayment.coverageEndDate || "";
   if (!latestCoverageEnd || latestCoverageEnd >= today) return [];
@@ -196,6 +201,7 @@ function deriveExpiredCoverageDebtCases({
   let periodStart = addDays(latestCoverageEnd, 1);
   let index = 0;
   while (periodStart <= today) {
+    if (tenant.actualMoveOutDate && periodStart > tenant.actualMoveOutDate) break;
     const periodEnd = addDays(addCalendarMonths(periodStart, 1), -1);
     const overlapsPersistedPayment = validPayments.some((payment) => payment.id !== latestPayment.id && periodsOverlap(payment.coverageStartDate || payment.coverageEndDate || "", payment.coverageEndDate || "", periodStart, periodEnd));
     const derivedId = `derived_rent_debt:${tenant.id}:${periodStart}`;

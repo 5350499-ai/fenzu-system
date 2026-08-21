@@ -81,3 +81,55 @@ test("expired zero-amount coverage creates an actionable zero debt case", () => 
   assert.equal(cases[0]?.remainingAmount, 0);
   assert.equal(cases[0]?.canWaive, true);
 });
+
+test("moved-out tenants do not receive new derived debt after coverage ends", () => {
+  const movedOutTenant = { ...tenant, status: "已退租", actualMoveOutDate: "2026-08-03" };
+  const cases = getDebtCases({
+    ...snapshot("2026-08-21"),
+    tenants: [movedOutTenant]
+  });
+  assert.equal(cases.length, 0);
+});
+
+test("coverage ending on move-out date does not derive the next period", () => {
+  const movedOutTenant = { ...tenant, status: "已退租", actualMoveOutDate: "2026-07-31" };
+  const cases = getDebtCases({
+    ...snapshot("2026-08-21"),
+    tenants: [movedOutTenant]
+  });
+  assert.equal(cases.length, 0);
+});
+
+test("moved-out status remains authoritative when move-out date is missing", () => {
+  const movedOutTenant = { ...tenant, status: "已退租", actualMoveOutDate: undefined };
+  const cases = getDebtCases({
+    ...snapshot("2026-08-21"),
+    tenants: [movedOutTenant]
+  });
+  assert.equal(cases.length, 0);
+});
+
+test("payment-backed historical debt remains after move-out", () => {
+  const movedOutTenant = { ...tenant, status: "已退租", actualMoveOutDate: "2026-08-21" };
+  const partial = priorPayment({ amountPaid: 100, amountUnpaid: 250, paymentStatus: "部分收款" });
+  const cases = getDebtCases({
+    ...snapshot("2026-08-21", [partial]),
+    tenants: [movedOutTenant]
+  });
+  assert.equal(cases.length, 1);
+  assert.equal(cases[0]?.isDerived, false);
+  assert.equal(cases[0]?.remainingAmount, 250);
+  assert.equal(cases[0]?.tenantLifecycle, "moved_out");
+});
+
+test("waived active period does not suppress a later new derived period", () => {
+  const base = snapshot("2026-09-21");
+  const firstPeriodId = `derived_rent_debt:${tenant.id}:2026-08-01`;
+  const cases = getDebtCases({
+    ...base,
+    waivedPaymentIds: new Set([firstPeriodId])
+  });
+  assert.equal(cases.length, 1);
+  assert.equal(cases[0]?.coverageStart, "2026-09-01");
+  assert.equal(cases[0]?.isDerived, true);
+});
