@@ -14,6 +14,12 @@ test("Auth pages use the frozen V8 brand asset through one shared brand componen
     assert.match(source, /AuthBrand/);
     assert.doesNotMatch(source, /Building2/);
   }
+
+  const loginPage = read(`${root}/app/login/page.tsx`);
+  const accountAccess = read(`${root}/components/account-access.tsx`);
+  assert.match(loginPage, /withTimeout\(/);
+  assert.match(loginPage, /refreshWithAccessToken\(payload\.accessToken\)/);
+  assert.match(accountAccess, /refreshWithAccessToken/);
   assert.match(read(`${root}/app/auth/confirmed/page.tsx`), /AuthBrand/);
 });
 

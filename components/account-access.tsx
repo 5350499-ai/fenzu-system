@@ -36,6 +36,7 @@ type AccountAccessValue = AccountAccessState & {
   canSensitive: (key: SensitivePermissionKey) => boolean;
   canAccessProperty: (propertyId?: string | null) => boolean;
   refresh: () => Promise<AccountAccessState>;
+  refreshWithAccessToken: (accessToken: string) => Promise<AccountAccessState>;
 };
 
 type AccountApiPayload = {
@@ -270,7 +271,8 @@ const defaultValue: AccountAccessValue = {
   can: () => false,
   canSensitive: () => false,
   canAccessProperty: () => false,
-  refresh: async () => ({ ...emptyState(), ready: true, authState: "unauthenticated" })
+  refresh: async () => ({ ...emptyState(), ready: true, authState: "unauthenticated" }),
+  refreshWithAccessToken: async () => ({ ...emptyState(), ready: true, authState: "unauthenticated" })
 };
 
 let latestAccessState: AccountAccessState | null = null;
@@ -303,12 +305,12 @@ function isExplicitlyRevoked(payload: AccountApiPayload) {
   return typeof payload.error === "string" && payload.error.includes("撤销");
 }
 
-async function resolveAccessState(): Promise<AccountAccessState> {
+async function resolveAccessState(accessToken?: string): Promise<AccountAccessState> {
   if (!isSupabaseConfigured || !supabase) {
     return { ...emptyState(), ready: true, authState: "network_error", invalidReason: "系统尚未配置 Supabase 登录服务。" };
   }
 
-  let session = await getValidSupabaseSession();
+  let session = accessToken ? { access_token: accessToken } as Awaited<ReturnType<typeof getValidSupabaseSession>> : await getValidSupabaseSession();
   if (!session) return { ...emptyState(), ready: true, authState: "unauthenticated" };
 
   let { response, payload } = await fetchCurrentAccount(session.access_token);
@@ -464,6 +466,29 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     return tracked;
   }, [commitState]);
 
+  const refreshWithAccessToken = useCallback((accessToken: string): Promise<AccountAccessState> => {
+    if (!accessToken) return Promise.resolve({ ...emptyState(), ready: true, authState: "unauthenticated" });
+    const run = (async () => {
+      commitState({ ...stateRef.current, ready: false, isRefreshing: false, invalidReason: "" });
+      try {
+        const next = await resolveAccessState(accessToken);
+        bootstrappedRef.current = true;
+        latestAccessState = next;
+        setActiveCurrency(next.currencyCode || DEFAULT_CURRENCY);
+        if (next.authenticated && next.isServerVerified) persistAccessSnapshot(next);
+        else if (["unauthenticated", "session_revoked", "account_disabled"].includes(next.authState)) clearAccountAccessSnapshot();
+        commitState(next);
+        return next;
+      } catch {
+        const next = { ...emptyState(), ready: true, authState: "network_error" as const, invalidReason: "账户状态验证失败，请重试。" };
+        latestAccessState = next;
+        commitState(next);
+        return next;
+      }
+    })();
+    return run;
+  }, [commitState]);
+
   useEffect(() => {
     mountedRef.current = true;
     refresh(Boolean(latestAccessState?.ready)).catch(() => undefined);
@@ -532,8 +557,9 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     },
     canSensitive: (key) => state.isOwner || Boolean(normalizeSensitivePermissions(state.sensitivePermissions)[key]),
     canAccessProperty: (propertyId) => state.isOwner || state.propertyAccessMode === "all" || !propertyId || normalizePropertyIds(state.propertyIds).includes(propertyId),
-    refresh: () => refresh(true)
-  }), [refresh, state]);
+    refresh: () => refresh(true),
+    refreshWithAccessToken
+  }), [refresh, refreshWithAccessToken, state]);
 
   return <AccountAccessContext.Provider value={value}>{children}</AccountAccessContext.Provider>;
 }

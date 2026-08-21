@@ -7,6 +7,19 @@ import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 import { AuthBrand } from "@/components/auth-brand";
 
+function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then((value) => {
+      window.clearTimeout(timer);
+      resolve(value);
+    }, (error) => {
+      window.clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const access = useAccountAccess();
@@ -75,12 +88,15 @@ export default function LoginPage() {
         return;
       }
       clearAccountAccessSnapshot();
-      const session = await establishSupabaseSession({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+      const session = await withTimeout(
+        establishSupabaseSession({ accessToken: payload.accessToken, refreshToken: payload.refreshToken }),
+        "登录会话创建超时，请重试。"
+      );
       if (!session) {
         setError("登录会话创建失败，请重试。");
         return;
       }
-      const verified = await access.refresh();
+      const verified = await withTimeout(access.refreshWithAccessToken(payload.accessToken), "账户状态验证超时，请重试。");
       if (!verified.authenticated || !verified.isServerVerified) {
         setError(verified.invalidReason || "登录状态验证失败，请重新登录。");
         return;
