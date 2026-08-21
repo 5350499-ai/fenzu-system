@@ -3,6 +3,14 @@ import { StatusBadge } from "@/components/status-badge";
 import type { ReminderItem } from "@/lib/reminder-engine";
 import { buildReminderDisplayModel, type ReminderDisplayContext } from "@/lib/reminder-display";
 
+function ReminderSecondaryLine({ display }: { display: ReturnType<typeof buildReminderDisplayModel> }) {
+  if (!display.secondaryReason) return <small className="reminder-row-secondary">{display.secondaryLine}</small>;
+  const { before, emphasis, after, tone } = display.secondaryReason;
+  return <small className="reminder-row-secondary">
+    {before}<span className={`reminder-rent-status ${tone}`}>{emphasis}</span>{after}
+  </small>;
+}
+
 export function ReminderRow({ item, context, variant = "full", onWaive }: { item: ReminderItem; context: ReminderDisplayContext; variant?: "compact" | "full"; onWaive?: (item: ReminderItem) => void }) {
   const display = buildReminderDisplayModel(item, context);
   if (display.vacantRoom) {
@@ -25,7 +33,7 @@ export function ReminderRow({ item, context, variant = "full", onWaive }: { item
         {display.debtKindLabel ? <StatusBadge tone="red">{display.debtKindLabel}</StatusBadge> : null}
       </span>
     </span>
-    <small className="reminder-row-secondary">{display.secondaryLine}</small>
+    <ReminderSecondaryLine display={display} />
   </>;
   const body = <>
     {variant === "full" && display.debtCase && (display.debtCase.canCollect || display.debtCase.canWaive)

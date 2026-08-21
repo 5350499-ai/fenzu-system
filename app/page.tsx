@@ -210,7 +210,7 @@ export default function DashboardPage() {
   const upcomingAppointments = pendingAppointments.slice(0, 3);
 
   return (
-    <AppLayout title={PRODUCT_BRAND} description="首页保留核心经营数据和常用入口，详细分析进入独立页面查看。">
+    <AppLayout title={PRODUCT_BRAND} description="房源、租客、收支与待办，一目了然。">
       {dataStatus !== "ready" ? (
         <section className="card panel">
           <p className={dataStatus === "error" ? "danger-text" : "muted"}>

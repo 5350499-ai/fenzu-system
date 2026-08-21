@@ -14,6 +14,15 @@ export type ReminderDisplayContext = {
   tenants: readonly BusinessTenant[];
 };
 
+export type ReminderUrgencyTone = "green" | "yellow" | "orange" | "danger";
+
+export type ReminderSecondaryReason = {
+  before: string;
+  emphasis: string;
+  after: string;
+  tone: ReminderUrgencyTone;
+};
+
 export type ReminderDisplayModel = {
   categoryLabel: string;
   tenantName: string;
@@ -22,6 +31,7 @@ export type ReminderDisplayModel = {
   lifecycleTone?: "green" | "amber";
   debtKindLabel?: string;
   secondaryLine: string;
+  secondaryReason?: ReminderSecondaryReason;
   amountLabel?: string;
   debtCase?: DebtCase;
   vacantRoom?: {
@@ -34,6 +44,7 @@ export type ReminderDisplayModel = {
 export function buildReminderDisplayModel(item: ReminderItem, context: ReminderDisplayContext): ReminderDisplayModel {
   if (item.debtCase) {
     const debt = buildDebtDisplayModel(item.debtCase);
+    const secondaryPrefix = `覆盖至 ${item.debtCase.coverageEnd || "-"} | 已逾期 `;
     return {
       categoryLabel: item.category,
       tenantName: debt.tenantName,
@@ -42,6 +53,7 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
       lifecycleTone: debt.lifecycleTone === "green" ? "green" : "amber",
       debtKindLabel: debt.debtKindLabel,
       secondaryLine: debt.secondaryLine,
+      secondaryReason: { before: secondaryPrefix, emphasis: `${item.debtCase.daysOverdue} 天`, after: ` | ${debt.amountLabel}`, tone: "danger" },
       amountLabel: debt.amountLabel,
       debtCase: item.debtCase
     };
@@ -53,6 +65,14 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
     const room = context.rooms.find((candidate) => candidate.id === item.roomId);
     const daysRemaining = item.daysRemaining ?? null;
     const status = daysRemaining === 0 ? "今日到期" : daysRemaining != null ? `剩余 ${daysRemaining} 天` : "";
+    const secondaryReason = daysRemaining != null
+      ? {
+          before: `覆盖至 ${item.dueDate || "-"} | ${daysRemaining === 0 ? "" : "剩余 "}`,
+          emphasis: daysRemaining === 0 ? "今日到期" : `${daysRemaining} 天`,
+          after: item.amount != null ? ` | ${euro(item.amount)}` : "",
+          tone: rentUrgencyTone(daysRemaining)
+        }
+      : undefined;
     return {
       categoryLabel: item.category,
       tenantName: tenant?.name || item.title,
@@ -60,6 +80,7 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
       lifecycleLabel: isEndedTenantStatus(tenant?.status || "") ? "已退租" : "在租",
       lifecycleTone: isEndedTenantStatus(tenant?.status || "") ? "amber" : "green",
       secondaryLine: [`覆盖至 ${item.dueDate || "-"}`, status, item.amount != null ? euro(item.amount) : ""].filter(Boolean).join(" | "),
+      secondaryReason,
       amountLabel: item.amount != null ? euro(item.amount) : undefined
     };
   }
@@ -86,4 +107,12 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
     contextLine: item.description,
     secondaryLine: item.description
   };
+}
+
+/** Reuses the established coverage urgency scale from BUSINESS_RULES and the tenant-list coverage renderer. */
+function rentUrgencyTone(daysRemaining: number): ReminderUrgencyTone {
+  if (daysRemaining <= 0) return "danger";
+  if (daysRemaining <= 15) return "orange";
+  if (daysRemaining <= 30) return "yellow";
+  return "green";
 }
