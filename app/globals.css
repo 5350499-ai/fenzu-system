@@ -3250,7 +3250,6 @@ td:last-child {
   .reminder-page-surface {
     touch-action: pan-y;
     overscroll-behavior-y: auto;
-    padding-bottom: var(--ui-bottom-nav-clearance);
   }
 }
 
@@ -5892,6 +5891,9 @@ td:last-child {
   }
   .app-shell {
     display: block;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
   .sidebar {
@@ -5899,6 +5901,13 @@ td:last-child {
   }
 
   .main {
+    height: 100dvh;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+    scroll-padding-block-end: var(--ui-bottom-nav-clearance);
     padding: 18px var(--ui-page-padding-inline-mobile) var(--ui-bottom-nav-clearance);
   }
 
@@ -6768,6 +6777,21 @@ td:last-child {
   white-space: nowrap;
 }
 
+.unified-monthly-label,
+.unified-monthly-amount {
+  min-width: 0;
+}
+
+.unified-monthly-label {
+  white-space: nowrap;
+}
+
+.unified-monthly-amount {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
 .unified-monthly-head,
 .unified-monthly-income,
 .unified-monthly-expense,
@@ -7225,14 +7249,15 @@ td:last-child {
 
   .unified-monthly-metric {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
     align-items: baseline;
   }
 
   .unified-monthly-metric b {
-    overflow-wrap: anywhere;
-    text-align: right;
-    white-space: normal;
+    overflow: visible;
+    text-align: left;
+    white-space: nowrap;
   }
 }
 /* Dynamic partner management */

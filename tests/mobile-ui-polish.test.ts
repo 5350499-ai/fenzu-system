@@ -7,12 +7,20 @@ const reminders = readFileSync("app/reminders/page.tsx", "utf8");
 
 test("reminder center keeps the document scrollable above the mobile navigation", () => {
   assert.match(reminders, /className="card panel reminder-page-surface"/);
+  assert.match(reminders, /reminders\.map\(\(item\)/);
+  assert.match(css, /\.app-shell\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?overflow:\s*hidden/);
+  assert.match(css, /\.main\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?overflow-y:\s*auto[\s\S]*?-webkit-overflow-scrolling:\s*touch/);
   assert.match(css, /\.reminder-page-surface\s*\{[\s\S]*?overflow:\s*visible/);
-  assert.match(css, /\.reminder-page-surface\s*\{[\s\S]*?touch-action:\s*pan-y[\s\S]*?padding-bottom:\s*var\(--ui-bottom-nav-clearance\)/);
+  assert.match(css, /\.reminder-page-surface\s*\{[\s\S]*?touch-action:\s*pan-y/);
 });
 
-test("monthly profit amounts may wrap instead of truncating on narrow screens", () => {
-  assert.match(css, /\.unified-monthly-metric b\s*\{[\s\S]*?overflow-wrap:\s*anywhere[\s\S]*?white-space:\s*normal/);
+test("monthly profit labels and amounts remain separate non-breaking blocks", () => {
+  const profits = readFileSync("app/property-profits/page.tsx", "utf8");
+  assert.match(profits, /unified-monthly-label/);
+  assert.match(profits, /unified-monthly-amount/);
+  assert.match(css, /\.unified-monthly-label\s*\{[\s\S]*?white-space:\s*nowrap/);
+  assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
+  assert.match(css, /\.unified-monthly-metric\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
 
 test("tenant detail fields use a shared mobile label/value track", () => {
