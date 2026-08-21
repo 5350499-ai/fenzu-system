@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,rent_month,income_type,payment_status,payment_method,notes,created_at")
         .eq("tenant_id", derivedTarget.tenantId);
       if (tenantError || !tenantRow) {
-        logWaiveDiagnostic("TENANT_NOT_FOUND", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: false, tenantQueryError: Boolean(tenantError) });
+        logWaiveDiagnostic("TENANT_NOT_FOUND", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: false, tenantQueryError: Boolean(tenantError), tenantIdHint: redactDiagnosticId(derivedTarget.tenantId), tenantQueryCode: safeDatabaseErrorCode(tenantError), tenantQueryStatus: safeDatabaseErrorStatus(tenantError) });
         throw new AccountApiError("对应租客不存在或无权访问。", 404, "TENANT_NOT_FOUND");
       }
       if (paymentError) {
@@ -218,4 +218,20 @@ async function resolveHistoricalPropertyId(admin: ReturnType<typeof getSupabaseA
 
 function logWaiveDiagnostic(stage: string, fields: Record<string, unknown>) {
   console.warn("[rent-collection] waive_resolver", { stage, ...fields });
+}
+
+function redactDiagnosticId(value: string) {
+  return value.length <= 8 ? "redacted" : `${value.slice(0, 4)}…${value.slice(-4)}`;
+}
+
+function safeDatabaseErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && code.length <= 32 ? code : null;
+}
+
+function safeDatabaseErrorStatus(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : null;
 }
