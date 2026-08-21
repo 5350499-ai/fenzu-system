@@ -68,3 +68,16 @@ test("waiver identity is stable and excludes the derived case", () => {
   const waived = getDebtCases({ ...snapshot("2026-08-21"), waivedPaymentIds: new Set([debt.paymentId]) });
   assert.equal(waived.length, 0);
 });
+
+test("expired zero-amount coverage creates an actionable zero debt case", () => {
+  const zeroRentTenant = { ...tenant, monthlyRent: 0 };
+  const zeroRentPayment = priorPayment({ amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
+  const cases = getDebtCases({
+    ...snapshot("2026-08-21", [zeroRentPayment]),
+    tenants: [zeroRentTenant]
+  });
+  assert.equal(cases.length, 1);
+  assert.equal(cases[0]?.isDerived, true);
+  assert.equal(cases[0]?.remainingAmount, 0);
+  assert.equal(cases[0]?.canWaive, true);
+});

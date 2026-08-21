@@ -29,6 +29,26 @@ export function validateReminderEntityConsistency(
       issues.push(issue(reminder, "missing-payment", "Rent reminder is missing paymentId."));
       continue;
     }
+    const derivedMatch = /^derived_rent_debt:([^:]+):(\d{4}-\d{2}-\d{2})$/.exec(paymentId);
+    if (derivedMatch) {
+      const tenant = tenantsById.get(derivedMatch[1]);
+      if (!tenant) {
+        issues.push(issue(reminder, "unknown-tenant", `Derived debt ${paymentId} references a missing tenant.`));
+        continue;
+      }
+      if (reminder.tenantId !== tenant.id || reminder.propertyId !== tenant.propertyId || reminder.roomId !== tenant.roomId) {
+        issues.push(issue(reminder, "derived-entity-mismatch", `Derived debt ${paymentId} must preserve the tenant's current subject context.`));
+      }
+      if (reminder.debtCase?.tenantName !== tenant.name) {
+        issues.push(issue(reminder, "display-name-mismatch", `Derived debt ${paymentId} display name must come from its tenant.`));
+      }
+      if (reminder.navigationTarget.kind !== "tenant"
+        || reminder.navigationTarget.tenantId !== tenant.id
+        || reminder.navigationTarget.href !== tenantDebtHref(tenant.id, paymentId)) {
+        issues.push(issue(reminder, "tenant-navigation-mismatch", `Derived debt ${paymentId} navigation must target its tenant.`));
+      }
+      continue;
+    }
     const payment = paymentsById.get(paymentId);
     if (!payment) {
       issues.push(issue(reminder, "unknown-payment", `Payment ${paymentId} is not present in the reminder snapshot.`));

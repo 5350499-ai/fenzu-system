@@ -39,9 +39,12 @@ test("Reminder Engine applies archive, move-out and waiver policy without changi
   assert.equal(buildEffectiveReminders(snapshot({ tenants: [tenant("已退租")] })).some((entry) => entry.type === "rent_debt"), true);
   assert.equal(buildEffectiveReminders(snapshot({ waivedPaymentIds: new Set([open.id]) })).some((entry) => entry.type === "rent_debt"), false);
   const zero = payment({ id: "payment-zero", amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
-  const zeroItem = buildEffectiveReminders(snapshot({ rentPayments: [zero] })).find((entry) => entry.id === "rent_debt:payment-zero");
-  assert.equal(zeroItem, undefined);
-  assert.equal(buildEffectiveReminders(snapshot({ rentPayments: [zero], waivedPaymentIds: new Set([zero.id]) })).some((entry) => entry.id === "rent_debt:payment-zero"), false);
+  const zeroTenant = { ...tenant(), monthlyRent: 0 };
+  const zeroItem = buildEffectiveReminders(snapshot({ tenants: [zeroTenant], rentPayments: [zero] })).find((entry) => entry.type === "rent_debt");
+  assert.equal(zeroItem?.id, "derived_rent_debt:tenant-1:2026-08-02");
+  assert.equal(zeroItem?.amount, 0);
+  assert.equal(zeroItem?.availableActions.includes("waive"), true);
+  assert.equal(buildEffectiveReminders(snapshot({ tenants: [zeroTenant], rentPayments: [zero], waivedPaymentIds: new Set(["derived_rent_debt:tenant-1:2026-08-02"]) })).some((entry) => entry.type === "rent_debt"), false);
 });
 
 test("payment-specific waiver never suppresses a different rent period", () => {
@@ -94,4 +97,13 @@ test("summary, sorting and deduplication are collection-level and surface-indepe
   assert.equal(new Set(items.map((item) => item.id)).size, items.length);
   assert.equal(items[0]?.type, "rent_debt");
   assert.equal(items.filter((item) => item.surfaces.includes("dashboard")).length, items.filter((item) => item.surfaces.includes("reminder_center")).length);
+});
+
+test("zero-amount debt counts as a tenant reminder without changing the amount", () => {
+  const zero = payment({ id: "payment-zero", amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
+  const items = buildEffectiveReminders(snapshot({ tenants: [{ ...tenant(), monthlyRent: 0 }], rentPayments: [zero] }));
+  const summary = summarizeEffectiveReminders(items);
+  assert.equal(summary.debtCount, 1);
+  assert.equal(summary.debtTenantCount, 1);
+  assert.equal(summary.headline, "欠费€0.00 · 1人");
 });

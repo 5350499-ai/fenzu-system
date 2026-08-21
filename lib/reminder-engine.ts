@@ -235,7 +235,7 @@ export function summarizeEffectiveReminders(reminders: ReminderItem[]): Reminder
   const movingOutCount = count("moving_out_room");
   const vacantRoomCount = count("vacant_room");
   const backupCount = count("backup");
-  const headline = debtCount ? `${debtAmount > 0 ? `欠费${euro(debtAmount)}` : "欠费"} · ${debtTenantCount}人` : "暂无欠费";
+  const headline = debtCount ? `欠费${euro(debtAmount)} · ${debtTenantCount}人` : "暂无欠费";
   const parts: string[] = [];
   if (rentCollectionCount) parts.push(`待收租 ${rentCollectionCount}`);
   if (contractCount) parts.push(`合同到期 ${contractCount}`);

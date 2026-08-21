@@ -62,7 +62,7 @@ import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
 import { DebtRow } from "@/components/debt-row";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
-import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow, Toast } from "@/components/ui";
 import { Archive, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -146,6 +146,7 @@ export default function TenantsPage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [waivingDebtPaymentId, setWaivingDebtPaymentId] = useState("");
+  const [waiveNotice, setWaiveNotice] = useState("");
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [ownershipMode, setOwnershipMode] = useState<string>("");
@@ -407,6 +408,7 @@ export default function TenantsPage() {
       }
       setWaivedPaymentIds((current) => new Set([...current, debtCase.paymentId]));
       setDebtFocusPaymentId("");
+      setWaiveNotice("已放弃追缴，欠租提醒已关闭，历史记录已保留。");
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "放弃追缴失败。");
     } finally {
@@ -1086,6 +1088,8 @@ export default function TenantsPage() {
 
         <PaginationControls page={page} pageSize={pageSize} total={filteredTenants.length} onPageChange={(nextPage) => { setFocusedTenantId(""); setPage(nextPage); }} onPageSizeChange={(size) => { setFocusedTenantId(""); setPageSize(size); setPage(1); }} />
       </section>
+
+      <Toast message={waiveNotice} tone="success" />
 
       {open ? (
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>

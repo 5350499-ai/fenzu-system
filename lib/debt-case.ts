@@ -8,7 +8,7 @@ import { isEndedTenantStatus } from "./tenant-sorting.ts";
 // @ts-expect-error Node's strip-types test runner imports TypeScript directly.
 import { tenantDebtHref } from "./reminder-navigation.ts";
 
-/** A payment-specific, currently actionable rent-debt fact. */
+/** A currently actionable rent-debt fact, backed by a payment row or a derived period. */
 export type DebtCase = {
   debtCaseId: string;
   paymentId: string;
@@ -188,8 +188,8 @@ function deriveExpiredCoverageDebtCases({
   // has a positive balance. Never create a second case for that same period.
   if (rentPeriodRemainingAmount(latestPayment) > 0) return [];
 
-  const expectedRent = positiveMoney(latestPayment.amountDue) || positiveMoney(tenant.monthlyRent);
-  if (expectedRent <= 0) return [];
+  const expectedRent = expectedRentForDerivedDebt(latestPayment, tenant);
+  if (expectedRent === null) return [];
 
   const validPayments = payments.filter((payment) => isRentPaymentEligibleForDerivedDebt(payment));
   const derived: DebtCase[] = [];
@@ -248,6 +248,13 @@ function isRentPaymentEligibleForDerivedDebt(payment: BusinessRentPayment) {
 function positiveMoney(value: unknown) {
   const amount = Number(value || 0);
   return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : 0;
+}
+
+function expectedRentForDerivedDebt(payment: BusinessRentPayment, tenant: BusinessTenant) {
+  const amountDue = Number(payment.amountDue ?? 0);
+  const monthlyRent = Number(tenant.monthlyRent ?? 0);
+  if (!Number.isFinite(amountDue) || !Number.isFinite(monthlyRent) || amountDue < 0 || monthlyRent < 0) return null;
+  return positiveMoney(amountDue) || positiveMoney(monthlyRent);
 }
 
 function addDays(value: string, days: number) {

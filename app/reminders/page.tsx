@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
+import { Toast } from "@/components/ui";
 import { ReminderRow as SharedReminderRow } from "@/components/reminder-row";
 import {
   BusinessContract,
@@ -48,6 +49,7 @@ export default function RemindersPage() {
   const [waiveTarget, setWaiveTarget] = useState<Reminder | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
   const [waiving, setWaiving] = useState(false);
+  const [waiveNotice, setWaiveNotice] = useState("");
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -122,6 +124,7 @@ export default function RemindersPage() {
       }
       setWaiveTarget(null);
       setWaiveReason("");
+      setWaiveNotice("已放弃追缴，欠租提醒已关闭，历史记录已保留。");
     } catch (error: any) {
       window.alert(error.message || "放弃追缴失败。");
     } finally {
@@ -166,6 +169,7 @@ export default function RemindersPage() {
           <div className="modal-actions"><button className="btn" disabled={waiving} type="button" onClick={() => setWaiveTarget(null)}>取消</button><button className="btn warning" disabled={waiving} type="button" onClick={() => void waiveReminder()}>{waiving ? "处理中…" : "确认放弃追缴"}</button></div>
         </section>
       </div> : null}
+      <Toast message={waiveNotice} tone="success" />
     </AppLayout>
   );
 }

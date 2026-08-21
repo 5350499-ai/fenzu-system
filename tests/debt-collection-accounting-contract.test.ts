@@ -56,3 +56,10 @@ test("expired coverage with no recorded next payment derives a receivable from m
   assert.equal(debt?.remainingAmount, 500);
   assert.equal(debt?.amountPaid, 0);
 });
+
+test("zero-amount DebtCase changes reminder count but not financial totals", () => {
+  const zero = payment({ amountDue: 0, amountPaid: 0, amountUnpaid: 0, coverageStartDate: "2026-07-01", coverageEndDate: "2026-07-31" });
+  const [debt] = getDebtCases({ ...snapshot(zero), tenants: [{ ...tenant, monthlyRent: 0 }] });
+  assert.equal(debt?.remainingAmount, 0);
+  assert.equal(debt?.amountPaid, 0);
+});

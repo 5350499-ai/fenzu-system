@@ -28,7 +28,7 @@
 - 欠费事实以租金覆盖结束日期、当前有效租金流水、已收金额和 payment-specific waiver 为准；历史事实与提醒展示必须分离。
 - 已退租或已归档不会改写历史欠费、应收、实收或剩余金额。归档只静默日常提醒；退租本身不静默未处理欠费提醒。
 - 放弃追缴只关闭对应 payment/rent period 的当前追缴与提醒，不修改原始收款，也不生成收入或支出；登记补交是独立的真实收款动作。
-- “放弃追缴”仅适用于 `outstanding_amount > 0` 且仍处于追缴中的应收记录；零余额逾期覆盖事件不构成可放弃债务。实际收入只取收款流水的 `amount_paid`，实际支出只取支出流水；未收应收不进入收入或现金口径利润，已放弃应收不进入应收未收汇总，也不生成支出。
+- 逾期覆盖期在无新有效覆盖、未被放弃时仍形成一个 DebtCase；其金额可以为 `0`，表示需要处理但没有可确认的正数待收金额。零金额 DebtCase 计入欠租人数和提醒数量，金额汇总增加 `0`，并允许放弃追缴。实际收入只取收款流水的 `amount_paid`，实际支出只取支出流水；未收应收不进入收入或现金口径利润，已放弃应收不进入应收未收汇总，也不生成支出。
 
 ## 4. 收款规则
 
@@ -122,9 +122,11 @@ superseded without a separate product decision.
 - `coverageEnd` is inclusive: coverage ending on `businessToday` is due today,
   not overdue. Overdue begins on the following Madrid business day.
 - A valid expired coverage period with no next payment row derives a positive
-  receivable from `payment.amountDue` when available, otherwise
-  `tenant.monthlyRent`. The derived DebtCase starts on the day after
-  `coverageEnd`; it creates no payment row and has zero actual paid amount.
+  or zero-amount DebtCase from `payment.amountDue` when available, otherwise
+  `tenant.monthlyRent`. A zero amount is still an actionable processing event,
+  not a claim that the tenant is free or that no reminder is needed. The
+  derived DebtCase starts on the day after `coverageEnd`; it creates no payment
+  row and has zero actual paid amount.
 - Existing payment-backed periods always win for their covered interval, so a
   partial payment is never double-counted. Multiple missing monthly periods
   produce one stable derived case per period. `tenants.payment_day` is stored

@@ -70,12 +70,20 @@ test("payment-day timing can be overdue without becoming a debt case", () => {
   assert.equal(state.hasOpenDebtFollowUp, false);
 });
 
-test("overdue without debt is not waivable, while positive debt is collecting and waivable", () => {
+test("zero-amount expired coverage is an actionable debt case", () => {
   const zero = payment({ amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const zeroState = getRentPeriodState({ tenant: tenant(), payment: zero, today: "2026-08-21" });
   assert.equal(zeroState.isExpired, true);
   assert.equal(zeroState.remainingAmount, 0);
   assert.equal(zeroState.canWaive, false);
+  const zeroDebtTenant = { ...tenant(), monthlyRent: 0 };
+  const zeroDebtCases = getDebtCases({
+    properties: [{ id: "property-model", name: "模型房源", address: "", city: "" }],
+    rooms: [{ id: "room-model", propertyId: "property-model", name: "01", roomNumber: "01", monthlyRent: 0, depositAmount: 0, status: "已租" }],
+    tenants: [zeroDebtTenant], rentPayments: [zero], today: "2026-08-21"
+  });
+  assert.equal(zeroDebtCases[0]?.remainingAmount, 0);
+  assert.equal(zeroDebtCases[0]?.canWaive, true);
   const positiveState = getRentPeriodState({ tenant: tenant(), payment: payment(), today: "2026-08-21" });
   assert.equal(positiveState.hasOpenDebtFollowUp, true);
   assert.equal(positiveState.canWaive, true);

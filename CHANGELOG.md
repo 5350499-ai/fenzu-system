@@ -1227,3 +1227,9 @@
 - 收入继续统一取收款流水 `amountPaid`，支出继续取支出流水；首页/房源利润应收汇总改为复用 `DebtCase` 的正未收余额，放弃追缴记录不改写收入或支出。
 - “放弃追缴”仅对正未收且仍在追缴中的 payment-specific debt 生效；零余额逾期事件不再显示或生成放弃追缴动作。
 - Preview-only；未修改数据库、真实用户数据、Production、Scheduler、SMTP 或既有退租逻辑。
+
+# 2026-08-21 - FEATURE-ZERO-AMOUNT-DEBT-AND-WAIVE-FEEDBACK (Preview)
+
+- Expired coverage with no positive rent amount now creates an actionable zero-amount derived DebtCase; it counts as a debt tenant and reminder but does not change income, expense, profit or receivable amount.
+- Added the requested success feedback after waive collection while preserving canonical audit identity and existing reminder cleanup.
+- Preview-only; no database, real-user data, Production, Scheduler or SMTP change.
