@@ -3238,6 +3238,22 @@ td:last-child {
   line-height: var(--tenant-list-line-height);
 }
 
+/* Reminder Center owns a natural document scroll on phone Safari/PWA. Keep
+   the final row above the fixed mobile navigation without changing reminder
+   data or introducing a nested scroll container. */
+.reminder-page-surface {
+  min-width: 0;
+  overflow: visible;
+}
+
+@media (max-width: 980px) {
+  .reminder-page-surface {
+    touch-action: pan-y;
+    overscroll-behavior-y: auto;
+    padding-bottom: var(--ui-bottom-nav-clearance);
+  }
+}
+
 @media (max-width: 640px) {
   .reminder-center .reminder-row-primary,
   .reminder-page-list-single .reminder-row-primary {
@@ -7212,6 +7228,12 @@ td:last-child {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: baseline;
   }
+
+  .unified-monthly-metric b {
+    overflow-wrap: anywhere;
+    text-align: right;
+    white-space: normal;
+  }
 }
 /* Dynamic partner management */
 .settings-list-link { color: var(--accent, #72a7ff); text-decoration: none; }
@@ -10349,6 +10371,31 @@ label.field > span,
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
+}
+
+@media (max-width: 640px) {
+  /* Keep tenant detail values on one shared label/value track. The label
+     track is content-safe but stable across both columns, so value starts do
+     not move when labels have different lengths. */
+  .tenant-core-detail-grid > .tenant-detail-pair-row > .compact-detail-row,
+  .tenant-core-detail-grid > .tenant-detail-wide-row > .compact-detail-row {
+    grid-template-columns: minmax(5.5em, max-content) minmax(0, 1fr);
+    align-items: baseline;
+  }
+
+  .tenant-core-detail-grid > .tenant-detail-pair-row > .compact-detail-row > strong,
+  .tenant-core-detail-grid > .tenant-detail-wide-row > .compact-detail-row > strong {
+    min-width: 0;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-align: left;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .tenant-core-detail-grid > .tenant-detail-wide-row.tenant-coverage-field > .compact-detail-row > strong {
+    white-space: nowrap;
+  }
 }
 
 /* Compact vertical rhythm: reduce inter-row whitespace without shrinking text or touch targets. */
