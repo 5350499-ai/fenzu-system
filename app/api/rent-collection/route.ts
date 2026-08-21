@@ -55,17 +55,28 @@ export async function POST(request: Request) {
         .select("id,property_id,room_id,name,phone,wechat,source,monthly_rent,deposit_amount,occupant_count,payment_day,move_in_date,actual_move_out_date,status,notes")
         .eq("id", derivedTarget.tenantId)
         .maybeSingle();
-      if (tenantError || !tenantRow) throw new AccountApiError("对应租客不存在或无权访问。", 404);
-      await assertWorkspaceProperty(admin, tenantRow.property_id, context.profile.workspace_owner_id);
       const { data: paymentRows, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,rent_month,income_type,payment_status,payment_method,notes,created_at")
-        .eq("tenant_id", derivedTarget.tenantId)
-        .eq("property_id", tenantRow.property_id);
-      if (paymentError) throw new AccountApiError("读取欠租周期失败，请稍后重试。", 500);
-      propertyId = tenantRow.property_id;
+        .eq("tenant_id", derivedTarget.tenantId);
+      if (tenantError || !tenantRow) {
+        logWaiveDiagnostic("TENANT_NOT_FOUND", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: false, tenantQueryError: Boolean(tenantError) });
+        throw new AccountApiError("对应租客不存在或无权访问。", 404, "TENANT_NOT_FOUND");
+      }
+      if (paymentError) {
+        logWaiveDiagnostic("PAYMENT_LOOKUP_FAILED", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: true });
+        throw new AccountApiError("读取欠租周期失败，请稍后重试。", 500, "PERSISTENCE_FAILED");
+      }
+      propertyId = await resolveHistoricalPropertyId(admin, tenantRow.property_id, (paymentRows || []).map((row) => row.property_id), context.profile.workspace_owner_id, derivedTarget.periodStart);
+      if (!propertyId) throw new AccountApiError("对应租客不存在或无权访问。", 404, "WORKSPACE_MISMATCH");
+      const scopedPaymentRows = (paymentRows || []).filter((row) => row.property_id === propertyId);
       roomId = tenantRow.room_id;
       tenantId = tenantRow.id;
-      await requirePropertyAccess(context, propertyId);
+      try {
+        await requirePropertyAccess(context, propertyId);
+      } catch (error) {
+        logWaiveDiagnostic("PROPERTY_PERMISSION_DENIED", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: true, propertyRowFound: true, workspaceMatch: true });
+        throw error;
+      }
       const tenant = {
         id: tenantRow.id, propertyId, roomId, name: tenantRow.name || "", phone: tenantRow.phone || "", wechat: tenantRow.wechat || "",
         source: tenantRow.source || "", monthlyRent: Number(tenantRow.monthly_rent || 0), depositAmount: Number(tenantRow.deposit_amount || 0),
@@ -73,7 +84,7 @@ export async function POST(request: Request) {
         moveInDate: tenantRow.move_in_date || undefined, actualMoveOutDate: tenantRow.actual_move_out_date || undefined,
         status: tenantRow.status || "", notes: tenantRow.notes || ""
       };
-      const payments = (paymentRows || []).map((row) => ({
+      const payments = scopedPaymentRows.map((row) => ({
         id: row.id, propertyId: row.property_id, roomId: row.room_id, tenantId: row.tenant_id, rentMonth: row.rent_month || "",
         paymentDate: row.payment_date || undefined, amountDue: Number(row.amount_due || 0), amountPaid: Number(row.amount_paid || 0), amountUnpaid: Number(row.amount_unpaid || 0),
         coverageStartDate: row.coverage_start_date || "", coverageEndDate: row.coverage_end_date || "", incomeType: row.income_type || "房租收入",
@@ -84,24 +95,39 @@ export async function POST(request: Request) {
         rooms: [{ id: roomId, propertyId, name: "房间", roomNumber: "", monthlyRent: tenant.monthlyRent, depositAmount: tenant.depositAmount, status: "" }],
         tenants: [tenant], rentPayments: payments, today: rentPeriodToday()
       }).find((item) => item.paymentId === body.rentPaymentId);
-      if (!debtCase?.isDerived || debtCase.coverageStart !== derivedTarget.periodStart) throw new AccountApiError("这笔欠租周期当前没有可放弃的欠租提醒。", 409);
+      if (!debtCase?.isDerived || debtCase.coverageStart !== derivedTarget.periodStart) {
+        logWaiveDiagnostic("DEBT_CASE_NOT_FOUND", { source: "derived", periodKey: derivedTarget.periodStart, tenantRowFound: true, propertyRowFound: true, debtReconstructionPass: false });
+        throw new AccountApiError("这笔欠租周期当前没有可放弃的欠租提醒。", 409, "DEBT_CASE_NOT_FOUND");
+      }
       remaining = debtCase.remainingAmount;
     } else {
       const { data: payment, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,income_type,payment_status,notes")
         .eq("id", body.rentPaymentId)
         .maybeSingle();
-      if (paymentError || !payment) throw new AccountApiError("对应租金周期不存在或无权访问。", 404);
-      await assertWorkspaceProperty(admin, payment.property_id, context.profile.workspace_owner_id);
+      if (paymentError || !payment) {
+        logWaiveDiagnostic("PAYMENT_NOT_FOUND", { source: "payment-backed", tenantRowFound: false, tenantQueryError: Boolean(paymentError) });
+        throw new AccountApiError("对应租金周期不存在或无权访问。", 404, "TENANT_NOT_FOUND");
+      }
+      await assertWorkspaceProperty(admin, payment.property_id, context.profile.workspace_owner_id, "payment-backed");
       const { data: tenantRow, error: tenantError } = await admin.from("tenants")
-        .select("id,property_id")
+        .select("id,property_id,user_id")
         .eq("id", payment.tenant_id)
         .maybeSingle();
-      if (tenantError || !tenantRow || tenantRow.property_id !== payment.property_id) throw new AccountApiError("对应租客不存在或无权访问。", 404);
+      if (tenantError || !tenantRow) {
+        logWaiveDiagnostic("TENANT_NOT_FOUND", { source: "payment-backed", tenantRowFound: false, tenantQueryError: Boolean(tenantError) });
+        throw new AccountApiError("对应租客不存在或无权访问。", 404, "TENANT_NOT_FOUND");
+      }
+      logWaiveDiagnostic("TENANT_RESOLVED", { source: "payment-backed", tenantRowFound: true, tenantWorkspaceMatch: tenantRow.user_id === context.profile.workspace_owner_id, propertyRowFound: true, workspaceMatch: true });
       propertyId = payment.property_id;
       roomId = payment.room_id;
       tenantId = payment.tenant_id;
-      await requirePropertyAccess(context, propertyId);
+      try {
+        await requirePropertyAccess(context, propertyId);
+      } catch (error) {
+        logWaiveDiagnostic("PROPERTY_PERMISSION_DENIED", { source: "payment-backed", tenantRowFound: true, propertyRowFound: true, workspaceMatch: true });
+        throw error;
+      }
       const businessPayment = {
         amountDue: Number(payment.amount_due || 0), amountPaid: Number(payment.amount_paid || 0), amountUnpaid: Number(payment.amount_unpaid || 0),
         coverageStartDate: payment.coverage_start_date || "", coverageEndDate: payment.coverage_end_date || "", incomeType: payment.income_type || "",
@@ -121,7 +147,8 @@ export async function POST(request: Request) {
     if (existingError) throw new AccountApiError("检查欠租处理状态失败，请稍后重试。", 500);
     if (existing?.length) throw new AccountApiError("这笔欠租已经关闭追缴。", 409);
     const reason = String(body.reason || "").trim().slice(0, 500);
-    await writeAuditLog(context, {
+    try {
+      await writeAuditLog(context, {
       actionType: WAIVE_ACTION,
       moduleKey: "rent_payments",
       entityType: "rent_collection",
@@ -139,7 +166,11 @@ export async function POST(request: Request) {
       },
       description: `放弃追缴欠租 ${body.rentPaymentId}，金额数值 ${remaining.toFixed(2)}（显示货币由工作区设置决定）${reason ? `，原因：${reason}` : ""}`,
       logCategory: "business"
-    });
+      });
+    } catch (error) {
+      logWaiveDiagnostic("PERSISTENCE_FAILED", { source: derivedTarget ? "derived" : "payment-backed", tenantRowFound: true, propertyRowFound: true, waiveWriteAttempted: true });
+      throw error;
+    }
     return NextResponse.json({ ok: true, rentPaymentId: body.rentPaymentId, status: "waived" });
   } catch (error) {
     return apiErrorResponse(error);
@@ -151,12 +182,40 @@ function parseDerivedDebtId(value: string) {
   return match ? { tenantId: match[1], periodStart: match[2] } : null;
 }
 
-async function assertWorkspaceProperty(admin: ReturnType<typeof getSupabaseAdmin>, propertyId: string | null, workspaceOwnerId: string) {
-  if (!propertyId) throw new AccountApiError("对应房源不存在或无权访问。", 404);
+async function assertWorkspaceProperty(admin: ReturnType<typeof getSupabaseAdmin>, propertyId: string | null, workspaceOwnerId: string, source: "derived" | "payment-backed" = "derived") {
+  if (!propertyId) {
+    logWaiveDiagnostic("PROPERTY_NOT_FOUND", { source, propertyRowFound: false, workspaceMatch: false });
+    throw new AccountApiError("对应房源不存在或无权访问。", 404, "PROPERTY_NOT_FOUND");
+  }
   const { data: property, error } = await admin.from("properties")
     .select("id")
     .eq("id", propertyId)
     .eq("user_id", workspaceOwnerId)
     .maybeSingle();
-  if (error || !property) throw new AccountApiError("对应租客不存在或无权访问。", 404);
+  if (error || !property) {
+    logWaiveDiagnostic("WORKSPACE_MISMATCH", { source, propertyRowFound: Boolean(property), workspaceMatch: false, propertyQueryError: Boolean(error) });
+    throw new AccountApiError("对应租客不存在或无权访问。", 404, "WORKSPACE_MISMATCH");
+  }
+}
+
+async function resolveHistoricalPropertyId(admin: ReturnType<typeof getSupabaseAdmin>, tenantPropertyId: string | null, paymentPropertyIds: Array<string | null>, workspaceOwnerId: string, periodKey: string) {
+  const candidates = [...new Set([tenantPropertyId, ...paymentPropertyIds].filter((value): value is string => Boolean(value)))];
+  if (!candidates.length) {
+    logWaiveDiagnostic("PROPERTY_NOT_FOUND", { source: "derived", periodKey, tenantRowFound: true, tenantPropertyIdPresent: false, propertyRowFound: false });
+    return null;
+  }
+  const { data, error } = await admin.from("properties")
+    .select("id")
+    .in("id", candidates)
+    .eq("user_id", workspaceOwnerId);
+  const propertyId = data?.[0]?.id || null;
+  if (error || !propertyId) {
+    logWaiveDiagnostic("WORKSPACE_MISMATCH", { source: "derived", periodKey, tenantRowFound: true, tenantPropertyIdPresent: Boolean(tenantPropertyId), propertyRowFound: Boolean(data?.length), workspaceMatch: false, propertyQueryError: Boolean(error) });
+    return null;
+  }
+  return propertyId;
+}
+
+function logWaiveDiagnostic(stage: string, fields: Record<string, unknown>) {
+  console.warn("[rent-collection] waive_resolver", { stage, ...fields });
 }
