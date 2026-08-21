@@ -1215,3 +1215,10 @@
 - Froze the approved V8 house-and-bee SVG as the canonical `brand/icon` master.
 - Regenerated browser, Apple, PWA and maskable raster assets from that master and advanced the Service Worker icon cache version.
 - No business logic, Auth, SMTP, database, permission, scheduler or real-user data changed.
+
+## 2026-08-21 - FEATURE-CORE-BUSINESS-CONSISTENCY-AND-TRANSACTION-ROOT-AUDIT
+
+- Audited the canonical move-out RPC, lifecycle/debt/reminder boundaries and related permission paths.
+- Added a transaction-local canonical move-out context so the authenticated lifecycle action can update its owned contract, deposit and room state without being rejected as unrelated table edits.
+- Added explicit free_single workspace-owner move-out authorization and mapped known database conflicts without changing debt, waiver, settlement or historical payment facts.
+- Preview-only change; no Production migration, real-user data, Scheduler or SMTP change.

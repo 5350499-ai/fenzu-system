@@ -4,7 +4,7 @@ import {
   apiErrorResponse,
   parseJson,
   requireActiveAccount,
-  requireModulePermission
+  requireMoveOutPermission
 } from "@/lib/server/account-auth";
 import { getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 
@@ -14,7 +14,7 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    await requireModulePermission(context, "tenants", "archive");
+    await requireMoveOutPermission(context);
     const body = await parseJson(request) as { tenantId?: string; depositStatus?: string; actualMoveOutDate?: string | null };
     const depositStatus = String(body.depositStatus || "").trim();
     const actualMoveOutDate = body.actualMoveOutDate ? String(body.actualMoveOutDate) : null;
@@ -34,6 +34,9 @@ export async function POST(request: Request) {
       if (error.code === "42501") throw new AccountApiError("没有权限办理退租。", 403, "move_out_permission_denied");
       if (error.code === "P0002") throw new AccountApiError("租客或房间不存在，可能已被其他操作移除。", 404, "move_out_not_found");
       if (error.code === "22023") throw new AccountApiError("退租请求资料无效。", 400, "invalid_move_out");
+      if (error.code === "23503") throw new AccountApiError("退租关联数据存在冲突，历史记录未修改，请刷新后重试。", 409, "move_out_reference_conflict");
+      if (error.code === "23505") throw new AccountApiError("退租请求与另一项进行中的操作冲突，请刷新后重试。", 409, "move_out_duplicate_conflict");
+      console.error("[move-out] atomic RPC failed", { requestId: context.requestId, code: error.code || "unknown", message: error.message || "unknown" });
       throw new AccountApiError("退租未完成，数据库事务已回滚，请刷新后重试。", 409, "move_out_transaction_failed");
     }
     return NextResponse.json({ ok: true, result: data });

@@ -256,6 +256,13 @@ export async function requireSensitivePermission(context: AccountRequestContext,
   if (!data || !Boolean((data as unknown as Record<string, unknown>)[permissionColumn])) throw new AccountApiError("没有权限执行此操作。", 403);
 }
 
+export async function requireMoveOutPermission(context: AccountRequestContext) {
+  if (context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context)) return;
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.from("user_permissions").select("can_archive").eq("user_id", context.userId).eq("module_key", "tenants").maybeSingle();
+  if (!data || !Boolean(data.can_archive)) throw new AccountApiError("没有权限办理退租。", 403, "move_out_permission_denied");
+}
+
 export function isFreeSingleAccount(context: Pick<AccountRequestContext, "profile">) {
   return context.profile.account_type !== "owner" && isFreeSinglePlan(context.profile.account_plan);
 }
