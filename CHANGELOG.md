@@ -1233,3 +1233,9 @@
 - Expired coverage with no positive rent amount now creates an actionable zero-amount derived DebtCase; it counts as a debt tenant and reminder but does not change income, expense, profit or receivable amount.
 - Added the requested success feedback after waive collection while preserving canonical audit identity and existing reminder cleanup.
 - Preview-only; no database, real-user data, Production, Scheduler or SMTP change.
+
+## 2026-08-21 - RESPONSIVE ARCHITECTURE REFACTOR — BATCH 1 (Preview)
+
+- Replaced the overlapping Phone/Medium App Shell structure with three mutually exclusive viewport modes: Phone (`<=640px`) reserved navigation row, Medium (`641px–1100px`) compact rail, and Desktop (`>=1101px`) sidebar.
+- Made `.main` the sole application-content vertical scroll owner and removed the Reminder page’s former scroll/safe-area patch. Mobile navigation is no longer a fixed page-content overlay; fixed toast/upload offsets retain their separate safe-area token.
+- No business logic, database, schema, migration, real-user data, Scheduler, SMTP or Production deployment changed.

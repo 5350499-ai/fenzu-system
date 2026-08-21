@@ -29,5 +29,5 @@ test("Phone, Shell and stable business contracts remain outside the first-batch 
   assert.match(medium, /max-width: 1100px/);
   assert.doesNotMatch(medium, /\.tenant-list-identity-row|\.tenant-list-rent-row|\.tenant-status-row|\.tenant-detail-panel/);
   assert.match(css, /\.compact-rail/);
-  assert.match(css, /--ui-bottom-nav-clearance/);
+  assert.match(css, /--ui-mobile-nav-overlay-offset/);
 });

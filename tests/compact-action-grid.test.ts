@@ -43,10 +43,10 @@ test("app shell and modal responsive roots have one authoritative CSS owner", ()
   assert.equal((css.match(/^\.mobile-nav\s*\{/gm) || []).length, 1);
   assert.match(css, /\.modal-backdrop\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?min-height:\s*100svh/);
   assert.match(css, /\.modal-card\s*\{[\s\S]*?max-height:\s*calc\(100dvh/);
-  assert.match(css, /@media\s*\(max-width:\s*980px\)[\s\S]*?\.mobile-nav\s*\{/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.mobile-nav\s*\{/);
   assert.match(css, /--ui-mobile-nav-structural-height:\s*66px/);
-  assert.match(css, /--ui-mobile-nav-content-gap:\s*18px/);
-  assert.match(css, /--ui-bottom-nav-clearance:\s*calc\(var\(--ui-mobile-nav-structural-height\)\s*\+\s*var\(--ui-mobile-nav-content-gap\)\s*\+\s*env\(safe-area-inset-bottom\)\)/);
+  assert.match(css, /--ui-mobile-nav-overlay-gap:\s*18px/);
+  assert.match(css, /--ui-mobile-nav-overlay-offset:\s*calc\(var\(--ui-mobile-nav-structural-height\)\s*\+\s*var\(--ui-mobile-nav-overlay-gap\)\s*\+\s*env\(safe-area-inset-bottom\)\)/);
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.main\s*\{[\s\S]*?padding-bottom:\s*calc\(128px/);
   assert.match(css, /\.data-center-page\s*\{[\s\S]*?padding-bottom:\s*var\(--ui-space-4,\s*16px\)/);
   assert.match(css, /\.settlement-snapshot-page\{padding-bottom:var\(--ui-space-4,16px\)\}/);
@@ -59,8 +59,8 @@ test("app shell and modal responsive roots have one authoritative CSS owner", ()
 test("page visual spacing and fixed overlay offsets have separate owners", () => {
   assert.match(css, /\.attachment-upload-progress\s*\{[\s\S]*?bottom:\s*16px/);
   assert.match(css, /\.ui-toast\s*\{[\s\S]*?bottom:\s*16px/);
-  assert.match(css, /@media\s*\(max-width:\s*980px\)[\s\S]*?\.attachment-upload-progress\s*\{[\s\S]*?var\(--ui-mobile-nav-structural-height\)\s*\+\s*6px\s*\+\s*env\(safe-area-inset-bottom\)/);
-  assert.match(css, /@media\s*\(max-width:\s*980px\)[\s\S]*?\.ui-toast\s*\{[\s\S]*?var\(--ui-mobile-nav-structural-height\)\s*\+\s*var\(--ui-mobile-nav-content-gap\)\s*\+\s*env\(safe-area-inset-bottom\)/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.attachment-upload-progress\s*\{[\s\S]*?var\(--ui-mobile-nav-structural-height\)\s*\+\s*6px\s*\+\s*env\(safe-area-inset-bottom\)/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.ui-toast\s*\{[\s\S]*?var\(--ui-mobile-nav-overlay-offset\)/);
 });
 
 test("compact action root does not impose desktop-only or overflow-prone fixed columns", () => {

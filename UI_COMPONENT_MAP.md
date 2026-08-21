@@ -43,7 +43,7 @@ or local state to a second source of truth.
 
 - `--ui-space-*` owns the shared spacing scale; form rows/columns consume the existing form spacing aliases.
 - `--ui-grid-gap` is the shared spacing owner for the generic `.grid` primitive. Business-specific grids retain their own layout ownership and may consume shared spacing without inheriting generic columns.
-- `--ui-bottom-nav-clearance`, `--ui-mobile-nav-structural-height` and `--ui-mobile-nav-content-gap` remain the dedicated App Shell clearance owners.
+- `--ui-mobile-nav-structural-height`, `--ui-mobile-nav-overlay-gap` and `--ui-mobile-nav-overlay-offset` remain the dedicated fixed-overlay avoidance facts. Page content does not consume them.
 - Page padding, card padding, modal padding, fixed-overlay offsets and business slot contracts remain separate unless their semantic ownership is identical and covered by a contract test.
 
 | 页面/能力 | 实现 owner | Semantic class / selector | 责任 | 修改边界 |
@@ -164,19 +164,18 @@ page-local gap or nowrap/overflow variant.
 
 - `app/layout.tsx` owns the viewport metadata (`device-width`, `initialScale: 1`, `viewportFit: cover`) and mounts the global providers.
 - `components/app-layout.tsx` owns the `.app-shell` DOM: `.sidebar`, `.main`, `.topbar` and `.mobile-nav`.
-- `app/globals.css` is the sole CSS owner for those shell selectors and the existing `980px` shell switch. `--ui-bottom-nav-clearance` remains the main-content clearance owner and is intentionally outside the 2.2 scope.
+- `app/globals.css` is the sole CSS owner for those shell selectors and the three mutually exclusive Phone / Medium / Desktop shell modes.
 - `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration. Pages and modal components must not add a second body-lock lifecycle.
 - `app/globals.css` owns the shared `.modal-backdrop` and `.modal-card` base, dynamic viewport, safe-area and internal-scroll contract. Mobile overrides remain in the same CSS owner; a later precision block must not recreate a parallel modal base.
 - `components/account-center.tsx` keeps its header outside `.account-center-scroll`; that named body is the only Account Center vertical scroll owner. The shared backdrop continues to lock the background and must not become a second scroll surface.
 
-### Mobile main clearance ownership
+### Phone navigation-row ownership
 
-- `.mobile-nav` remains owned by `components/app-layout.tsx` (DOM) and `app/globals.css` (layout). Its structural height is derived from the current 1px borders, 8px vertical padding and 48px navigation-link minimum height: `66px`.
-- `--ui-mobile-nav-structural-height` and `--ui-mobile-nav-content-gap` are the responsive clearance inputs. `--ui-bottom-nav-clearance` is the single `.main` bottom-navigation avoidance contract: structural height + 18px content breathing room + `env(safe-area-inset-bottom)`.
-- The `max-width: 980px` `.main` rule is the only mobile-shell consumer. The `max-width: 640px` block must not create a second bottom-clearance owner.
-- Page-specific padding and fixed overlay offsets are separate ownership areas; they must not be folded into or duplicated as main bottom-navigation clearance.
-- Bottom-spacing ownership is explicit: `.main` owns `MAIN_NAVIGATION_CLEARANCE`; `.data-center-page` and `.settlement-snapshot-page` own only normal `PAGE_VISUAL_SPACING`; `.mobile-nav` owns `NAV_INTERNAL_SAFE_AREA`; `.ui-toast` and `.attachment-upload-progress` own `FIXED_OVERLAY_OFFSET`; Modal surfaces own `MODAL_SAFE_AREA`.
-- App Shell pages must not add page-level `safe-area-inset-bottom` or navigation-sized padding as a substitute for `.main` clearance. Fixed overlays may derive their mobile offset from the shared nav structural-height fact, but must keep their own visual gap semantics.
+- `.mobile-nav` remains owned by `components/app-layout.tsx` (DOM) and `app/globals.css` (layout). On Phone it occupies the second `.app-shell` grid row and is never a fixed page-content overlay.
+- `.main` is the sole application-content vertical scroll owner in all three shell modes. Its normal bottom spacing is visual page spacing only.
+- `--ui-mobile-nav-structural-height`, `--ui-mobile-nav-overlay-gap` and `--ui-mobile-nav-overlay-offset` apply only to fixed overlays such as `.ui-toast` and `.attachment-upload-progress`.
+- Bottom-spacing ownership is explicit: `.main` owns ordinary page end spacing; `.mobile-nav` owns `NAV_INTERNAL_SAFE_AREA`; fixed overlays own `FIXED_OVERLAY_OFFSET`; Modal surfaces own `MODAL_SAFE_AREA`.
+- App Shell pages must not add page-level navigation-sized padding or `safe-area-inset-bottom` as an avoidance substitute. The shell grid reserves mobile navigation space before page content is laid out.
 - `PropertyMultiSelect` owns only its bounded sheet internals (`.property-multi-select-backdrop`, `.property-multi-select-modal`); it does not own document scroll locking.
 
 ## High-risk layout ownership - 2.6
@@ -243,7 +242,7 @@ and Settlement idempotency risks remain explicitly deferred there.
 ## App Shell Three-Mode Ownership
 
 - `app/layout.tsx` owns viewport metadata; `components/app-layout.tsx` owns the shared navigation data, permission filtering and active-route behavior for every shell mode.
-- Phone Shell: `@media (max-width: 640px)` uses `.mobile-nav` and `--ui-bottom-nav-clearance`; `.sidebar` and `.compact-rail` are hidden.
+- Phone Shell: `@media (max-width: 640px)` uses `.mobile-nav` as the reserved second grid row; `.sidebar` and `.compact-rail` are hidden.
 - Medium Shell: `@media (min-width: 641px) and (max-width: 1100px)` uses the 72px `.compact-rail`; `.mobile-nav` and `.sidebar` are hidden. The rail is presentation-only and consumes the same `navGroups` and `canOpenModule()` ownership as the full sidebar.
 - Desktop Shell: `@media (min-width: 1101px)` uses the existing 260px `.sidebar`; `.compact-rail` and `.mobile-nav` are hidden. Desktop navigation content, permissions, destinations and active state remain unchanged.
 - `app/globals.css` is the sole layout owner for `.app-shell`, `.sidebar`, `.compact-rail`, `.main` and `.mobile-nav`. No page may add a second shell breakpoint or device-specific navigation rule.

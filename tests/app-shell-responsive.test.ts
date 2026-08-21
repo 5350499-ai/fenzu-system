@@ -7,7 +7,7 @@ const appLayout = readFileSync(new URL("../components/app-layout.tsx", import.me
 const componentMap = readFileSync(new URL("../UI_COMPONENT_MAP.md", import.meta.url), "utf8");
 const designSystem = readFileSync(new URL("../UI_DESIGN_SYSTEM.md", import.meta.url), "utf8");
 
-test("App Shell has one shared navigation data source and three exclusive navigation modes", () => {
+test("App Shell has one shared navigation data source and three exclusive structural modes", () => {
   assert.match(appLayout, /shellNavItems/);
   assert.match(appLayout, /className="compact-rail"/);
   assert.match(appLayout, /className="mobile-nav"/);
@@ -19,13 +19,30 @@ test("App Shell has one shared navigation data source and three exclusive naviga
   assert.match(css, /\.compact-rail\s*\{[\s\S]*?display:\s*none/);
 });
 
-test("Medium Shell uses a 72px rail, no bottom navigation, and no mobile clearance", () => {
+test("Phone Shell reserves navigation as a grid row and keeps main as the only content scroll owner", () => {
+  const phone = css.match(/@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\/\* Medium Shell/)?.[0] || "";
+  assert.match(phone, /\.app-shell\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto/);
+  assert.match(phone, /\.main\s*\{[\s\S]*?grid-row:\s*1/);
+  assert.match(phone, /\.mobile-nav\s*\{[\s\S]*?position:\s*relative[\s\S]*?grid-row:\s*2/);
+  assert.doesNotMatch(css, /ui-bottom-nav-clearance|\.mobile-nav\s*\{[^}]*position:\s*fixed/);
+});
+
+test("Medium Shell uses a complete 72px rail mode with no mobile navigation or clearance", () => {
   const medium = css.match(/@media\s*\(min-width:\s*641px\)\s*and\s*\(max-width:\s*1100px\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
   assert.match(medium, /grid-template-columns:\s*72px\s+minmax\(0,\s*1fr\)/);
   assert.match(medium, /\.sidebar,[\s\S]*?\.mobile-nav\s*\{[\s\S]*?display:\s*none/);
   assert.match(medium, /\.compact-rail\s*\{[\s\S]*?display:\s*grid/);
-  assert.match(medium, /\.main\s*\{[\s\S]*?padding:\s*22px\s+18px\s+24px/);
-  assert.doesNotMatch(medium, /ui-bottom-nav-clearance/);
+  assert.match(medium, /\.app-shell\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?overflow:\s*hidden/);
+  assert.match(medium, /\.main\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?overflow-y:\s*auto[\s\S]*?padding:\s*22px\s+18px\s+24px/);
+  assert.doesNotMatch(medium, /ui-bottom-nav-clearance|mobile-nav-overlay/);
+});
+
+test("Desktop Shell independently owns sidebar and main scroll geometry", () => {
+  const desktop = css.match(/@media\s*\(min-width:\s*1101px\)\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(desktop, /grid-template-columns:\s*260px\s+minmax\(0,\s*1fr\)/);
+  assert.match(desktop, /\.sidebar\s*\{[\s\S]*?display:\s*block/);
+  assert.match(desktop, /\.main\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?overflow-y:\s*auto/);
+  assert.match(desktop, /\.mobile-nav\s*\{[\s\S]*?display:\s*none/);
 });
 
 test("Compact rail preserves touch targets and cannot expand from labels", () => {

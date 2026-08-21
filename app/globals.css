@@ -118,14 +118,17 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  min-height: 100vh;
+  min-width: 0;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  display: none;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   padding: 22px 16px;
@@ -228,7 +231,15 @@ a {
 
 .main {
   min-width: 0;
-  padding: 22px 26px 96px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+}
+
+.mobile-nav {
+  display: none;
 }
 
 .account-restore-shell {
@@ -540,10 +551,10 @@ a {
   --ui-card-padding-mobile: 14px;
   --ui-modal-padding: 16px;
   --ui-modal-max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-  /* Mobile nav: 1px border + 8px top/bottom padding + 48px link row + 18px content breathing room. */
+  /* Mobile nav: 1px border + 8px top/bottom padding + 48px link row. */
   --ui-mobile-nav-structural-height: 66px;
-  --ui-mobile-nav-content-gap: 18px;
-  --ui-bottom-nav-clearance: calc(var(--ui-mobile-nav-structural-height) + var(--ui-mobile-nav-content-gap) + env(safe-area-inset-bottom));
+  --ui-mobile-nav-overlay-gap: 18px;
+  --ui-mobile-nav-overlay-offset: calc(var(--ui-mobile-nav-structural-height) + var(--ui-mobile-nav-overlay-gap) + env(safe-area-inset-bottom));
   --ui-focus: 0 0 0 3px color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
@@ -3238,21 +3249,6 @@ td:last-child {
   line-height: var(--tenant-list-line-height);
 }
 
-/* Reminder Center owns a natural document scroll on phone Safari/PWA. Keep
-   the final row above the fixed mobile navigation without changing reminder
-   data or introducing a nested scroll container. */
-.reminder-page-surface {
-  min-width: 0;
-  overflow: visible;
-}
-
-@media (max-width: 980px) {
-  .reminder-page-surface {
-    touch-action: pan-y;
-    overscroll-behavior-y: auto;
-  }
-}
-
 @media (max-width: 640px) {
   .reminder-center .reminder-row-primary,
   .reminder-page-list-single .reminder-row-primary {
@@ -5824,10 +5820,6 @@ td:last-child {
   width: min(340px, 100%);
 }
 
-.mobile-nav {
-  display: none;
-}
-
 .login-page {
   display: grid;
   min-height: 100dvh;
@@ -5889,28 +5881,6 @@ td:last-child {
   .profit-ledger-grid {
     grid-template-columns: 1fr;
   }
-  .app-shell {
-    display: block;
-    height: 100dvh;
-    min-height: 100dvh;
-    overflow: hidden;
-  }
-
-  .sidebar {
-    display: none;
-  }
-
-  .main {
-    height: 100dvh;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: auto;
-    scroll-padding-block-end: var(--ui-bottom-nav-clearance);
-    padding: 18px var(--ui-page-padding-inline-mobile) var(--ui-bottom-nav-clearance);
-  }
-
   .topbar {
     align-items: flex-start;
   }
@@ -5935,16 +5905,39 @@ td:last-child {
     grid-template-columns: 1fr;
   }
 
+}
+
+/* Canonical App Shell — PHONE (<=640px). The shell reserves navigation as
+   a layout row; .main is the only application-content scroll owner. */
+@media (max-width: 640px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .sidebar,
+  .compact-rail {
+    display: none;
+  }
+
+  .main {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 18px var(--ui-page-padding-inline-mobile) 18px;
+    scroll-padding-block-end: 18px;
+  }
+
   .mobile-nav {
-    position: fixed;
-    right: 12px;
-    bottom: 0;
-    left: 12px;
+    position: relative;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-width: 0;
+    margin: 0 10px;
     border: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: 18px;
     background: color-mix(in srgb, var(--surface) 96%, transparent);
     box-shadow: var(--shadow);
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
@@ -5952,6 +5945,7 @@ td:last-child {
 
   .mobile-nav a {
     display: grid;
+    min-width: 0;
     place-items: center;
     gap: 4px;
     min-height: 48px;
@@ -5965,9 +5959,7 @@ td:last-child {
     background: var(--surface-soft);
     color: var(--text);
   }
-}
 
-@media (max-width: 640px) {
   .compact-profit-summary {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px;
@@ -6816,7 +6808,10 @@ td:last-child {
   .app-shell {
     display: grid;
     grid-template-columns: 72px minmax(0, 1fr);
-    min-height: 100vh;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .sidebar,
@@ -6825,12 +6820,12 @@ td:last-child {
   }
 
   .compact-rail {
-    position: sticky;
-    top: 0;
     display: grid;
+    grid-column: 1;
+    grid-row: 1;
     align-content: start;
     gap: 6px;
-    height: 100vh;
+    min-height: 0;
     min-width: 0;
     overflow-y: auto;
     padding: 18px 8px;
@@ -6840,13 +6835,48 @@ td:last-child {
   }
 
   .main {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: 22px 18px 24px;
   }
 }
 
+/* Canonical App Shell — DESKTOP (>=1101px). */
 @media (min-width: 1101px) {
+  .app-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
   .compact-rail {
     display: none;
+  }
+
+  .mobile-nav {
+    display: none;
+  }
+
+  .main {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 22px 26px;
   }
 }
 
@@ -8194,17 +8224,13 @@ input[type="radio"] {
     max-width: none;
   }
 
-  .mobile-nav {
-    right: 10px;
-    left: 10px;
-    border-radius: 18px;
-  }
 }
 
-/* Fixed overlay offsets are distinct from main content clearance. */
-@media (max-width: 980px) {
+/* Fixed overlays sit above the PHONE layout row; they never define main
+   content clearance. */
+@media (max-width: 640px) {
   .attachment-upload-progress { bottom: calc(var(--ui-mobile-nav-structural-height) + 6px + env(safe-area-inset-bottom)); }
-  .ui-toast { bottom: calc(var(--ui-mobile-nav-structural-height) + var(--ui-mobile-nav-content-gap) + env(safe-area-inset-bottom)); }
+  .ui-toast { bottom: var(--ui-mobile-nav-overlay-offset); }
 }
 
 /* Mobile overflow fixes: account center and list search controls. */

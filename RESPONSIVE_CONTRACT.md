@@ -6,7 +6,7 @@ This is the final 2.x regression contract for the responsive tree roots. It reco
 
 | Range | Shell | Navigation | Main ownership |
 |---|---|---|---|
-| `<=640px` | Phone | `.mobile-nav` bottom navigation | `.main` consumes `--ui-bottom-nav-clearance` |
+| `<=640px` | Phone | `.mobile-nav` reserved bottom layout row | `.main` is the sole application-content scroll owner |
 | `641px-1100px` | Medium | 72px `.compact-rail` | `.main` has no mobile-nav clearance |
 | `>=1101px` | Desktop | 260px `.sidebar` | Desktop main spacing |
 
@@ -14,8 +14,9 @@ Contract probe widths: `320, 360, 375, 390, 393, 414, 430, 480, 600, 640, 641, 7
 
 ## Ownership
 
-- `.main` owns main navigation clearance: `66px` mobile navigation structure + `18px` breathing room + `env(safe-area-inset-bottom)`.
-- `.mobile-nav` owns its internal Home Indicator safe area. Toast/upload offsets and modal/login safe areas remain separate owners.
+- `.app-shell` is viewport-bound and clips only its own outer frame; `.main` is the sole application-content vertical scroll owner.
+- Phone `.mobile-nav` is a reserved grid row, not a fixed overlay. It owns its internal Home Indicator safe area.
+- `--ui-mobile-nav-overlay-offset` is limited to fixed overlays such as toast/upload progress; it is not page-content clearance.
 - `ModalLayerManager` owns document scroll lock; `.modal-backdrop` and `.modal-card` have one CSS owner each.
 - Tenant List remains a frozen three-row contract: identity `30/40/30`, rent `31/25/44`, and five fixed status slots.
 - BUG-01 keeps the shared `SearchableSelect`/`DropdownListbox` path and the local advanced-options `overflow: visible` contract.

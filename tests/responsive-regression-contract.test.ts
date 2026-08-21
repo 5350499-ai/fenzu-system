@@ -24,10 +24,11 @@ test("final responsive viewport matrix has three exclusive Shell ranges", () => 
   assert.match(contract, /320, 360, 375[\s\S]*1100, 1101/);
 });
 
-test("final safe-area, modal and overflow owners are documented and present", () => {
+test("final shell-row, modal and overflow owners are documented and present", () => {
   assert.match(css, /--ui-mobile-nav-structural-height:\s*66px/);
-  assert.match(css, /--ui-mobile-nav-content-gap:\s*18px/);
-  assert.match(css, /--ui-bottom-nav-clearance:\s*calc\(var\(--ui-mobile-nav-structural-height\)\s*\+\s*var\(--ui-mobile-nav-content-gap\)\s*\+\s*env\(safe-area-inset-bottom\)\)/);
+  assert.match(css, /--ui-mobile-nav-overlay-gap:\s*18px/);
+  assert.match(css, /--ui-mobile-nav-overlay-offset:\s*calc\(var\(--ui-mobile-nav-structural-height\)\s*\+\s*var\(--ui-mobile-nav-overlay-gap\)\s*\+\s*env\(safe-area-inset-bottom\)\)/);
+  assert.match(css, /\.mobile-nav\s*\{[\s\S]*?position:\s*relative[\s\S]*?grid-row:\s*2/);
   assert.equal((css.match(/^\.modal-backdrop\s*\{/gm) || []).length, 1);
   assert.equal((css.match(/^\.modal-card\s*\{/gm) || []).length, 1);
   assert.match(css, /\.table-wrap\s*\{[\s\S]*?min-width:\s*0[\s\S]*?max-width:\s*100%/);

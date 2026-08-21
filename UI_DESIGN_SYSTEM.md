@@ -297,9 +297,9 @@ historical compatibility pointer and must not receive new rules.
 - Page content uses `--ui-page-padding-inline` (20px) on larger screens and
   `--ui-page-padding-inline-mobile` (14px) on phones.
 - Cards use `--ui-card-padding` (20px) or `--ui-card-padding-mobile` (14px).
-- Mobile content reserves `--ui-bottom-nav-clearance`, including
-  `env(safe-area-inset-bottom)`, so the fixed bottom navigation never covers a
-  final field or action.
+- Phone App Shell reserves the mobile navigation as a grid row, so ordinary
+  page content needs only normal visual end spacing and cannot be covered by
+  navigation.
 - Use dynamic viewport units (`100dvh` with `100svh` fallback) for full-screen
   surfaces. Do not use a document-relative position for a modal.
 
@@ -759,10 +759,10 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 ### App Shell / Modal ownership contract
 
 - `app/layout.tsx` is the viewport metadata root; `components/app-layout.tsx` is the App Shell DOM root.
-- `.app-shell`, `.sidebar`, `.main`, `.topbar` and `.mobile-nav` have one CSS ownership path in `app/globals.css`. The current `980px` breakpoint and bottom-nav clearance are preserved unless a separately approved responsive phase changes them.
-- Mobile main clearance is derived from the shared bottom-navigation contract: `66px` structural navigation height (1px borders + 8px vertical padding + 48px link row) plus `18px` content breathing room plus `env(safe-area-inset-bottom)`. `--ui-bottom-nav-clearance` is the only `.main` bottom-navigation avoidance owner.
-- The mobile navigation keeps its own `env(safe-area-inset-bottom)` padding to protect navigation content; that is separate from the `.main` clearance and is not a duplicated consumer. Page-specific bottom padding and overlay offsets do not replace or silently duplicate the main clearance contract.
-- Bottom spacing has separate contracts: `.main` owns navigation clearance; page roots may retain only normal visual end spacing; `.mobile-nav` owns its internal Home Indicator padding; fixed overlays own their own offsets; Modal surfaces own Modal safe-area padding. App Shell pages must not add navigation-sized or safe-area bottom padding for the same avoidance duty.
+- `.app-shell`, `.sidebar`, `.main`, `.topbar` and `.mobile-nav` have one CSS ownership path in `app/globals.css`, expressed as mutually exclusive Phone / Medium / Desktop shell modes.
+- Phone `.mobile-nav` is the reserved second App Shell grid row. `.main` remains the sole application-content scroll owner and uses only normal visual end spacing.
+- The mobile navigation keeps its own `env(safe-area-inset-bottom)` padding to protect navigation content. Fixed overlays may use `--ui-mobile-nav-overlay-offset`; page content may not.
+- Bottom spacing has separate contracts: page roots retain only normal visual end spacing; `.mobile-nav` owns its internal Home Indicator padding; fixed overlays own their offsets; Modal surfaces own Modal safe-area padding. App Shell pages must not add navigation-sized or safe-area bottom padding.
 - `ModalLayerManager` is the only document scroll-lock owner. Modal surfaces own their own scrolling and continue to use dynamic viewport units plus safe-area insets.
 - `.modal-backdrop` and `.modal-card` each have one base CSS owner, with mobile overrides kept in the same owner section. Do not append a second precision override block to repair modal behavior.
 - Before changing App Shell or Modal CSS, read `UI_COMPONENT_MAP.md`, identify the owner selector, and verify the existing cascade instead of creating a parallel root.
@@ -843,7 +843,7 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 ## 57. Tablet / Foldable Medium Shell Contract
 
 - The App Shell has three viewport-driven modes: Phone, Medium and Desktop. Device names, user-agent checks, `window.innerWidth`, `screen.width`, `devicePixelRatio`, transforms and zoom are prohibited for Shell layout.
-- Phone is `max-width: 640px`: preserve the verified bottom navigation, mobile safe-area handling and `--ui-bottom-nav-clearance` contract.
+- Phone is `max-width: 640px`: preserve the bottom navigation as a reserved App Shell row and retain its internal safe-area handling.
 - Medium is `641px–1100px`: use a 72px left compact rail with 44px minimum link targets and no bottom navigation. The rail reuses the App Shell navigation data, permission filtering, destinations and active-route behavior.
 - Desktop is `min-width: 1101px`: preserve the existing full 260px sidebar and its navigation behavior. The breakpoint is intentionally delayed until the full sidebar has a more usable main content width.
 - Medium main content uses the Shell formula `viewport - 72px rail - 36px horizontal padding`; Desktop uses the existing `viewport - 260px sidebar - 52px horizontal padding`. At the Medium/Desktop handoff the absolute navigation-footprint change is 188px by design; page-specific business contracts remain unchanged and must be reviewed separately in 2.4c.
