@@ -22,16 +22,19 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
     if (error) throw new AccountApiError("读取欠租处理记录失败，请稍后重试。", 500);
     const workspaceOwnerId = context.profile.workspace_owner_id;
-    const actions = (data || []).filter((row) => {
+    const actions = (data || []).flatMap((row) => {
       const after = row.after_data as Record<string, unknown> | null;
-      return after?.workspace_owner_id === workspaceOwnerId;
-    }).map((row) => ({
-      rentPaymentId: row.entity_id,
+      if (after?.workspace_owner_id !== workspaceOwnerId) return [];
+      const storedDebtCaseId = typeof after?.debt_case_id === "string" ? after.debt_case_id : "";
+      const rentPaymentId = storedDebtCaseId.startsWith("payment:") ? storedDebtCaseId.slice("payment:".length) : storedDebtCaseId || row.entity_id;
+      return rentPaymentId ? [{
+      rentPaymentId,
       status: "waived" as const,
       reason: String((row.after_data as Record<string, unknown> | null)?.reason || ""),
       createdAt: row.created_at,
       createdBy: row.actor_user_id
-    }));
+      }] : [];
+    });
     return NextResponse.json({ actions });
   } catch (error) {
     return apiErrorResponse(error);
@@ -50,6 +53,9 @@ export async function POST(request: Request) {
     let roomId = "";
     let tenantId = "";
     let remaining = 0;
+    let debtCaseId = body.rentPaymentId;
+    let debtSource: "derived" | "payment-backed" = derivedTarget ? "derived" : "payment-backed";
+    let auditEntityId: string | null = null;
     if (derivedTarget) {
       const { data: tenantRow, error: tenantError } = await admin.from("tenants")
         .select("id,property_id,room_id,name,monthly_rent,actual_move_out_date,status")
@@ -122,6 +128,8 @@ export async function POST(request: Request) {
       propertyId = payment.property_id;
       roomId = payment.room_id;
       tenantId = payment.tenant_id;
+      debtCaseId = `payment:${payment.id}`;
+      auditEntityId = payment.id;
       try {
         await requirePropertyAccess(context, propertyId);
       } catch (error) {
@@ -136,14 +144,23 @@ export async function POST(request: Request) {
       if (!isWaivableRentCollectionEvent(businessPayment)) throw new AccountApiError("\u8fd9\u7b14\u79df\u91d1\u5468\u671f\u5f53\u524d\u6ca1\u6709\u53ef\u653e\u5f03\u7684\u6b20\u79df\u63d0\u9192\u3002", 409);
       remaining = rentCollectionRemaining(businessPayment);
     }
-    const { data: existing, error: existingError } = await admin.from("audit_logs")
-      .select("id")
-      .eq("module_key", "rent_payments")
-      .eq("action_type", WAIVE_ACTION)
-      .eq("entity_id", body.rentPaymentId)
-      .eq("success", true)
-      .contains("after_data", { workspace_owner_id: context.profile.workspace_owner_id })
-      .limit(1);
+    const existingResult = debtSource === "derived"
+      ? await admin.from("audit_logs")
+        .select("id")
+        .eq("module_key", "rent_payments")
+        .eq("action_type", WAIVE_ACTION)
+        .eq("success", true)
+        .contains("after_data", { workspace_owner_id: context.profile.workspace_owner_id, debt_case_id: debtCaseId })
+        .limit(1)
+      : await admin.from("audit_logs")
+        .select("id")
+        .eq("module_key", "rent_payments")
+        .eq("action_type", WAIVE_ACTION)
+        .eq("entity_id", auditEntityId)
+        .eq("success", true)
+        .contains("after_data", { workspace_owner_id: context.profile.workspace_owner_id })
+        .limit(1);
+    const { data: existing, error: existingError } = existingResult;
     if (existingError) throw new AccountApiError("检查欠租处理状态失败，请稍后重试。", 500);
     if (existing?.length) throw new AccountApiError("这笔欠租已经关闭追缴。", 409);
     const reason = String(body.reason || "").trim().slice(0, 500);
@@ -152,11 +169,14 @@ export async function POST(request: Request) {
       actionType: WAIVE_ACTION,
       moduleKey: "rent_payments",
       entityType: "rent_collection",
-      entityId: body.rentPaymentId,
-      beforeData: { status: "open", rent_payment_id: body.rentPaymentId, remaining_amount: remaining },
+      entityId: auditEntityId,
+      beforeData: { status: "open", debt_case_id: debtCaseId, rent_payment_id: debtSource === "payment-backed" ? body.rentPaymentId : null, remaining_amount: remaining },
       afterData: {
         status: "waived",
-        rent_payment_id: body.rentPaymentId,
+        debt_case_id: debtCaseId,
+        debt_source: debtSource,
+        period_start: derivedTarget?.periodStart || null,
+        rent_payment_id: debtSource === "payment-backed" ? body.rentPaymentId : null,
         workspace_owner_id: context.profile.workspace_owner_id,
         property_id: propertyId,
         room_id: roomId,
@@ -168,7 +188,7 @@ export async function POST(request: Request) {
       logCategory: "business"
       });
     } catch (error) {
-      logWaiveDiagnostic("PERSISTENCE_FAILED", { source: derivedTarget ? "derived" : "payment-backed", tenantRowFound: true, propertyRowFound: true, waiveWriteAttempted: true });
+      logWaiveDiagnostic("PERSISTENCE_FAILED", { source: debtSource, tenantRowFound: true, propertyRowFound: true, waiveWriteAttempted: true });
       throw error;
     }
     return NextResponse.json({ ok: true, rentPaymentId: body.rentPaymentId, status: "waived" });

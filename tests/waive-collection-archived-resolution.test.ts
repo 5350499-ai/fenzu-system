@@ -20,3 +20,11 @@ test("payment-backed waive also resolves tenant identity without requiring activ
   assert.match(routeSource, /requirePropertyAccess\(context, propertyId\)/);
   assert.match(routeSource, /requireModulePermission\(context, "rent_payments", "edit"\)/);
 });
+
+test("waive identity keeps derived IDs out of the UUID audit entity column", () => {
+  assert.match(routeSource, /debt_case_id: debtCaseId/);
+  assert.match(routeSource, /entityId: auditEntityId/);
+  assert.match(routeSource, /debtSource === "derived"[\s\S]*contains\("after_data", \{ workspace_owner_id: context\.profile\.workspace_owner_id, debt_case_id: debtCaseId \}\)/);
+  assert.match(routeSource, /debtCaseId = `payment:\$\{payment\.id\}`/);
+  assert.match(routeSource, /storedDebtCaseId\.startsWith\("payment:"\)/);
+});
