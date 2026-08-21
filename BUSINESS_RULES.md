@@ -103,9 +103,11 @@ latest coverage period is selected by coverage timeline, while each valid
 expired payment remains an independent open-debt period until that same
 payment is settled, voided or waived. A later coverage period does not silently
 settle an older debt. When current coverage is upcoming and an older debt stays
-open, the tenant view must show both facts and the debt reminder must reference
-the old payment ID. A zero-amount overdue period follows the same rule: it is
-waivable but is not automatically discarded because a newer period exists.
+ open, the tenant view must show both facts and the debt reminder must reference
+ the old payment ID. A zero-amount overdue period remains a coverage-history
+ fact, but it is not a DebtCase and cannot be waived or collected because there
+ is no outstanding receivable. It is not automatically discarded merely because
+ a newer period exists.
 Unlinked duplicate/overlapping payment rows cannot safely be assumed to be
 superseded without a separate product decision.
 
@@ -119,8 +121,12 @@ superseded without a separate product decision.
   later payment does not silently close an older debt.
 - `coverageEnd` is inclusive: coverage ending on `businessToday` is due today,
   not overdue. Overdue begins on the following Madrid business day.
-- A valid zero-amount overdue period remains an open event until its own void
-  or waiver; it is not discarded merely because its remaining amount is zero.
+- A valid zero-amount overdue period remains historical coverage evidence, but
+  it is not an open debt/collection event and has no waiver action.
+- The canonical `DebtCase` starts only on the day after `coverageEnd`, and only
+  when the payment-specific expected amount has a positive remaining balance.
+  `tenants.payment_day` is stored for the tenant's payment-timing analysis; it
+  must not create a debt or override still-active coverage.
 - Archive mutes daily reminders only. Move-out ends tenancy only. Neither
   changes rent facts or closes an open debt.
 - Rent reminder UI must display payment-owned tenant, property, room and the
@@ -139,6 +145,7 @@ superseded without a separate product decision.
 - 所有经营提醒必须从共享 Reminder Engine 生成。首页只能展示同一有效提醒集合的摘要，提醒中心展示完整列表；两者不得分别重算业务规则或使用不一致的总数。
 - 欠费提醒以 RentPeriodState 的事实和当前追缴状态为准；归档只静默日常租客型提醒，不结清债务；退租不自动静默未处理的历史欠费；waiver 和补交结清只使对应 payment/rent period 的提醒失效。
 - 每个提醒必须使用稳定的 type + 业务实体/期间 ID，并携带主体导航和可用操作元数据。租客主体提醒优先使用 tenant_id，不得依靠房间名称或展示文案导航。
+- 逾期与欠费是两个独立事实：逾期描述覆盖或缴费时点，欠费只描述已形成且尚未收回的正数应收；逾期但无应收不得显示“放弃追缴”。
 - 租客管理首次进入默认按提醒紧急程度排序：红色、橙色、黄色、正常；同等级按租金覆盖结束日期升序。手动到期日、月租、房源、状态排序只改变当前筛选结果的显示顺序，不修改数据库。
 
 ## 12. 账号与权限
