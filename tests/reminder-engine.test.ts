@@ -32,7 +32,7 @@ test("Reminder Engine creates a stable tenant-owned overdue debt reminder with s
   assert.deepEqual(item.surfaces, ["dashboard", "reminder_center"]);
 });
 
-test("Reminder Engine applies archive, move-out, waiver and zero-period policy without changing debt facts", () => {
+test("Reminder Engine applies archive, move-out and waiver policy without changing debt facts", () => {
   const open = payment();
   assert.equal(buildEffectiveReminders(snapshot()).some((entry) => entry.id === "rent_debt:payment-1"), true);
   assert.equal(buildEffectiveReminders(snapshot({ tenants: [tenant("已归档")] })).some((entry) => entry.type === "rent_debt"), false);
@@ -40,7 +40,7 @@ test("Reminder Engine applies archive, move-out, waiver and zero-period policy w
   assert.equal(buildEffectiveReminders(snapshot({ waivedPaymentIds: new Set([open.id]) })).some((entry) => entry.type === "rent_debt"), false);
   const zero = payment({ id: "payment-zero", amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const zeroItem = buildEffectiveReminders(snapshot({ rentPayments: [zero] })).find((entry) => entry.id === "rent_debt:payment-zero");
-  assert.deepEqual(zeroItem?.availableActions, ["waive"]);
+  assert.equal(zeroItem, undefined);
   assert.equal(buildEffectiveReminders(snapshot({ rentPayments: [zero], waivedPaymentIds: new Set([zero.id]) })).some((entry) => entry.id === "rent_debt:payment-zero"), false);
 });
 

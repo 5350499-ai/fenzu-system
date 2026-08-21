@@ -6,7 +6,8 @@ import {
   BusinessRoom,
   BusinessTenant
 } from "./business-data";
-import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, roomOccupancyStatus } from "./rent-coverage";
+import { isCurrentRentalRelationship, roomOccupancyStatus } from "./rent-coverage";
+import { getDebtCases } from "./debt-case";
 
 export type RangePreset = "thisMonth" | "lastMonth" | "last30Days" | "last3Months" | "last6Months" | "last12Months" | "custom";
 
@@ -87,9 +88,10 @@ export function calculatePropertyProfits(
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
-  range: DateRange
+  range: DateRange,
+  waivedPaymentIds: ReadonlySet<string> = new Set()
 ): PropertyProfit[] {
-  return properties.map((property) => calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, range));
+  return properties.map((property) => calculatePropertyProfit(property, rooms, tenants, payments, expenses, deposits, range, waivedPaymentIds));
 }
 
 export function calculatePropertyProfit(
@@ -99,7 +101,8 @@ export function calculatePropertyProfit(
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
   deposits: BusinessDeposit[],
-  range: DateRange
+  range: DateRange,
+  waivedPaymentIds: ReadonlySet<string> = new Set()
 ): PropertyProfit {
   const scopedRooms = rooms.filter((room) => room.propertyId === property.id && !isArchived(room.status));
   const scopedTenants = tenants.filter((tenant) => tenant.propertyId === property.id && isCurrentRentalRelationship(tenant));
@@ -112,10 +115,9 @@ export function calculatePropertyProfit(
   const scopedDeposits = deposits.filter((deposit) => property.id === deposit.propertyId && isDateInRange(deposit.transactionDate, range) && !isVoided(deposit.notes));
   const income = scopedPayments.reduce((total, payment) => total + rentIncomeForPayment(payment), 0);
   const expense = sumBy(scopedExpenses, "amount");
-  const unpaid = scopedTenants.reduce((total, tenant) => {
-    const latest = latestCoverageForTenant(tenant.id, payments);
-    return total + (isCoverageExpired(latest) ? Number(latest?.amountDue || tenant.monthlyRent || 0) : 0);
-  }, 0);
+  const unpaid = getDebtCases({ properties: [property], rooms, tenants, rentPayments: payments, waivedPaymentIds })
+    .filter((debtCase) => debtCase.propertyId === property.id)
+    .reduce((total, debtCase) => total + debtCase.remainingAmount, 0);
   const depositAmount = 0;
   const netProfit = income - expense;
 

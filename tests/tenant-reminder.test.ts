@@ -21,8 +21,7 @@ test("DebtCase keeps archive/move-out facts separate from reminder presentation"
   assert.equal(cases("已归档")[0]?.tenantLifecycle.startsWith("archived"), true);
   assert.equal(cases("在租", {}, new Set(["payment-1"])).length, 0);
 });
-test("zero overdue debt remains waivable but not collectible", () => {
+test("zero overdue debt is neither waivable nor collectible", () => {
   const debtCase = cases("在租", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 })[0];
-  assert.equal(debtCase?.canCollect, false);
-  assert.equal(debtCase?.canWaive, true);
+  assert.equal(debtCase, undefined);
 });

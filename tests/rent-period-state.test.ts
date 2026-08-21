@@ -69,16 +69,16 @@ test("paid overdue history remains historical but no longer requires collection"
   assert.equal(state.hasOpenDebtFollowUp, false);
 });
 
-test("zero-balance overdue events remain waivable without changing ledger facts", () => {
+test("zero-balance overdue events are not collectible or waivable", () => {
   const zero = payment({ amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const state = getRentPeriodState({ tenant: tenant(), payment: zero, today: TODAY });
   const waived = getRentPeriodState({ tenant: tenant(), payment: zero, today: TODAY, waivedPaymentIds: new Set([zero.id]) });
   assert.equal(state.hasHistoricalDebtEvent, true);
   assert.equal(state.remainingAmount, 0);
   assert.equal(state.canCollect, false);
-  assert.equal(state.canWaive, true);
+  assert.equal(state.canWaive, false);
   assert.equal(state.isZeroAmountOverdueEvent, true);
-  assert.equal(state.hasOpenDebtFollowUp, true);
+  assert.equal(state.hasOpenDebtFollowUp, false);
   assert.equal(waived.waived, true);
   assert.equal(waived.canWaive, false);
   assert.equal(waived.hasOpenDebtFollowUp, false);

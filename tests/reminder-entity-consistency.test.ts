@@ -21,7 +21,7 @@ const roomNew = { id: "room-new", propertyId: propertyNew.id, name: "02", roomNu
 const tenantA = { id: "tenant-a", propertyId: propertyNew.id, roomId: roomNew.id, name: "同名租客", status: "已退租" } as BusinessTenant;
 const tenantB = { id: "tenant-b", propertyId: propertyOld.id, roomId: roomOld.id, name: "同名租客", status: "在租" } as BusinessTenant;
 const paymentA = { id: "payment-a", tenantId: tenantA.id, propertyId: propertyOld.id, roomId: roomOld.id, incomeType: "房租收入", paymentStatus: "未收", amountDue: 100, amountPaid: 0, amountUnpaid: 100, coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-01", rentMonth: "2026-07", isOverdue: true } as BusinessRentPayment;
-const paymentB = { id: "payment-b", tenantId: tenantB.id, propertyId: propertyOld.id, roomId: roomOld.id, incomeType: "房租收入", paymentStatus: "未收", amountDue: 0, amountPaid: 0, amountUnpaid: 0, coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-01", rentMonth: "2026-07", isOverdue: true } as BusinessRentPayment;
+const paymentB = { id: "payment-b", tenantId: tenantB.id, propertyId: propertyOld.id, roomId: roomOld.id, incomeType: "房租收入", paymentStatus: "未收", amountDue: 100, amountPaid: 0, amountUnpaid: 100, coverageStartDate: "2026-07-01", coverageEndDate: "2026-08-01", rentMonth: "2026-07", isOverdue: true } as BusinessRentPayment;
 
 test("rent reminders preserve payment-owned tenant, property and room across move-out and re-let history", () => {
   const snapshot = { properties: [propertyOld, propertyNew], rooms: [roomOld, roomNew], tenants: [tenantA, tenantB], contracts: [], rentPayments: [paymentA, paymentB], deposits: [], waivedPaymentIds: new Set<string>(), includeBackupReminder: false, today: TODAY };
@@ -50,7 +50,7 @@ test("multiple periods, payment-specific waivers, voids and zero overdue events 
   assert.equal(reminders.some((item) => item.paymentId === oldWaived.id), false);
   assert.equal(reminders.some((item) => item.paymentId === voidPayment.id), false);
   assert.equal(reminders.some((item) => item.paymentId === latestOpen.id), true);
-  assert.equal(reminders.some((item) => item.paymentId === zeroPayment.id), true);
+  assert.equal(reminders.some((item) => item.paymentId === zeroPayment.id), false);
 });
 
 test("archive mutes a debt without changing the payment entity and similar names stay ID-bound", () => {

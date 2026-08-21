@@ -126,7 +126,9 @@ export function getRentPeriodState({
   const collectionRequired = hasCurrentUnresolvedDebt;
   // This is a domain fact, not final reminder presentation. The future Reminder
   // Engine applies archive/UI policy to this candidate without changing debt.
-  const hasOpenDebtFollowUp = !waived && (hasCurrentUnresolvedDebt || isZeroAmountOverdueEvent);
+  // A collection action requires a positive receivable. An overdue period with
+  // no outstanding amount is a coverage event, not a debt to collect or waive.
+  const hasOpenDebtFollowUp = !waived && hasCurrentUnresolvedDebt;
 
   return {
     tenantId: tenant.id,
@@ -155,7 +157,7 @@ export function getRentPeriodState({
     waiverPaymentId: waived ? paymentId : null,
     collectionRequired,
     canCollect: collectionRequired,
-    // A waiver closes an expired payment-specific event, including a zero-balance event.
+    // Waiver is only available for a positive, payment-specific receivable.
     canWaive: hasOpenDebtFollowUp,
     hasOpenDebtFollowUp
   };

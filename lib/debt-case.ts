@@ -89,6 +89,12 @@ export function getDebtCaseByPaymentId(paymentId: string | null | undefined, deb
   return paymentId ? debtCases.find((item) => item.paymentId === paymentId) || null : null;
 }
 
+/** Canonical active receivable total. Waived and settled periods are excluded
+ * by getDebtCases, while the original payment facts remain unchanged. */
+export function getOutstandingReceivableAmount(snapshot: DebtCaseSnapshot) {
+  return getDebtCases(snapshot).reduce((total, debtCase) => total + debtCase.remainingAmount, 0);
+}
+
 /** Read-only reconciliation output for fixture tests and future diagnostics. */
 export function inspectDebtCases(snapshot: DebtCaseSnapshot): DebtCaseInspection[] {
   const cases = getDebtCases(snapshot);

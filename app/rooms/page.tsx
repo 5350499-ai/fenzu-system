@@ -32,6 +32,7 @@ import { partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { sortRoomsByNumberAndStatus } from "@/lib/tenant-sorting";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, latestValidRentPaymentForTenant, overdueReferenceAmount, roomOccupancyStatus } from "@/lib/rent-coverage";
 import { sumOccupants } from "@/lib/tenant-occupancy";
+import { getDebtCases } from "@/lib/debt-case";
 import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -250,7 +251,7 @@ export default function RoomsPage() {
               ? currentTenants.reduce((total, tenant) => total + currentRentForTenant(tenant, payments), 0)
               : room.monthlyRent;
             const currentDepositAmount = currentTenants.reduce((total, tenant) => total + currentDepositForTenant(tenant, deposits), 0);
-            const unpaid = displayStatus === "已租" ? roomUnpaidAmount(currentTenants, payments) : 0;
+            const unpaid = displayStatus === "已租" ? roomUnpaidAmount(currentTenants, payments, properties, rooms) : 0;
             const expanded = expandedRoomId === room.id;
             return (
               <article className="finance-list-item" id={`room-${room.id}`} key={room.id}>
@@ -503,11 +504,11 @@ function latestContractForRoom(roomId: string, contracts: BusinessContract[]) {
     .sort((a, b) => (b.endDate || "").localeCompare(a.endDate || ""))[0] || null;
 }
 
-function roomUnpaidAmount(tenants: BusinessTenant[], payments: BusinessRentPayment[]) {
-  return tenants.reduce((total, tenant) => {
-    const latest = latestCoverageForTenant(tenant.id, payments);
-    return total + (isCoverageExpired(latest) ? overdueReferenceAmount(latest, tenant) : 0);
-  }, 0);
+function roomUnpaidAmount(tenants: BusinessTenant[], payments: BusinessRentPayment[], properties: BusinessProperty[], rooms: BusinessRoom[]) {
+  const tenantIds = new Set(tenants.map((tenant) => tenant.id));
+  return getDebtCases({ properties, rooms, tenants, rentPayments: payments })
+    .filter((debtCase) => tenantIds.has(debtCase.tenantId))
+    .reduce((total, debtCase) => total + debtCase.remainingAmount, 0);
 }
 
 function currentDepositForTenant(tenant: BusinessTenant, deposits: BusinessDeposit[]) {

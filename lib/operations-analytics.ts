@@ -8,9 +8,7 @@ import type {
 } from "./business-data";
 import {
   fixedRentCollectionReminderStage,
-  isCoverageExpired,
   latestCoverageForTenant,
-  overdueReferenceAmount,
   paymentCoverageEnd,
   roomOccupancyStatus,
   isCurrentRentalRelationship,
@@ -18,6 +16,7 @@ import {
 } from "./rent-coverage";
 import { compareOperationsRooms } from "./room-status-sort";
 import { sumOccupants } from "./tenant-occupancy";
+import { getDebtCases } from "./debt-case";
 
 export { compareOperationsRooms } from "./room-status-sort";
 
@@ -96,7 +95,9 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
     const stage = fixedRentCollectionReminderStage(tenant, latestCoverageForTenant(tenant.id, scope.payments), today);
     return Boolean(stage && stage.level !== "overdue");
   });
-  const overdue = activeTenants.filter((tenant) => isCoverageExpired(latestCoverageForTenant(tenant.id, scope.payments), today));
+  const overdueCases = getDebtCases({ properties: scope.properties, rooms: scope.rooms, tenants: scope.tenants, rentPayments: scope.payments, today })
+    .filter((debtCase) => activeTenantIds.has(debtCase.tenantId));
+  const overdueTenantIds = new Set(overdueCases.map((debtCase) => debtCase.tenantId));
   const pendingDepositTenantIds = new Set(
     scope.deposits
       .filter((deposit) => {
@@ -119,8 +120,8 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
     contractsStartedThisMonth,
     expiringContracts,
     rentDueTenants: rentDueTenants.length,
-    overdueTenants: overdue.length,
-    overdueAmount: overdue.reduce((total, tenant) => total + overdueReferenceAmount(latestCoverageForTenant(tenant.id, scope.payments), tenant), 0),
+    overdueTenants: overdueTenantIds.size,
+    overdueAmount: overdueCases.reduce((total, debtCase) => total + debtCase.remainingAmount, 0),
     pendingDepositTenants: pendingDepositTenantIds.size,
     totalRooms: visibleRooms.length,
     rentedRooms,

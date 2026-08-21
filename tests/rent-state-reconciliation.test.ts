@@ -37,14 +37,14 @@ function assertChain(target: BusinessTenant, payments: BusinessRentPayment[], ex
   return { report, display, reminders };
 }
 
-test("regression: an unhandled 2026-08-05 coverage is an open debt everywhere", () => {
+test("zero-balance overdue coverage is not an open debt or reminder", () => {
   const target = tenant();
   const overdue = payment(target.id, "payment-aug-05", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
-  const { report, display, reminders } = assertChain(target, [overdue], overdue.id, [overdue.id]);
-  assert.equal(display.stateKind, "current_overdue");
-  assert.equal(display.displayStatus, "欠租");
-  assert.equal(report.entries[0]?.reason, "open-overdue");
-  assert.equal(reminders[0]?.debtCase?.coverageEnd, "2026-08-05");
+  const { report, display, reminders } = assertChain(target, [overdue], overdue.id, []);
+  assert.equal(display.stateKind, "normal");
+  assert.equal(display.displayStatus, "在租");
+  assert.equal(report.entries[0]?.reason, "latest-current-period");
+  assert.equal(reminders.length, 0);
 });
 
 test("regression: two different 2026-08-10 tenants keep independent debt reminders and navigation", () => {
@@ -53,8 +53,8 @@ test("regression: two different 2026-08-10 tenants keep independent debt reminde
   const paymentA = payment(first.id, "payment-aug-10-a", "2026-08-10", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const paymentB = payment(second.id, "payment-aug-10-b", "2026-08-10", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
   const reminders = buildEffectiveReminders(snapshot([first, second], [paymentA, paymentB]));
-  assert.deepEqual(reminders.filter((item) => item.type === "rent_debt").map((item) => item.id).sort(), ["rent_debt:payment-aug-10-a", "rent_debt:payment-aug-10-b"]);
-  assert.deepEqual(reminders.filter((item) => item.type === "rent_debt").map((item) => item.navigationTarget.tenantId).sort(), [first.id, second.id]);
+  assert.deepEqual(reminders.filter((item) => item.type === "rent_debt").map((item) => item.id), []);
+  assert.deepEqual(reminders.filter((item) => item.type === "rent_debt").map((item) => item.navigationTarget.tenantId), []);
 });
 
 test("latest coverage and historical open debt remain distinct and visible", () => {
@@ -99,15 +99,15 @@ test("golden rent-state matrix reconciles latest, open debt, tenant state and re
     { id: "03-end-yesterday", payments: (t) => [payment(t.id, "p03", "2026-08-10")], latest: "p03", open: ["p03"], display: "current_overdue" },
     { id: "04-seven-days-overdue", payments: (t) => [payment(t.id, "p04", "2026-08-04")], latest: "p04", open: ["p04"], display: "current_overdue" },
     { id: "05-positive-debt", payments: (t) => [payment(t.id, "p05", "2026-08-05")], latest: "p05", open: ["p05"], display: "current_overdue" },
-    { id: "06-zero-debt", payments: (t) => [payment(t.id, "p06", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 })], latest: "p06", open: ["p06"], display: "current_overdue" },
+    { id: "06-zero-debt", payments: (t) => [payment(t.id, "p06", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 })], latest: "p06", open: [], display: "normal" },
     { id: "07-waiver", payments: (t) => [payment(t.id, "p07", "2026-08-05")], waived: ["p07"], latest: "p07", open: [], display: "normal" },
     { id: "08-void", payments: (t) => [payment(t.id, "p08", "2026-08-05", { paymentStatus: "已作废" })], latest: null, open: [], display: "no_period" },
     { id: "09-settled", payments: (t) => [payment(t.id, "p09", "2026-08-05", { amountPaid: 100, amountUnpaid: 0, paymentStatus: "已收" })], latest: "p09", open: [], display: "normal" },
     { id: "10-current-plus-historical-positive", payments: (t) => [payment(t.id, "p10-old", "2026-08-05"), payment(t.id, "p10-current", "2026-08-20", { amountPaid: 100, amountUnpaid: 0 })], latest: "p10-current", open: ["p10-old"], display: "historical_debt" },
-    { id: "11-current-plus-historical-zero", payments: (t) => [payment(t.id, "p11-old", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 }), payment(t.id, "p11-current", "2026-08-20", { amountPaid: 100, amountUnpaid: 0 })], latest: "p11-current", open: ["p11-old"], display: "historical_debt" },
+    { id: "11-current-plus-historical-zero", payments: (t) => [payment(t.id, "p11-old", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 }), payment(t.id, "p11-current", "2026-08-20", { amountPaid: 100, amountUnpaid: 0 })], latest: "p11-current", open: [], display: "upcoming" },
     { id: "12-historical-waived", payments: (t) => [payment(t.id, "p12-old", "2026-08-05"), payment(t.id, "p12-current", "2026-08-20", { amountPaid: 100, amountUnpaid: 0 })], waived: ["p12-old"], latest: "p12-current", open: [], display: "upcoming" },
     { id: "13-multiple-open-debts", payments: (t) => [payment(t.id, "p13-a", "2026-07-01", { coverageStartDate: "2026-06-01" }), payment(t.id, "p13-b", "2026-08-05"), payment(t.id, "p13-current", "2026-08-20", { amountPaid: 100, amountUnpaid: 0 })], latest: "p13-current", open: ["p13-a", "p13-b"], display: "historical_debt" },
-    { id: "14-same-day-distinct-payment", payments: (t) => [payment(t.id, "p14", "2026-08-10", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 })], latest: "p14", open: ["p14"], display: "current_overdue" },
+    { id: "14-same-day-distinct-payment", payments: (t) => [payment(t.id, "p14", "2026-08-10", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 })], latest: "p14", open: [], display: "normal" },
     { id: "15-relet-historical-tenant", status: "moved_out", payments: (t) => [payment(t.id, "p15", "2026-08-05")], latest: "p15", open: ["p15"], display: "historical_debt" },
     { id: "16-moved-room-history", payments: (t) => [payment(t.id, "p16", "2026-08-05")], latest: "p16", open: ["p16"], display: "current_overdue" },
     { id: "17-archived-debt", status: "archived", payments: (t) => [payment(t.id, "p17", "2026-08-05")], latest: "p17", open: ["p17"], display: "historical_debt", reminderIds: [] },
@@ -142,18 +142,13 @@ test("golden rent-state matrix reconciles latest, open debt, tenant state and re
 test("rent reminder display contract keeps full coverage end on a second line", () => {
   const target = tenant();
   const overdue = payment(target.id, "payment-display", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
-  const reminder = buildEffectiveReminders(snapshot([target], [overdue]))[0]!;
-  const display = reminder.debtCase ? buildDebtDisplayModel(reminder.debtCase) : null;
-  assert.equal(display?.primaryLine, "欠费2 | 测试房源 | 02 房间");
-  assert.equal(display?.secondaryLine, "覆盖至 2026-08-05 | 已逾期 6 天 | €0.00");
-  assert.equal(display?.lifecycleLabel, "在租");
-  assert.equal(display?.debtKindLabel, "当前欠租");
-  assert.deepEqual(display?.availableActions, ["waive"]);
+  const reminder = buildEffectiveReminders(snapshot([target], [overdue])).find((item) => item.type === "rent_debt");
+  assert.equal(reminder, undefined);
 });
 
 test("rent reminder display keeps lifecycle and historical debt semantics for moved-out and current tenants", () => {
   const movedOut = tenant("tenant-moved-out", "Test", "moved_out");
-  const debt = payment(movedOut.id, "payment-moved-out", "2026-08-05", { amountDue: 0, amountPaid: 0, amountUnpaid: 0 });
+  const debt = payment(movedOut.id, "payment-moved-out", "2026-08-05");
   const movedOutReminder = buildEffectiveReminders(snapshot([movedOut], [debt]))[0]!;
   const movedOutDisplay = movedOutReminder.debtCase ? buildDebtDisplayModel(movedOutReminder.debtCase) : null;
   assert.equal(movedOutReminder.debtCase?.tenantLifecycle, "moved_out");
