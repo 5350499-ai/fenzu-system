@@ -1,6 +1,6 @@
 import type { BusinessProperty, BusinessRentPayment, BusinessRoom, BusinessTenant } from "./business-data";
 // @ts-expect-error Node's strip-types test runner imports TypeScript directly.
-import { inspectTenantRentState, rentPeriodToday, type RentPeriodState } from "./rent-period-state.ts";
+import { inspectTenantRentState, rentPeriodRemainingAmount, rentPeriodToday, type RentPeriodState } from "./rent-period-state.ts";
 // @ts-expect-error Node's strip-types test runner imports TypeScript directly.
 import { isArchivedTenantStatus } from "./tenant-archive.ts";
 // @ts-expect-error Node's strip-types test runner imports TypeScript directly.
@@ -20,6 +20,8 @@ export type DebtCase = {
   roomName: string;
   coverageStart: string;
   coverageEnd: string;
+  /** The receivable due boundary. For persisted payments this equals coverageEnd. */
+  dueDate: string;
   businessToday: string;
   daysOverdue: number;
   amountDue: number;
@@ -33,6 +35,7 @@ export type DebtCase = {
   tenantLifecycle: "current" | "moved_out" | "archived_current" | "archived_moved_out" | "other";
   canCollect: boolean;
   canWaive: boolean;
+  isDerived: boolean;
   navigation: { tenantId: string; paymentId: string; focus: "debt"; tenantHref: string };
 };
 
@@ -77,6 +80,15 @@ export function getDebtCases(snapshot: DebtCaseSnapshot): DebtCase[] {
       if (!payment || !state.paymentId) continue;
       cases.push(toDebtCase({ tenant, payment, state, latestPaymentId: reconciliation.latestPeriod.paymentId, today, property: properties.get(payment.propertyId), room: rooms.get(payment.roomId) }));
     }
+    cases.push(...deriveExpiredCoverageDebtCases({
+      tenant,
+      payments,
+      latestPayment: reconciliation.latestPeriod.paymentId ? payments.find((item) => item.id === reconciliation.latestPeriod.paymentId) || null : null,
+      waivedPaymentIds,
+      today,
+      property: properties.get(tenant.propertyId),
+      room: rooms.get(tenant.roomId)
+    }));
   }
   return cases.sort((left, right) => left.coverageEnd.localeCompare(right.coverageEnd) || left.paymentId.localeCompare(right.paymentId));
 }
@@ -127,6 +139,7 @@ function toDebtCase({ tenant, payment, state, latestPaymentId, today, property, 
     roomName: room?.name?.trim() || room?.roomNumber?.trim() || "房间",
     coverageStart: state.coverageStartDate,
     coverageEnd: state.coverageEndDate,
+    dueDate: state.coverageEndDate,
     businessToday: today,
     daysOverdue: state.overdueDays,
     amountDue: state.amountDue,
@@ -140,6 +153,131 @@ function toDebtCase({ tenant, payment, state, latestPaymentId, today, property, 
     tenantLifecycle,
     canCollect: state.canCollect,
     canWaive: state.canWaive,
+    isDerived: false,
     navigation: { tenantId: tenant.id, paymentId: payment.id, focus: "debt", tenantHref: tenantDebtHref(tenant.id, payment.id) }
   };
+}
+
+/**
+ * Derives receivables for expired coverage when the next rent_payment row was
+ * never created. This is deliberately read-only: it creates no payment row,
+ * no income, and no expense. Existing payment-backed periods always win, so
+ * a partial payment cannot be double-counted by this fallback.
+ */
+function deriveExpiredCoverageDebtCases({
+  tenant,
+  payments,
+  latestPayment,
+  waivedPaymentIds,
+  today,
+  property,
+  room
+}: {
+  tenant: BusinessTenant;
+  payments: BusinessRentPayment[];
+  latestPayment: BusinessRentPayment | null;
+  waivedPaymentIds: ReadonlySet<string>;
+  today: string;
+  property?: BusinessProperty;
+  room?: BusinessRoom;
+}): DebtCase[] {
+  if (!latestPayment || !isRentPaymentEligibleForDerivedDebt(latestPayment)) return [];
+  const latestCoverageEnd = latestPayment.coverageEndDate || "";
+  if (!latestCoverageEnd || latestCoverageEnd >= today) return [];
+  // The latest persisted row already represents its own receivable when it
+  // has a positive balance. Never create a second case for that same period.
+  if (rentPeriodRemainingAmount(latestPayment) > 0) return [];
+
+  const expectedRent = positiveMoney(latestPayment.amountDue) || positiveMoney(tenant.monthlyRent);
+  if (expectedRent <= 0) return [];
+
+  const validPayments = payments.filter((payment) => isRentPaymentEligibleForDerivedDebt(payment));
+  const derived: DebtCase[] = [];
+  let periodStart = addDays(latestCoverageEnd, 1);
+  let index = 0;
+  while (periodStart <= today) {
+    const periodEnd = addDays(addCalendarMonths(periodStart, 1), -1);
+    const overlapsPersistedPayment = validPayments.some((payment) => payment.id !== latestPayment.id && periodsOverlap(payment.coverageStartDate || payment.coverageEndDate || "", payment.coverageEndDate || "", periodStart, periodEnd));
+    const derivedId = `derived_rent_debt:${tenant.id}:${periodStart}`;
+    if (!overlapsPersistedPayment && !waivedPaymentIds.has(derivedId)) {
+      const dueDate = addDays(periodStart, -1);
+      const lifecycle = classifyLifecycle(tenant.status);
+      const debtKind = lifecycle === "current" ? "current" : "historical";
+      derived.push({
+        debtCaseId: derivedId,
+        paymentId: derivedId,
+        tenantId: tenant.id,
+        propertyId: tenant.propertyId,
+        roomId: tenant.roomId,
+        tenantName: tenant.name || "未命名租客",
+        propertyName: property?.name?.trim() || "房源",
+        roomName: room?.name?.trim() || room?.roomNumber?.trim() || "房间",
+        coverageStart: periodStart,
+        coverageEnd: periodEnd,
+        dueDate,
+        businessToday: today,
+        daysOverdue: Math.max(1, dayDifference(dueDate, today) * -1),
+        amountDue: expectedRent,
+        amountPaid: 0,
+        remainingAmount: expectedRent,
+        isOpen: true,
+        isWaived: false,
+        isVoid: false,
+        isSettled: false,
+        debtKind,
+        tenantLifecycle: lifecycle === "current" ? "current" : lifecycle === "ended" ? "moved_out" : lifecycle === "archived" ? "archived_current" : "other",
+        canCollect: false,
+        canWaive: true,
+        isDerived: true,
+        navigation: { tenantId: tenant.id, paymentId: derivedId, focus: "debt", tenantHref: tenantDebtHref(tenant.id, derivedId) }
+      });
+    }
+    periodStart = addCalendarMonths(periodStart, 1);
+    index += 1;
+    if (index > 240) break;
+  }
+  return derived;
+}
+
+function isRentPaymentEligibleForDerivedDebt(payment: BusinessRentPayment) {
+  return payment.incomeType !== "押金收入" && payment.incomeType !== "赔偿收入" && payment.incomeType !== "其他收入"
+    && !String(payment.paymentStatus || "").includes("作废")
+    && Boolean(payment.coverageEndDate);
+}
+
+function positiveMoney(value: unknown) {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : 0;
+}
+
+function addDays(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addCalendarMonths(value: string, months: number) {
+  const date = new Date(`${value}T12:00:00Z`);
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
+  return date.toISOString().slice(0, 10);
+}
+
+function dayDifference(target: string, from: string) {
+  return Math.round((new Date(`${target}T12:00:00Z`).getTime() - new Date(`${from}T12:00:00Z`).getTime()) / 86400000);
+}
+
+function periodsOverlap(leftStart: string, leftEnd: string, rightStart: string, rightEnd: string) {
+  return Boolean(leftStart && leftEnd) && leftStart <= rightEnd && leftEnd >= rightStart;
+}
+
+function classifyLifecycle(status: string) {
+  const normalized = status.trim().toLowerCase();
+  if (normalized.includes("归档") || normalized === "archived") return "archived" as const;
+  if (["已退租", "已结束", "moved_out", "ended"].some((marker) => normalized.includes(marker))) return "ended" as const;
+  if (["在租", "即将退租", "欠租", "current"].some((marker) => normalized.includes(marker))) return "current" as const;
+  return "other" as const;
 }

@@ -22,7 +22,7 @@ export function buildDebtDisplayModel(debtCase: DebtCase): DebtDisplayModel {
     primaryLine: [debtCase.tenantName, debtCase.propertyName, debtCase.roomName].filter(Boolean).join(" | "),
     tenantName: debtCase.tenantName,
     contextLine: [debtCase.propertyName, debtCase.roomName].filter(Boolean).join(" | "),
-    secondaryLine: `覆盖至 ${debtCase.coverageEnd || "-"} | 已逾期 ${debtCase.daysOverdue} 天 | ${euro(debtCase.remainingAmount)}`,
+    secondaryLine: `覆盖至 ${debtCase.dueDate || debtCase.coverageEnd || "-"} | 已逾期 ${debtCase.daysOverdue} 天 | ${euro(debtCase.remainingAmount)}`,
     lifecycleLabel,
     lifecycleTone,
     debtKindLabel: debtCase.debtKind === "current" ? "当前欠租" : "历史欠费",

@@ -49,8 +49,10 @@ test("waiving a receivable closes collection without changing income or expense"
   assert.equal(partial.amountDue, 500);
 });
 
-test("zero-balance overdue coverage is not a waiver candidate", () => {
+test("expired coverage with no recorded next payment derives a receivable from monthly rent", () => {
   const zero = payment({ amountDue: 0, amountPaid: 0, amountUnpaid: 0, coverageStartDate: "2026-07-01", coverageEndDate: "2026-07-31" });
   const [debt] = getDebtCases(snapshot(zero));
-  assert.equal(debt, undefined);
+  assert.equal(debt?.isDerived, true);
+  assert.equal(debt?.remainingAmount, 500);
+  assert.equal(debt?.amountPaid, 0);
 });

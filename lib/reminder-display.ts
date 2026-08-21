@@ -44,7 +44,7 @@ export type ReminderDisplayModel = {
 export function buildReminderDisplayModel(item: ReminderItem, context: ReminderDisplayContext): ReminderDisplayModel {
   if (item.debtCase) {
     const debt = buildDebtDisplayModel(item.debtCase);
-    const secondaryPrefix = `覆盖至 ${item.debtCase.coverageEnd || "-"} | 已逾期 `;
+    const secondaryPrefix = `覆盖至 ${item.debtCase.dueDate || item.debtCase.coverageEnd || "-"} | 已逾期 `;
     return {
       categoryLabel: item.category,
       tenantName: debt.tenantName,

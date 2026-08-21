@@ -280,7 +280,7 @@ function reminderFromDebtCase(debtCase: DebtCase): ReminderDraft {
     roomId: debtCase.roomId,
     propertyId: debtCase.propertyId,
     paymentId: debtCase.paymentId,
-    dueDate: debtCase.coverageEnd,
+    dueDate: debtCase.dueDate,
     daysOverdue: debtCase.daysOverdue,
     amount: debtCase.remainingAmount,
     availableActions: [...(debtCase.canCollect ? ["collect" as const] : []), ...(debtCase.canWaive ? ["waive" as const] : [])],

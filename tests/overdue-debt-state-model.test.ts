@@ -50,7 +50,9 @@ test("coverage end is inclusive: debt starts on the following day", () => {
 
 test("partial and fully paid periods use actual paid amount without changing overdue facts", () => {
   assert.equal(debtCases(payment({ amountPaid: 100, amountUnpaid: 250 }), "2026-08-21")[0]?.remainingAmount, 250);
-  assert.equal(debtCases(payment({ amountPaid: 350, amountUnpaid: 0, paymentStatus: "已收" }), "2026-08-21").length, 0);
+  const derived = debtCases(payment({ amountPaid: 350, amountUnpaid: 0, paymentStatus: "已收" }), "2026-08-21");
+  assert.equal(derived.length, 1);
+  assert.equal(derived[0]?.isDerived, true);
 });
 
 test("payment day does not create debt while coverage is still active", () => {

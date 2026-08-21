@@ -104,10 +104,10 @@ expired payment remains an independent open-debt period until that same
 payment is settled, voided or waived. A later coverage period does not silently
 settle an older debt. When current coverage is upcoming and an older debt stays
  open, the tenant view must show both facts and the debt reminder must reference
- the old payment ID. A zero-amount overdue period remains a coverage-history
- fact, but it is not a DebtCase and cannot be waived or collected because there
- is no outstanding receivable. It is not automatically discarded merely because
- a newer period exists.
+ the old payment ID. A zero-amount overdue period can still be followed by a
+ read-only derived receivable when the tenant has a known monthly rent and no
+ next payment row. Derived receivables are stable DebtCases but never payment
+ rows or income.
 Unlinked duplicate/overlapping payment rows cannot safely be assumed to be
 superseded without a separate product decision.
 
@@ -121,10 +121,15 @@ superseded without a separate product decision.
   later payment does not silently close an older debt.
 - `coverageEnd` is inclusive: coverage ending on `businessToday` is due today,
   not overdue. Overdue begins on the following Madrid business day.
-- A valid zero-amount overdue period remains historical coverage evidence, but
-  it is not an open debt/collection event and has no waiver action.
-- The canonical `DebtCase` starts only on the day after `coverageEnd`, and only
-  when the payment-specific expected amount has a positive remaining balance.
+- A valid expired coverage period with no next payment row derives a positive
+  receivable from `payment.amountDue` when available, otherwise
+  `tenant.monthlyRent`. The derived DebtCase starts on the day after
+  `coverageEnd`; it creates no payment row and has zero actual paid amount.
+- Existing payment-backed periods always win for their covered interval, so a
+  partial payment is never double-counted. Multiple missing monthly periods
+  produce one stable derived case per period. `tenants.payment_day` is stored
+  for payment-timing analysis; it must not create debt or override active
+  coverage.
   `tenants.payment_day` is stored for the tenant's payment-timing analysis; it
   must not create a debt or override still-active coverage.
 - Archive mutes daily reminders only. Move-out ends tenancy only. Neither
@@ -238,9 +243,13 @@ superseded without a separate product decision.
 
 ## Debt Single Source Contract（2026-08-11）
 
-- `DebtCase` is a payment-specific open collection event. It never rewrites the original payment, contract, deposit or audit history.
+- `DebtCase` is an open collection event backed either by a payment row or by a
+  stable read-only derived period. Derived cases never rewrite the original
+  payment, contract, deposit or audit history.
 - Latest Rent Period explains current coverage; Open Debt Periods explain every unresolved payment period. They must not be collapsed into one boolean.
-- Archive mutes daily reminders only; move-out does not settle debt. Positive debt can collect or waive; a valid €0 overdue event can waive only and creates no income or expense.
+- Archive mutes daily reminders only; move-out does not settle debt. Positive
+  payment-backed or derived debt can collect or waive; derived debt creates no
+  payment row, income, or expense.
 - Every debt UI, reminder, navigation target and action visibility rule consumes the same DebtCase. Coverage end, overdue facts and amount must remain visible.
 ## 附件原文件与多选上传（2026-07-22）
 
