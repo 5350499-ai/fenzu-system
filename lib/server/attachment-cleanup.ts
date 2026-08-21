@@ -6,7 +6,7 @@ export type AttachmentTable = "property_files" | "contract_files" | "rent_paymen
 type AttachmentProvider = "supabase" | "google_drive" | "unknown";
 export type AttachmentCategory = "property" | "tenant" | "income" | "expense";
 type AttachmentRow = { id: string; user_id: string; storage_provider: string | null; storage_bucket: string | null; storage_path: string | null; provider_file_id?: string | null; file_name: string; file_type?: string | null; file_size: number | null; uploaded_at?: string | null; property_id?: string | null; contract_id?: string | null; tenant_id?: string | null; rent_payment_id?: string | null; expense_id?: string | null };
-type TenantRow = { id: string; name: string | null; status: string | null; move_in_date?: string | null; actual_move_out_date?: string | null; property_id: string | null; room_id: string | null };
+type TenantRow = { id: string; name: string | null; status: string | null; actual_move_out_date?: string | null; property_id: string | null; room_id: string | null };
 type PropertyRow = { id: string; name: string | null; address?: string | null };
 type RoomRow = { id: string; name: string | null; room_number: string | null; property_id?: string | null };
 type ContractRow = { id: string; tenant_id: string | null; property_id: string | null; room_id: string | null; start_date: string | null };
@@ -24,11 +24,9 @@ function isMovedOut(tenant: TenantRow) { return Boolean(tenant.actual_move_out_d
 
 async function loadTenants(ownerId: string) {
   const admin = getSupabaseAdmin();
-  const result = await admin.from("tenants").select("id,name,status,move_in_date,actual_move_out_date,property_id,room_id").eq("user_id", ownerId);
-  if (!result.error) return (result.data || []) as TenantRow[];
-  const fallback = await admin.from("tenants").select("id,name,status,property_id,room_id").eq("user_id", ownerId);
-  if (fallback.error) throw new Error(`读取租客失败：${fallback.error.message}`);
-  return ((fallback.data || []) as TenantRow[]).map((row) => ({ ...row, move_in_date: null, actual_move_out_date: null }));
+  const result = await admin.from("tenants").select("id,name,status,actual_move_out_date,property_id,room_id").eq("user_id", ownerId);
+  if (result.error) throw new Error(`读取租客失败：${result.error.message}`);
+  return (result.data || []) as TenantRow[];
 }
 async function loadContext(ownerId: string) {
   const admin = getSupabaseAdmin();

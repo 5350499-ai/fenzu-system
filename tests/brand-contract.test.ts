@@ -8,8 +8,15 @@ const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 test("品牌主名称统一为蜜蜂分租", () => {
   assert.match(read("lib/brand.ts"), /PRODUCT_BRAND = "蜜蜂分租"/);
-  assert.match(read("app/login/page.tsx"), /PRODUCT_BRAND/);
-  assert.match(read("app/register/page.tsx"), /PRODUCT_BRAND/);
+  for (const file of ["app/login/page.tsx", "app/register/page.tsx"]) {
+    const source = read(file);
+    assert.match(source, /import\s+\{\s*AuthBrand\s*\}\s+from\s+"@\/components\/auth-brand"/);
+    assert.match(source, /<AuthBrand(?:\s+[^>]*)?\s*\/>/);
+    assert.doesNotMatch(source, /PRODUCT_BRAND/);
+  }
+  const authBrand = read("components/auth-brand.tsx");
+  assert.match(authBrand, /import\s+\{\s*PRODUCT_BRAND/);
+  assert.match(authBrand, /<div className="brand-title">\{PRODUCT_BRAND\}<\/div>/);
   assert.match(read("components/app-layout.tsx"), /title: PRODUCT_BRAND/);
   assert.match(read("app/page.tsx"), /title=\{PRODUCT_BRAND\}/);
 });
