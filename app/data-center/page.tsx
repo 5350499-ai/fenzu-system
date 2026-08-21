@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { SectionCard, PrimaryButton, SecondaryButton, DangerButton } from "@/components/ui";
+import { BackupReminderCard } from "@/components/backup-reminder-card";
 import { ArrowDownToLine, Cloud, Crown, FileSpreadsheet, FileText, HardDriveDownload, History, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -21,7 +22,6 @@ import {
   SCHEMA_VERSION,
   buildCsvDataExport,
   buildExcelDataExport,
-  createDataExportPayload,
   dryRunRestore,
   formatBackupSize,
   isDataExportPayload,
@@ -341,19 +341,6 @@ export default function DataCenterPage() {
     setExportSheetOpen(false);
   }
 
-  async function exportFreeSingleJson() {
-    const payload = await createDataExportPayload(sanitizeFreeSingleExportData(await loadExportData()), undefined, { backupType: "local", exportReason: "Manual" });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = buildExportFile(`${PRODUCT_BRAND}本地数据-${stamp}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
-    await saveFileWithSystemFallback(file);
-    const session = await getValidSupabaseSession();
-    if (session) {
-      const recordedAt = await recordSuccessfulBackup(session.access_token);
-      markSuccessfulBackup(session.user.id, recordedAt);
-    }
-    setExportSheetOpen(false);
-  }
-
   async function previewRestoreFile(file: File | undefined) {
     setRestorePreview(null);
     setRestoreStep("preview");
@@ -442,12 +429,11 @@ export default function DataCenterPage() {
     return result.report;
   }
 
-  return <AppLayout title={access.isFreeSingle ? "数据导出" : "Backup & Restore"} description={access.isFreeSingle ? "将自己的结构化业务数据导出并保存到本地。" : "备份与恢复业务数据、导出报表并查看后续云端能力。"}>
+  return <AppLayout title="备份与恢复" description="管理业务数据备份、恢复入口和报表导出。">
     <div className="data-center-page">
       {error ? <div className="data-center-alert data-center-alert--danger" role="alert">{error}</div> : null}
-      {!access.isFreeSingle ? <>
       <SectionCard className="data-center-card">
-        <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后恢复整个系统。" />
+        <DataCardHeader icon={<HardDriveDownload size={20} />} title="数据备份" description="用于以后完整恢复系统，导出 JSON 备份文件。" />
         <CountSummary counts={counts} loading={loading} loaded={dataLoaded} />
         <p className="data-center-note"><ShieldCheck size={16} /> 创建备份会下载一份本地 JSON 文件，不会写入云端 Storage。</p>
         <PrimaryButton type="button" disabled={!access.ready || loading || backupCreating || backupStatus === "preparing" || backupStatus === "generating" || backupStatus === "validating" || backupStatus === "handoff" || !access.canSensitive("canExportData")} onClick={() => void (backupStatus === "complete" && backupRetryFile ? downloadCompletedBackup() : createBackup())}>
@@ -462,24 +448,16 @@ export default function DataCenterPage() {
         {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton> : null}
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-      {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
+      {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
       </SectionCard>
-      </> : null}
-      {access.isFreeSingle ? <SectionCard className="data-center-card">
-        <DataCardHeader icon={<History size={20} />} title="恢复数据" description="选择本人账户导出的 JSON 数据备份，先预览并校验。恢复会覆盖当前业务数据，系统会先自动生成恢复前备份。" />
-        <input ref={restoreInputRef} style={{ display: "none" }} type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; void previewRestoreFile(file); }} />
-        {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>选择数据备份</SecondaryButton> : null}
-        {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
-        {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在校验备份并读取当前数据，请稍候…</p> : null}
-        {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={true} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
-      </SectionCard> : null}
-      <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印、发送给会计。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
+      <BackupReminderCard />
+      <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印或发送给会计，导出 Excel / CSV，不用于系统恢复。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
       {!access.isFreeSingle ? <>
       <SubscriptionCard title="自动云备份" icon={<Cloud size={20} />} description="自动保存数据库历史备份，后续可按保留策略查看。" onOpen={() => setSubscriptionDialog("backup")} />
       <SubscriptionCard title="历史恢复" icon={<History size={20} />} description="恢复前系统将自动创建一份当前数据备份，此规则以后不可关闭。" onOpen={() => setSubscriptionDialog("restore")} />
       </> : null}
     </div>
-    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setExportSheetOpen(false); }}><section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}><div className="data-center-sheet-handle" aria-hidden="true" /><h2 id="export-sheet-title">请选择导出格式</h2>{access.isFreeSingle ? <button type="button" className="data-center-sheet-option" onClick={() => void exportFreeSingleJson()}><FileText size={19} /><span>JSON <small>本地保存</small></span></button> : null}<button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button><button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button><SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton></section></div> : null}
+    {exportSheetOpen ? <div className="data-center-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setExportSheetOpen(false); }}><section className="data-center-sheet" role="dialog" aria-modal="true" aria-labelledby="export-sheet-title" onClick={(event) => event.stopPropagation()}><div className="data-center-sheet-handle" aria-hidden="true" /><h2 id="export-sheet-title">请选择导出格式</h2><button type="button" className="data-center-sheet-option" onClick={() => exportTable("excel")}><FileSpreadsheet size={19} /><span>Excel <small>推荐</small></span></button><button type="button" className="data-center-sheet-option" onClick={() => exportTable("csv")}><FileText size={19} /><span>CSV <small>兼容其它软件</small></span></button><SecondaryButton type="button" onClick={() => setExportSheetOpen(false)}>取消</SecondaryButton></section></div> : null}
     {subscriptionDialog ? <div className="data-center-dialog-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setSubscriptionDialog(null); }}><section className="data-center-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="data-center-dialog-icon"><Crown size={22} /></div><h2>订阅后即可使用</h2><ul><li>自动云备份</li><li>历史恢复</li><li>更多云端能力</li></ul><p className="data-center-muted">{subscriptionDialog === "restore" ? "恢复前系统将自动创建一份当前数据备份。" : "自动云备份功能将在后续阶段开放。"}</p><SecondaryButton type="button" onClick={() => setSubscriptionDialog(null)}>知道了</SecondaryButton></section></div> : null}
   </AppLayout>;
 }

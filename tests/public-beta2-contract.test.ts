@@ -58,10 +58,9 @@ test("BeforeRestore records an account-scoped server recovery point", () => {
 });
 
 test("ordinary Beta Restore UI requires a preview and exposes explicit restore copy", () => {
-  assert.match(dataCenter, /access\.isFreeSingle \?/);
-  assert.match(dataCenter, /恢复会覆盖当前业务数据/);
-  assert.match(dataCenter, /系统会先自动生成恢复前备份/);
-  assert.match(dataCenter, /canRealRestore=\{true\}/);
+  assert.match(dataCenter, /恢复将覆盖当前所有业务数据/);
+  assert.match(dataCenter, /恢复前系统将自动创建一份当前数据备份/);
+  assert.match(dataCenter, /canRealRestore=\{access\.isOwner \|\| access\.isFreeSingle\}/);
 });
 
 test("ordinary Beta Restore validates the source and preserves server-owned attribution", () => {
