@@ -33,6 +33,7 @@ export type ReminderDisplayModel = {
   secondaryLine: string;
   secondaryReason?: ReminderSecondaryReason;
   amountLabel?: string;
+  debtAmountLabel?: string;
   debtCase?: DebtCase;
   vacantRoom?: {
     roomName: string;
@@ -44,7 +45,7 @@ export type ReminderDisplayModel = {
 export function buildReminderDisplayModel(item: ReminderItem, context: ReminderDisplayContext): ReminderDisplayModel {
   if (item.debtCase) {
     const debt = buildDebtDisplayModel(item.debtCase);
-    const secondaryPrefix = `覆盖至 ${item.debtCase.dueDate || item.debtCase.coverageEnd || "-"} | 已逾期 `;
+    const secondaryPrefix = "已逾期 ";
     return {
       categoryLabel: item.category,
       tenantName: debt.tenantName,
@@ -52,9 +53,10 @@ export function buildReminderDisplayModel(item: ReminderItem, context: ReminderD
       lifecycleLabel: debt.lifecycleLabel,
       lifecycleTone: debt.lifecycleTone === "green" ? "green" : "amber",
       debtKindLabel: debt.debtKindLabel,
-      secondaryLine: debt.secondaryLine,
-      secondaryReason: { before: secondaryPrefix, emphasis: `${item.debtCase.daysOverdue} 天`, after: ` | ${debt.amountLabel}`, tone: "danger" },
+      secondaryLine: `已逾期 ${item.debtCase.daysOverdue} 天 | 覆盖至 ${item.debtCase.dueDate || item.debtCase.coverageEnd || "-"}`,
+      secondaryReason: { before: secondaryPrefix, emphasis: `${item.debtCase.daysOverdue} 天`, after: ` | 覆盖至 ${item.debtCase.dueDate || item.debtCase.coverageEnd || "-"}`, tone: "danger" },
       amountLabel: debt.amountLabel,
+      debtAmountLabel: debt.amountLabel,
       debtCase: item.debtCase
     };
   }

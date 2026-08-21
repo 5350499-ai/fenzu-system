@@ -78,12 +78,15 @@ export type ReminderSnapshot = {
 export type ReminderSummary = {
   total: number;
   debtCount: number;
+  debtTenantCount: number;
   rentCollectionCount: number;
   contractCount: number;
   depositCount: number;
   movingOutCount: number;
   vacantRoomCount: number;
   backupCount: number;
+  headline: string;
+  detail: string;
   text: string;
 };
 
@@ -225,20 +228,25 @@ export function summarizeEffectiveReminders(reminders: ReminderItem[]): Reminder
   const debtItems = reminders.filter((item) => item.type === "rent_debt");
   const debtAmount = debtItems.reduce((sum, item) => sum + Math.max(0, item.amount || 0), 0);
   const debtCount = debtItems.length;
+  const debtTenantCount = new Set(debtItems.map((item) => item.tenantId).filter(Boolean)).size;
   const rentCollectionCount = count("rent_collection");
   const contractCount = count("contract_expiry");
   const depositCount = count("deposit_return");
   const movingOutCount = count("moving_out_room");
   const vacantRoomCount = count("vacant_room");
   const backupCount = count("backup");
+  const headline = debtCount ? `${debtAmount > 0 ? `欠费${euro(debtAmount)}` : "欠费"} · ${debtTenantCount}人` : "暂无欠费";
   const parts: string[] = [];
-  if (debtCount) parts.push(debtAmount > 0 ? `欠费${euro(debtAmount)}` : `欠费${debtCount}`);
-  if (rentCollectionCount) parts.push(`待收租${rentCollectionCount}`);
-  if (contractCount) parts.push(`快到期${contractCount}`);
-  if (depositCount) parts.push(`押金异常${depositCount}`);
-  if (movingOutCount) parts.push(`即将退租${movingOutCount}`);
-  if (vacantRoomCount) parts.push(`空置${vacantRoomCount}`);
-  return { total: reminders.length, debtCount, rentCollectionCount, contractCount, depositCount, movingOutCount, vacantRoomCount, backupCount, text: parts.length ? parts.join(" · ") : "暂无待处理提醒" };
+  if (rentCollectionCount) parts.push(`待收租 ${rentCollectionCount}`);
+  if (contractCount) parts.push(`合同到期 ${contractCount}`);
+  if (depositCount) parts.push(`押金异常 ${depositCount}`);
+  if (vacantRoomCount) parts.push(`空置 ${vacantRoomCount}`);
+  if (movingOutCount) parts.push(`即将退租 ${movingOutCount}`);
+  const knownCount = debtCount + rentCollectionCount + contractCount + depositCount + vacantRoomCount + movingOutCount + backupCount;
+  const otherCount = Math.max(0, reminders.length - knownCount);
+  if (otherCount) parts.push(`其他 ${otherCount}`);
+  const detail = parts.join(" · ");
+  return { total: reminders.length, debtCount, debtTenantCount, rentCollectionCount, contractCount, depositCount, movingOutCount, vacantRoomCount, backupCount, headline, detail, text: detail ? `${headline} · ${detail}` : headline };
 }
 
 function dedupeAndSort(items: ReminderDraft[]): ReminderItem[] {

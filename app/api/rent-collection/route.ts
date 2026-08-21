@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AccountApiError, apiErrorResponse, parseJson, requireActiveAccount, requireModulePermission, requirePropertyAccess, writeAuditLog } from "@/lib/server/account-auth";
-import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { rentCollectionRemaining } from "@/lib/rent-collection";
 import { isWaivableRentCollectionEvent } from "@/lib/rent-coverage";
 import type { BusinessRentPayment } from "@/lib/business-data";
@@ -44,21 +44,23 @@ export async function POST(request: Request) {
     await requireModulePermission(context, "rent_payments", "edit");
     const body = await parseJson(request) as { action?: string; rentPaymentId?: string; reason?: string };
     if (body.action !== "waive" || !body.rentPaymentId) throw new AccountApiError("欠租处理请求不完整。", 400);
-    const client = getSupabaseAuthVerifier(context.accessToken);
+    const admin = getSupabaseAdmin();
     const derivedTarget = parseDerivedDebtId(body.rentPaymentId);
     let propertyId = "";
     let roomId = "";
     let tenantId = "";
     let remaining = 0;
     if (derivedTarget) {
-      const { data: tenantRow, error: tenantError } = await client.from("tenants")
+      const { data: tenantRow, error: tenantError } = await admin.from("tenants")
         .select("id,property_id,room_id,name,phone,wechat,source,monthly_rent,deposit_amount,occupant_count,payment_day,move_in_date,actual_move_out_date,status,notes")
         .eq("id", derivedTarget.tenantId)
+        .eq("user_id", context.profile.workspace_owner_id)
         .maybeSingle();
       if (tenantError || !tenantRow) throw new AccountApiError("对应租客不存在或无权访问。", 404);
-      const { data: paymentRows, error: paymentError } = await client.from("rent_payments")
+      const { data: paymentRows, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,rent_month,income_type,payment_status,payment_method,notes,created_at")
-        .eq("tenant_id", derivedTarget.tenantId);
+        .eq("tenant_id", derivedTarget.tenantId)
+        .eq("user_id", context.profile.workspace_owner_id);
       if (paymentError) throw new AccountApiError("读取欠租周期失败，请稍后重试。", 500);
       propertyId = tenantRow.property_id;
       roomId = tenantRow.room_id;
@@ -85,9 +87,10 @@ export async function POST(request: Request) {
       if (!debtCase?.isDerived || debtCase.coverageStart !== derivedTarget.periodStart) throw new AccountApiError("这笔欠租周期当前没有可放弃的欠租提醒。", 409);
       remaining = debtCase.remainingAmount;
     } else {
-      const { data: payment, error: paymentError } = await client.from("rent_payments")
+      const { data: payment, error: paymentError } = await admin.from("rent_payments")
         .select("id,property_id,room_id,tenant_id,amount_due,amount_paid,amount_unpaid,payment_date,coverage_start_date,coverage_end_date,income_type,payment_status,notes")
         .eq("id", body.rentPaymentId)
+        .eq("user_id", context.profile.workspace_owner_id)
         .maybeSingle();
       if (paymentError || !payment) throw new AccountApiError("对应租金周期不存在或无权访问。", 404);
       propertyId = payment.property_id;
@@ -102,7 +105,6 @@ export async function POST(request: Request) {
       if (!isWaivableRentCollectionEvent(businessPayment)) throw new AccountApiError("\u8fd9\u7b14\u79df\u91d1\u5468\u671f\u5f53\u524d\u6ca1\u6709\u53ef\u653e\u5f03\u7684\u6b20\u79df\u63d0\u9192\u3002", 409);
       remaining = rentCollectionRemaining(businessPayment);
     }
-    const admin = getSupabaseAdmin();
     const { data: existing, error: existingError } = await admin.from("audit_logs")
       .select("id")
       .eq("module_key", "rent_payments")

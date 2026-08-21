@@ -193,7 +193,7 @@ export default function DashboardPage() {
   );
   const visibleReminders = reminders.slice(0, 3);
   const reminderSummary = useMemo(
-    () => summarizeEffectiveReminders(reminders).text,
+    () => summarizeEffectiveReminders(reminders),
     [reminders]
   );
   const today = localToday();
@@ -244,7 +244,7 @@ export default function DashboardPage() {
       <section className="card panel reminder-center">
         <button className="reminder-toggle" onClick={() => setRemindersOpen((current) => !current)} type="button">
           <span className="reminder-toggle-title"><AlertTriangle size={17} /> 提醒中心（{reminders.length}）</span>
-          <span className={`reminder-summary ${reminders[0]?.tone || ""}`}>{reminderSummary}</span>
+          <span className={`reminder-summary ${reminders[0]?.tone || ""}`}><span className="reminder-summary-headline">{reminderSummary.headline}</span>{reminderSummary.detail ? <span className="reminder-summary-detail">{reminderSummary.detail}</span> : null}</span>
           <ChevronDown className={remindersOpen ? "open" : ""} size={18} />
         </button>
         {remindersOpen ? (

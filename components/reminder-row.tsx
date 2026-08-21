@@ -26,7 +26,7 @@ export function ReminderRow({ item, context, variant = "full", onWaive }: { item
   const identity = <>
     <span className="reminder-row-primary">
       {variant === "full" ? <span className="reminder-row-kind"><StatusBadge tone={item.tone === "danger" ? "red" : item.tone === "warning" ? "amber" : item.tone === "yellow" ? "yellow" : "blue"}>{display.categoryLabel}</StatusBadge></span> : null}
-      <strong>{display.tenantName}</strong>
+      <strong>{display.tenantName}{display.debtAmountLabel ? <span className="reminder-debt-amount">欠费 {display.debtAmountLabel}</span> : null}</strong>
       <span className="reminder-row-context">{display.contextLine}</span>
       <span className="reminder-row-badges">
         {display.lifecycleLabel ? <StatusBadge tone={display.lifecycleTone}>{display.lifecycleLabel}</StatusBadge> : null}
