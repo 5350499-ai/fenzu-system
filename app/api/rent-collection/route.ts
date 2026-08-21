@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     let remaining = 0;
     if (derivedTarget) {
       const { data: tenantRow, error: tenantError } = await admin.from("tenants")
-        .select("id,property_id,room_id,name,phone,wechat,source,monthly_rent,deposit_amount,occupant_count,payment_day,move_in_date,actual_move_out_date,status,notes")
+        .select("id,property_id,room_id,name,monthly_rent,actual_move_out_date,status")
         .eq("id", derivedTarget.tenantId)
         .maybeSingle();
       const { data: paymentRows, error: paymentError } = await admin.from("rent_payments")
@@ -78,11 +78,11 @@ export async function POST(request: Request) {
         throw error;
       }
       const tenant = {
-        id: tenantRow.id, propertyId, roomId, name: tenantRow.name || "", phone: tenantRow.phone || "", wechat: tenantRow.wechat || "",
-        source: tenantRow.source || "", monthlyRent: Number(tenantRow.monthly_rent || 0), depositAmount: Number(tenantRow.deposit_amount || 0),
-        occupantCount: Number(tenantRow.occupant_count || 1), paymentDay: tenantRow.payment_day || undefined,
-        moveInDate: tenantRow.move_in_date || undefined, actualMoveOutDate: tenantRow.actual_move_out_date || undefined,
-        status: tenantRow.status || "", notes: tenantRow.notes || ""
+        id: tenantRow.id, propertyId, roomId, name: tenantRow.name || "", phone: "", wechat: "",
+        source: "", monthlyRent: Number(tenantRow.monthly_rent || 0), depositAmount: 0,
+        occupantCount: 1, paymentDay: undefined,
+        moveInDate: undefined, actualMoveOutDate: tenantRow.actual_move_out_date || undefined,
+        status: tenantRow.status || "", notes: ""
       };
       const payments = scopedPaymentRows.map((row) => ({
         id: row.id, propertyId: row.property_id, roomId: row.room_id, tenantId: row.tenant_id, rentMonth: row.rent_month || "",
