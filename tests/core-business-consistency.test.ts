@@ -4,6 +4,7 @@ import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20260821130000_move_out_permission_context.sql", "utf8");
 const grantHardeningMigration = readFileSync("supabase/migrations/20260821150000_move_out_grant_hardening.sql", "utf8");
+const contractSchemaCompatMigration = readFileSync("supabase/migrations/20260821170000_move_out_contract_schema_compat.sql", "utf8");
 const route = readFileSync("app/api/tenants/move-out/route.ts", "utf8");
 const tenantPage = readFileSync("app/tenants/page.tsx", "utf8");
 const debtState = readFileSync("lib/rent-period-state.ts", "utf8");
@@ -50,4 +51,11 @@ test("move-out grant hardening keeps only authenticated RPC execution", () => {
   assert.match(grantHardeningMigration, /revoke all on function public\.move_out_tenant_atomic\(uuid, text, date\) from public, anon, service_role/i);
   assert.match(grantHardeningMigration, /grant execute on function public\.move_out_tenant_atomic\(uuid, text, date\) to authenticated/i);
   assert.doesNotMatch(grantHardeningMigration, /update\s+|delete\s+from\s+|insert\s+into\s+/i);
+});
+
+test("move-out contract compatibility does not write a missing redundant column", () => {
+  assert.match(contractSchemaCompatMigration, /create or replace function public\.move_out_tenant_atomic/);
+  assert.match(contractSchemaCompatMigration, /update public\.contracts/);
+  assert.doesNotMatch(contractSchemaCompatMigration, /is_active\s*=\s*false/);
+  assert.doesNotMatch(contractSchemaCompatMigration, /alter table/i);
 });
