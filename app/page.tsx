@@ -108,8 +108,7 @@ export default function DashboardPage() {
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
       const scope = session.user.id;
-      const serverReminderSettings = await loadServerBackupReminderSettings(scope, session.access_token);
-      setBackupReminderSettings(serverReminderSettings || loadBackupReminderSettings(scope));
+      setBackupReminderSettings(loadBackupReminderSettings(scope));
       const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
       if (memorySnapshot) applySnapshot(memorySnapshot);
       else setDataStatus("loading");
@@ -118,6 +117,14 @@ export default function DashboardPage() {
         const next = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
         if (next && active) applySnapshot(next);
       });
+      // Backup reminders are secondary homepage content. They must never delay
+      // rendering a cached business snapshot or turn a warm route return into
+      // a full-page loading state.
+      void loadServerBackupReminderSettings(scope, session.access_token)
+        .then((serverReminderSettings) => {
+          if (active && serverReminderSettings) setBackupReminderSettings(serverReminderSettings);
+        })
+        .catch(() => undefined);
       const snapshot = await cacheManager.get<DashboardSnapshot>(DASHBOARD_CACHE_KEY, {
         scope,
         loader: async ({ revalidate = false } = {}) => {
