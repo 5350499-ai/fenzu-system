@@ -7,6 +7,7 @@ export const GENERATED_BY = "Fenzu System" as const;
 export const SOFTWARE_EDITION = "Community" as const;
 export const APPLICATION_NAME = "咱家分租" as const;
 export const APPLICATION_ID = "zanjia-rental" as const;
+const SUPPORTED_CURRENCY_CODES = new Set(["EUR", "USD", "GBP", "CNY", "JPY"]);
 
 const DESCRIPTION = "蜜蜂分租官方备份文件，仅支持官方恢复功能，请勿手工修改。";
 const SENSITIVE_EXPORT_KEY = /password|password_hash|access[_-]?token|refresh[_-]?token|session|secret|service[_-]?role|api[_-]?key|authorization|cookie|private[_-]?key/i;
@@ -85,6 +86,9 @@ export function sanitizeFreeSingleExportData(data: Record<string, unknown>): Rec
       ? Object.fromEntries(Object.entries(row).filter(([key]) => !/attachment|storage|provider_file|signed.?url|google.?drive|receivedBy|received_by|paidBy|paid_by/i.test(key)))
       : row)
     : [];
+  const settings = isRecord(data.settings) && typeof data.settings.currencyCode === "string" && SUPPORTED_CURRENCY_CODES.has(data.settings.currencyCode.toUpperCase())
+    ? { currencyCode: data.settings.currencyCode.toUpperCase() }
+    : {};
   return {
     ...data,
     rentPayments: cleanRows(data.rentPayments),
@@ -98,7 +102,7 @@ export function sanitizeFreeSingleExportData(data: Record<string, unknown>): Rec
     settlementSnapshots: [],
     accounts: [],
     auditLogs: [],
-    settings: {}
+    settings
   };
 }
 

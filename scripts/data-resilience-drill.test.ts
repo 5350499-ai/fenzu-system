@@ -42,7 +42,8 @@ test("corruption drill rejects truncated, schema, checksum, duplicate and foreig
 });
 
 test("ordinary user recovery strips restricted system and attachment fields", () => {
-  const clean = sanitizeFreeSingleExportData({ ...syntheticData, partners: [{ id: "p", linkedAccountId: "other" }], accounts: [{ id: "admin" }], rentPayments: [{ id: "p", attachmentPath: "secret", amountPaid: 1 }] });
+  const clean = sanitizeFreeSingleExportData({ ...syntheticData, settings: { currencyCode: "CNY", secret: "removed" }, partners: [{ id: "p", linkedAccountId: "other" }], accounts: [{ id: "admin" }], rentPayments: [{ id: "p", attachmentPath: "secret", amountPaid: 1 }] });
   assert.deepEqual(clean.partners, []); assert.deepEqual(clean.accounts, []);
   assert.equal((clean.rentPayments as Array<Record<string, unknown>>)[0].attachmentPath, undefined);
+  assert.deepEqual(clean.settings, { currencyCode: "CNY" });
 });

@@ -1,4 +1,5 @@
 import { emptyModulePermissions } from "@/lib/account-permissions";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import { clientSensitivePermissions } from "@/lib/server/account-management";
 import { createDataExportPayload, type DataExportPayload } from "@/lib/data-export";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -64,6 +65,13 @@ export async function loadServerBackupData(admin: AdminClient, ownerId: string):
   const sensitive = await readTable("user_sensitive_permissions", admin.from("user_sensitive_permissions").select("*")) as Array<Record<string, unknown>>;
   const access = await readTable("user_property_access", admin.from("user_property_access").select("user_id,property_id")) as Array<Record<string, unknown>>;
   const identities = await readTable("account_auth_identities", admin.from("account_auth_identities").select("auth_user_id,auth_email,is_internal_email")) as Array<Record<string, unknown>>;
+  const workspaceProfile = await admin.from("user_profiles").select("currency_code").eq("auth_user_id", ownerId).maybeSingle();
+  if (workspaceProfile.error && workspaceProfile.error.code !== "42703") {
+    const failure = new Error("读取工作区货币设置失败");
+    Object.assign(failure, { stage: "database_read", schema: "public", table: "user_profiles", recordCount: 0, supabaseResponse: workspaceProfile.error });
+    throw failure;
+  }
+  const currencyCode = workspaceProfile.data?.currency_code ? normalizeCurrencyCode(workspaceProfile.data.currency_code) : undefined;
   const audit = await readTable("audit_logs", admin.from("audit_logs").select("id,log_category,actor_user_id,actor_username,actor_display_name,action_type,module_key,entity_type,entity_id,before_data,after_data,description,success,created_at").eq("success", true).order("created_at", { ascending: false }).limit(1000)) as Array<Record<string, unknown>>;
   const userIds = new Set(profiles.map((profile) => String(profile.auth_user_id)));
   const accessByUser = new Map<string, string[]>();
@@ -98,7 +106,7 @@ export async function loadServerBackupData(admin: AdminClient, ownerId: string):
   });
   return {
     properties: toExportRows(properties), rooms: toExportRows(rooms), tenants: toExportRows(tenants), contracts: toExportRows(contracts), rentPayments: toExportRows(rentPayments), expenses: toExportRows(expenses), deposits: toExportRows(deposits), viewingAppointments: toExportRows(viewingAppointments), tasks: toExportRows(tasks), partners: toExportRows(partners), partnerShares: toExportRows(partnerShares), partnerNameHistory: toExportRows(partnerNameHistory), propertyHistory: [],
-    settlementBatches: toExportRows(settlementBatches), settlementSnapshots: settlementBatches.map((batch) => ({ batch: toExportRows([batch])[0], partners: toExportRows(partnerByBatch.get(String(batch.id)) || []), segments: toExportRows(segmentByBatch.get(String(batch.id)) || []), transfers: toExportRows(transferByBatch.get(String(batch.id)) || [] ) })), accounts, auditLogs, settings: { legacyPartnerRatios: { A: 50, B: 50 } }
+    settlementBatches: toExportRows(settlementBatches), settlementSnapshots: settlementBatches.map((batch) => ({ batch: toExportRows([batch])[0], partners: toExportRows(partnerByBatch.get(String(batch.id)) || []), segments: toExportRows(segmentByBatch.get(String(batch.id)) || []), transfers: toExportRows(transferByBatch.get(String(batch.id)) || [] ) })), accounts, auditLogs, settings: { legacyPartnerRatios: { A: 50, B: 50 }, ...(currencyCode ? { currencyCode } : {}) }
   };
 }
 

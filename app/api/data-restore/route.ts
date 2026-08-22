@@ -258,7 +258,8 @@ function normalizeRestoreDataFromDatabaseSchema(payload: DataExportPayload, work
     settlementBatches: normalizeCollection(source.settlementBatches, "workspace_owner_id", workspaceOwnerId),
     settlementPartnerSnapshots: snapshotChildren("partners"),
     settlementSegmentSnapshots: snapshotChildren("segments"),
-    settlementTransferSnapshots: snapshotChildren("transfers")
+    settlementTransferSnapshots: snapshotChildren("transfers"),
+    settings: source.settings
   };
 }
 
