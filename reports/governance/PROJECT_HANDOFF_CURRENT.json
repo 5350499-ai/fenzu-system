@@ -1,0 +1,140 @@
+{
+  "status": "AUTHORITATIVE_CURRENT_HANDOFF",
+  "generatedAt": "2026-08-22",
+  "project": {
+    "name": "蜜蜂分租 / fenzu-system",
+    "packageName": "spanish-rental-manager",
+    "repoPath": "C:\\Users\\a5350\\Documents\\Codex\\2026-08-03\\github-5350499-ai-fenzu-system-https",
+    "branch": "feat/global-cache-v3",
+    "applicationReleaseHead": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
+    "author": { "name": "5350499-ai", "email": "5350499@qq.com" },
+    "trackedWorktreeClean": true,
+    "preservedUntrackedRoots": [
+      "design/",
+      "public/bee-rental-bee-shape-exploration/",
+      "public/bee-rental-icon-exploration/",
+      "public/bee-rental-icon-final-v2/ through public/bee-rental-icon-final-v8/",
+      "supabase/.temp/"
+    ]
+  },
+  "deployments": {
+    "production": {
+      "url": "https://fenzu-system.vercel.app",
+      "deploymentId": "dpl_4GN7K19KTfXdJwavu8kFVjhGmkNH",
+      "deploymentUrl": "https://fenzu-system-9kf3grnx2-5350499-ais-projects.vercel.app",
+      "status": "READY",
+      "head": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
+      "headEvidence": "direct Production deployment from this checkout; Vercel inspect verifies status and alias but does not display Git SHA"
+    },
+    "latestPreview": {
+      "deploymentId": "dpl_73G2MBv4qA78jiXJE3sovvmVRvnj",
+      "url": "https://fenzu-system-ffc77y3od-5350499-ais-projects.vercel.app",
+      "status": "READY",
+      "head": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510"
+    },
+    "applicationReleaseHeadEqualsProductionHead": true,
+    "note": "The handoff documentation commit is metadata-only and is intentionally not a Production application release."
+  },
+  "productPath": [
+    "Chinese personal / ordinary-user version",
+    "small-scope real-user Beta",
+    "public Beta and commercial validation",
+    "multi-language and multi-currency maturity",
+    "partnership-operation and multi-member subscription edition",
+    "Apple App Store / Google Play commercial release"
+  ],
+  "completedMajorWork": {
+    "responsiveBatch1": { "status": "COMPLETE", "owner": "AppLayout, .main, mobile-nav reserved row, RESPONSIVE_CONTRACT.md", "tests": ["app-shell-responsive", "responsive-regression-contract"], "limitation": "tablet/foldable runtime acceptance not claimed" },
+    "responsiveBatch2": { "status": "COMPLETE", "owner": "ModalPortal for app dialogs; ContentRegionPortal for Account Center", "tests": ["personal-center-modal-responsive", "action-reachability-contract"], "limitation": "modal semantics must remain distinct" },
+    "responsiveBatch3": { "status": "COMPLETE", "owner": "content-driven finance/profit row owners", "tests": ["batch3-high-density-rows", "global-content-driven-responsive", "content-driven-foundation-closeout"], "limitation": "no forced phone two-line layout" },
+    "responsiveBatch4": { "status": "COMPLETE", "owner": "Tenant, Property, Room, Settlement and Data Center layout owners", "tests": ["batch4-secondary-page-layout"], "limitation": "not a broad CSS-deletion mandate" },
+    "responsiveBatch5": { "status": "COMPLETE", "owner": "RESPONSIVE_CONTRACT.md and scoped CSS owners", "tests": ["batch5-css-cascade-closeout"], "limitation": "unknown CSS remains intentionally retained" },
+    "finalFullAppRootCauseAudit": { "status": "COMPLETE", "tests": ["full 402/402 suite"], "limitation": "future real-device reports reopen only proven owners" },
+    "analyticsScopeDrilldown": { "status": "COMPLETE", "owner": "lib/analytics-drilldown.ts and property-scope", "tests": ["analytics-scope-drilldown"], "limitation": "pure metrics remain non-clickable" },
+    "financeSearch": { "status": "COMPLETE", "owner": "lib/finance-search.ts and canonical partner resolver", "tests": ["finance-search"], "limitation": "local presentation filtering only" },
+    "depositPendingParity": { "status": "COMPLETE", "owner": "lib/deposit-pending.ts", "tests": ["deposit-pending-parity"], "limitation": "remain alert to runtime data parity regressions" },
+    "globalActionReachability": { "status": "COMPLETE", "owner": "ModalPortal, modal safe-area tokens, ContentRegionPortal distinction", "tests": ["action-reachability-contract"], "limitation": "use runtime geometry for future iOS reports" },
+    "passwordClear": { "status": "COMPLETE", "owner": "components/password-input.tsx", "tests": ["password-clear-and-profit-badge"], "limitation": "presentation only" },
+    "propertyProfitStatusBadge": { "status": "COMPLETE", "owner": "StatusBadge and property profit status region", "tests": ["password-clear-and-profit-badge"], "limitation": "three-region layout stays frozen" }
+  },
+  "canonicalBusinessContracts": {
+    "tenantLifecycle": "BUSINESS_RULES.md and lifecycle action contracts; history is preserved",
+    "rentPayment": "lib/rent-period-state.ts separates latest coverage from historic debt",
+    "expense": "business facts; search is presentation-only",
+    "debtCase": "lib/debt-case.ts is the only DebtCase selector",
+    "zeroDebtCase": "active expired zero-rent coverage can produce actionable zero DebtCase/reminder with no financial amount effect",
+    "waive": "append-only, payment/period-specific and non-financial; derived IDs never enter UUID audit entity_id",
+    "moveOut": "preserves payment-backed historical debt but blocks new derived future debt for inactive tenants",
+    "reminder": "lib/reminder-engine.ts buildEffectiveReminders is the only effective reminder engine",
+    "deposit": "lib/deposit-pending.ts is shared count/detail selector",
+    "settlement": "lib/partner-settlement.ts and settlement action contract",
+    "profit": "lib/profit.ts remains the calculation source",
+    "analytics": "lib/analytics-drilldown.ts plus property-scope preserves display scope",
+    "workspaceIsolation": "server auth, ownership checks and RLS remain authority",
+    "auth": "Supabase session plus application account/session verification",
+    "backupRestore": "data export is separate; dry-run, BeforeRestore and canonical transactional restore are current code contracts",
+    "cache": "CacheManager owns IndexedDB lifecycle; dashboard-v3 is stale-while-revalidate"
+  },
+  "backupRestore": {
+    "codeAuditStatus": "RELEASED_WITH_AUTOMATED_CONTRACT_COVERAGE",
+    "productionContractStatus": "NON_DESTRUCTIVE_PRODUCTION_SMOKE_ONLY",
+    "realWorldDestructiveRestoreRetestAfterRecentChanges": "NOT_YET_COMPLETED",
+    "nextRequiredProcedure": [
+      "create fresh backup and baseline on a dedicated test/small account",
+      "deliberately modify or delete a small known test dataset",
+      "run dry-run and BeforeRestore, then canonical Restore",
+      "compare tenants, rooms, payments, expenses, deposits, reminders, analytics/statistics and associations",
+      "record recovery/audit evidence; never manually repair Supabase business rows"
+    ]
+  },
+  "readiness": {
+    "privateRealUserBeta": { "ready": false, "reason": "destructive Backup-to-Restore retest is still required" },
+    "publicBeta": { "ready": false, "reason": "requires private-beta evidence, support/feedback and legal/privacy readiness" },
+    "paidCommercialRelease": { "ready": false, "reason": "subscription/plan enforcement and commercial validation remain" },
+    "appStoreGooglePlay": { "ready": false, "reason": "native packaging, store/compliance and commercial readiness remain" }
+  },
+  "backlog": {
+    "releaseBeforePrivateBeta": ["real Backup -> destructive test -> Restore closure"],
+    "privateBetaValidation": ["small real-user cohort", "structured feedback/support evidence", "cold-start cache performance observation"],
+    "publicBeta": ["privacy policy", "user terms", "onboarding/help", "error-feedback/support entry", "beta-feedback collection"],
+    "commercialization": ["multi-language", "multi-currency commercial validation", "partnership/multi-member subscriptions", "subscription plans and entitlements"],
+    "appStore": ["native packaging", "store assets/compliance", "distribution and paid-product operations"],
+    "optionalPolish": ["cold-start cache performance", "future user-evidenced input/search ergonomics"]
+  },
+  "governance": {
+    "ROOT_CAUSE_FIRST": true,
+    "PATCH_FIRST": false,
+    "CONTENT_DRIVEN_LAYOUT": true,
+    "DEVICE_SPECIFIC_LAYOUT_PATCH": "FORBIDDEN",
+    "ONE_SEMANTIC_COMPONENT_ONE_CANONICAL_OWNER": true,
+    "BUSINESS_DOMAIN_SINGLE_SOURCE": true,
+    "REAL_USER_DATA_PROTECTION": "STRICT",
+    "DATABASE_CHANGE_REQUIRES_EXPLICIT_SCOPE": true,
+    "PRODUCTION_DEPLOY_REQUIRES_EXPLICIT_RELEASE_STEP": true,
+    "SMALL_LOW_RISK_UI_CHANGES_CAN_USE_PREVIEW_THEN_RELEASE": true,
+    "BACKUP_RESTORE_CHANGES_REQUIRE_EXTRA_CAUTION": true
+  },
+  "nextSessionStartHere": [
+    "verify current checkout HEAD and Production alias",
+    "execute authorized Backup -> destructive test -> Restore closure on a dedicated test/small account",
+    "if passed, reassess private real-user Beta readiness",
+    "prepare a small real-user/private-landlord cohort rather than broad feature work",
+    "collect real feedback and support evidence",
+    "decide Public Beta from evidence",
+    "then advance multi-language, subscriptions and App Store roadmap"
+  ],
+  "validation": {
+    "finalCommit": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
+    "fullTestSuite": "402/402 PASS before Production release",
+    "releaseChecks": ["TypeScript", "Production build", "Responsive", "UI", "UI interactions", "Security", "Server Boundary", "Actions", "Domain", "Data State", "Backup/Restore", "git diff --check"],
+    "productionSmoke": "requested public routes HTTP 200; unauthenticated accounts/me and data-backup/status HTTP 401"
+  },
+  "handoffAuditChanges": {
+    "businessLogicChanged": false,
+    "databaseChanged": false,
+    "realUserDataModified": false,
+    "supabaseSchemaChanged": false,
+    "migrationExecuted": false,
+    "productionDeployed": false
+  }
+}
