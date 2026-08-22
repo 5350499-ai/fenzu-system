@@ -6081,17 +6081,6 @@ td:last-child {
     grid-template-columns: 1fr;
   }
 
-  .modal-backdrop {
-    align-items: end;
-    padding: 10px;
-  }
-
-  .modal-card {
-    max-height: 92vh;
-    border-radius: 20px 20px 16px 16px;
-    padding: 16px;
-  }
-
   .modal-actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -9089,8 +9078,6 @@ input[type="radio"] {
 
 @media (max-width: 640px) {
   .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input), .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
-  .modal-backdrop { display: block; overflow-y: auto; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
-  .modal-card { width: 100%; min-height: 0; margin: 0 auto; padding: var(--ui-space-4, 16px); border-radius: var(--ui-radius-xl, 20px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
   .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
   .room-finance-line > :nth-child(5) { display: none; }
@@ -10651,37 +10638,6 @@ textarea:-webkit-autofill:focus,
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
-/* Single modal backdrop owner: base surface, dynamic viewport and safe-area
-   behavior live together here; mobile-only adjustments remain below. */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100dvh;
-  min-height: 100svh;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(8px);
-}
-
-.modal-card {
-  display: flex;
-  flex-direction: column;
-  width: min(860px, 100%);
-  max-width: 100%;
-  min-height: 0;
-  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable;
-  padding: 20px;
-}
-
 /* Account Center has one vertical scroll owner. The panel stays viewport-bound
    while this body preserves intrinsic form height for iOS touch scrolling. */
 .account-center-card {
@@ -11191,18 +11147,8 @@ textarea:-webkit-autofill:focus,
 }
 
 @media (max-width: 640px) {
-  .account-center-card {
-    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);
-    padding: 0;
-  }
-
   .modal-card.account-center-card > .panel-header.account-center-header:first-child {
     padding: 13px 14px 10px;
-  }
-
-  .account-center-scroll {
-    gap: 10px;
-    padding: 11px 14px max(14px, env(safe-area-inset-bottom));
   }
 
   .account-center-summary {
@@ -11476,29 +11422,8 @@ input[type="radio"] {
     min-height: var(--ui-control-height-mobile, 44px);
   }
 
-  .modal-backdrop {
-    display: flex;
-    align-items: center;
-    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-  }
-
-  .modal-card {
-    width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
-    margin: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
   .account-center-backdrop {
-    align-items: stretch;
     min-height: 0;
-    overflow: hidden;
-  }
-
-  .account-center-card {
-    height: auto;
-    max-height: 100%;
     overflow: hidden;
   }
 
@@ -11789,4 +11714,112 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 .room-detail-panel .room-core-detail-grid > .compact-detail-row {
   padding-block: 2px;
+}
+
+/* Batch 2: one modal viewport contract. The backdrop owns the viewport;
+   Account Center owns one definite surface and one scroll body. Other legacy
+   modal forms keep their existing surface scroll for compatibility until
+   their markup is migrated to the same header/body/footer shape. */
+:root {
+  --modal-safe-top: max(8px, env(safe-area-inset-top));
+  --modal-safe-right: max(8px, env(safe-area-inset-right));
+  --modal-safe-bottom: max(8px, env(safe-area-inset-bottom));
+  --modal-safe-left: max(8px, env(safe-area-inset-left));
+  --modal-viewport-block-size: calc(100dvh - var(--modal-safe-top) - var(--modal-safe-bottom));
+}
+
+.modal-backdrop,
+.attachment-modal-backdrop,
+.data-center-sheet-backdrop,
+.data-center-dialog-backdrop {
+  box-sizing: border-box;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  min-height: 100svh;
+  block-size: 100dvh;
+  min-block-size: 100svh;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
+  padding: var(--modal-safe-top) var(--modal-safe-right) var(--modal-safe-bottom) var(--modal-safe-left);
+}
+
+.modal-card {
+  display: flex;
+  flex-direction: column;
+  width: min(860px, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  min-block-size: 0;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  max-block-size: var(--modal-viewport-block-size);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding: 20px;
+}
+
+.account-center-backdrop {
+  display: grid;
+  place-items: center;
+  padding: var(--modal-safe-top) var(--modal-safe-right) var(--modal-safe-bottom) var(--modal-safe-left);
+}
+
+.modal-card.account-center-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: min(100%, var(--modal-viewport-block-size));
+  max-block-size: var(--modal-viewport-block-size);
+  overflow: hidden;
+  padding: 0;
+}
+
+.account-center-scroll {
+  min-block-size: 0;
+  block-size: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  scroll-padding-block: 12px max(24px, env(safe-area-inset-bottom));
+}
+
+.data-center-sheet,
+.data-center-dialog,
+.attachment-modal-backdrop .attachment-cleanup-confirm {
+  box-sizing: border-box;
+  max-block-size: var(--modal-viewport-block-size);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .modal-card {
+    inline-size: 100%;
+    margin: 0;
+    border-radius: var(--ui-radius-xl, 20px);
+  }
+
+  .modal-card.account-center-card {
+    block-size: 100%;
+    max-block-size: 100%;
+    border-radius: 18px 18px 14px 14px;
+  }
 }

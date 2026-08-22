@@ -36,6 +36,15 @@ test("personal center keeps the modal surface scrollable on phone viewports", ()
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?scroll-padding-block:[\s\S]*?env\(safe-area-inset-bottom\)/);
 });
 
+test("Batch 2 gives Account Center a definite surface and one scroll body", () => {
+  assert.match(css, /--modal-safe-top:\s*max\(8px,\s*env\(safe-area-inset-top\)\)/);
+  assert.match(css, /--modal-viewport-block-size:\s*calc\(100dvh/);
+  assert.match(css, /\.modal-card\.account-center-card\s*\{[\s\S]*?display:\s*grid[\s\S]*?grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)[\s\S]*?block-size:\s*min\(100%,\s*var\(--modal-viewport-block-size\)\)/);
+  assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?min-block-size:\s*0[\s\S]*?overflow-y:\s*auto/);
+  assert.doesNotMatch(css, /max-height:\s*92vh/);
+  assert.doesNotMatch(css, /\.account-center-card\s*\{[^}]*height:\s*auto/);
+});
+
 test("personal center uses one scroll body with reachable actions and a fixed header", () => {
   assert.match(accountCenter, /<div className="account-center-scroll">[\s\S]*?保存新密码[\s\S]*?退出登录[\s\S]*?<\/div>/);
   assert.match(accountCenter, /<div className="account-center-scroll">\s*<div className="account-center-content">[\s\S]*?account-center-logout-actions[\s\S]*?<\/div>\s*<\/div>/);
