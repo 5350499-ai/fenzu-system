@@ -38,6 +38,7 @@ import { preserveStoredPartnerOption } from "@/lib/partners";
 import { partnerDisplayClass, partnerDisplayLabel, usePartnerDirectoryState, type PartnerDirectoryState } from "@/lib/partner-settings";
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
+import { matchesFinanceSearch } from "@/lib/finance-search";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -67,6 +68,7 @@ export default function ExpensesPage() {
   const [filesLoadError, setFilesLoadError] = useState("");
   const [form, setForm] = useState<BusinessExpense>(emptyExpense);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
@@ -149,9 +151,24 @@ export default function ExpensesPage() {
         (expense) =>
           selectedPropertyIds.includes(expense.propertyId) &&
           (!categoryFilter || expense.category === categoryFilter) &&
-          isDateInRange(expense.paymentDate, { startDate: dateStart, endDate: dateEnd })
+          isDateInRange(expense.paymentDate, { startDate: dateStart, endDate: dateEnd }) &&
+          matchesFinanceSearch(query, [
+            partnerDisplayLabel(expense.paidBy, partnerDirectory, partnerDirectoryState),
+            expense.paidBy,
+            properties.find((property) => property.id === expense.propertyId)?.name,
+            properties.find((property) => property.id === expense.propertyId)?.address,
+            properties.find((property) => property.id === expense.propertyId)?.city,
+            rooms.find((room) => room.id === expense.roomId)?.name,
+            rooms.find((room) => room.id === expense.roomId)?.roomNumber,
+            expense.category,
+            expense.notes,
+            expense.paymentMethod,
+            expense.paymentDate,
+            expense.expenseMonth,
+            expense.amount
+          ])
       ),
-    [categoryFilter, dateEnd, dateStart, expenses, selectedPropertyIds]
+    [categoryFilter, dateEnd, dateStart, expenses, partnerDirectory, partnerDirectoryState, query, rooms, selectedPropertyIds, properties]
   );
   useEffect(() => {
     if (properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
@@ -298,8 +315,10 @@ export default function ExpensesPage() {
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
           <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
+          <label className="search-box"><input aria-label="搜索支出记录" placeholder="搜索伙伴、房源、房间、项目、备注、金额、日期" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
           <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部类型</option>{categoryFilterOptions.map((category) => <option key={category} value={category}>{category}</option>)}</select>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
+          {query ? <button className="btn" onClick={() => { setQuery(""); setPage(1); }} type="button">清除搜索</button> : null}
         </div>
         <div className="filtered-total" aria-live="polite"><span>当前筛选支出合计</span><strong>{euro(filteredExpenseTotal)}</strong></div>
 
@@ -348,7 +367,7 @@ export default function ExpensesPage() {
               </article>
             );
           })}
-          {!visibleExpenses.length ? <p className="muted">暂无支出记录。</p> : null}
+          {!visibleExpenses.length ? <p className="muted">{query ? "未找到匹配记录" : "暂无支出记录。"}</p> : null}
         </div>
 
         <PaginationControls page={page} pageSize={pageSize} total={filteredExpenses.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />

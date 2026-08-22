@@ -48,6 +48,7 @@ import {
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
 import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
 import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
+import { matchesFinanceSearch } from "@/lib/finance-search";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -247,19 +248,39 @@ export default function RentPaymentsPage() {
     [form.id, form.receivedBy, partnerDirectory, partnerOptions]
   );
   const filteredPayments = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
     return payments.filter((payment) => {
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
       const tenant = tenants.find((item) => item.id === payment.tenantId);
-      const text = `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${payment.incomeType || "房租收入"} ${payment.incomeItem || ""} ${payment.rentMonth} ${payment.notes || ""}`.toLowerCase();
-      return (!keyword || text.includes(keyword)) &&
+      const attribution = partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState);
+      return matchesFinanceSearch(query, [
+        attribution,
+        payment.receivedBy,
+        property?.name,
+        property?.address,
+        property?.city,
+        room?.name,
+        room?.roomNumber,
+        tenant?.name,
+        tenant?.phone,
+        tenant?.wechat,
+        payment.incomeType || "房租收入",
+        payment.incomeItem,
+        payment.notes,
+        payment.paymentMethod,
+        payment.paymentStatus,
+        payment.paymentDate,
+        payment.rentMonth,
+        payment.coverageStartDate,
+        payment.coverageEndDate,
+        paymentListAmount(payment)
+      ]) &&
         selectedPropertyIds.includes(payment.propertyId) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, payments)) &&
         (!rentDueOnly || Boolean(tenant && isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments)));
     });
-  }, [dateEnd, dateStart, overdueOnly, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
+  }, [dateEnd, dateStart, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
   useEffect(() => {
     if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
@@ -678,7 +699,7 @@ export default function RentPaymentsPage() {
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
           <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
-          <label className="search-box"><input placeholder="搜索房源、房间、租客、电话、微信" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
+          <label className="search-box"><input aria-label="搜索收入记录" placeholder="搜索姓名、伙伴、房源、房间、备注、金额、日期" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
           <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => { setOverdueOnly((current) => !current); setPage(1); }} type="button">只看欠费</button>
           {(query || selectedPropertyIds.length !== properties.length || datePreset !== "all" || overdueOnly || rentDueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
@@ -746,7 +767,7 @@ export default function RentPaymentsPage() {
               </article>
             );
           })}
-          {!visiblePayments.length ? <p className="muted">暂无收租记录。</p> : null}
+          {!visiblePayments.length ? <p className="muted">{query ? "未找到匹配记录" : "暂无收租记录。"}</p> : null}
         </div>
 
         <PaginationControls page={page} pageSize={pageSize} total={filteredPayments.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
