@@ -4,6 +4,8 @@ import test from "node:test";
 
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const accountCenter = readFileSync(new URL("../components/account-center.tsx", import.meta.url), "utf8");
+const rootLayout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+const modalPortal = readFileSync(new URL("../components/modal-portal.tsx", import.meta.url), "utf8");
 const modalManager = readFileSync(new URL("../components/modal-layer-manager.tsx", import.meta.url), "utf8");
 const accountMe = readFileSync(new URL("../app/api/accounts/me/route.ts", import.meta.url), "utf8");
 const registration = readFileSync(new URL("../lib/server/account-management.ts", import.meta.url), "utf8");
@@ -43,6 +45,14 @@ test("Batch 2 gives Account Center a definite surface and one scroll body", () =
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?min-block-size:\s*0[\s\S]*?overflow-y:\s*auto/);
   assert.doesNotMatch(css, /max-height:\s*92vh/);
   assert.doesNotMatch(css, /\.account-center-card\s*\{[^}]*height:\s*auto/);
+});
+
+test("application modals use an overlay root above navigation instead of main flow", () => {
+  assert.match(rootLayout, /<div id="app-overlay-root"\s*\/>/);
+  assert.match(modalPortal, /createPortal\(children, root\)/);
+  assert.match(accountCenter, /open \? <ModalPortal>[\s\S]*?account-center-backdrop[\s\S]*?<\/ModalPortal>/);
+  assert.match(css, /#app-overlay-root\s*\{[\s\S]*?position:\s*fixed[\s\S]*?z-index:\s*100/);
+  assert.match(css, /\.mobile-nav\s*\{[\s\S]*?z-index:\s*20/);
 });
 
 test("personal center uses one scroll body with reachable actions and a fixed header", () => {

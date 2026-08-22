@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { loadBusinessData, saveBusinessData } from "@/lib/business-data";
 import { useAccountAccess } from "@/components/account-access";
+import { ModalPortal } from "@/components/modal-portal";
 
 type CrudValue = string | number | boolean | undefined;
 type CrudRecord = Record<string, CrudValue> & { id: string };
@@ -269,7 +270,7 @@ export function CrudPage({
         </div>
       </section>
 
-      {isFormOpen ? (
+      {isFormOpen ? <ModalPortal>
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) reset(); }}>
           <section className="card modal-card" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -325,7 +326,7 @@ export function CrudPage({
             </form>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
     </div>
   );
 }

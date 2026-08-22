@@ -58,6 +58,7 @@ export default function RootLayout({
         <AttachmentUploadProgress />
         <ModalLayerManager />
         <AccountAccessProvider><CacheRuntime />{children}</AccountAccessProvider>
+        <div id="app-overlay-root" />
       </body>
     </html>
   );

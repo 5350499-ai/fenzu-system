@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
@@ -1091,7 +1092,7 @@ export default function TenantsPage() {
 
       <Toast message={waiveNotice} tone="success" />
 
-      {open ? (
+      {open ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1164,9 +1165,9 @@ export default function TenantsPage() {
             </form>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {moveOutTenant ? (
+      {moveOutTenant ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMoveOutTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1191,9 +1192,9 @@ export default function TenantsPage() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {actualMoveOutDateEnabled && moveOutDateTenant ? (
+      {actualMoveOutDateEnabled && moveOutDateTenant ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMoveOutDateTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1211,9 +1212,9 @@ export default function TenantsPage() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {depositStatusTenant ? (
+      {depositStatusTenant ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDepositStatusTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1234,9 +1235,9 @@ export default function TenantsPage() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {createDepositTenant ? (
+      {createDepositTenant ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateDepositTenant(null); }}>
           <section className="card modal-card deposit-status-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1263,9 +1264,9 @@ export default function TenantsPage() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {deleteBlockedMessage ? (
+      {deleteBlockedMessage ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteBlockedMessage(""); }}>
           <section className="card modal-card deposit-status-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-delete-blocked-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title" id="tenant-delete-blocked-title">无法永久删除</h2><button className="btn" onClick={() => setDeleteBlockedMessage("")} type="button"><X size={17} /> 关闭</button></div>
@@ -1273,9 +1274,9 @@ export default function TenantsPage() {
             <div className="modal-actions"><button className="btn primary" onClick={() => setDeleteBlockedMessage("")} type="button">知道了</button></div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
 
-      {deleteTenantTarget ? (
+      {deleteTenantTarget ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setDeleteTenantTarget(null); setDeleteConfirmation(""); } }}>
           <section className="card modal-card deposit-status-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-delete-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
@@ -1293,7 +1294,7 @@ export default function TenantsPage() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
     </AppLayout>
   );
 }

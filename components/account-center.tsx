@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
+import { ModalPortal } from "@/components/modal-portal";
 import { BEE_RENTAL_SHARE_URL, copyBeeRentalLink, shareBeeRental } from "@/lib/share-bee-rental";
 
 export function AccountCenter() {
@@ -175,7 +176,7 @@ export function AccountCenter() {
       <button className="zanjia-avatar-button" onClick={openCenter} type="button" aria-label="个人中心">
         <UserRound size={20} />
       </button>
-      {open ? (
+      {open ? <ModalPortal>
         <div className="modal-backdrop account-center-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section className="card modal-card account-center-card" role="dialog" aria-modal="true" aria-label="个人中心">
             <div className="panel-header account-center-header">
@@ -238,7 +239,7 @@ export function AccountCenter() {
             </div>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
     </>
   );
 }

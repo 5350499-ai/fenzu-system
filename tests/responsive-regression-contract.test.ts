@@ -9,6 +9,7 @@ const css = readFileSync(join(root, "app/globals.css"), "utf8");
 const map = readFileSync(join(root, "UI_COMPONENT_MAP.md"), "utf8");
 const design = readFileSync(join(root, "UI_DESIGN_SYSTEM.md"), "utf8");
 const contract = readFileSync(join(root, "RESPONSIVE_CONTRACT.md"), "utf8");
+const reminders = readFileSync(join(root, "app/reminders/page.tsx"), "utf8");
 
 const viewports = [320, 360, 375, 390, 393, 414, 430, 480, 600, 640, 641, 720, 768, 820, 900, 980, 981, 1024, 1100, 1101, 1180, 1280, 1440];
 
@@ -60,4 +61,12 @@ test("responsive layout anti-patterns are absent from application layout sources
   const source = layoutSources.map((file) => readFileSync(join(root, file), "utf8")).join("\n");
   assert.doesNotMatch(source, /window\.innerWidth|screen\.width|devicePixelRatio/);
   assert.doesNotMatch(css, /\bzoom\s*:/);
+});
+
+test("Preview geometry diagnostics do not become route scroll content", () => {
+  assert.match(reminders, /id="preview-runtime-diagnostic"/);
+  assert.match(reminders, /mainDirectChildren: mainChildren/);
+  assert.match(reminders, /topScrollHeightContributors: contributors/);
+  assert.match(reminders, /phantomHeight:/);
+  assert.doesNotMatch(reminders, /<pre[^>]*>\{runtimeDiagnostic \? JSON\.stringify/);
 });

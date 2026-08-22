@@ -242,6 +242,19 @@ a {
   display: none;
 }
 
+/* A sibling layer for all portaled application modals. */
+#app-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  isolation: isolate;
+  pointer-events: none;
+}
+
+#app-overlay-root > * {
+  pointer-events: auto;
+}
+
 .account-restore-shell {
   display: grid;
   gap: 14px;

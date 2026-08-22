@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
 import { Toast } from "@/components/ui";
+import { ModalPortal } from "@/components/modal-portal";
 import { ReminderRow as SharedReminderRow } from "@/components/reminder-row";
 import {
   BusinessContract,
@@ -62,6 +63,12 @@ type ReminderRuntimeDiagnostic = {
   mobileNav: ElementDiagnostic | null;
   requiredExtraScroll: number | null;
   ancestorChain: AncestorDiagnostic[];
+  mainDirectChildren: ScrollContributorDiagnostic[];
+  topScrollHeightContributors: ScrollContributorDiagnostic[];
+  expectedMainContentBottom: number;
+  actualMainScrollHeight: number | null;
+  phantomHeight: number | null;
+  diagnosticChild: ScrollContributorDiagnostic | undefined;
 };
 
 type ElementDiagnostic = {
@@ -93,6 +100,28 @@ type AncestorDiagnostic = {
   maxHeight: string;
   transform: string;
   contain: string;
+};
+
+type ScrollContributorDiagnostic = {
+  tag: string;
+  className: string;
+  id: string;
+  offsetTop: number;
+  offsetHeight: number;
+  scrollHeight: number;
+  clientHeight: number;
+  boundingTop: number;
+  boundingBottom: number;
+  flowBottom: number;
+  display: string;
+  visibility: string;
+  opacity: string;
+  position: string;
+  overflowY: string;
+  transform: string;
+  contain: string;
+  hidden: boolean;
+  ariaHidden: string | null;
 };
 
 function roundDiagnosticValue(value: number) {
@@ -144,6 +173,32 @@ function readAncestorDiagnostics(element: HTMLElement | null): AncestorDiagnosti
   return chain;
 }
 
+function readScrollContributor(element: HTMLElement, main: HTMLElement, mainRect: DOMRect): ScrollContributorDiagnostic {
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return {
+    tag: element.tagName.toLowerCase(),
+    className: typeof element.className === "string" ? element.className : "",
+    id: element.id,
+    offsetTop: element.offsetTop,
+    offsetHeight: element.offsetHeight,
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+    boundingTop: roundDiagnosticValue(rect.top),
+    boundingBottom: roundDiagnosticValue(rect.bottom),
+    flowBottom: roundDiagnosticValue(rect.bottom - mainRect.top + main.scrollTop),
+    display: style.display,
+    visibility: style.visibility,
+    opacity: style.opacity,
+    position: style.position,
+    overflowY: style.overflowY,
+    transform: style.transform,
+    contain: style.contain,
+    hidden: element.hidden,
+    ariaHidden: element.getAttribute("aria-hidden")
+  };
+}
+
 function isPreviewDiagnosticEnvironment() {
   if (typeof window === "undefined") return false;
   if (process.env.NODE_ENV !== "production") return true;
@@ -166,6 +221,14 @@ function captureReminderRuntimeDiagnostic(): ReminderRuntimeDiagnostic {
     ? roundDiagnosticValue(Math.max(0, lastCardRect.bottom - visibleBottomAtMaxScroll))
     : null;
   const mainDiagnostic = readElementDiagnostic(main);
+  const mainChildren = main && mainRect
+    ? Array.from(main.children).map((child) => readScrollContributor(child as HTMLElement, main, mainRect)).sort((a, b) => b.flowBottom - a.flowBottom)
+    : [];
+  const contributors = main && mainRect
+    ? Array.from(main.querySelectorAll<HTMLElement>("*")).map((element) => readScrollContributor(element, main, mainRect)).sort((a, b) => b.flowBottom - a.flowBottom).slice(0, 20)
+    : [];
+  const diagnosticChild = mainChildren.find((child) => child.id === "preview-runtime-diagnostic");
+  const expectedMainContentBottom = mainChildren.filter((child) => child.id !== "preview-runtime-diagnostic" && child.display !== "none" && child.visibility !== "hidden").reduce((max, child) => Math.max(max, child.flowBottom), 0);
 
   return {
     viewport: {
@@ -192,7 +255,13 @@ function captureReminderRuntimeDiagnostic(): ReminderRuntimeDiagnostic {
     lastCard: readElementDiagnostic(lastCard),
     mobileNav: readElementDiagnostic(mobileNav),
     requiredExtraScroll,
-    ancestorChain: readAncestorDiagnostics(lastCard)
+    ancestorChain: readAncestorDiagnostics(lastCard),
+    mainDirectChildren: mainChildren,
+    topScrollHeightContributors: contributors,
+    expectedMainContentBottom,
+    actualMainScrollHeight: main?.scrollHeight ?? null,
+    phantomHeight: main ? roundDiagnosticValue(Math.max(0, main.scrollHeight - expectedMainContentBottom)) : null,
+    diagnosticChild
   };
 }
 
@@ -360,24 +429,24 @@ export default function RemindersPage() {
         </div>
       </section>
 
-      {diagnosticEnabled ? <section className="card panel" aria-label="Preview 临时滚动诊断">
+      {diagnosticEnabled ? <section id="preview-runtime-diagnostic" className="card panel" aria-label="Preview 临时滚动诊断">
         <details>
           <summary>Preview 临时滚动诊断</summary>
           <p className="muted">仅记录布局几何与 CSS，不包含账号、租客、房源、金额或身份信息。</p>
           <button className="btn" type="button" onClick={() => void copyRuntimeDiagnostic()}>复制滚动诊断</button>
           {diagnosticCopyStatus ? <span className="muted" style={{ marginInlineStart: 8 }}>{diagnosticCopyStatus}</span> : null}
-          <pre style={{ maxWidth: "100%", overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{runtimeDiagnostic ? JSON.stringify(runtimeDiagnostic, null, 2) : "正在采集运行时几何…"}</pre>
+          <p className="muted">{runtimeDiagnostic ? "已采集；请使用复制按钮发送完整诊断。" : "正在采集运行时几何…"}</p>
         </details>
       </section> : null}
 
-      {waiveTarget ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
+      {waiveTarget ? <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
         <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
           <h2 className="panel-title">确认放弃追缴</h2>
           <p>确认放弃追缴这笔欠租吗？该操作不会生成收入或支出，欠租历史仍会保留，但不会继续出现在提醒中心。</p>
           <div className="field"><label>原因（可选）</label><textarea value={waiveReason} maxLength={500} onChange={(event) => setWaiveReason(event.target.value)} /></div>
           <div className="modal-actions"><button className="btn" disabled={waiving} type="button" onClick={() => setWaiveTarget(null)}>取消</button><button className="btn warning" disabled={waiving} type="button" onClick={() => void waiveReminder()}>{waiving ? "处理中…" : "确认放弃追缴"}</button></div>
         </section>
-      </div> : null}
+      </div></ModalPortal> : null}
       <Toast message={waiveNotice} tone="success" />
     </AppLayout>
   );

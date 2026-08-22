@@ -2,6 +2,7 @@
 
 import { MoneyInput } from "@/components/money-input";
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StatusBadge } from "@/components/status-badge";
@@ -302,7 +303,7 @@ export default function RoomsPage() {
         <PaginationControls page={page} pageSize={pageSize} total={filteredRooms.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
 
-      {open ? (
+      {open ? <ModalPortal>
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑房间" : "新增房间"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
@@ -318,7 +319,7 @@ export default function RoomsPage() {
             </form>
           </section>
         </div>
-      ) : null}
+      </ModalPortal> : null}
     </AppLayout>
   );
 }

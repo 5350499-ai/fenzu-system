@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { ModalPortal } from "@/components/modal-portal";
 import { allPropertyIds, isAllPropertyScope, togglePropertyScope } from "@/lib/property-scope";
 
 export type PropertyChoice = { id: string; name: string; createdAt?: string };
@@ -52,7 +52,7 @@ export function PropertyMultiSelect({
   return <div className="field property-multi-select">
     <label>{label}</label>
     <button className="btn property-multi-select-trigger" type="button" onClick={() => setOpen(true)}>{summary}</button>
-    {open ? createPortal(<div className="modal-backdrop property-multi-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+    {open ? <ModalPortal><div className="modal-backdrop property-multi-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section className="card modal-card property-multi-select-modal" role="dialog" aria-modal="true" aria-label="选择房源范围" onPointerDown={(event) => event.stopPropagation()}>
         <div className="panel-header"><h2 className="panel-title">选择房源范围</h2><button className="btn compact" type="button" onClick={() => setOpen(false)}>取消</button></div>
         <div className="property-multi-select-all">
@@ -63,6 +63,6 @@ export function PropertyMultiSelect({
         </div>
         <div className="modal-actions"><button className="btn" type="button" onClick={() => setPendingIds([])}>全部取消</button><button className="btn primary" type="button" onClick={() => { if (!pendingIds.length) { window.alert("请至少选择一个房源"); return; } onChange([...new Set(pendingIds)]); setOpen(false); }}>确认</button></div>
       </section>
-    </div>, document.body) : null}
+    </div></ModalPortal> : null}
   </div>;
 }
