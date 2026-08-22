@@ -3164,12 +3164,7 @@ td:last-child {
 
 .reminder-page-list-single .reminder-row-full {
   min-block-size: 96px;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
 }
-
-.reminder-page-list-single .reminder-row-full:last-child { border-bottom: 0; }
 
 .reminder-center .reminder-row-primary,
 .reminder-page-list-single .reminder-row-primary {

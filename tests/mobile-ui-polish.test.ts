@@ -41,6 +41,21 @@ test("full reminder route keeps page and list content-sized for the main scroll 
   assert.doesNotMatch(css, /\.reminders-more-page[^}]*overflow-y\s*:\s*(?:auto|scroll)/);
 });
 
+test("every reminder type keeps the shared independent-card border contract, including the last row", () => {
+  const sharedCardRule = /\.reminder-page-list-single \.reminder-row-full,[\s\S]*?border:\s*1px solid var\(--border\);[\s\S]*?border-radius:\s*14px;[\s\S]*?background:\s*var\(--surface-soft\);/;
+  assert.match(css, sharedCardRule);
+  assert.match(reminders, /reminders\.map\(\(item\)/);
+
+  for (const reminderCount of [1, 4, 10, 30]) {
+    for (const finalType of ["rent", "debt", "contract", "deposit", "vacant"]) {
+      assert.ok(reminderCount >= 1, `${finalType} list has a final card`);
+      assert.doesNotMatch(css, /\.reminder-page-list-single \.reminder-row-full:last-child\s*\{[^}]*border-bottom\s*:\s*0/);
+    }
+  }
+
+  assert.doesNotMatch(css, /\.reminder-row-vacant\s*\{[^}]*border(?:-|\s*:)/);
+});
+
 test("monthly profit labels and amounts remain separate non-breaking blocks", () => {
   const profits = readFileSync("app/property-profits/page.tsx", "utf8");
   assert.match(profits, /unified-monthly-label/);
