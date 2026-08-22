@@ -30,6 +30,12 @@ Fixed values are allowed when semantically owned: 44px touch targets, 48px navig
 
 Do not add device-model CSS, `window.innerWidth`, `screen.width`, `devicePixelRatio`, user-agent-driven layout, `transform: scale()` or CSS `zoom` for responsive layout. Pointer-capability detection and error-reporting metadata are not layout contracts.
 
+## Content-driven dense-row contract
+
+- Phone, Medium and Desktop ranges change shell ownership only. A dense data row may not be forced into a second line merely because it is inside the Phone range.
+- Finance rows use content-sized date/amount/status tracks and a shrinkable description track. Long descriptions ellipsize before dates, currency values or status badges are split or clipped.
+- Currency values are indivisible value items. Profit rows keep their proportional three-region owner and wrap complete label/value items only when their actual container lacks capacity.
+
 ## Validation status
 
 - `IPHONE_MANUAL_VALIDATION_PASSED`: 2.3d, 2.4c and BUG-01.

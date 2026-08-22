@@ -259,6 +259,12 @@ and Settlement idempotency risks remain explicitly deferred there.
 - Reminder, attachment, partner and settlement roots keep their existing renderers and actions. Only Medium width allocation, shrink and overflow ownership is changed; no reminder engine, storage, settlement formula or business data source is changed.
 - Phone (`<=640px`) and Desktop (`>=1101px`) rules remain owned by their existing roots. BUG-01 (check-in deposit selector clipping) and SHELL-REVIEW-01 (Medium/Desktop handoff) are explicitly outside this batch.
 
+## Content-driven dense-row foundation
+
+- `app/globals.css` owns the shared `.finance-line`, `.rent-finance-line` and `.expense-finance-line` structure. Date, amount and status use content-sized tracks; partner and description are the shrink/ellipsis owners. A Phone breakpoint may adjust density but must not force a second row when that content fits in one line.
+- `.unified-monthly-row` remains the Property Profit owner. It keeps proportional left/center/right regions, while `.unified-monthly-metric` owns natural label/value wrapping and `.unified-monthly-amount` owns an indivisible currency value.
+- `.room-finance-line`, Tenant List's fixed semantic rows and shared reminder rows retain their established renderers and contracts. This foundation does not change their business fields, debt/reminder logic or lifecycle presentation.
+
 ## Medium Business Layout Ownership - 2.4c Second Batch
 
 - `app/globals.css` owns the second-batch Medium content-capacity rules for Dashboard metrics/panels, Property Detail metric panels and Data Center module grids.

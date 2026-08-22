@@ -1256,3 +1256,9 @@
 - Reclassified Account Center as a content-region sheet: it now portals into the App Shell main-content grid area, keeps the reserved bottom navigation visible, and retains a single internal scroll body with a stable logout action range.
 - Kept true application dialogs on the existing viewport-level modal portal; Account Center no longer invokes the document scroll lock and closes when navigation changes.
 - No account, password, authorization, business, database, schema, migration, real-user data or Production behavior changed.
+
+## 2026-08-22 - Global content-driven responsive foundation (Preview)
+
+- Replaced the Phone-only forced two-line finance layout with a shared content-driven row: date, amount and status stay complete while the description is the shrink/ellipsis owner.
+- Restored Property Profit's proportional three-region metric contract by replacing the Phone-only label/value stack with natural complete-item wrapping; removed the targeted 390px settlement typography patch in favor of an auto-fit metric grid.
+- Added static regression coverage for semantic breakpoints, content-sized value tracks and the absence of forced Finance Row wrapping. No business logic, data, schema, migration, real-user data or Production behavior changed.

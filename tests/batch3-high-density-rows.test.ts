@@ -9,12 +9,11 @@ const rooms = readFileSync(new URL("../app/rooms/page.tsx", import.meta.url), "u
 const profits = readFileSync(new URL("../app/property-profits/page.tsx", import.meta.url), "utf8");
 const reminders = readFileSync(new URL("../app/reminders/page.tsx", import.meta.url), "utf8");
 
-test("Batch 3 finance rows keep a shared fluid owner", () => {
+test("Batch 3 finance rows keep a shared content-driven single-line owner", () => {
   assert.match(payments, /finance-line rent-finance-line/);
   assert.match(expenses, /finance-line expense-finance-line/);
-  assert.match(css, /\.rent-finance-line\s*\{[\s\S]*?minmax\(0, 0\.8fr\)[\s\S]*?max-content max-content/);
-  assert.match(css, /\.expense-finance-line\s*\{[\s\S]*?minmax\(0, 0\.8fr\)[\s\S]*?max-content max-content/);
-  assert.match(css, /\.rent-finance-line,[\s\S]*?\.expense-finance-line\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"date description amount"[\s\S]*?"partner description status"/);
+  assert.match(css, /\.rent-finance-line,[\s\S]*?\.expense-finance-line\s*\{[\s\S]*?grid-template-columns:\s*max-content max-content minmax\(0, 1fr\) max-content max-content/);
+  assert.doesNotMatch(css, /"date description amount"|"partner description status"/);
   assert.doesNotMatch(css, /\.rent-finance-line\s*\{[^}]*108px 72px|\.expense-finance-line\s*\{[^}]*108px 72px/);
 });
 
@@ -37,6 +36,7 @@ test("Batch 3 preserves the verified monthly profit and reminder owners", () => 
   assert.match(profits, /global-monthly-row unified-monthly-row/);
   assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?minmax\(0, 1\.7fr\)[\s\S]*?minmax\(0, \.9fr\)/);
   assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
+  assert.match(css, /\.unified-monthly-metric,[\s\S]*?flex-wrap:\s*wrap/);
   assert.match(reminders, /reminders\.map\(\(item\)/);
   assert.doesNotMatch(css, /\.reminder-page-list-single \.reminder-row-full:last-child\s*\{[^}]*border-bottom\s*:\s*0/);
 });

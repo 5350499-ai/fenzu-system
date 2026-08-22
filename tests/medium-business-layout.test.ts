@@ -8,7 +8,7 @@ const mediumEnd = css.indexOf("\n}", mediumStart);
 const medium = mediumStart >= 0 && mediumEnd >= 0 ? css.slice(mediumStart, mediumEnd + 2) : "";
 
 test("Medium business roots use one scoped responsive contract", () => {
-  assert.match(medium, /\.app-shell \.rent-finance-line,[\s\S]*grid-template-columns: minmax\(0, 0\.9fr\)/);
+  assert.match(medium, /\.app-shell \.rent-finance-line,[\s\S]*grid-template-columns: max-content max-content minmax\(0, 1fr\) max-content max-content/);
   assert.match(medium, /\.app-shell \.expense-finance-line/);
   assert.match(medium, /\.app-shell \.room-finance-line[\s\S]*grid-template-columns: minmax\(0, 1\.05fr\)/);
   assert.match(medium, /\.app-shell \.reminder-page-list-single \.reminder-row-primary/);

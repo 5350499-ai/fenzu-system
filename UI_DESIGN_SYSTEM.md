@@ -279,6 +279,13 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 - List summaries should use one to three effective rows. Empty fields do not reserve a visual row.
 - Dates, amounts and status badges remain intact with tabular numerals/nowrap where appropriate; long descriptions wrap or ellipsize according to their importance. Never reduce normal text size or scale content to create density.
 
+### Content-driven dense-row contract
+
+- Phone, Medium and Desktop breakpoints select a shell mode; they must not unconditionally turn a business row into two lines merely because the viewport is Phone.
+- Dense business rows reserve `max-content` tracks for short dates, amounts and status badges, and give the description/name `minmax(0, 1fr)`. The description shrinks or ellipsizes before a date, amount or status is split or clipped.
+- A label and its amount may wrap only as two complete value items when their own container lacks capacity. Currency symbol, sign, thousands group and decimal fraction never split.
+- Monthly operating-result rows retain three proportional regions: period/occupancy, income/expense and net result/status. Their metric pairs use natural flex wrapping instead of a phone-only forced single-column rule.
+
 ## 16. Mandatory UI preflight
 
 Before any frontend UI change, read this document and inspect the existing shared
