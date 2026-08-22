@@ -3571,11 +3571,11 @@ td:last-child {
 }
 
 .expense-finance-line {
-  grid-template-columns: 108px 72px minmax(0, 1fr) 104px 88px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 1.8fr) max-content max-content;
 }
 
 .rent-finance-line {
-  grid-template-columns: 108px 72px minmax(0, 1fr) 104px 88px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 1.8fr) max-content max-content;
 }
 
 .rent-finance-line > *,
@@ -4491,7 +4491,10 @@ td:last-child {
   }
 
   .finance-line {
-    grid-template-columns: 68px 58px minmax(0, 1fr) 72px 58px;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.3fr) max-content;
+    grid-template-areas:
+      "date description amount"
+      "partner description status";
     gap: 6px;
     min-height: 38px;
     padding: 7px 0;
@@ -4504,14 +4507,18 @@ td:last-child {
   }
 
   .expense-finance-line {
-    grid-template-columns: 68px 58px minmax(0, 1fr) 72px 58px;
-    gap: 4px;
-    font-size: 11px;
+    gap: var(--ui-space-1, 4px);
   }
 
   .rent-finance-line,
   .expense-finance-line {
     align-items: center;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.3fr) max-content;
+    grid-template-areas:
+      "date description amount"
+      "partner description status";
+    gap: var(--ui-space-1, 4px) var(--ui-space-2, 8px);
+    overflow: hidden;
   }
 
   .rent-finance-line > *,
@@ -4537,7 +4544,7 @@ td:last-child {
   }
 
   .expense-finance-line .partner-tag {
-    max-width: 58px;
+    max-width: 100%;
     padding-inline: 5px;
   }
 
@@ -4693,7 +4700,7 @@ td:last-child {
 
 .room-current-tenant {
   display: grid;
-  grid-template-columns: minmax(110px, 1.2fr) repeat(4, minmax(82px, auto)) auto;
+  grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr)) auto;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -4712,7 +4719,7 @@ td:last-child {
 }
 
 .room-payment-history-line {
-  grid-template-columns: minmax(82px, auto) minmax(90px, 1fr) repeat(4, minmax(72px, auto)) minmax(88px, auto);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr) repeat(4, minmax(0, 1fr)) max-content;
 }
 
 .room-history-toggle {
@@ -6397,7 +6404,7 @@ td:last-child {
   }
 
   .room-current-tenant {
-    grid-template-columns: minmax(84px, 1fr) minmax(72px, auto) minmax(72px, auto);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
     gap: 5px 8px;
   }
 
@@ -8748,8 +8755,10 @@ input[type="radio"] {
 
   .rent-finance-line,
   .expense-finance-line {
-    grid-template-columns: minmax(76px, max-content) minmax(34px, 58px) minmax(0, 1fr) max-content max-content;
-    grid-template-areas: "date partner description amount status";
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.3fr) max-content;
+    grid-template-areas:
+      "date description amount"
+      "partner description status";
     align-items: center;
     gap: var(--ui-space-1, 4px);
     min-width: 0;
@@ -8761,8 +8770,7 @@ input[type="radio"] {
   .rent-finance-line > :nth-child(1),
   .expense-finance-line > :nth-child(1) {
     grid-area: date;
-    min-width: 76px;
-    flex: 0 0 auto;
+    min-width: 0;
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
@@ -8772,7 +8780,7 @@ input[type="radio"] {
   .expense-finance-line > :nth-child(2) {
     grid-area: partner;
     min-width: 0;
-    max-width: 58px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

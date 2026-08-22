@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-22 - Responsive Architecture Batch 3 high-density rows
+
+- Converged payment and expense rows onto fluid proportional tracks with a two-line phone contract that preserves complete amounts and status badges.
+- Removed fixed content-width assumptions from room tenant/history rows while preserving the verified monthly profit and reminder owners.
+- No business, data, App Shell, Account Center, database, schema, or migration changes.
+
 ## 2026-08-22 - Account Center light-theme visual closeout
 
 - Aligned the content-region Account Center backdrop with the canonical light page-background token instead of the full-screen modal dimmer; surface, child cards, inputs and borders continue using the shared theme tokens.
