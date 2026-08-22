@@ -30,7 +30,7 @@ test("property result, room, tenant and reminder owners keep their established p
   assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1\.1fr\) max-content minmax\(0, 1\.35fr\)/);
   assert.match(css, /\.unified-monthly-financial \.unified-monthly-metric\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
   assert.match(rooms, /finance-line room-finance-line/);
-  assert.match(css, /\.room-finance-line\s*\{[\s\S]*?minmax\(0, 1\.6fr\)[\s\S]*?minmax\(0, 1\.4fr\)/);
+  assert.match(css, /\.room-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto auto minmax\(0, 1fr\) auto/);
   assert.match(css, /\.tenant-list-identity-row\s*\{[\s\S]*?3fr\)[\s\S]*?4fr\)[\s\S]*?3fr\)/);
   assert.match(reminders, /reminders\.map\(\(item\)/);
 });

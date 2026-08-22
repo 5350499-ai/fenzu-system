@@ -27,7 +27,7 @@ test("Batch 3 amounts and status values remain intact inside shrinkable rows", (
 test("Batch 3 room rows use proportional tracks without changing room business fields", () => {
   assert.match(rooms, /finance-line room-finance-line/);
   assert.match(rooms, /room-current-tenant/);
-  assert.match(css, /\.room-finance-line\s*\{[\s\S]*?minmax\(0, 1\.6fr\)[\s\S]*?minmax\(0, 1\.4fr\)/);
+  assert.match(css, /\.room-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto auto minmax\(0, 1fr\) auto/);
   assert.match(css, /\.room-current-tenant\s*\{[\s\S]*?minmax\(0, 1\.25fr\)[\s\S]*?repeat\(4, minmax\(0, 1fr\)\)/);
   assert.doesNotMatch(css, /\.room-current-tenant\s*\{[^}]*minmax\(110px, 1\.2fr\)/);
 });

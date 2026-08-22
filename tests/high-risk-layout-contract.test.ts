@@ -42,9 +42,10 @@ test("high-risk business rows keep explicit shrink ownership", () => {
   const mediumStart = css.indexOf("/* 2.4c first batch");
   const mediumEnd = css.indexOf("/* 2.4c second batch", mediumStart);
   const medium = css.slice(mediumStart, mediumEnd);
-  for (const selector of [".rent-finance-line", ".expense-finance-line", ".room-finance-line", ".attachment-inventory-file-row", ".settlement-history-partner"]) {
+  for (const selector of [".rent-finance-line", ".expense-finance-line", ".attachment-inventory-file-row", ".settlement-history-partner"]) {
     assert.match(medium, new RegExp(selector.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
   }
+  assert.match(css, /\.room-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto auto minmax\(0, 1fr\) auto/);
   assert.match(medium, /min-width:\s*0/);
   assert.doesNotMatch(medium, /window\.innerWidth|screen\.width|devicePixelRatio|userAgent|transform:\s*scale|zoom:/);
 });

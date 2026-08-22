@@ -4680,13 +4680,6 @@ td:last-child {
 }
 
 .room-finance-line {
-  grid-template-columns:
-    minmax(56px, 0.85fr)
-    minmax(50px, 0.7fr)
-    minmax(64px, auto)
-    minmax(82px, auto)
-    minmax(88px, auto)
-    minmax(72px, auto);
   min-height: 32px;
   padding-block: 5px;
 }
@@ -6315,35 +6308,6 @@ td:last-child {
     text-align: right;
   }
 
-  .room-finance-line {
-    grid-template-columns:
-      minmax(4.2em, 0.72fr)
-      minmax(8.5em, 1.7fr)
-      max-content
-      minmax(62px, auto)
-      minmax(28px, auto);
-    gap: 4px;
-    font-size: 10.5px;
-  }
-
-  .room-finance-line .badge {
-    min-height: 22px;
-    padding-inline: 4px;
-    font-size: 9px;
-  }
-
-  .room-finance-line > :nth-child(5) {
-    display: none;
-  }
-
-  .room-finance-line .room-property-name {
-    min-width: 4.2em;
-  }
-
-  .room-finance-line .room-display-name {
-    min-width: 8.5em;
-    font-weight: 800;
-  }
 }
 
 .tenant-search-box {
@@ -7010,20 +6974,6 @@ td:last-child {
   .app-shell .expense-finance-line > :nth-child(-n + 3),
   .app-shell .rent-finance-line .partner-tag,
   .app-shell .expense-finance-line .partner-tag {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .app-shell .room-finance-line {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) max-content max-content minmax(0, 1.25fr) max-content;
-    gap: 6px;
-  }
-
-  .app-shell .room-finance-line .room-property-name,
-  .app-shell .room-finance-line .room-display-name,
-  .app-shell .room-finance-line .room-coverage-summary {
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -8774,16 +8724,6 @@ input[type="radio"] {
 }
 
 @media (max-width: 640px) {
-  .room-finance-line {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "property room status"
-      "property rent expiry";
-    align-items: center;
-    min-height: 68px;
-    padding: 9px 10px;
-  }
-
   .rent-finance-line,
   .expense-finance-line {
     grid-template-columns: max-content max-content minmax(0, 1fr) max-content max-content;
@@ -8821,16 +8761,6 @@ input[type="radio"] {
   .expense-finance-line > :nth-child(4) { min-width: max-content; white-space: nowrap; }
   .rent-finance-line > :nth-child(5),
   .expense-finance-line > :nth-child(5) { min-width: max-content; white-space: nowrap; }
-
-  .room-finance-line > :nth-child(1) { grid-area: property; align-self: stretch; display: flex; align-items: center; }
-  .room-finance-line > :nth-child(2) { grid-area: room; }
-  .room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
-  .room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
-  .room-finance-line > :nth-child(5) { display: none; }
-  .room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
-
-  .room-finance-line .room-property-name { font-size: 10px; }
-  .room-finance-line .room-display-name { font-size: 13px; }
 
   .tenant-detail-action-button {
     min-width: 0;
@@ -9142,25 +9072,9 @@ input[type="radio"] {
 .tenant-detail-panel .tenant-collapse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-detail-panel .tenant-collapse-action { flex: 0 0 auto; margin-left: auto; color: var(--ui-color-info, var(--blue)); font-size: var(--ui-font-size-button, 14px); font-weight: var(--ui-font-weight-semibold, 600); white-space: nowrap; }
 .tenant-detail-panel .tenant-detail-action-button { min-height: var(--ui-touch-target, 44px); height: auto; padding-inline: 6px; font-size: var(--ui-font-size-button, 14px); line-height: var(--ui-line-height-tight, 1.2); white-space: nowrap; }
-.room-finance-line { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto auto; grid-template-areas: "room property status rent unpaid expiry"; min-height: 64px; padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px); gap: var(--ui-space-3, 12px); }
-.room-finance-line > :nth-child(1) { grid-area: property; }
-.room-finance-line > :nth-child(2) { grid-area: room; }
-.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
-.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
-.room-finance-line > :nth-child(5) { grid-area: unpaid; justify-self: end; }
-.room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
-.room-finance-line .room-display-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text-primary, var(--text)); font-size: var(--ui-font-size-card-title, 16px); font-weight: var(--ui-font-weight-bold, 700); }
-.room-finance-line .room-property-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text-secondary, var(--muted)); font-size: var(--ui-font-size-secondary, 13px); }
-.room-finance-line > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
-
 @media (max-width: 640px) {
   .field input:not([type="checkbox"]):not([type="radio"]):not(.ui-combobox-input), .field select, .field textarea, .combobox { min-height: var(--ui-touch-target, 44px); }
   .modal-card > .panel-header:first-child { top: -16px; margin: -16px -16px var(--ui-space-4, 16px); padding: 16px 16px var(--ui-space-3, 12px); }
-  .room-finance-line { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "room status" "property rent" "expiry expiry"; min-height: 88px; padding: var(--ui-space-3, 12px); gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px); }
-  .room-finance-line > :nth-child(5) { display: none; }
-  .room-finance-line > :nth-child(6) { display: block; grid-area: expiry; justify-self: start; }
-  .room-finance-line .room-display-name { font-size: var(--ui-font-size-card-title, 16px); }
-  .room-finance-line .room-property-name { font-size: var(--ui-font-size-secondary, 13px); }
   .check-in-attachment-item { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .check-in-attachment-item > select, .check-in-attachment-item > button { grid-column: 2; width: 100%; max-width: none; }
 }
@@ -9454,37 +9368,6 @@ label.field > span,
   white-space: nowrap;
 }
 
-.room-finance-line {
-  grid-template-columns: minmax(120px, 1.15fr) minmax(110px, 1fr) auto auto minmax(74px, auto) auto;
-  grid-template-areas: "room property status rent unpaid expiry";
-  min-height: 64px;
-  gap: var(--ui-space-3, 12px);
-  padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px);
-}
-
-.room-finance-line > :nth-child(1) { grid-area: property; }
-.room-finance-line > :nth-child(2) { grid-area: room; }
-.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
-.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: end; }
-.room-finance-line > :nth-child(5) { grid-area: unpaid; justify-self: end; }
-.room-finance-line > :nth-child(6) { grid-area: expiry; justify-self: end; }
-.room-finance-line .room-display-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--ui-font-size-card-title, 16px);
-  font-weight: var(--ui-font-weight-bold, 700);
-}
-.room-finance-line .room-property-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ui-color-text-secondary, var(--muted));
-  font-size: var(--ui-font-size-secondary, 13px);
-}
-
 @media (max-width: 640px) {
   .list-controls {
     grid-template-columns: 1fr;
@@ -9525,26 +9408,6 @@ label.field > span,
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   }
 
-  .room-finance-line {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "room status"
-      "property rent"
-      "unpaid expiry";
-    min-height: 88px;
-    gap: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
-    padding: var(--ui-space-3, 12px);
-  }
-
-  .room-finance-line > :nth-child(5),
-  .room-finance-line > :nth-child(6) {
-    display: block;
-    justify-self: start;
-  }
-
-  .room-finance-line .room-display-name {
-    font-size: var(--ui-font-size-card-title, 16px);
-  }
 }
 
 @media (max-width: 360px) {
@@ -9553,43 +9416,8 @@ label.field > span,
     grid-template-columns: 1fr;
   }
 
-  .room-finance-line {
-    grid-template-areas:
-      "room status"
-      "property rent"
-      "unpaid unpaid"
-      "expiry expiry";
-  }
 }
 
-/* Rooms: keep the summary meaningful without letting long labels create a second column overflow. */
-.room-finance-line {
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) auto;
-  grid-template-areas:
-    "room room status"
-    "property rent rent"
-    "coverage coverage coverage";
-  min-height: 0;
-  gap: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
-  padding: var(--ui-space-2, 8px) var(--ui-space-3, 12px);
-}
-.room-finance-line > :nth-child(1) { grid-area: property; }
-.room-finance-line > :nth-child(2) { grid-area: room; }
-.room-finance-line > :nth-child(3) { grid-area: status; justify-self: end; }
-.room-finance-line > :nth-child(4) { grid-area: rent; justify-self: start; }
-.room-finance-line > :nth-child(5) { display: none; }
-.room-finance-line > :nth-child(6) { grid-area: coverage; justify-self: start; }
-.room-finance-line .room-coverage-summary {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ui-color-text-secondary, var(--muted));
-  font-size: var(--ui-font-size-secondary, 13px);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.room-finance-line .room-coverage-summary.red { color: var(--ui-color-danger, var(--red)); }
-.room-finance-line .room-coverage-summary.amber { color: var(--ui-color-warning, var(--amber)); }
-.room-finance-line .room-coverage-summary.green { color: var(--ui-color-success, var(--green)); }
 .finance-line .room-expiry-badge {
   display: inline-flex !important;
   align-items: center !important;
@@ -9876,15 +9704,6 @@ label.field > span,
 }
 
 @media (max-width: 640px) {
-  .room-finance-line {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "room status"
-      "property property"
-      "rent rent"
-      "coverage coverage";
-  }
-  .room-finance-line > :nth-child(4) { justify-self: start; }
   .room-core-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -10110,31 +9929,6 @@ label.field > span,
 
   .room-compact-list {
     gap: var(--ui-space-2, 8px);
-  }
-
-  .room-finance-line {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "room status"
-      "property rent"
-      "unpaid expiry";
-    min-height: 0;
-    padding: var(--ui-space-3, 12px);
-    gap: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
-  }
-
-  .room-finance-line > :nth-child(5),
-  .room-finance-line > :nth-child(6) {
-    display: block;
-    justify-self: start;
-  }
-
-  .room-finance-line .room-display-name {
-    font-size: var(--ui-font-size-card-title, 16px);
-  }
-
-  .room-finance-line .room-property-name {
-    font-size: var(--ui-font-size-secondary, 13px);
   }
 
   .rent-finance-line,

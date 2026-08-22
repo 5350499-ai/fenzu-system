@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-22 - Responsive Architecture Batch 4 secondary page owners
+
+- Kept Tenant, Property, Settlement and Data Center semantic layouts on their existing stable owners after audit.
+- Removed superseded Room row grid owners, including the higher-specificity Medium override, so the verified content-driven Room contract is authoritative.
+- Added static Batch 4 layout-owner regression coverage; no business, data, shell, account-center, database, schema or migration changes.
+
 ## 2026-08-22 - Responsive Architecture Batch 3 high-density rows
 
 - Converged payment and expense rows onto fluid proportional tracks with a two-line phone contract that preserves complete amounts and status badges.
