@@ -262,7 +262,8 @@ for (const [source, message] of [
 }
 
 const profitResultRule = css.match(/\.unified-monthly-row\s*\{([\s\S]*?)\}/i)?.[1] || "";
-if (!/repeat\(auto-fit,\s*minmax\(min\(100%,\s*8rem\),\s*1fr\)\)/i.test(profitResultRule)) failures.push("Monthly and yearly profit results must use the shared content-driven four-region contract");
+if (!/grid-template-columns\s*:\s*minmax\(0,\s*1\.1fr\)\s+max-content\s+minmax\(0,\s*1\.35fr\)/i.test(profitResultRule)) failures.push("Monthly profit results must use the shared three-region content-driven contract");
+if (!/\.unified-monthly-financial\s+\.unified-monthly-metric[\s\S]*?grid-template-columns\s*:\s*minmax\(0,\s*1fr\)\s+max-content/i.test(css)) failures.push("Monthly financial values must share one aligned label/value region");
 if (!/\.unified-monthly-occupancy[\s\S]*?white-space\s*:\s*normal/i.test(css)) failures.push("Profit result occupancy details must be allowed to wrap instead of being truncated");
 
 if (!/\.main\s*>\s*:is\(section\.card, section\.panel, \.ui-section-card\)\s*\+\s*:is\(section\.card, section\.panel, \.ui-section-card\)/.test(css)) {

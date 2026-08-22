@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { buildActivePartnerOptions, buildPartnerDirectory, getPartners } from "./partners";
+import { buildActivePartnerOptions, buildAttributionOptions, buildPartnerDirectory, getCachedPartners, getPartners } from "./partners";
 
 export type PartnerRatios = {
   A: number;
@@ -52,6 +52,47 @@ export function partnerDisplayLabel(partner: string | undefined, directory: Reco
 
 export function partnerDisplayClass(partner: string | undefined, state: PartnerDirectoryState) {
   return state === "ready" ? partnerClass(partner) : "partner-pending";
+}
+
+export function usePartnerDirectoryState(scope: string, isFreeSingle = false) {
+  const cached = getCachedPartners(scope);
+  const [directory, setDirectory] = useState<Record<string, string>>(() => cached ? buildPartnerDirectory(cached) : {});
+  const [options, setOptions] = useState<PartnerOwnershipOption[]>(() => cached ? buildAttributionOptions(cached, isFreeSingle) : []);
+  const [state, setState] = useState<PartnerDirectoryState>(cached ? "ready" : "loading");
+  const [resolvedScope, setResolvedScope] = useState(scope);
+
+  useEffect(() => {
+    let active = true;
+    setResolvedScope(scope);
+    const warm = getCachedPartners(scope);
+    if (warm) {
+      setDirectory(buildPartnerDirectory(warm));
+      setOptions(buildAttributionOptions(warm, isFreeSingle));
+      setState("ready");
+    } else {
+      setDirectory({});
+      setOptions([]);
+      setState("loading");
+    }
+    if (!scope) return () => { active = false; };
+    void getPartners().then((data) => {
+      if (!active) return;
+      setDirectory(buildPartnerDirectory(data));
+      setOptions(buildAttributionOptions(data, isFreeSingle));
+      setState("ready");
+    }).catch(() => {
+      if (!active) return;
+      setState("unavailable");
+    });
+    return () => { active = false; };
+  }, [isFreeSingle, scope]);
+
+  const isCurrentScope = resolvedScope === scope;
+  return {
+    directory: isCurrentScope ? directory : {},
+    options: isCurrentScope ? options : [],
+    state: isCurrentScope ? state : "loading" as PartnerDirectoryState
+  };
 }
 
 export function usePartnerDirectory() {

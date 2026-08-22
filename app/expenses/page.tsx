@@ -34,8 +34,8 @@ import {
   uploadExpenseFile
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
-import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
-import { partnerDisplayClass, partnerDisplayLabel, PartnerDirectoryState } from "@/lib/partner-settings";
+import { preserveStoredPartnerOption } from "@/lib/partners";
+import { partnerDisplayClass, partnerDisplayLabel, usePartnerDirectoryState, type PartnerDirectoryState } from "@/lib/partner-settings";
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -57,9 +57,8 @@ const emptyExpense: BusinessExpense = {
 
 export default function ExpensesPage() {
   const access = useAccountAccess();
-  const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
-  const [partnerDirectoryState, setPartnerDirectoryState] = useState<PartnerDirectoryState>("loading");
-  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const partnerIdentity = usePartnerDirectoryState(access.userId, access.isFreeSingle);
+  const { directory: partnerDirectory, options: partnerOptions, state: partnerDirectoryState } = partnerIdentity;
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -116,7 +115,6 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
-      setPartnerDirectoryState((current) => current === "ready" ? current : "loading");
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
@@ -124,10 +122,6 @@ export default function ExpensesPage() {
       setRooms(loadedRooms);
       setExpenses(loadedExpenses);
       await refreshExpenseFiles(loadedExpenses.map((expense) => expense.id));
-      const partnerData = await getPartners().catch(() => null);
-      setPartnerDirectory(partnerData ? buildPartnerDirectory(partnerData) : {});
-      setPartnerOptions(buildAttributionOptions(partnerData, access.isFreeSingle));
-      setPartnerDirectoryState(partnerData ? "ready" : "unavailable");
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));

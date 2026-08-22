@@ -33,8 +33,8 @@ import {
   tenantKey
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
-import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
-import { partnerDisplayClass, partnerDisplayLabel, PartnerDirectoryState } from "@/lib/partner-settings";
+import { preserveStoredPartnerOption } from "@/lib/partners";
+import { partnerDisplayClass, partnerDisplayLabel, usePartnerDirectoryState, type PartnerDirectoryState } from "@/lib/partner-settings";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import {
   deleteRentPaymentFile,
@@ -78,9 +78,8 @@ function defaultCoverageEnd(startDate: string) {
 
 export default function RentPaymentsPage() {
   const access = useAccountAccess();
-  const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
-  const [partnerDirectoryState, setPartnerDirectoryState] = useState<PartnerDirectoryState>("loading");
-  const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const partnerIdentity = usePartnerDirectoryState(access.userId, access.isFreeSingle);
+  const { directory: partnerDirectory, options: partnerOptions, state: partnerDirectoryState } = partnerIdentity;
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
@@ -150,7 +149,6 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
-      setPartnerDirectoryState((current) => current === "ready" ? current : "loading");
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -163,38 +161,6 @@ export default function RentPaymentsPage() {
       setTenants(repairedTenants);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
-      const partnerData = await getPartners().catch(() => null);
-      const nextDirectory = partnerData ? buildPartnerDirectory(partnerData) : {};
-      const nextOptions = buildAttributionOptions(partnerData, access.isFreeSingle);
-      setPartnerDirectory(nextDirectory);
-      setPartnerOptions(nextOptions);
-      setPartnerDirectoryState(partnerData ? "ready" : "unavailable");
-      const renewTenantId = new URLSearchParams(window.location.search).get("renewTenantId");
-      const renewTenant = repairedTenants.find((tenant) => tenant.id === renewTenantId);
-      if (renewTenant) {
-        const latest = latestCoverageForTenant(renewTenant.id, loadedPayments);
-        const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
-        const receivedBy = nextOptions.some((option) => option.value === latest?.receivedBy)
-          ? latest?.receivedBy || ""
-          : nextOptions[0]?.value || "";
-        const mode = ownershipChoice(receivedBy, nextOptions);
-        setForm({
-          ...emptyPayment,
-          propertyId: renewTenant.propertyId,
-          roomId: renewTenant.roomId,
-          tenantId: renewTenant.id,
-          incomeType: "续交房租",
-          amountDue: Number(renewTenant.monthlyRent || 0),
-          amountPaid: 0,
-          coverageStartDate,
-          coverageEndDate: defaultCoverageEnd(coverageStartDate),
-          paymentMethod: latest?.paymentMethod || "转账",
-          receivedBy
-        });
-        setOwnershipMode(mode);
-        setMonthlyRentStandard(Number(renewTenant.monthlyRent || 0));
-        setOpen(true);
-      }
       const collectionId = new URLSearchParams(window.location.search).get("collectPayment");
       const collectionPayment = loadedPayments.find((payment) => payment.id === collectionId);
       if (collectionPayment) {
@@ -226,6 +192,34 @@ export default function RentPaymentsPage() {
     }
     load().catch((error) => window.alert(`加载收租记录失败：${error.message || error}`));
   }, [access.isFreeSingle]);
+
+  useEffect(() => {
+    if (!loaded || !partnerOptions.length) return;
+    const renewTenantId = new URLSearchParams(window.location.search).get("renewTenantId");
+    const renewTenant = tenants.find((tenant) => tenant.id === renewTenantId);
+    if (!renewTenant) return;
+    const latest = latestCoverageForTenant(renewTenant.id, payments);
+    const coverageStartDate = latest?.coverageEndDate ? addOneDay(latest.coverageEndDate) : todayString();
+    const receivedBy = partnerOptions.some((option) => option.value === latest?.receivedBy)
+      ? latest?.receivedBy || ""
+      : partnerOptions[0]?.value || "";
+    setForm({
+      ...emptyPayment,
+      propertyId: renewTenant.propertyId,
+      roomId: renewTenant.roomId,
+      tenantId: renewTenant.id,
+      incomeType: "续交房租",
+      amountDue: Number(renewTenant.monthlyRent || 0),
+      amountPaid: 0,
+      coverageStartDate,
+      coverageEndDate: defaultCoverageEnd(coverageStartDate),
+      paymentMethod: latest?.paymentMethod || "转账",
+      receivedBy
+    });
+    setOwnershipMode(ownershipChoice(receivedBy, partnerOptions));
+    setMonthlyRentStandard(Number(renewTenant.monthlyRent || 0));
+    setOpen(true);
+  }, [loaded, partnerOptions, payments, tenants]);
 
   useEffect(() => {
     if (!loaded || !detailPaymentId) return;

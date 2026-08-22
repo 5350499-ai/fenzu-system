@@ -6794,7 +6794,7 @@ td:last-child {
 
 .unified-monthly-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  grid-template-columns: minmax(0, 1.1fr) max-content minmax(0, 1.35fr);
   gap: 8px;
   min-height: 0;
   padding: 9px 10px;
@@ -6841,8 +6841,8 @@ td:last-child {
 }
 
 .unified-monthly-head,
-.unified-monthly-income,
-.unified-monthly-expense,
+.unified-monthly-period,
+.unified-monthly-financial,
 .unified-monthly-net,
 .unified-monthly-occupancy {
   min-width: 0;
@@ -7296,6 +7296,41 @@ td:last-child {
   font-weight: 800;
 }
 
+/* Three semantic regions: period, row status, and aligned financial values. */
+.unified-monthly-status-region {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.unified-monthly-status-value {
+  display: block;
+  max-width: max-content;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.unified-monthly-financial {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.unified-monthly-financial .unified-monthly-metric {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.unified-monthly-status-region.profit,
+.unified-monthly-status-region.profit .unified-monthly-status-value {
+  color: var(--success, #24b47e);
+}
+
+.unified-monthly-status-region.danger-text,
+.unified-monthly-status-region.danger-text .unified-monthly-status-value {
+  color: var(--danger, #ef6b73);
+}
+
 .unified-monthly-net.profit,
 .unified-monthly-net.profit b,
 .unified-monthly-status.profit {
@@ -7310,7 +7345,7 @@ td:last-child {
 
 @media (max-width: 640px) {
   .unified-monthly-row {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+    grid-template-columns: minmax(0, 1.1fr) max-content minmax(0, 1.35fr);
     gap: 6px;
     padding: 8px 9px;
   }

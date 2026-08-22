@@ -114,6 +114,16 @@ export async function getPartners(): Promise<PartnerWorkspaceData> {
   return cacheManager.get("partners", { scope: session.user.id, loader: getPartnersFromServer });
 }
 
+/**
+ * Synchronous warm-cache read for first paint. IndexedDB remains async, but
+ * once this workspace's directory has been resolved in this tab, pages can
+ * render the same real identity immediately instead of briefly re-entering a
+ * neutral/loading state.
+ */
+export function getCachedPartners(scope: string) {
+  return scope ? cacheManager.peekMemory<PartnerWorkspaceData>("partners", scope) : null;
+}
+
 export async function refreshPartners(): Promise<PartnerWorkspaceData> {
   const session = await getValidSupabaseSession();
   if (!session?.user?.id) throw new Error("Session expired");

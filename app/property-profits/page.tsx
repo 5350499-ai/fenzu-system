@@ -222,19 +222,17 @@ export default function PropertyProfitsPage() {
         </div>
         <div className="global-monthly-list">
           {displayedMonthlyRows.map((row) => <div className="global-monthly-row unified-monthly-row" key={row.financial.month}>
-            <div className="unified-monthly-column unified-monthly-left">
+            <div className="unified-monthly-column unified-monthly-period">
               <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong></div>
               <div className="unified-monthly-occupancy"><span>出租率 <b>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
             </div>
-            <div className="unified-monthly-column unified-monthly-income">
+            <div className={`unified-monthly-column unified-monthly-status-region ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>
+              <span className="unified-monthly-status-value">{profitStatus(row.financial.netProfit)}</span>
+            </div>
+            <div className="unified-monthly-column unified-monthly-financial">
               <div className="unified-monthly-metric"><span className="unified-monthly-label">收入</span><b className="unified-monthly-amount">{euro(row.financial.income)}</b></div>
-            </div>
-            <div className="unified-monthly-column unified-monthly-expense">
               <div className="unified-monthly-metric"><span className="unified-monthly-label">支出</span><b className="unified-monthly-amount">{euro(row.financial.expense)}</b></div>
-            </div>
-            <div className="unified-monthly-column unified-monthly-right">
               <div className={`unified-monthly-metric unified-monthly-net ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}><span className="unified-monthly-label">净利润</span><b className="unified-monthly-amount">{euro(row.financial.netProfit)}</b></div>
-              <div className={`unified-monthly-status ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}>{profitStatus(row.financial.netProfit)}</div>
             </div>
           </div>)}
         </div>

@@ -18,27 +18,29 @@ test("NO_WRONG_PARTNER_FLASH_ON_INITIAL_RENDER", () => {
 
 test("REAL_PARTNER_NAME_AFTER_HYDRATION", () => {
   assert.match(partnerSettings, /return partnerLabel\(partner, directory\)/);
-  assert.match(payments, /setPartnerDirectoryState\(partnerData \? "ready" : "unavailable"\)/);
-  assert.match(expenses, /setPartnerDirectoryState\(partnerData \? "ready" : "unavailable"\)/);
+  assert.match(partnerSettings, /function usePartnerDirectoryState\(scope:\s*string/);
+  assert.match(payments, /usePartnerDirectoryState\(access\.userId, access\.isFreeSingle\)/);
+  assert.match(expenses, /usePartnerDirectoryState\(access\.userId, access\.isFreeSingle\)/);
 });
 
 test("MONTHLY_RESULT_SEMANTIC_ORDER and PROFIT_LABEL_VALUE_STATUS_GROUPING", () => {
-  const left = profits.indexOf("unified-monthly-left");
-  const income = profits.indexOf("unified-monthly-income");
-  const expense = profits.indexOf("unified-monthly-expense");
-  const right = profits.indexOf("unified-monthly-right");
-  assert.ok(left < income && income < expense && expense < right);
-  assert.doesNotMatch(profits, /unified-monthly-middle/);
-  const netRegion = profits.slice(right, profits.indexOf("</div>)}", right));
-  assert.match(netRegion, /unified-monthly-label">净利润/);
-  assert.match(netRegion, /unified-monthly-amount/);
-  assert.match(netRegion, /unified-monthly-status/);
+  const period = profits.indexOf("unified-monthly-period");
+  const status = profits.indexOf("unified-monthly-status-region");
+  const financial = profits.indexOf("unified-monthly-financial");
+  assert.ok(period < status && status < financial);
+  assert.doesNotMatch(profits, /unified-monthly-income|unified-monthly-expense|unified-monthly-right/);
+  const financialRegion = profits.slice(financial, profits.indexOf("</div>)}", financial));
+  assert.match(financialRegion, /收入/);
+  assert.match(financialRegion, /支出/);
+  assert.match(financialRegion, /净利润/);
+  assert.match(profits, /unified-monthly-status-value/);
 });
 
 test("CONTENT_DRIVEN_PROFIT_ALIGNMENT keeps complete values and natural regions", () => {
-  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?repeat\(auto-fit, minmax\(min\(100%, 8rem\), 1fr\)\)/);
-  assert.match(css, /\.unified-monthly-metric,[\s\S]*?\.unified-monthly-status\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
+  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1\.1fr\) max-content minmax\(0, 1\.35fr\)/);
+  assert.match(css, /\.unified-monthly-financial\s*\{[\s\S]*?display:\s*grid/);
+  assert.match(css, /\.unified-monthly-financial \.unified-monthly-metric\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
   assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
-  assert.match(css, /\.unified-monthly-status\s*\{[\s\S]*?margin-top:\s*auto/);
+  assert.match(css, /\.unified-monthly-status-region\s*\{[\s\S]*?align-items:\s*center/);
   assert.doesNotMatch(css, /@media[^\{]*(?:375|390|412|430)px/);
 });
