@@ -8671,6 +8671,18 @@ input[type="radio"] {
   white-space: normal;
 }
 
+.operations-metric-link {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.operations-metric-link:hover,
+.operations-metric-link:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .operations-room-row,
 .operations-property-card {
   border-radius: var(--ui-radius-md);

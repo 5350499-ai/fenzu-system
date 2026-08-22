@@ -46,6 +46,16 @@ export type OperationsStats = {
   occupancy: number;
 };
 
+export function isOperationsRentDueTenant(tenant: BusinessTenant, payments: BusinessRentPayment[], today = todayString()) {
+  const stage = fixedRentCollectionReminderStage(tenant, latestCoverageForTenant(tenant.id, payments), today);
+  return Boolean(stage && stage.level !== "overdue");
+}
+
+export function isOperationsPendingDeposit(deposit: BusinessDeposit, tenants: BusinessTenant[]) {
+  const tenant = tenants.find((item) => item.id === deposit.tenantId);
+  return Boolean(tenant?.status.includes("已退租") && deposit.status === "待退" && !isVoided(deposit.notes));
+}
+
 export type OperationsRoom = {
   room: BusinessRoom;
   property: BusinessProperty | undefined;
@@ -91,21 +101,11 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
   const contractsStartedThisMonth = validContracts.filter((contract) => contract.startDate.startsWith(thisMonth)).length;
   const expiringContracts = validContracts.filter((contract) => isCurrentContract(contract, today) && daysBetween(today, contract.endDate) <= 30).length;
 
-  const rentDueTenants = activeTenants.filter((tenant) => {
-    const stage = fixedRentCollectionReminderStage(tenant, latestCoverageForTenant(tenant.id, scope.payments), today);
-    return Boolean(stage && stage.level !== "overdue");
-  });
+  const rentDueTenants = activeTenants.filter((tenant) => isOperationsRentDueTenant(tenant, scope.payments, today));
   const overdueCases = getDebtCases({ properties: scope.properties, rooms: scope.rooms, tenants: scope.tenants, rentPayments: scope.payments, today })
     .filter((debtCase) => activeTenantIds.has(debtCase.tenantId));
   const overdueTenantIds = new Set(overdueCases.map((debtCase) => debtCase.tenantId));
-  const pendingDepositTenantIds = new Set(
-    scope.deposits
-      .filter((deposit) => {
-        const tenant = scope.tenants.find((item) => item.id === deposit.tenantId);
-        return Boolean(tenant?.status.includes("已退租") && deposit.status === "待退" && !isVoided(deposit.notes));
-      })
-      .map((deposit) => deposit.tenantId)
-  );
+  const pendingDepositTenantIds = new Set(scope.deposits.filter((deposit) => isOperationsPendingDeposit(deposit, scope.tenants)).map((deposit) => deposit.tenantId));
 
   const visibleRooms = scope.rooms.filter((room) => !isArchivedRoom(room));
   const roomStatuses = visibleRooms.map((room) => roomOccupancyStatus(room, scope.tenants));

@@ -22,6 +22,8 @@ import { euro, noteSummary } from "@/lib/format";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildAttributionOptions, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { isLinkedRentDeposit } from "@/lib/profit";
+import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
+import { isOperationsPendingDeposit } from "@/lib/operations-analytics";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
@@ -52,12 +54,20 @@ export default function DepositsPage() {
   const [form, setForm] = useState<BusinessDeposit>(emptyDeposit);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [propertyScopeIds, setPropertyScopeIds] = useState<string[] | null>(null);
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedNoteId, setExpandedNoteId] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setPropertyScopeIds(parseAnalyticsPropertyScope(window.location.search));
+    setPendingOnly(params.get("pending") === "1");
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -82,13 +92,15 @@ export default function DepositsPage() {
     const keyword = query.trim().toLowerCase();
     return deposits.filter((deposit) => {
       if (isLinkedRentDeposit(deposit)) return false;
+      if (propertyScopeIds !== null && !propertyScopeIds.includes(deposit.propertyId)) return false;
+      if (pendingOnly && !isOperationsPendingDeposit(deposit, tenants)) return false;
       if (!keyword) return true;
       const property = properties.find((item) => item.id === deposit.propertyId);
       const room = rooms.find((item) => item.id === deposit.roomId);
       const tenant = tenants.find((item) => item.id === deposit.tenantId);
       return `${property?.name || ""} ${room?.name || ""} ${tenant?.name || ""} ${tenant?.phone || ""} ${tenant?.wechat || ""} ${deposit.status} ${deposit.type} ${deposit.receivedBy || ""} ${deposit.paidBy || ""}`.toLowerCase().includes(keyword);
     });
-  }, [deposits, properties, query, rooms, tenants]);
+  }, [deposits, pendingOnly, properties, propertyScopeIds, query, rooms, tenants]);
   const visibleDeposits = pageRows(filteredDeposits, page, pageSize);
   const depositPartnerOptions = useMemo(
     () => preserveStoredPartnerOption(partnerOptions, depositPartnerValue(form), partnerDirectory),

@@ -34,6 +34,7 @@ import {
   calculateOperationsStats,
   OperationsScope
 } from "@/lib/operations-analytics";
+import { analyticsScopedPath } from "@/lib/analytics-drilldown";
 import { todayString } from "@/lib/rent-coverage";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -81,6 +82,8 @@ export default function AnalyticsPage() {
   const roomStatusDistribution = useMemo(() => calculateOperationsRoomStatusDistribution(scope), [scope]);
   const selectedProperty = selectedPropertyIds.length === 1 ? properties.find((property) => property.id === selectedPropertyIds[0]) : undefined;
   const scopeLabel = selectedPropertyIds.length === properties.length && properties.length > 0 ? "全部房源" : selectedProperty?.name || `已选 ${selectedPropertyIds.length} 套房源`;
+  const allPropertyIds = properties.map((property) => property.id);
+  const scoped = (path: string) => analyticsScopedPath(path, selectedPropertyIds, allPropertyIds);
   const byProperty = useMemo(
     () => properties.map((property) => ({ property, stats: calculateOperationsStats(scopeForProperties([property], rooms, tenants, contracts, payments, deposits), today) })),
     [contracts, deposits, payments, properties, rooms, tenants, today]
@@ -101,29 +104,29 @@ export default function AnalyticsPage() {
       <section className="operations-metric-group" aria-label={`${scopeLabel}租客统计`}>
         <div className="operations-section-heading"><h2>租客</h2><span>{scopeLabel}</span></div>
         <div className="operations-metric-grid">
-          <OperationsMetric label="当前在租人数" value={`${stats.activeOccupants} 人`} />
-          <OperationsMetric label="已退租" value={`${stats.movedOutTenants} 人`} />
-          <OperationsMetric label="本月开始合同" value={`${stats.contractsStartedThisMonth} 份`} />
-          <OperationsMetric label="30天内到期" value={`${stats.expiringContracts} 份`} tone={stats.expiringContracts ? "warning" : ""} />
+          <OperationsMetric label="当前在租人数" value={`${stats.activeOccupants} 人`} href={scoped("/tenants?status=active")} />
+          <OperationsMetric label="已退租" value={`${stats.movedOutTenants} 人`} href={scoped("/tenants?status=moved-out&archived=1")} />
+          <OperationsMetric label="本月开始合同" value={`${stats.contractsStartedThisMonth} 份`} href={scoped(`/tenants?contractStarted=${today.slice(0, 7)}`)} />
+          <OperationsMetric label="30天内到期" value={`${stats.expiringContracts} 份`} tone={stats.expiringContracts ? "warning" : ""} href={scoped("/tenants?contractExpiring=30")} />
         </div>
       </section>
 
       <section className="operations-metric-group" aria-label={`${scopeLabel}租金与押金统计`}>
         <div className="operations-section-heading"><h2>租金与押金</h2><span>当前状态</span></div>
         <div className="operations-metric-grid">
-          <OperationsMetric label="待收租" value={`${stats.rentDueTenants} 人`} tone={stats.rentDueTenants ? "warning" : ""} />
-          <OperationsMetric label="欠租" value={`${stats.overdueTenants} 人`} tone={stats.overdueTenants ? "danger" : ""} />
-          <OperationsMetric label="欠租金额" value={euro(stats.overdueAmount)} tone={stats.overdueAmount ? "danger" : ""} />
-          <OperationsMetric label="押金待处理" value={`${stats.pendingDepositTenants} 人`} tone={stats.pendingDepositTenants ? "warning" : ""} />
+          <OperationsMetric label="待收租" value={`${stats.rentDueTenants} 人`} tone={stats.rentDueTenants ? "warning" : ""} href={scoped("/tenants?status=active&rentDue=1")} />
+          <OperationsMetric label="欠租" value={`${stats.overdueTenants} 人`} tone={stats.overdueTenants ? "danger" : ""} href={scoped("/tenants?status=active&debt=1")} />
+          <OperationsMetric label="欠租金额" value={euro(stats.overdueAmount)} tone={stats.overdueAmount ? "danger" : ""} href={scoped("/tenants?status=active&debt=1")} />
+          <OperationsMetric label="押金待处理" value={`${stats.pendingDepositTenants} 人`} tone={stats.pendingDepositTenants ? "warning" : ""} href={scoped("/deposits?pending=1")} />
         </div>
       </section>
 
       <section className="operations-metric-group" aria-label={`${scopeLabel}房间统计`}>
         <div className="operations-section-heading"><h2>房间</h2><span>动态入住状态</span></div>
         <div className="operations-metric-grid">
-          <OperationsMetric label="房间总数" value={`${stats.totalRooms} 间`} />
-          <OperationsMetric label="已出租" value={`${stats.rentedRooms} 间`} tone="success" />
-          <OperationsMetric label="空置" value={`${stats.vacantRooms} 间`} tone={stats.vacantRooms ? "warning" : ""} />
+          <OperationsMetric label="房间总数" value={`${stats.totalRooms} 间`} href={scoped("/rooms")} />
+          <OperationsMetric label="已出租" value={`${stats.rentedRooms} 间`} tone="success" href={scoped("/rooms?status=已租")} />
+          <OperationsMetric label="空置" value={`${stats.vacantRooms} 间`} tone={stats.vacantRooms ? "warning" : ""} href={scoped("/rooms?status=空置")} />
           <OperationsMetric label="入住率" value={`${stats.occupancy}%`} tone="info" />
         </div>
       </section>
@@ -151,11 +154,11 @@ export default function AnalyticsPage() {
       <section className="card panel operations-alerts" aria-label="经营提醒">
         <div className="panel-header"><h2 className="panel-title">经营提醒</h2><Link className="text-link" href="/reminders">查看提醒中心</Link></div>
         <div className="operations-alert-links">
-          <Link href="/rent-payments">待收租 {stats.rentDueTenants} 人</Link>
-          <Link href="/rent-payments?overdue=1">欠租 {stats.overdueTenants} 人</Link>
-                  <Link href="/tenants?contractExpiring=30">30天内到期 {stats.expiringContracts} 份</Link>
-          <Link href="/deposits">押金待处理 {stats.pendingDepositTenants} 人</Link>
-          <Link href="/rooms?status=空置">空置 {stats.vacantRooms} 间</Link>
+          <Link href={scoped("/tenants?status=active&rentDue=1")}>待收租 {stats.rentDueTenants} 人</Link>
+          <Link href={scoped("/tenants?status=active&debt=1")}>欠租 {stats.overdueTenants} 人</Link>
+          <Link href={scoped("/tenants?contractExpiring=30")}>30天内到期 {stats.expiringContracts} 份</Link>
+          <Link href={scoped("/deposits?pending=1")}>押金待处理 {stats.pendingDepositTenants} 人</Link>
+          <Link href={scoped("/rooms?status=空置")}>空置 {stats.vacantRooms} 间</Link>
         </div>
       </section>
 
@@ -226,6 +229,7 @@ function scopeForProperties(
   };
 }
 
-function OperationsMetric({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
-  return <div className={`operations-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+function OperationsMetric({ label, value, tone = "", href }: { label: string; value: string; tone?: string; href?: string }) {
+  const content = <><span>{label}</span><strong>{value}</strong></>;
+  return href ? <Link className={`operations-metric ${tone} operations-metric-link`} href={href} aria-label={`${label}，查看明细`}>{content}</Link> : <div className={`operations-metric ${tone}`}>{content}</div>;
 }

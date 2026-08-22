@@ -60,6 +60,8 @@ import { getValidSupabaseSession } from "@/lib/supabase";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
 import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
+import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
+import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { DebtRow } from "@/components/debt-row";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
@@ -129,6 +131,7 @@ export default function TenantsPage() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [propertyScopeRequested, setPropertyScopeRequested] = useState(false);
   const [sortKey, setSortKey] = useState<TenantSortKey>("room");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
@@ -139,6 +142,10 @@ export default function TenantsPage() {
   const [focusedTenantId, setFocusedTenantId] = useState("");
   const [debtFocusPaymentId, setDebtFocusPaymentId] = useState("");
   const [contractExpiringDays, setContractExpiringDays] = useState<number | null>(null);
+  const [contractStartedMonth, setContractStartedMonth] = useState("");
+  const [tenantMetricFilter, setTenantMetricFilter] = useState<"active" | "moved-out" | "">("");
+  const [rentDueOnly, setRentDueOnly] = useState(false);
+  const [debtOnly, setDebtOnly] = useState(false);
   const [retiredExpanded, setRetiredExpanded] = useState(false);
   const [currentExpanded, setCurrentExpanded] = useState(false);
   const [deleteTenantTarget, setDeleteTenantTarget] = useState<BusinessTenant | null>(null);
@@ -232,8 +239,23 @@ export default function TenantsPage() {
       if (!access.isFreeSingle) await refreshContractFiles(loadedContracts.map((contract) => contract.id), loadedTenants.map((tenant) => tenant.id));
        const requestedNavigation = resolveTenantNavigationContext(`${window.location.pathname}${window.location.search}`);
        const requestedTenantId = requestedNavigation?.tenantId || "";
-      const requestedContractExpiring = new URLSearchParams(window.location.search).get("contractExpiring");
-      setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
+       const params = new URLSearchParams(window.location.search);
+       const requestedPropertyScope = parseAnalyticsPropertyScope(window.location.search);
+       if (requestedPropertyScope !== null) {
+         setPropertyScopeRequested(true);
+         setSelectedPropertyIds(requestedPropertyScope);
+       } else {
+         setSelectedPropertyIds(loadedProperties.map((property) => property.id));
+       }
+       const requestedContractExpiring = params.get("contractExpiring");
+       setContractExpiringDays(requestedContractExpiring === "30" ? 30 : null);
+       const requestedContractStarted = params.get("contractStarted") || "";
+       setContractStartedMonth(/^\d{4}-\d{2}$/.test(requestedContractStarted) ? requestedContractStarted : "");
+       const requestedStatus = params.get("status");
+       setTenantMetricFilter(requestedStatus === "active" || requestedStatus === "moved-out" ? requestedStatus : "");
+       setRentDueOnly(params.get("rentDue") === "1");
+       setDebtOnly(params.get("debt") === "1");
+       if (requestedStatus === "moved-out") setShowArchived(true);
       if (requestedTenantId && repairedTenants.some((tenant) => tenant.id === requestedTenantId)) {
         setDeepLinkTenantId(requestedTenantId);
         setDebtFocusPaymentId(requestedNavigation?.focus === "debt" ? requestedNavigation.paymentId : "");
@@ -254,15 +276,15 @@ export default function TenantsPage() {
   }, [access.isFreeSingle, contracts, detailTenantId, loaded, refreshContractFiles]);
 
   useEffect(() => {
-    if (loaded && properties.length && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
-  }, [loaded, properties, selectedPropertyIds.length]);
+    if (loaded && properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+  }, [loaded, properties, propertyScopeRequested, selectedPropertyIds.length]);
   useEffect(() => {
     setPage(1);
   }, [query, selectedPropertyIds]);
   useEffect(() => {
     setRetiredExpanded(false);
     setCurrentExpanded(false);
-  }, [query, selectedPropertyIds, showArchived, sortDirection, sortKey, contractExpiringDays]);
+  }, [contractExpiringDays, contractStartedMonth, debtOnly, query, rentDueOnly, selectedPropertyIds, showArchived, sortDirection, sortKey, tenantMetricFilter]);
 
   const availableRooms = rooms.filter((room) => room.propertyId === form.propertyId);
   const filesByContract = useMemo(() => contractFiles.reduce<Record<string, ContractFile[]>>((map, file) => {
@@ -294,11 +316,21 @@ export default function TenantsPage() {
     const propertyVisible = effectivePropertyIds.length
       ? visible.filter((tenant) => effectivePropertyIds.includes(tenant.propertyId))
       : [];
-    const contractVisible = effectiveContractExpiringDays === null
-      ? propertyVisible
-      : propertyVisible.filter((tenant) => contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, effectiveContractExpiringDays)));
-    if (!keyword) return contractVisible;
-    return contractVisible.filter((tenant) => {
+    const statusVisible = tenantMetricFilter === "active"
+      ? propertyVisible.filter(isCurrentRentalRelationship)
+      : tenantMetricFilter === "moved-out"
+        ? propertyVisible.filter((tenant) => isEndedTenantStatus(tenant.status))
+        : propertyVisible;
+    const contractVisible = statusVisible
+      .filter((tenant) => effectiveContractExpiringDays === null || contracts.some((contract) => contract.tenantId === tenant.id && isContractExpiringWithin(contract, effectiveContractExpiringDays)))
+      .filter((tenant) => !contractStartedMonth || contracts.some((contract) => contract.tenantId === tenant.id && contract.startDate.startsWith(contractStartedMonth)));
+    const metricVisible = rentDueOnly
+      ? contractVisible.filter((tenant) => isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments, businessToday))
+      : debtOnly
+        ? contractVisible.filter((tenant) => debtCases.some((debtCase) => debtCase.tenantId === tenant.id))
+        : contractVisible;
+    if (!keyword) return metricVisible;
+    return metricVisible.filter((tenant) => {
       const property = properties.find((item) => item.id === tenant.propertyId);
       const room = rooms.find((item) => item.id === tenant.roomId);
       const fileNames = getTenantFiles(tenant.id, contracts, filesByContract, filesByTenant).map((file) => file.fileName).join(" ");
@@ -311,7 +343,7 @@ export default function TenantsPage() {
       }).displayStatus;
       return [tenant.name, tenant.phone, tenant.wechat, property?.name || "", room?.name || "", room?.roomNumber || "", tenant.status, displayStatus, fileNames].join(" ").toLowerCase().includes(keyword);
     });
-  }, [businessToday, contracts, debtCases, effectiveContractExpiringDays, effectivePropertyIds, effectiveQuery, effectiveShowArchived, filesByContract, filesByTenant, payments, properties, rooms, tenants, waivedPaymentIds]);
+  }, [businessToday, contractStartedMonth, contracts, debtCases, debtOnly, effectiveContractExpiringDays, effectivePropertyIds, effectiveQuery, effectiveShowArchived, filesByContract, filesByTenant, payments, properties, rentDueOnly, rooms, tenantMetricFilter, tenants, waivedPaymentIds]);
 
   const tenantPaymentPerformanceById = useMemo(() => new Map(
     tenants.map((tenant) => [

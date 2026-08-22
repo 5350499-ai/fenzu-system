@@ -38,6 +38,7 @@ import { Archive, ChevronDown, Edit3, Home, Plus, Trash2, X } from "lucide-react
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
+import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
 
 const roomStatuses = ["空置", "已租", "预订中", "即将退租", "维修中", "暂停出租", "已归档"];
 const emptyRoom: BusinessRoom = {
@@ -63,6 +64,7 @@ export default function RoomsPage() {
   const [form, setForm] = useState<BusinessRoom>(emptyRoom);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [propertyScopeIds, setPropertyScopeIds] = useState<string[] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [expandedRoomId, setExpandedRoomId] = useState("");
@@ -74,6 +76,7 @@ export default function RoomsPage() {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("status");
     if (status) setQuery(status);
+    setPropertyScopeIds(parseAnalyticsPropertyScope(window.location.search));
   }, []);
 
   useEffect(() => {
@@ -97,13 +100,14 @@ export default function RoomsPage() {
 
   const filteredRooms = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return rooms;
     return rooms.filter((room) => {
+      if (propertyScopeIds !== null && !propertyScopeIds.includes(room.propertyId)) return false;
+      if (!keyword) return true;
       const property = properties.find((item) => item.id === room.propertyId);
       const displayStatus = roomOccupancyStatus(room, tenants);
       return `${property?.name || ""} ${room.name} ${room.roomNumber} ${room.status} ${displayStatus} ${room.notes || ""}`.toLowerCase().includes(keyword);
     });
-  }, [properties, query, rooms, tenants]);
+  }, [properties, propertyScopeIds, query, rooms, tenants]);
   const sortedRooms = useMemo(() => sortRoomsByNumberAndStatus(filteredRooms, {
     getProperty: (room) => properties.find((property) => property.id === room.propertyId)?.name || ""
   }), [filteredRooms, properties]);
