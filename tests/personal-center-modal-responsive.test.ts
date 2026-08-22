@@ -48,6 +48,15 @@ test("Batch 2 gives Account Center a main-region surface and one scroll body", (
   assert.doesNotMatch(css, /\.account-center-card\s*\{[^}]*height:\s*auto/);
 });
 
+test("light Account Center uses the canonical page background instead of the app-modal dimmer", () => {
+  assert.match(css, /\[data-theme="light"\] #app-content-overlay-root \.account-center-backdrop\s*\{[\s\S]*?background:\s*var\(--ui-color-bg,\s*var\(--bg\)\)[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(css, /\.card\s*\{[\s\S]*?background:\s*var\(--surface\)/);
+  assert.match(css, /\.account-center-summary-item\s*\{[\s\S]*?border:\s*1px solid var\(--border\)[\s\S]*?background:\s*var\(--surface-soft\)/);
+  assert.match(css, /\.field input:not\(\[type="checkbox"\]\)[\s\S]*?border:\s*1px solid var\(--border\)[\s\S]*?background:\s*var\(--surface\)/);
+  assert.match(css, /\[data-theme="dark"\]\s*\{/);
+  assert.doesNotMatch(css, /\[data-theme="dark"\][^{}]*#app-content-overlay-root \.account-center-backdrop/);
+});
+
 test("Account Center uses the main-region overlay while app-level dialogs retain the viewport overlay", () => {
   assert.match(rootLayout, /<div id="app-overlay-root"\s*\/>/);
   assert.match(modalPortal, /createPortal\(children, root\)/);

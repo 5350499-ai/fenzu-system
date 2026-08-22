@@ -11843,6 +11843,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   max-block-size: 100%;
 }
 
+/* Content-region sheets do not need the full-screen modal dimmer. Keep the
+   light Account Center backdrop on the same page-background token as .main;
+   app-level modal surfaces retain the shared modal backdrop above. */
+[data-theme="light"] #app-content-overlay-root .account-center-backdrop {
+  background: var(--ui-color-bg, var(--bg));
+  backdrop-filter: none;
+}
+
 .account-center-scroll {
   min-block-size: 0;
   block-size: auto;

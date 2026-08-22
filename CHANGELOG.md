@@ -1,5 +1,10 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-22 - Account Center light-theme visual closeout
+
+- Aligned the content-region Account Center backdrop with the canonical light page-background token instead of the full-screen modal dimmer; surface, child cards, inputs and borders continue using the shared theme tokens.
+- No Account Center structure, scroll ownership, navigation, dark-theme, business logic, database, or schema changes.
+
 ## 2026-08-20 - Workspace currency foundation
 
 - Added a workspace-owner currency setting with EUR default and EUR/USD/GBP/CNY/JPY support.
