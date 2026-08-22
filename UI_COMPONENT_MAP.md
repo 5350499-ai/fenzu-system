@@ -45,6 +45,7 @@ or local state to a second source of truth.
 - `--ui-grid-gap` is the shared spacing owner for the generic `.grid` primitive. Business-specific grids retain their own layout ownership and may consume shared spacing without inheriting generic columns.
 - `--ui-mobile-nav-structural-height`, `--ui-mobile-nav-overlay-gap` and `--ui-mobile-nav-overlay-offset` remain the dedicated fixed-overlay avoidance facts. Page content does not consume them.
 - Page padding, card padding, modal padding, fixed-overlay offsets and business slot contracts remain separate unless their semantic ownership is identical and covered by a contract test.
+- Shared field/detail/settings grids use their own intrinsic capacity tracks; a narrow container may become single-column, but no page may add a `359px`/`360px` device-specific layout branch for that transition.
 
 | 页面/能力 | 实现 owner | Semantic class / selector | 责任 | 修改边界 |
 |---|---|---|---|---|

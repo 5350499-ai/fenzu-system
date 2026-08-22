@@ -1274,3 +1274,9 @@
 - Finance rows now keep legacy A/B attribution codes neutral until the canonical workspace partner directory is ready, then render the real partner display name without an incorrect first-paint identity flash.
 - Property Profit monthly rows now model month/occupancy, income, expense and net profit as four ordered semantic regions; profit/loss status remains attached to its net-profit amount.
 - No payment, expense, profit calculation, database, schema, migration, real-user data or Production behavior changed.
+
+## 2026-08-22 - RESPONSIVE ARCHITECTURE REFACTOR — BATCH 5 CSS cascade closeout (Preview)
+
+- Replaced the remaining `359px`/`360px` device-width single-column branches with intrinsic capacity tracks for form rows, compact details, settings, backup settings and Account Center summary cards.
+- Retained canonical Phone/Medium/Desktop shell modes and the existing shared spacing, safe-area and layer tokens; no broad CSS rewrite or unproven dead-code deletion was performed.
+- No business logic, data, schema, migration, real-user data or Production behavior changed.

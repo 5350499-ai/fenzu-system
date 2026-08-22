@@ -44,5 +44,6 @@ test("Personal Center exposes the share action inside the existing responsive gr
   assert.match(css, /\.account-center-card-content[\s\S]*overflow-wrap: anywhere/);
   assert.match(css, /\.account-center-name-row,[\s\S]*\.account-center-share-row[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.match(css, /\.account-center-card-header > span[\s\S]*min-width: 0/);
-  assert.match(css, /@media \(max-width: 359px\)[\s\S]*account-center-summary-item-grid/);
+  assert.match(css, /\.account-center-summary-item-grid\s*\{[\s\S]*?repeat\(auto-fit, minmax\(min\(100%, 156px\), 1fr\)\)/);
+  assert.doesNotMatch(css, /@media[^\{]*(?:359|360)px/);
 });

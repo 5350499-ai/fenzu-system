@@ -35,6 +35,7 @@ Do not add device-model CSS, `window.innerWidth`, `screen.width`, `devicePixelRa
 - Phone, Medium and Desktop ranges change shell ownership only. A dense data row may not be forced into a second line merely because it is inside the Phone range.
 - Finance rows use content-sized date/amount/status tracks and a shrinkable description track. Long descriptions ellipsize before dates, currency values or status badges are split or clipped.
 - Currency values are indivisible value items. Profit rows keep their proportional three-region owner and wrap complete label/value items only when their actual container lacks capacity.
+- Form, compact-detail, Account Center summary, workspace-settings and backup-setting grids use intrinsic `auto-fit` / `minmax(min(100%, ...), 1fr)` tracks for their own available inline size. They must not introduce a device-model-width branch merely to become single-column.
 
 ## Validation status
 

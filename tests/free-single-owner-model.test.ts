@@ -42,9 +42,13 @@ test("free single self edit is allowlisted and multi-member operations remain de
 });
 
 test("ordinary business loaders cannot be blocked by a partner directory failure", () => {
-  for (const page of [checkInPage, rentPaymentsPage, expensesPage, depositsPage, tenantsPage]) {
+  for (const page of [checkInPage, depositsPage, tenantsPage]) {
     assert.match(page, /getPartners\(\)\.catch\(\(\) => null\)/);
     assert.match(page, /buildAttributionOptions\(partnerData, access\.isFreeSingle\)/);
+  }
+  for (const page of [rentPaymentsPage, expensesPage]) {
+    assert.match(page, /usePartnerDirectoryState\(access\.userId, access\.isFreeSingle\)/);
+    assert.doesNotMatch(page, /getPartners\(\)\.catch\(\(\) => null\)/);
   }
   assert.match(checkInPage, /const loadedProperties = await loadBusinessData[\s\S]*const partnerData = await getPartners\(\)\.catch/);
 });

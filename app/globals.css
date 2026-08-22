@@ -6927,7 +6927,7 @@ td:last-child {
 .settings-list .settings-currency-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.9fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   align-items: center;
   gap: var(--ui-space-3, 12px);
 }
@@ -6947,12 +6947,6 @@ td:last-child {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-@media (max-width: 359px) {
-  .settings-list .settings-currency-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* 2.4c first batch: Medium-width business rows. The Shell owns the outer
@@ -9410,14 +9404,6 @@ label.field > span,
 
 }
 
-@media (max-width: 360px) {
-  .detail-grid,
-  .ui-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-}
-
 .finance-line .room-expiry-badge {
   display: inline-flex !important;
   align-items: center !important;
@@ -9713,12 +9699,6 @@ label.field > span,
   }
 }
 
-@media (max-width: 360px) {
-  .tenant-detail-panel .detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* UI Design System V1: Compact Density.
    Display data is deliberately separate from interactive controls: only form
    controls retain the 42px/44px touch measurements. Related detail rows live
@@ -9955,7 +9935,7 @@ label.field > span,
 
   /* Compact form rhythm: keep touch targets, reduce only inter-field whitespace. */
   .check-in-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     row-gap: var(--form-row-gap, 12px);
     column-gap: var(--form-column-gap, 12px);
   }
@@ -9971,7 +9951,7 @@ label.field > span,
 
   /* Tenant creation follows the same compact, two-column mobile form rhythm. */
   .tenant-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     row-gap: var(--form-row-gap, 12px);
     column-gap: var(--form-column-gap, 12px);
   }
@@ -10124,7 +10104,7 @@ label.field > span,
   /* Compact mobile forms: keep selectors wide, pair short controls, and never
      let a detail value escape its own column. */
   .rent-payment-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     row-gap: var(--form-row-gap, 12px);
     column-gap: var(--form-column-gap, 12px);
   }
@@ -10153,7 +10133,7 @@ label.field > span,
   }
 
   .expense-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     row-gap: var(--form-row-gap, 12px);
     column-gap: var(--form-column-gap, 12px);
   }
@@ -10237,15 +10217,6 @@ label.field > span,
     text-overflow: clip;
     white-space: normal;
   }
-}
-
-@media (max-width: 359px) {
-  .compact-detail-grid,
-  .compact-detail-card .detail-grid,
-  .tenant-core-detail-group .tenant-amount-grid {
-    grid-template-columns: 1fr;
-  }
-
 }
 
 /* Final tenant-detail contract: four equal pairs followed by two full-width rows. */
@@ -10873,7 +10844,7 @@ textarea:-webkit-autofill:focus,
 
 .account-center-summary-item-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 156px), 1fr));
   gap: var(--account-center-card-gap);
 }
 
@@ -10922,12 +10893,6 @@ textarea:-webkit-autofill:focus,
 
   .account-center-scroll {
     padding-inline: var(--account-center-inline-padding);
-  }
-}
-
-@media (max-width: 359px) {
-  .account-center-summary-item-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -11006,13 +10971,6 @@ textarea:-webkit-autofill:focus,
 
   .expense-category-input {
     text-overflow: ellipsis;
-  }
-}
-
-@media (max-width: 359px) {
-  .property-detail-allocation-grid .property-detail-field {
-    gap: 8px;
-    padding-inline: 10px;
   }
 }
 
@@ -11150,7 +11108,7 @@ input[type="radio"] {
 
 .backup-reminder-settings .field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   align-items: center;
   gap: var(--ui-space-3, 12px);
   min-height: var(--ui-touch-target, 44px);
@@ -11168,7 +11126,7 @@ input[type="radio"] {
 
 .backup-reminder-settings > div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   align-items: center;
   gap: var(--ui-space-3, 12px);
   min-height: var(--ui-touch-target, 44px);
@@ -11319,11 +11277,6 @@ input[type="radio"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .backup-reminder-settings .field,
-  .backup-reminder-settings > div {
-    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.9fr);
-  }
-
   .reminder-page-row,
   .reminder-page-row-link {
     grid-template-columns: minmax(72px, 72px) minmax(0, 1fr) minmax(64px, auto);
@@ -11352,24 +11305,6 @@ input[type="radio"] {
     width: 100%;
     min-width: 0;
     justify-content: center;
-  }
-}
-
-@media (max-width: 359px) {
-  .modal-card .form-grid,
-  .modal-card .check-in-form-grid,
-  .modal-card .tenant-form-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .backup-reminder-settings .field,
-  .backup-reminder-settings > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--ui-space-2, 8px);
-  }
-
-  .backup-reminder-settings > div > strong {
-    text-align: left;
   }
 }
 
@@ -11414,7 +11349,7 @@ input[type="time"] {
 .form-grid-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--form-row-gap, 16px) var(--form-column-gap, 16px);
   width: 100%;
   inline-size: 100%;
@@ -11442,12 +11377,6 @@ input[type="time"] {
 @media (max-width: 640px) {
   .form-grid-row {
     gap: var(--form-row-gap, 12px) var(--form-column-gap, 12px);
-  }
-}
-
-@media (max-width: 359px) {
-  .form-grid-row:not(.form-grid-row--single) {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
