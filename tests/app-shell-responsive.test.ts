@@ -10,6 +10,7 @@ const designSystem = readFileSync(new URL("../UI_DESIGN_SYSTEM.md", import.meta.
 test("App Shell has one shared navigation data source and three exclusive structural modes", () => {
   assert.match(appLayout, /shellNavItems/);
   assert.match(appLayout, /className="compact-rail"/);
+  assert.match(appLayout, /<div id="app-content-overlay-root"\s*\/>/);
   assert.match(appLayout, /className="mobile-nav"/);
   assert.equal((css.match(/^\.app-shell\s*\{/gm) || []).length, 1);
   assert.equal((css.match(/^\.sidebar\s*\{/gm) || []).length, 1);
@@ -23,6 +24,7 @@ test("Phone Shell reserves navigation as a grid row and keeps main as the only c
   const phone = css.match(/@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\/\* Medium Shell/)?.[0] || "";
   assert.match(phone, /\.app-shell\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto/);
   assert.match(phone, /\.main\s*\{[\s\S]*?grid-row:\s*1/);
+  assert.match(phone, /#app-content-overlay-root\s*\{[\s\S]*?grid-column:\s*1[\s\S]*?grid-row:\s*1/);
   assert.match(phone, /\.mobile-nav\s*\{[\s\S]*?position:\s*relative[\s\S]*?grid-row:\s*2/);
   assert.doesNotMatch(css, /ui-bottom-nav-clearance|\.mobile-nav\s*\{[^}]*position:\s*fixed/);
 });
@@ -34,6 +36,7 @@ test("Medium Shell uses a complete 72px rail mode with no mobile navigation or c
   assert.match(medium, /\.compact-rail\s*\{[\s\S]*?display:\s*grid/);
   assert.match(medium, /\.app-shell\s*\{[\s\S]*?height:\s*100dvh[\s\S]*?overflow:\s*hidden/);
   assert.match(medium, /\.main\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?overflow-y:\s*auto[\s\S]*?padding:\s*22px\s+18px\s+24px/);
+  assert.match(medium, /#app-content-overlay-root\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?grid-row:\s*1/);
   assert.doesNotMatch(medium, /ui-bottom-nav-clearance|mobile-nav-overlay/);
 });
 
@@ -42,6 +45,7 @@ test("Desktop Shell independently owns sidebar and main scroll geometry", () => 
   assert.match(desktop, /grid-template-columns:\s*260px\s+minmax\(0,\s*1fr\)/);
   assert.match(desktop, /\.sidebar\s*\{[\s\S]*?display:\s*block/);
   assert.match(desktop, /\.main\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?overflow-y:\s*auto/);
+  assert.match(desktop, /#app-content-overlay-root\s*\{[\s\S]*?grid-column:\s*2[\s\S]*?grid-row:\s*1/);
   assert.match(desktop, /\.mobile-nav\s*\{[\s\S]*?display:\s*none/);
 });
 

@@ -23,6 +23,10 @@
   --ui-compact-row-gap: 0.5em;
   --ui-compact-action-row-gap: 0.5em;
   --ui-compact-action-grid-gap: 5px;
+  --z-route-content: 0;
+  --z-content-overlay: 10;
+  --z-navigation: 20;
+  --z-app-modal: 100;
 }
 
 .attachment-upload-progress {
@@ -246,12 +250,27 @@ a {
 #app-overlay-root {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-app-modal);
   isolation: isolate;
   pointer-events: none;
 }
 
 #app-overlay-root > * {
+  pointer-events: auto;
+}
+
+/* Content-region sheets share the `.main` grid area without joining its
+   scroll flow. App-level dialogs continue to use #app-overlay-root. */
+#app-content-overlay-root {
+  position: relative;
+  z-index: var(--z-content-overlay);
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+#app-content-overlay-root > * {
   pointer-events: auto;
 }
 
@@ -5944,9 +5963,15 @@ td:last-child {
     scroll-padding-block-end: 18px;
   }
 
+  #app-content-overlay-root {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .mobile-nav {
     position: relative;
-    z-index: 20;
+    z-index: var(--z-navigation);
     display: grid;
     grid-column: 1;
     grid-row: 2;
@@ -6848,6 +6873,12 @@ td:last-child {
     overflow-y: auto;
     padding: 22px 18px 24px;
   }
+
+  #app-content-overlay-root {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+  }
 }
 
 /* Canonical App Shell — DESKTOP (>=1101px). */
@@ -6883,6 +6914,12 @@ td:last-child {
     overflow-x: hidden;
     overflow-y: auto;
     padding: 22px 26px;
+  }
+
+  #app-content-overlay-root {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
@@ -10646,11 +10683,10 @@ textarea:-webkit-autofill:focus,
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
-/* Account Center has one vertical scroll owner. The panel stays viewport-bound
-   while this body preserves intrinsic form height for iOS touch scrolling. */
+/* Account Center has one vertical scroll owner. Its content-region surface
+   preserves intrinsic form height for iOS touch scrolling. */
 .account-center-card {
   width: min(520px, 100%);
-  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
   overflow: hidden;
   padding: 0;
   scrollbar-gutter: auto;
@@ -11724,10 +11760,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   padding-block: 2px;
 }
 
-/* Batch 2: one modal viewport contract. The backdrop owns the viewport;
-   Account Center owns one definite surface and one scroll body. Other legacy
-   modal forms keep their existing surface scroll for compatibility until
-   their markup is migrated to the same header/body/footer shape. */
+/* App-level dialogs own the viewport. Account Center is instead a
+   content-region sheet: its overlay is bounded by the shared `.main` grid
+   area, while navigation stays in its reserved Shell row. */
 :root {
   --modal-safe-top: max(8px, env(safe-area-inset-top));
   --modal-safe-right: max(8px, env(safe-area-inset-right));
@@ -11786,13 +11821,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   padding: var(--modal-safe-top) var(--modal-safe-right) var(--modal-safe-bottom) var(--modal-safe-left);
 }
 
+#app-content-overlay-root .account-center-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  block-size: 100%;
+  min-block-size: 0;
+  height: auto;
+  min-height: 0;
+}
+
 .modal-card.account-center-card {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  block-size: min(100%, var(--modal-viewport-block-size));
-  max-block-size: var(--modal-viewport-block-size);
   overflow: hidden;
   padding: 0;
+}
+
+#app-content-overlay-root .modal-card.account-center-card {
+  block-size: 100%;
+  max-block-size: 100%;
 }
 
 .account-center-scroll {

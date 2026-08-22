@@ -110,7 +110,7 @@
 ## 6.1 UI Design Standard V1
 
 项目级 UI 唯一规范为 `UI_DESIGN_SYSTEM.md`。本节仅保留架构摘要；任何前端 UI 任务在实现前必须先阅读并遵循该规范，并在完成后运行 `npm run validate:ui`。页面不得自行建立第二套 Form/Select/Modal 尺寸体系，也不得自行实现 `pointerdown/touchstart` 选项提交或 document scroll lock；所有自定义 Select/Combobox/Dropdown/Listbox 复用公共 `DropdownListbox` 手势与嵌套滚动契约。
-日期/时间控件由全局 Date Field Contract 统一 WebKit 编辑树的高度、padding、垂直对齐和 Field Box 几何；重复业务预设由 `lib/` 的单一配置源提供，页面不得复制付款方式等选项数组。Form Grid / Field Box、Section / Card Stack、租客房间自然排序与既有联系方式映射由 `UI_DESIGN_SYSTEM.md` 定义，页面不得以局部 CSS 或重复数据模型替代。
+日期/时间控件由全局 Date Field Contract 统一 WebKit 编辑树的高度、padding、垂直对齐和 Field Box 几何；重复业务预设由 `lib/` 的单一配置源提供，页面不得复制付款方式等选项数组。Form Grid / Field Box、Section / Card Stack、租客房间自然排序与既有联系方式映射由 `UI_DESIGN_SYSTEM.md` 定义，页面不得以局部 CSS 或重复数据模型替代。`components/modal-portal.tsx` continues to own app-level dialogs at the viewport layer. `components/content-region-portal.tsx` owns sheets such as Account Center that must remain within the App Shell `.main` region and leave the reserved bottom navigation row visible.
 
 全站业务页面遵循同一套产品级界面规范，新增页面不得另起一套卡片或金额样式。
 

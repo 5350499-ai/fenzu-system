@@ -1,15 +1,16 @@
 "use client";
 
 import { Check, Eye, EyeOff, KeyRound, LogOut, Pencil, Share2, UserRound, X } from "lucide-react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
-import { ModalPortal } from "@/components/modal-portal";
+import { ContentRegionPortal } from "@/components/content-region-portal";
 import { BEE_RENTAL_SHARE_URL, copyBeeRentalLink, shareBeeRental } from "@/lib/share-bee-rental";
 
 export function AccountCenter() {
   const router = useRouter();
+  const pathname = usePathname();
   const access = useAccountAccess();
   const [open, setOpen] = useState(false);
   const [changing, setChanging] = useState(false);
@@ -21,6 +22,10 @@ export function AccountCenter() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState("");
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
   const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [displayNameNotice, setDisplayNameNotice] = useState("");
   const [shareNotice, setShareNotice] = useState("");
@@ -176,7 +181,7 @@ export function AccountCenter() {
       <button className="zanjia-avatar-button" onClick={openCenter} type="button" aria-label="个人中心">
         <UserRound size={20} />
       </button>
-      {open ? <ModalPortal>
+      {open ? <ContentRegionPortal>
         <div className="modal-backdrop account-center-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
           <section className="card modal-card account-center-card" role="dialog" aria-modal="true" aria-label="个人中心">
             <div className="panel-header account-center-header">
@@ -239,7 +244,7 @@ export function AccountCenter() {
             </div>
           </section>
         </div>
-      </ModalPortal> : null}
+      </ContentRegionPortal> : null}
     </>
   );
 }

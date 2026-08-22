@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const MODAL_SELECTOR = ".modal-backdrop, .attachment-modal-backdrop, .data-center-sheet-backdrop, .data-center-dialog-backdrop";
+const MODAL_SELECTOR = ".modal-backdrop:not(.account-center-backdrop), .attachment-modal-backdrop, .data-center-sheet-backdrop, .data-center-dialog-backdrop";
 
 export function ModalLayerManager() {
   useEffect(() => {

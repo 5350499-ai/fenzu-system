@@ -158,16 +158,18 @@ page-local gap or nowrap/overflow variant.
 
 ## Modal / Dropdown Root
 
-`Modal Layer Manager` 负责 modal backdrop/document scroll；`DropdownListbox`、`TapSelect`、`SearchableSelect` 各自负责下拉列表手势与滚动。Modal body scroll 不得由页面另行锁定或创建平行 manager。
+`Modal Layer Manager` 负责 App-level modal backdrop/document scroll；`DropdownListbox`、`TapSelect`、`SearchableSelect` 各自负责下拉列表手势与滚动。Modal body scroll 不得由页面另行锁定或创建平行 manager。
 
 ### App Shell / Modal responsive ownership
 
 - `app/layout.tsx` owns the viewport metadata (`device-width`, `initialScale: 1`, `viewportFit: cover`) and mounts the global providers.
-- `components/app-layout.tsx` owns the `.app-shell` DOM: `.sidebar`, `.main`, `.topbar` and `.mobile-nav`.
+- `components/app-layout.tsx` owns the `.app-shell` DOM: `.sidebar`, `.main`, `.topbar`, `#app-content-overlay-root` and `.mobile-nav`.
 - `app/globals.css` is the sole CSS owner for those shell selectors and the three mutually exclusive Phone / Medium / Desktop shell modes.
-- `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration. Pages and modal components must not add a second body-lock lifecycle.
+- `components/modal-layer-manager.tsx` owns document scroll locking and `scrollY` restoration for App-level modal backdrops. Pages and modal components must not add a second body-lock lifecycle.
 - `app/globals.css` owns the shared `.modal-backdrop` and `.modal-card` base, dynamic viewport, safe-area and internal-scroll contract. Mobile overrides remain in the same CSS owner; a later precision block must not recreate a parallel modal base.
-- `components/account-center.tsx` keeps its header outside `.account-center-scroll`; that named body is the only Account Center vertical scroll owner. The shared backdrop continues to lock the background and must not become a second scroll surface.
+- `components/content-region-portal.tsx` targets `#app-content-overlay-root`, which occupies the same App Shell grid cell as `.main` without joining `.main` scroll flow. It is the shared owner for content-region sheets.
+- `components/account-center.tsx` is a `CONTENT_REGION_SHEET`: its header stays outside `.account-center-scroll`, that named body is its only vertical scroll owner, and its backdrop is bounded by the `.main` grid region. Account Center must not lock the document or cover `.mobile-nav`; route navigation closes the sheet.
+- `components/modal-portal.tsx` and `#app-overlay-root` remain the `APP_LEVEL_MODAL` owner for destructive/true application dialogs that may cover navigation.
 
 ### Phone navigation-row ownership
 

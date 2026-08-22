@@ -4,8 +4,10 @@ import test from "node:test";
 
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const accountCenter = readFileSync(new URL("../components/account-center.tsx", import.meta.url), "utf8");
+const appLayout = readFileSync(new URL("../components/app-layout.tsx", import.meta.url), "utf8");
 const rootLayout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 const modalPortal = readFileSync(new URL("../components/modal-portal.tsx", import.meta.url), "utf8");
+const contentRegionPortal = readFileSync(new URL("../components/content-region-portal.tsx", import.meta.url), "utf8");
 const modalManager = readFileSync(new URL("../components/modal-layer-manager.tsx", import.meta.url), "utf8");
 const accountMe = readFileSync(new URL("../app/api/accounts/me/route.ts", import.meta.url), "utf8");
 const registration = readFileSync(new URL("../lib/server/account-management.ts", import.meta.url), "utf8");
@@ -20,7 +22,7 @@ const phoneViewports = [
 
 const desktopViewport = [1366, 768] as const;
 
-test("personal center keeps the modal surface scrollable on phone viewports", () => {
+test("personal center keeps its content-region sheet scrollable on phone viewports", () => {
   assert.deepEqual(phoneViewports, [
     [375, 667],
     [390, 844],
@@ -29,8 +31,7 @@ test("personal center keeps the modal surface scrollable on phone viewports", ()
     [667, 375]
   ]);
   assert.deepEqual(desktopViewport, [1366, 768]);
-  assert.match(css, /\.modal-backdrop\s*\{[\s\S]*?height:\s*100dvh/);
-  assert.match(css, /\.account-center-backdrop\s*\{[\s\S]*?env\(safe-area-inset-bottom\)/);
+  assert.match(css, /#app-content-overlay-root \.account-center-backdrop\s*\{[\s\S]*?position:\s*absolute[\s\S]*?inset:\s*0[\s\S]*?block-size:\s*100%/);
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?min-height:\s*0[\s\S]*?overflow-y:\s*auto/);
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?overscroll-behavior-y:\s*contain/);
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?touch-action:\s*pan-y/);
@@ -38,21 +39,24 @@ test("personal center keeps the modal surface scrollable on phone viewports", ()
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?scroll-padding-block:[\s\S]*?env\(safe-area-inset-bottom\)/);
 });
 
-test("Batch 2 gives Account Center a definite surface and one scroll body", () => {
+test("Batch 2 gives Account Center a main-region surface and one scroll body", () => {
   assert.match(css, /--modal-safe-top:\s*max\(8px,\s*env\(safe-area-inset-top\)\)/);
-  assert.match(css, /--modal-viewport-block-size:\s*calc\(100dvh/);
-  assert.match(css, /\.modal-card\.account-center-card\s*\{[\s\S]*?display:\s*grid[\s\S]*?grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)[\s\S]*?block-size:\s*min\(100%,\s*var\(--modal-viewport-block-size\)\)/);
+  assert.match(css, /\.modal-card\.account-center-card\s*\{[\s\S]*?display:\s*grid[\s\S]*?grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)/);
+  assert.match(css, /#app-content-overlay-root \.modal-card\.account-center-card\s*\{[\s\S]*?block-size:\s*100%[\s\S]*?max-block-size:\s*100%/);
   assert.match(css, /\.account-center-scroll\s*\{[\s\S]*?min-block-size:\s*0[\s\S]*?overflow-y:\s*auto/);
   assert.doesNotMatch(css, /max-height:\s*92vh/);
   assert.doesNotMatch(css, /\.account-center-card\s*\{[^}]*height:\s*auto/);
 });
 
-test("application modals use an overlay root above navigation instead of main flow", () => {
+test("Account Center uses the main-region overlay while app-level dialogs retain the viewport overlay", () => {
   assert.match(rootLayout, /<div id="app-overlay-root"\s*\/>/);
   assert.match(modalPortal, /createPortal\(children, root\)/);
-  assert.match(accountCenter, /open \? <ModalPortal>[\s\S]*?account-center-backdrop[\s\S]*?<\/ModalPortal>/);
-  assert.match(css, /#app-overlay-root\s*\{[\s\S]*?position:\s*fixed[\s\S]*?z-index:\s*100/);
-  assert.match(css, /\.mobile-nav\s*\{[\s\S]*?z-index:\s*20/);
+  assert.match(appLayout, /<div id="app-content-overlay-root"\s*\/>/);
+  assert.match(contentRegionPortal, /document\.getElementById\("app-content-overlay-root"\)/);
+  assert.match(accountCenter, /open \? <ContentRegionPortal>[\s\S]*?account-center-backdrop[\s\S]*?<\/ContentRegionPortal>/);
+  assert.doesNotMatch(accountCenter, /open \? <ModalPortal>/);
+  assert.match(css, /#app-overlay-root\s*\{[\s\S]*?position:\s*fixed[\s\S]*?z-index:\s*var\(--z-app-modal\)/);
+  assert.match(css, /\.mobile-nav\s*\{[\s\S]*?z-index:\s*var\(--z-navigation\)/);
 });
 
 test("personal center uses one scroll body with reachable actions and a fixed header", () => {
@@ -79,7 +83,8 @@ test("personal center keeps long identity text inside the modal", () => {
   assert.match(accountCenter, /maxLength=\{80\}/);
   assert.match(accountCenter, /title=\{access\.profileDisplayName \|\| "用户"\}/);
   assert.match(css, /\.account-center-summary-item strong\s*\{[\s\S]*?overflow-wrap:\s*anywhere/);
-  assert.match(css, /\.account-center-card\s*\{[\s\S]*?max-height:\s*calc\(100dvh/);
+  assert.match(css, /#app-content-overlay-root \.modal-card\.account-center-card\s*\{[\s\S]*?max-block-size:\s*100%/);
+  assert.doesNotMatch(css, /#app-content-overlay-root \.modal-card\.account-center-card\s*\{[^}]*100dvh/);
 });
 
 test("password form is compact and remains in the sole scroll owner", () => {
@@ -116,8 +121,8 @@ test("display name defaults to 用户 and is edited only through the current-acc
   assert.match(accountMe, /\.eq\("auth_user_id", context\.userId\)[\s\S]*?\.eq\("workspace_owner_id", context\.profile\.workspace_owner_id\)/);
 });
 
-test("background scroll remains owned by the global modal manager", () => {
-  assert.match(modalManager, /MODAL_SELECTOR\s*=\s*"\.modal-backdrop/);
+test("only app-level modals lock the document; Account Center stays within the main region", () => {
+  assert.match(modalManager, /\.modal-backdrop:not\(\.account-center-backdrop\)/);
   assert.match(modalManager, /body\.style\.position\s*=\s*"fixed"/);
   assert.match(modalManager, /body\.style\.overflow\s*=\s*"hidden"/);
   assert.match(modalManager, /html\.style\.overflow\s*=\s*"hidden"/);
@@ -128,4 +133,9 @@ test("desktop keeps the shared modal sizing contract", () => {
   assert.match(css, /\.modal-card\s*\{[\s\S]*?width:\s*min\(860px,\s*100%\)/);
   assert.match(css, /\.modal-card\s*\{[\s\S]*?max-height:\s*calc\(100dvh\s*-\s*env\(safe-area-inset-top\)/);
   assert.match(css, /\.account-center-card:hover\s*\{[\s\S]*?transform:\s*none/);
+});
+
+test("navigation closes the Account Center sheet instead of carrying it across routes", () => {
+  assert.match(accountCenter, /const pathname = usePathname\(\)/);
+  assert.match(accountCenter, /useEffect\(\(\) => \{\s*setOpen\(false\);\s*\}, \[pathname\]\)/);
 });

@@ -1239,3 +1239,9 @@
 - Replaced the overlapping Phone/Medium App Shell structure with three mutually exclusive viewport modes: Phone (`<=640px`) reserved navigation row, Medium (`641px–1100px`) compact rail, and Desktop (`>=1101px`) sidebar.
 - Made `.main` the sole application-content vertical scroll owner and removed the Reminder page’s former scroll/safe-area patch. Mobile navigation is no longer a fixed page-content overlay; fixed toast/upload offsets retain their separate safe-area token.
 - No business logic, database, schema, migration, real-user data, Scheduler, SMTP or Production deployment changed.
+
+## 2026-08-22 - RESPONSIVE ARCHITECTURE REFACTOR — BATCH 2 Account Center closeout (Preview)
+
+- Reclassified Account Center as a content-region sheet: it now portals into the App Shell main-content grid area, keeps the reserved bottom navigation visible, and retains a single internal scroll body with a stable logout action range.
+- Kept true application dialogs on the existing viewport-level modal portal; Account Center no longer invokes the document scroll lock and closes when navigation changes.
+- No account, password, authorization, business, database, schema, migration, real-user data or Production behavior changed.

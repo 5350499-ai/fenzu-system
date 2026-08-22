@@ -250,6 +250,8 @@ export function AppLayout({ children, title, description }: { children: React.Re
         ) : children}
       </main>
 
+      <div id="app-content-overlay-root" />
+
       <nav className="mobile-nav">
         {mobileItems.filter((item) => !item.module || canOpenModule(item.module as AccountModuleKey)).map((item) => {
           const Icon = item.icon;
