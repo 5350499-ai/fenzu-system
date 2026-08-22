@@ -262,7 +262,8 @@ and Settlement idempotency risks remain explicitly deferred there.
 ## Content-driven dense-row foundation
 
 - `app/globals.css` owns the shared `.finance-line`, `.rent-finance-line` and `.expense-finance-line` structure. Date, amount and status use content-sized tracks; partner and description are the shrink/ellipsis owners. A Phone breakpoint may adjust density but must not force a second row when that content fits in one line.
-- `.unified-monthly-row` remains the Property Profit owner. It keeps proportional left/center/right regions, while `.unified-monthly-metric` owns natural label/value wrapping and `.unified-monthly-amount` owns an indivisible currency value.
+- `lib/partner-settings.ts` owns first-paint partner presentation for finance rows. Historical A/B codes remain neutral until the canonical directory resolves.
+- `.unified-monthly-row` remains the Property Profit owner. Its DOM order is month/occupancy, income, expense, then net profit plus status; `.unified-monthly-metric` owns label/value alignment and `.unified-monthly-amount` owns an indivisible currency value.
 - `.room-finance-line`, Tenant List's fixed semantic rows and shared reminder rows retain their established renderers and contracts. This foundation does not change their business fields, debt/reminder logic or lifecycle presentation.
 
 ## Medium Business Layout Ownership - 2.4c Second Batch

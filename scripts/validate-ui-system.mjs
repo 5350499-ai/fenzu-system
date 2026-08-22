@@ -84,7 +84,7 @@ const required = [
   [css, "--ui-editable-font-size-mobile: 16px", "CSS must define the mobile editable font token"],
   [css, "--ui-section-stack-gap", "CSS must define the shared section stack token"],
   [css, ".form-grid-row", "CSS must define the shared semantic form-row primitive"],
-  [css, "grid-template-columns: minmax(0, 1.7fr)", "Profit result rows must give the period column readable space"],
+  [css, ".unified-monthly-row", "Profit result rows must use the shared monthly-result owner"],
   [css, ".ui-combobox-input", "Searchable controls must use the shared inner-input reset"],
   [css, ".ui-native-select", "Ownership selects must use the shared single-line control geometry"],
   [css, ".pagination-size-select", "Pagination size controls must use the shared control style"],
@@ -262,7 +262,7 @@ for (const [source, message] of [
 }
 
 const profitResultRule = css.match(/\.unified-monthly-row\s*\{([\s\S]*?)\}/i)?.[1] || "";
-if (!/1\.7fr[\s\S]*?\.9fr[\s\S]*?\.9fr/i.test(profitResultRule)) failures.push("Monthly and yearly profit results must use the shared readable three-column contract");
+if (!/repeat\(auto-fit,\s*minmax\(min\(100%,\s*8rem\),\s*1fr\)\)/i.test(profitResultRule)) failures.push("Monthly and yearly profit results must use the shared content-driven four-region contract");
 if (!/\.unified-monthly-occupancy[\s\S]*?white-space\s*:\s*normal/i.test(css)) failures.push("Profit result occupancy details must be allowed to wrap instead of being truncated");
 
 if (!/\.main\s*>\s*:is\(section\.card, section\.panel, \.ui-section-card\)\s*\+\s*:is\(section\.card, section\.panel, \.ui-section-card\)/.test(css)) {

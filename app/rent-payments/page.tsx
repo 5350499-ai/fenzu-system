@@ -34,7 +34,7 @@ import {
 } from "@/lib/business-data";
 import { euro } from "@/lib/format";
 import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerDisplayClass, partnerDisplayLabel, PartnerDirectoryState } from "@/lib/partner-settings";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import {
   deleteRentPaymentFile,
@@ -79,6 +79,7 @@ function defaultCoverageEnd(startDate: string) {
 export default function RentPaymentsPage() {
   const access = useAccountAccess();
   const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
+  const [partnerDirectoryState, setPartnerDirectoryState] = useState<PartnerDirectoryState>("loading");
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -149,6 +150,7 @@ export default function RentPaymentsPage() {
 
   useEffect(() => {
     async function load() {
+      setPartnerDirectoryState((current) => current === "ready" ? current : "loading");
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
@@ -166,6 +168,7 @@ export default function RentPaymentsPage() {
       const nextOptions = buildAttributionOptions(partnerData, access.isFreeSingle);
       setPartnerDirectory(nextDirectory);
       setPartnerOptions(nextOptions);
+      setPartnerDirectoryState(partnerData ? "ready" : "unavailable");
       const renewTenantId = new URLSearchParams(window.location.search).get("renewTenantId");
       const renewTenant = repairedTenants.find((tenant) => tenant.id === renewTenantId);
       if (renewTenant) {
@@ -682,11 +685,12 @@ export default function RentPaymentsPage() {
             const tenant = tenants.find((item) => item.id === payment.tenantId);
             const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
             const expanded = detailPaymentId === payment.id;
+            const attribution = partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState);
             return (
               <article className="finance-list-item" key={payment.id}>
                 <button className="finance-line rent-finance-line" onClick={() => setDetailPaymentId(expanded ? "" : payment.id)} type="button">
                   <span>{payment.paymentDate || payment.rentMonth}</span>
-                  <span className={`partner-tag ${partnerClass(payment.receivedBy)}`}>{partnerLabel(payment.receivedBy, partnerDirectory)}</span>
+                  <span className={`partner-tag ${partnerDisplayClass(payment.receivedBy, partnerDirectoryState)}`}>{attribution}</span>
                   <span>{isRentPayment(payment) ? `${room?.roomNumber || room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
                   <strong>{euro(paymentListAmount(payment))}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
@@ -695,6 +699,7 @@ export default function RentPaymentsPage() {
                   <PaymentDetail
                     payment={payment}
                     partnerDirectory={partnerDirectory}
+                    partnerDirectoryState={partnerDirectoryState}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     tenantName={tenant?.name || payment.incomeItem || "未填写租客"}
@@ -783,6 +788,7 @@ export default function RentPaymentsPage() {
 function PaymentDetail({
   payment,
   partnerDirectory,
+  partnerDirectoryState,
   propertyName,
   roomName,
   tenantName,
@@ -808,6 +814,7 @@ function PaymentDetail({
 }: {
   payment: BusinessRentPayment;
   partnerDirectory: Record<string, string>;
+  partnerDirectoryState: PartnerDirectoryState;
   propertyName: string;
   roomName: string;
   tenantName: string;
@@ -849,7 +856,7 @@ function PaymentDetail({
         <DetailField className="payment-total-field" label="本次合计收入" value={euro(payment.amountPaid)} />
         <DetailField className="payment-status-field" label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
         <DetailField className="payment-method-field" label="付款方式" value={payment.paymentMethod || "-"} />
-        {showOwnership ? <DetailField className="payment-owner-field" label="收款归属" value={partnerLabel(payment.receivedBy, partnerDirectory)} /> : null}
+        {showOwnership ? <DetailField className="payment-owner-field" label="收款归属" value={partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState)} /> : null}
         <DetailField className="payment-note-field" label="备注" value={cleanVoidNote(payment.notes) || "-"} />
         </CompactDetailGrid>
       </CompactDetailGroup>

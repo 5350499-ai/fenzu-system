@@ -34,9 +34,9 @@ test("Batch 3 room rows use proportional tracks without changing room business f
 
 test("Batch 3 preserves the verified monthly profit and reminder owners", () => {
   assert.match(profits, /global-monthly-row unified-monthly-row/);
-  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?minmax\(0, 1\.7fr\)[\s\S]*?minmax\(0, \.9fr\)/);
+  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?repeat\(auto-fit, minmax\(min\(100%, 8rem\), 1fr\)\)/);
   assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
-  assert.match(css, /\.unified-monthly-metric,[\s\S]*?flex-wrap:\s*wrap/);
+  assert.match(css, /\.unified-monthly-metric,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
   assert.match(reminders, /reminders\.map\(\(item\)/);
   assert.doesNotMatch(css, /\.reminder-page-list-single \.reminder-row-full:last-child\s*\{[^}]*border-bottom\s*:\s*0/);
 });

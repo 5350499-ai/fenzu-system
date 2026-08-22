@@ -226,9 +226,11 @@ export default function PropertyProfitsPage() {
               <div className="unified-monthly-head"><strong>{row.financial.monthLabel}</strong></div>
               <div className="unified-monthly-occupancy"><span>出租率 <b>{formatRate(row.occupancy.rate)}</b></span><small>{row.occupancy.availableDays > 0 ? `${row.occupancy.rentedDays}/${row.occupancy.availableDays} 房间日` : "尚未开始统计"}</small></div>
             </div>
-            <div className="unified-monthly-column unified-monthly-middle">
-              <div className="unified-monthly-metric unified-monthly-income"><span className="unified-monthly-label">收入</span><b className="unified-monthly-amount">{euro(row.financial.income)}</b></div>
-              <div className="unified-monthly-metric unified-monthly-expense"><span className="unified-monthly-label">支出</span><b className="unified-monthly-amount">{euro(row.financial.expense)}</b></div>
+            <div className="unified-monthly-column unified-monthly-income">
+              <div className="unified-monthly-metric"><span className="unified-monthly-label">收入</span><b className="unified-monthly-amount">{euro(row.financial.income)}</b></div>
+            </div>
+            <div className="unified-monthly-column unified-monthly-expense">
+              <div className="unified-monthly-metric"><span className="unified-monthly-label">支出</span><b className="unified-monthly-amount">{euro(row.financial.expense)}</b></div>
             </div>
             <div className="unified-monthly-column unified-monthly-right">
               <div className={`unified-monthly-metric unified-monthly-net ${row.financial.netProfit < 0 ? "danger-text" : row.financial.netProfit > 0 ? "profit" : ""}`}><span className="unified-monthly-label">净利润</span><b className="unified-monthly-amount">{euro(row.financial.netProfit)}</b></div>

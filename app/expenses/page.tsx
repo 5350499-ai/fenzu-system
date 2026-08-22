@@ -35,7 +35,7 @@ import {
 } from "@/lib/expense-files";
 import { euro } from "@/lib/format";
 import { buildAttributionOptions, buildPartnerDirectory, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
-import { partnerClass, partnerLabel } from "@/lib/partner-settings";
+import { partnerDisplayClass, partnerDisplayLabel, PartnerDirectoryState } from "@/lib/partner-settings";
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -58,6 +58,7 @@ const emptyExpense: BusinessExpense = {
 export default function ExpensesPage() {
   const access = useAccountAccess();
   const [partnerDirectory, setPartnerDirectory] = useState<Record<string, string>>({});
+  const [partnerDirectoryState, setPartnerDirectoryState] = useState<PartnerDirectoryState>("loading");
   const [partnerOptions, setPartnerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [rooms, setRooms] = useState<BusinessRoom[]>([]);
@@ -115,6 +116,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     async function load() {
+      setPartnerDirectoryState((current) => current === "ready" ? current : "loading");
       const loadedProperties = await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties());
       const loadedRooms = await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties));
       const loadedExpenses = await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties));
@@ -125,6 +127,7 @@ export default function ExpensesPage() {
       const partnerData = await getPartners().catch(() => null);
       setPartnerDirectory(partnerData ? buildPartnerDirectory(partnerData) : {});
       setPartnerOptions(buildAttributionOptions(partnerData, access.isFreeSingle));
+      setPartnerDirectoryState(partnerData ? "ready" : "unavailable");
       setLoaded(true);
     }
     load().catch((error) => window.alert(`加载支出失败：${error.message || error}`));
@@ -311,11 +314,12 @@ export default function ExpensesPage() {
             const property = properties.find((item) => item.id === expense.propertyId);
             const room = rooms.find((item) => item.id === expense.roomId);
             const expanded = detailExpenseId === expense.id;
+            const attribution = partnerDisplayLabel(expense.paidBy, partnerDirectory, partnerDirectoryState);
             return (
               <article className="finance-list-item" key={expense.id}>
                 <button className="finance-line expense-finance-line" onClick={() => setDetailExpenseId(expanded ? "" : expense.id)} type="button">
                   <span>{expense.paymentDate || "-"}</span>
-                  <span className={`partner-tag ${partnerClass(expense.paidBy)}`}>{partnerLabel(expense.paidBy, partnerDirectory)}</span>
+                  <span className={`partner-tag ${partnerDisplayClass(expense.paidBy, partnerDirectoryState)}`}>{attribution}</span>
                   <span>{expense.category || "-"}</span>
                   <strong>{euro(expense.amount)}</strong>
                   <StatusBadge tone={isVoided(expense.notes) ? "red" : "green"}>{isVoided(expense.notes) ? "已作废" : "已支出"}</StatusBadge>
@@ -324,6 +328,7 @@ export default function ExpensesPage() {
                   <ExpenseDetail
                     expense={expense}
                     partnerDirectory={partnerDirectory}
+                    partnerDirectoryState={partnerDirectoryState}
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     files={filesByExpense[expense.id] || []}
@@ -387,6 +392,7 @@ export default function ExpensesPage() {
 function ExpenseDetail({
   expense,
   partnerDirectory,
+  partnerDirectoryState,
   propertyName,
   roomName,
   files,
@@ -410,6 +416,7 @@ function ExpenseDetail({
 }: {
   expense: BusinessExpense;
   partnerDirectory: Record<string, string>;
+  partnerDirectoryState: PartnerDirectoryState;
   propertyName: string;
   roomName: string;
   files: ExpenseFile[];
@@ -440,7 +447,7 @@ function ExpenseDetail({
         <DetailField label="房间" value={roomName} />
         <DetailField label="支出类型" value={expense.category || "-"} wideText />
         <DetailField label="付款方式" value={expense.paymentMethod || "-"} />
-        {showOwnership ? <DetailField label="付款归属" value={partnerLabel(expense.paidBy, partnerDirectory)} /> : null}
+        {showOwnership ? <DetailField label="付款归属" value={partnerDisplayLabel(expense.paidBy, partnerDirectory, partnerDirectoryState)} /> : null}
         <DetailField label="备注" value={cleanVoidNote(expense.notes) || "-"} wideText />
         </CompactDetailGrid>
       </CompactDetailGroup>

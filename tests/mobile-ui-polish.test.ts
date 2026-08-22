@@ -62,8 +62,7 @@ test("monthly profit labels and amounts remain separate non-breaking blocks", ()
   assert.match(profits, /unified-monthly-amount/);
   assert.match(css, /\.unified-monthly-label\s*\{[\s\S]*?white-space:\s*nowrap/);
   assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
-  assert.match(css, /\.unified-monthly-metric,[\s\S]*?flex-wrap:\s*wrap/);
-  assert.doesNotMatch(css, /\.unified-monthly-metric\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /\.unified-monthly-metric,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
 });
 
 test("tenant detail fields use a shared mobile label/value track", () => {

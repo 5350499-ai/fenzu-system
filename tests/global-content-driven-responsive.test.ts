@@ -27,8 +27,8 @@ test("dates, amounts and statuses retain their complete content while descriptio
 
 test("property result, room, tenant and reminder owners keep their established proportional contracts", () => {
   assert.match(profits, /global-monthly-row unified-monthly-row/);
-  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?minmax\(0, 1\.7fr\)[\s\S]*?minmax\(0, \.9fr\)/);
-  assert.match(css, /\.unified-monthly-metric,[\s\S]*?flex-wrap:\s*wrap/);
+  assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?repeat\(auto-fit, minmax\(min\(100%, 8rem\), 1fr\)\)/);
+  assert.match(css, /\.unified-monthly-metric,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
   assert.match(rooms, /finance-line room-finance-line/);
   assert.match(css, /\.room-finance-line\s*\{[\s\S]*?minmax\(0, 1\.6fr\)[\s\S]*?minmax\(0, 1\.4fr\)/);
   assert.match(css, /\.tenant-list-identity-row\s*\{[\s\S]*?3fr\)[\s\S]*?4fr\)[\s\S]*?3fr\)/);

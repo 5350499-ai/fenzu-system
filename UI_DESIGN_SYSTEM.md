@@ -283,6 +283,8 @@ ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 
 - Phone, Medium and Desktop breakpoints select a shell mode; they must not unconditionally turn a business row into two lines merely because the viewport is Phone.
 - Dense business rows reserve `max-content` tracks for short dates, amounts and status badges, and give the description/name `minmax(0, 1fr)`. The description shrinks or ellipsizes before a date, amount or status is split or clipped.
+- Historical partner codes are identifiers, not loading labels: a finance row shows a neutral pending state until the canonical partner directory can resolve the real display name.
+- Monthly results render in semantic order: month/occupancy, income, expense, then net profit with its profit/loss status. The status belongs to the net-profit region; every currency value remains indivisible.
 - A label and its amount may wrap only as two complete value items when their own container lacks capacity. Currency symbol, sign, thousands group and decimal fraction never split.
 - Monthly operating-result rows retain three proportional regions: period/occupancy, income/expense and net result/status. Their metric pairs use natural flex wrapping instead of a phone-only forced single-column rule.
 
@@ -643,14 +645,9 @@ Grid/Flex 字段和控件直接父级都必须允许 min-width:0。
 
 ## 41. Profit Result Row Contract
 
-- Monthly and yearly operating-result rows use the same responsive three-column
-  primitive: the period/occupancy column receives the largest share, the
-  income/expense column stays compact with labels and amounts aligned, and the
-  net-profit/status column remains readable.
-- The period heading and first metric share a common first-row baseline. The
-  occupancy detail may wrap within its left column, but it must not be hidden
-  or truncated to make room for amounts. This contract applies at 320px–430px
-  mobile widths without global font shrinking or horizontal overflow.
+- Monthly and yearly operating-result rows use the same responsive, content-driven four-region primitive: period/occupancy, income, expense, then net profit with its status.
+- Regions preserve that source order and use `auto-fit`/`minmax()` as available space changes. Net-profit label, amount and profit/loss status remain one semantic group; labels and amounts align inside every financial region.
+- The occupancy detail may wrap within its period region, but it must not be hidden or truncated to make room for amounts. This contract applies at 320px–430px mobile widths without global font shrinking or horizontal overflow.
 
 ## 39. Property-profit information order
 

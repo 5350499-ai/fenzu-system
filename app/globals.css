@@ -3562,6 +3562,11 @@ td:last-child {
   color: var(--amber);
 }
 
+.partner-pending {
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
 .warning-text {
   color: var(--amber);
 }
@@ -6789,7 +6794,7 @@ td:last-child {
 
 .unified-monthly-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, .9fr) minmax(0, .9fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
   gap: 8px;
   min-height: 0;
   padding: 9px 10px;
@@ -6797,8 +6802,8 @@ td:last-child {
 }
 
 .unified-monthly-column {
-  display: grid;
-  grid-template-rows: minmax(0, auto) minmax(0, auto);
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
   gap: 6px;
   min-width: 0;
@@ -6813,12 +6818,10 @@ td:last-child {
 
 .unified-monthly-metric,
 .unified-monthly-status {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: 6px;
-  white-space: normal;
 }
 
 .unified-monthly-label,
@@ -6831,8 +6834,7 @@ td:last-child {
 }
 
 .unified-monthly-amount {
-  flex: 0 0 auto;
-  margin-inline-start: auto;
+  justify-self: end;
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
@@ -7229,9 +7231,7 @@ td:last-child {
   }
 }
 
-.unified-monthly-head,
-.unified-monthly-income,
-.unified-monthly-net {
+.unified-monthly-head {
   min-height: 1.35em;
   display: flex;
   align-items: baseline;
@@ -7260,7 +7260,7 @@ td:last-child {
 
 .unified-monthly-metric b {
   color: var(--text);
-  margin-left: auto;
+  margin-left: 0;
   min-width: 0;
   text-align: right;
 }
@@ -7289,7 +7289,9 @@ td:last-child {
 }
 
 .unified-monthly-status {
-  justify-content: flex-end;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  margin-top: auto;
   font-size: 12px;
   font-weight: 800;
 }
@@ -7308,7 +7310,7 @@ td:last-child {
 
 @media (max-width: 640px) {
   .unified-monthly-row {
-    grid-template-columns: minmax(0, 1.7fr) minmax(0, .9fr) minmax(0, .9fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
     gap: 6px;
     padding: 8px 9px;
   }

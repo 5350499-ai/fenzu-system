@@ -37,6 +37,23 @@ export function partnerLabel(partner?: string, directory?: Record<string, string
   return value || "未设置";
 }
 
+export type PartnerDirectoryState = "loading" | "ready" | "unavailable";
+
+/**
+ * Historical records can still carry an A/B legacy attribution code.  That
+ * code is an identifier, never a first-paint display name: wait for the
+ * workspace directory instead of momentarily presenting the wrong identity.
+ */
+export function partnerDisplayLabel(partner: string | undefined, directory: Record<string, string>, state: PartnerDirectoryState) {
+  if (state === "loading") return "归属加载中";
+  if (state === "unavailable") return "归属暂不可用";
+  return partnerLabel(partner, directory);
+}
+
+export function partnerDisplayClass(partner: string | undefined, state: PartnerDirectoryState) {
+  return state === "ready" ? partnerClass(partner) : "partner-pending";
+}
+
 export function usePartnerDirectory() {
   const [directory, setDirectory] = useState<Record<string, string>>({});
   useEffect(() => {
