@@ -36,6 +36,166 @@ import { useEffect, useMemo, useState } from "react";
 
 type Reminder = ReminderItem;
 
+type ReminderRuntimeDiagnostic = {
+  viewport: {
+    innerHeight: number;
+    visualViewportHeight: number | null;
+    documentClientHeight: number;
+  };
+  main: {
+    clientHeight: number;
+    scrollHeight: number;
+    scrollTop: number;
+    boundingTop: number;
+    boundingBottom: number;
+    overflowY: string;
+    height: string;
+    minHeight: string;
+    maxHeight: string;
+    paddingBottom: string;
+    maxScrollTop: number;
+    visibleBottomAtMaxScroll: number;
+  } | null;
+  remindersPage: ElementDiagnostic | null;
+  reminderList: ElementDiagnostic | null;
+  lastCard: ElementDiagnostic | null;
+  mobileNav: ElementDiagnostic | null;
+  requiredExtraScroll: number | null;
+  ancestorChain: AncestorDiagnostic[];
+};
+
+type ElementDiagnostic = {
+  clientHeight: number;
+  scrollHeight: number;
+  scrollTop: number;
+  boundingTop: number;
+  boundingBottom: number;
+  height: number;
+  overflowY: string;
+  overflow: string;
+  position: string;
+  computedHeight: string;
+  minHeight: string;
+  maxHeight: string;
+  paddingBottom: string;
+};
+
+type AncestorDiagnostic = {
+  tag: string;
+  className: string;
+  clientHeight: number;
+  scrollHeight: number;
+  overflowY: string;
+  overflow: string;
+  position: string;
+  height: string;
+  minHeight: string;
+  maxHeight: string;
+  transform: string;
+  contain: string;
+};
+
+function roundDiagnosticValue(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function readElementDiagnostic(element: HTMLElement | null): ElementDiagnostic | null {
+  if (!element) return null;
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return {
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    scrollTop: roundDiagnosticValue(element.scrollTop),
+    boundingTop: roundDiagnosticValue(rect.top),
+    boundingBottom: roundDiagnosticValue(rect.bottom),
+    height: roundDiagnosticValue(rect.height),
+    overflowY: style.overflowY,
+    overflow: style.overflow,
+    position: style.position,
+    computedHeight: style.height,
+    minHeight: style.minHeight,
+    maxHeight: style.maxHeight,
+    paddingBottom: style.paddingBottom
+  };
+}
+
+function readAncestorDiagnostics(element: HTMLElement | null): AncestorDiagnostic[] {
+  const chain: AncestorDiagnostic[] = [];
+  let current = element;
+  while (current && chain.length < 24) {
+    const style = window.getComputedStyle(current);
+    chain.push({
+      tag: current.tagName.toLowerCase(),
+      className: typeof current.className === "string" ? current.className : "",
+      clientHeight: current.clientHeight,
+      scrollHeight: current.scrollHeight,
+      overflowY: style.overflowY,
+      overflow: style.overflow,
+      position: style.position,
+      height: style.height,
+      minHeight: style.minHeight,
+      maxHeight: style.maxHeight,
+      transform: style.transform,
+      contain: style.contain
+    });
+    current = current.parentElement;
+  }
+  return chain;
+}
+
+function isPreviewDiagnosticEnvironment() {
+  if (typeof window === "undefined") return false;
+  if (process.env.NODE_ENV !== "production") return true;
+  return window.location.hostname.endsWith("-5350499-ais-projects.vercel.app");
+}
+
+function captureReminderRuntimeDiagnostic(): ReminderRuntimeDiagnostic {
+  const main = document.querySelector<HTMLElement>(".main");
+  const remindersPage = document.querySelector<HTMLElement>(".reminders-more-page");
+  const reminderList = remindersPage?.querySelector<HTMLElement>(".reminder-page-list-single") || null;
+  const lastCard = reminderList?.querySelector<HTMLElement>(".reminder-row-full:last-child") || reminderList?.lastElementChild as HTMLElement | null;
+  const mobileNav = document.querySelector<HTMLElement>(".mobile-nav");
+  const mainRect = main?.getBoundingClientRect();
+  const maxScrollTop = main ? Math.max(0, main.scrollHeight - main.clientHeight) : null;
+  const visibleBottomAtMaxScroll = main && mainRect && maxScrollTop !== null
+    ? roundDiagnosticValue(mainRect.top + maxScrollTop + main.clientHeight)
+    : null;
+  const lastCardRect = lastCard?.getBoundingClientRect();
+  const requiredExtraScroll = lastCardRect && visibleBottomAtMaxScroll !== null
+    ? roundDiagnosticValue(Math.max(0, lastCardRect.bottom - visibleBottomAtMaxScroll))
+    : null;
+  const mainDiagnostic = readElementDiagnostic(main);
+
+  return {
+    viewport: {
+      innerHeight: window.innerHeight,
+      visualViewportHeight: window.visualViewport ? roundDiagnosticValue(window.visualViewport.height) : null,
+      documentClientHeight: document.documentElement.clientHeight
+    },
+    main: mainDiagnostic && maxScrollTop !== null && visibleBottomAtMaxScroll !== null ? {
+      clientHeight: mainDiagnostic.clientHeight,
+      scrollHeight: mainDiagnostic.scrollHeight,
+      scrollTop: mainDiagnostic.scrollTop,
+      boundingTop: mainDiagnostic.boundingTop,
+      boundingBottom: mainDiagnostic.boundingBottom,
+      overflowY: mainDiagnostic.overflowY,
+      height: mainDiagnostic.computedHeight,
+      minHeight: mainDiagnostic.minHeight,
+      maxHeight: mainDiagnostic.maxHeight,
+      paddingBottom: mainDiagnostic.paddingBottom,
+      maxScrollTop,
+      visibleBottomAtMaxScroll
+    } : null,
+    remindersPage: readElementDiagnostic(remindersPage),
+    reminderList: readElementDiagnostic(reminderList),
+    lastCard: readElementDiagnostic(lastCard),
+    mobileNav: readElementDiagnostic(mobileNav),
+    requiredExtraScroll,
+    ancestorChain: readAncestorDiagnostics(lastCard)
+  };
+}
+
 export default function RemindersPage() {
   const access = useAccountAccess();
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
@@ -53,6 +213,23 @@ export default function RemindersPage() {
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [diagnosticEnabled, setDiagnosticEnabled] = useState(false);
+  const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<ReminderRuntimeDiagnostic | null>(null);
+  const [diagnosticCopyStatus, setDiagnosticCopyStatus] = useState("");
+
+  useEffect(() => {
+    setDiagnosticEnabled(isPreviewDiagnosticEnvironment());
+  }, []);
+
+  async function copyRuntimeDiagnostic() {
+    if (!runtimeDiagnostic) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(runtimeDiagnostic, null, 2));
+      setDiagnosticCopyStatus("已复制");
+    } catch {
+      setDiagnosticCopyStatus("复制失败，请截图面板内容");
+    }
+  }
 
   useEffect(() => {
     if (!access.ready) return;
@@ -102,6 +279,28 @@ export default function RemindersPage() {
     () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments: payments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: access.canSensitive("canExportData") }),
     [access.canSensitive, backupReminderSettings, contracts, deposits, payments, properties, rooms, tenants, waivedPaymentIds]
   );
+
+  useEffect(() => {
+    if (!diagnosticEnabled || dataStatus !== "ready") return;
+    const measure = () => setRuntimeDiagnostic(captureReminderRuntimeDiagnostic());
+    const firstFrame = window.requestAnimationFrame(() => {
+      measure();
+      window.requestAnimationFrame(measure);
+    });
+    const visualViewport = window.visualViewport;
+    const main = document.querySelector<HTMLElement>(".main");
+    visualViewport?.addEventListener("resize", measure);
+    main?.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      visualViewport?.removeEventListener("resize", measure);
+      main?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [dataStatus, diagnosticEnabled, reminders.length]);
 
   async function waiveReminder() {
     if (!waiveTarget?.debtCase?.paymentId) return;
@@ -160,6 +359,16 @@ export default function RemindersPage() {
           {!reminders.length ? <p className="muted">暂无系统提醒。</p> : null}
         </div>
       </section>
+
+      {diagnosticEnabled ? <section className="card panel" aria-label="Preview 临时滚动诊断">
+        <details>
+          <summary>Preview 临时滚动诊断</summary>
+          <p className="muted">仅记录布局几何与 CSS，不包含账号、租客、房源、金额或身份信息。</p>
+          <button className="btn" type="button" onClick={() => void copyRuntimeDiagnostic()}>复制滚动诊断</button>
+          {diagnosticCopyStatus ? <span className="muted" style={{ marginInlineStart: 8 }}>{diagnosticCopyStatus}</span> : null}
+          <pre style={{ maxWidth: "100%", overflowX: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{runtimeDiagnostic ? JSON.stringify(runtimeDiagnostic, null, 2) : "正在采集运行时几何…"}</pre>
+        </details>
+      </section> : null}
 
       {waiveTarget ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !waiving) setWaiveTarget(null); }}>
         <section className="card modal-card reminder-waive-modal" onMouseDown={(event) => event.stopPropagation()}>
