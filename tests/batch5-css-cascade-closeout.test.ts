@@ -26,4 +26,5 @@ test("Batch 5 preserves the frozen responsive owners and tokens", () => {
   assert.match(css, /--z-app-modal:\s*100/);
   assert.match(css, /\.unified-monthly-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1\.1fr\) max-content minmax\(0, 1\.35fr\)/);
   assert.match(css, /\.room-finance-line\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto auto minmax\(0, 1fr\) auto/);
+  assert.equal((css.match(/\.finance-line \.room-expiry-badge\s*\{/g) || []).length, 1);
 });

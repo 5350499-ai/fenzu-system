@@ -9404,19 +9404,6 @@ label.field > span,
 
 }
 
-.finance-line .room-expiry-badge {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box;
-  height: 26px !important;
-  min-height: 26px !important;
-  margin: 0;
-  padding: 0 8px !important;
-  line-height: 1 !important;
-  vertical-align: middle;
-  transform: none;
-}
 .room-finance-line .room-monthly-rent {
   min-width: max-content;
   white-space: nowrap;
