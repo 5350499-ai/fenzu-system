@@ -15,13 +15,30 @@ test("reminder center relies on the canonical main scroll owner above the reserv
 });
 
 test("reminder lists of 4, 8 and 12 rows have no page-local scroll or navigation-clearance owner", () => {
+  const mainClientHeight = 640;
+  const pageTop = 18;
+  const rowBlockSize = 96;
+  const rowGap = 6;
+  const requiredBottomGap = 18;
   for (const reminderCount of [4, 8, 12]) {
     assert.ok(reminderCount > 3);
     assert.match(reminders, /reminders\.map\(\(item\)/);
+    const listHeight = reminderCount * rowBlockSize + (reminderCount - 1) * rowGap;
+    const lastCardBottom = pageTop + listHeight;
+    const mainScrollHeight = lastCardBottom + requiredBottomGap;
+    const maxScrollTop = Math.max(0, mainScrollHeight - mainClientHeight);
+    const visibleBottomAtMaxScroll = maxScrollTop + mainClientHeight;
+    assert.ok(lastCardBottom <= visibleBottomAtMaxScroll - requiredBottomGap);
   }
   assert.doesNotMatch(reminders, /reminder-page-surface/);
   assert.doesNotMatch(css, /\.reminder-page-surface\s*\{/);
   assert.match(css, /\.main\s*\{[\s\S]*?overflow-y:\s*auto/);
+});
+
+test("full reminder route keeps page and list content-sized for the main scroll owner", () => {
+  assert.match(reminders, /className="card panel reminders-more-page"/);
+  assert.match(css, /\.reminders-more-page,\s*\n\.reminders-more-page \.reminder-page-list-single\s*\{[\s\S]*?min-block-size:\s*max-content;[\s\S]*?overflow:\s*visible;/);
+  assert.doesNotMatch(css, /\.reminders-more-page[^}]*overflow-y\s*:\s*(?:auto|scroll)/);
 });
 
 test("monthly profit labels and amounts remain separate non-breaking blocks", () => {

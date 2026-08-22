@@ -1244,6 +1244,15 @@ a {
   gap: 6px;
 }
 
+/* The full reminder route participates in .main's scroll only. Keep both
+   page-local boxes content-sized so mobile grid sizing cannot clip the tail
+   of the list or create a second scroll context. */
+.reminders-more-page,
+.reminders-more-page .reminder-page-list-single {
+  min-block-size: max-content;
+  overflow: visible;
+}
+
 .reminder-page-list.compact {
   gap: 4px;
 }

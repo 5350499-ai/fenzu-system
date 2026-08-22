@@ -145,7 +145,7 @@ export default function RemindersPage() {
 
   return (
     <AppLayout title="提醒中心" description="系统自动生成的经营风险提醒，和手动待办分开管理。">
-      <section className="card panel">
+      <section className="card panel reminders-more-page">
         <div className="panel-header">
           <div>
             <h2 className="panel-title">提醒汇总</h2>
