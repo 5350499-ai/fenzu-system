@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot } from "@/components/account-access";
 import { passwordValidationMessage } from "@/lib/password-security";
 import { AuthBrand } from "@/components/auth-brand";
+import { PasswordInput } from "@/components/password-input";
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
@@ -68,5 +69,5 @@ export default function ResetPasswordPage() {
 
   if (invalid) return <main className="login-page"><section className="card login-card password-security-page"><AuthBrand subtitle="密码安全" /><h1 className="panel-title">链接已失效</h1><p className="muted">该密码重置链接无效或已过期，请重新发送重置邮件。</p><Link className="btn primary" href="/forgot-password">重新发送重置邮件</Link><Link className="btn" href="/login">返回登录</Link></section></main>;
   if (!ready) return <main className="login-page"><section className="card login-card password-security-page"><AuthBrand subtitle="密码安全" /><p className="muted">正在验证重置链接…</p></section></main>;
-  return <main className="login-page"><section className="card login-card password-security-page"><AuthBrand subtitle="密码安全" /><h1 className="panel-title">设置新密码</h1><p className="muted">密码至少8位，并同时包含字母和数字。</p><form className="grid" onSubmit={submit}><div className="field"><label htmlFor="reset-password">新密码</label><input id="reset-password" name="new-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></div><div className="field"><label htmlFor="reset-confirmation">确认新密码</label><input id="reset-confirmation" name="new-password-confirmation" type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div><button className="btn primary" type="submit" disabled={saving} aria-busy={saving}>{saving ? "保存中…" : "保存新密码"}</button>{message ? <p className="success-text">{message}</p> : null}{error ? <p className="danger-text">{error}</p> : null}</form></section></main>;
+  return <main className="login-page"><section className="card login-card password-security-page"><AuthBrand subtitle="密码安全" /><h1 className="panel-title">设置新密码</h1><p className="muted">密码至少8位，并同时包含字母和数字。</p><form className="grid" onSubmit={submit}><div className="field"><label htmlFor="reset-password">新密码</label><PasswordInput id="reset-password" name="new-password" autoComplete="new-password" value={password} onValueChange={setPassword} /></div><div className="field"><label htmlFor="reset-confirmation">确认新密码</label><PasswordInput id="reset-confirmation" name="new-password-confirmation" autoComplete="new-password" value={confirmation} onValueChange={setConfirmation} /></div><button className="btn primary" type="submit" disabled={saving} aria-busy={saving}>{saving ? "保存中…" : "保存新密码"}</button>{message ? <p className="success-text">{message}</p> : null}{error ? <p className="danger-text">{error}</p> : null}</form></section></main>;
 }

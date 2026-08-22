@@ -6,6 +6,7 @@ import Link from "next/link";
 import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 import { AuthBrand } from "@/components/auth-brand";
+import { PasswordInput } from "@/components/password-input";
 
 function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000) {
   return new Promise<T>((resolve, reject) => {
@@ -122,7 +123,7 @@ export default function LoginPage() {
           </div>
           <div className="field">
             <label>密码</label>
-            <input name="password" value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
+            <PasswordInput name="password" value={password} onValueChange={setPassword} autoComplete="current-password" />
           </div>
           <button className="btn primary" type="submit" disabled={loading} aria-busy={loading}>
           {loading ? "登录中..." : "登录系统"}

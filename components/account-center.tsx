@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 import { ContentRegionPortal } from "@/components/content-region-portal";
+import { PasswordInput } from "@/components/password-input";
 import { BEE_RENTAL_SHARE_URL, copyBeeRentalLink, shareBeeRental } from "@/lib/share-bee-rental";
 
 export function AccountCenter() {
@@ -265,12 +266,12 @@ function PasswordField({
   return (
     <div className="field">
       <label>{label}</label>
-      <input
-        type={show ? "text" : "password"}
+      <PasswordInput
+        visible={show}
         name={current ? "current-password" : label.includes("确认") ? "new-password-confirmation" : "new-password"}
         autoComplete={current ? "current-password" : "new-password"}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthBrand } from "@/components/auth-brand";
+import { PasswordInput } from "@/components/password-input";
 
 const PENDING_EMAIL_KEY = "fenzu_pending_verification_email";
 
@@ -92,11 +93,11 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label>密码</label>
-            <input name="new-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required disabled={verificationSent} />
+            <PasswordInput name="new-password" autoComplete="new-password" value={password} onValueChange={setPassword} required disabled={verificationSent} />
           </div>
           <div className="field">
             <label>确认密码</label>
-            <input name="confirm-password" type="password" autoComplete="new-password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} required disabled={verificationSent} />
+            <PasswordInput name="confirm-password" autoComplete="new-password" value={passwordConfirmation} onValueChange={setPasswordConfirmation} required disabled={verificationSent} />
           </div>
           <p className="muted">免费使用：最多管理 5 套房源，每套最多 10 间房间。</p>
           {!verificationSent ? <button className="btn primary" type="submit" disabled={loading} aria-busy={loading}>{loading ? "正在创建账户..." : "注册免费账户"}</button> : null}

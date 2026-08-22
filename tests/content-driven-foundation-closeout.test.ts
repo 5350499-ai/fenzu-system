@@ -33,7 +33,7 @@ test("MONTHLY_RESULT_SEMANTIC_ORDER and PROFIT_LABEL_VALUE_STATUS_GROUPING", () 
   assert.match(financialRegion, /收入/);
   assert.match(financialRegion, /支出/);
   assert.match(financialRegion, /净利润/);
-  assert.match(profits, /unified-monthly-status-value/);
+  assert.match(profits, /<StatusBadge tone=\{row\.financial\.netProfit < 0 \? "red" : row\.financial\.netProfit > 0 \? "green" : undefined\} className="unified-monthly-status-badge">/);
 });
 
 test("CONTENT_DRIVEN_PROFIT_ALIGNMENT keeps complete values and natural regions", () => {
@@ -42,5 +42,6 @@ test("CONTENT_DRIVEN_PROFIT_ALIGNMENT keeps complete values and natural regions"
   assert.match(css, /\.unified-monthly-financial \.unified-monthly-metric\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) max-content/);
   assert.match(css, /\.unified-monthly-amount\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?word-break:\s*keep-all/);
   assert.match(css, /\.unified-monthly-status-region\s*\{[\s\S]*?align-items:\s*center/);
+  assert.match(css, /\.unified-monthly-status-badge\s*\{[\s\S]*?white-space:\s*nowrap/);
   assert.doesNotMatch(css, /@media[^\{]*(?:375|390|412|430)px/);
 });

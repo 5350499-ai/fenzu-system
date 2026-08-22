@@ -1286,3 +1286,9 @@
 - Replaced the remaining `359px`/`360px` device-width single-column branches with intrinsic capacity tracks for form rows, compact details, settings, backup settings and Account Center summary cards.
 - Retained canonical Phone/Medium/Desktop shell modes and the existing shared spacing, safe-area and layer tokens; no broad CSS rewrite or unproven dead-code deletion was performed.
 - No business logic, data, schema, migration, real-user data or Production behavior changed.
+
+## 2026-08-22 - Password clear controls and Property Profit status badges (Preview)
+
+- Added a shared `PasswordInput` control across authentication, account-security and managed-account forms. A non-empty password field now provides an accessible 44px clear action that preserves focus without submitting the form; existing Account Center show/hide behavior remains parent-owned.
+- Replaced Property Profit monthly profit/loss bare text with the existing positive/negative status badge system without changing the three-region financial layout or any calculations.
+- No business logic, data, schema, migration, real-user data or Production behavior changed.

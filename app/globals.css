@@ -2595,6 +2595,43 @@ td:last-child {
   border-color: color-mix(in srgb, var(--red) 28%, var(--border));
 }
 
+.password-input {
+  position: relative;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.field .password-input > input:not([type="checkbox"]):not([type="radio"]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline-end: calc(var(--ui-touch-target, 44px) + var(--ui-space-2, 8px));
+}
+
+.password-input-clear {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: grid;
+  place-items: center;
+  inline-size: var(--ui-touch-target, 44px);
+  min-inline-size: var(--ui-touch-target, 44px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-radius-md, 12px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.password-input-clear:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -4px;
+}
+
 .badge.amber {
   color: var(--amber);
   background: color-mix(in srgb, var(--amber) 13%, var(--surface));
@@ -7247,12 +7284,10 @@ td:last-child {
   text-align: center;
 }
 
-.unified-monthly-status-value {
-  display: block;
-  max-width: max-content;
+.unified-monthly-status-badge {
+  flex: 0 0 auto;
+  max-width: 100%;
   white-space: nowrap;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .unified-monthly-financial {
@@ -7263,16 +7298,6 @@ td:last-child {
 
 .unified-monthly-financial .unified-monthly-metric {
   grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.unified-monthly-status-region.profit,
-.unified-monthly-status-region.profit .unified-monthly-status-value {
-  color: var(--success, #24b47e);
-}
-
-.unified-monthly-status-region.danger-text,
-.unified-monthly-status-region.danger-text .unified-monthly-status-value {
-  color: var(--danger, #ef6b73);
 }
 
 .unified-monthly-net.profit,

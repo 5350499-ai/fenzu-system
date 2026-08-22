@@ -49,6 +49,7 @@ Financial Action UI may collect values, show pending/disabled state, confirmatio
 - 先保护房源、房间、租客、日期、金额、状态和核心操作。
 - 视觉语义优先于页面局部装饰。
 - 新页面优先使用 Token 和共享组件，不新增局部视觉体系。
+- Password fields use the shared `PasswordInput`: a non-empty field exposes a 44px `type="button"` clear control with an accessible label, preserves focus after clearing, and never submits the surrounding form. Existing parent-owned show/hide controls remain separate.
 
 ## 2. Font family
 
