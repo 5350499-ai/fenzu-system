@@ -2,7 +2,7 @@
 
 import { AppLayout, navGroups } from "@/components/app-layout";
 import Link from "next/link";
-import { HandCoins, Map, ScrollText, ShieldCheck } from "lucide-react";
+import { Map, ScrollText, ShieldCheck } from "lucide-react";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
 
@@ -16,15 +16,11 @@ export default function MorePage() {
     return true;
   };
   const items = navGroups.flatMap((group) => group.items).filter((item) => item.href !== "/" && canOpenModule(item.module as AccountModuleKey));
-  const moreItems = access.isFreeSingle
-    ? [...items, { href: "/property-profits", label: "结算", icon: HandCoins }]
-    : items;
-
   return (
     <AppLayout title="更多" description="完整菜单集中放在这里，手机端首页优先显示经营数据。">
       <section className="card panel">
         <div className="shortcut-grid more-grid">
-          {moreItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             return (
               <Link className="shortcut-card" href={item.href} key={item.href}>

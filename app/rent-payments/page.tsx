@@ -48,6 +48,7 @@ import {
 } from "@/lib/rent-payment-files";
 import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant, monthEnd, monthStart, paymentCoverageEnd, paymentCoverageStart, repairMissingTenantMonthlyRents, todayString } from "@/lib/rent-coverage";
 import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
+import { allPaymentPropertyScopeIds, paymentMatchesPropertyScope } from "@/lib/property-scope";
 import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { matchesFinanceSearch } from "@/lib/finance-search";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -276,14 +277,14 @@ export default function RentPaymentsPage() {
         payment.coverageEndDate,
         paymentListAmount(payment)
       ]) &&
-        selectedPropertyIds.includes(payment.propertyId) &&
+        paymentMatchesPropertyScope(payment.propertyId, selectedPropertyIds) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, payments)) &&
         (!rentDueOnly || Boolean(tenant && isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments)));
     });
   }, [dateEnd, dateStart, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
   useEffect(() => {
-    if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(properties.map((property) => property.id));
+    if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
   const filteredPaymentTotal = useMemo(
     () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment), 0),
@@ -662,7 +663,7 @@ export default function RentPaymentsPage() {
     setOverdueOnly(false);
     setRentDueOnly(false);
     setPropertyScopeRequested(false);
-    setSelectedPropertyIds(properties.map((property) => property.id));
+    setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
     setPage(1);
   }
 
@@ -699,11 +700,11 @@ export default function RentPaymentsPage() {
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
         <div className="list-controls">
-          <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
+          <PropertyMultiSelect includeUnlinked properties={properties} selectedIds={selectedPropertyIds} onChange={(ids) => { setSelectedPropertyIds(ids); setPage(1); }} />
           <label className="search-box"><input aria-label="搜索收入记录" placeholder="搜索姓名、伙伴、房源、房间、备注、金额、日期" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
           <DateRangeFilter preset={datePreset} startDate={dateStart} endDate={dateEnd} onPresetChange={updateDatePreset} onStartDateChange={updateDateStart} onEndDateChange={updateDateEnd} />
           <button className={`btn ${overdueOnly ? "primary" : ""}`} onClick={() => { setOverdueOnly((current) => !current); setPage(1); }} type="button">只看欠费</button>
-          {(query || selectedPropertyIds.length !== properties.length || datePreset !== "all" || overdueOnly || rentDueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
+          {(query || selectedPropertyIds.length !== allPaymentPropertyScopeIds(properties).length || datePreset !== "all" || overdueOnly || rentDueOnly) ? <button className="btn" onClick={resetFilters} type="button">清除筛选</button> : null}
         </div>
         <div className="filtered-total" aria-live="polite"><span>当前筛选收款合计</span><strong>{euro(filteredPaymentTotal)}</strong></div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ModalPortal } from "@/components/modal-portal";
-import { allPropertyIds, isAllPropertyScope, togglePropertyScope } from "@/lib/property-scope";
+import { allPaymentPropertyScopeIds, allPropertyIds, isAllPropertyScope, UNLINKED_PROPERTY_SCOPE, togglePropertyScope } from "@/lib/property-scope";
 
 export type PropertyChoice = { id: string; name: string; createdAt?: string };
 
@@ -10,12 +10,14 @@ export function PropertyMultiSelect({
   properties,
   selectedIds,
   onChange,
-  label = "房源范围"
+  label = "房源范围",
+  includeUnlinked = false
 }: {
   properties: PropertyChoice[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   label?: string;
+  includeUnlinked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>(selectedIds);
@@ -35,12 +37,15 @@ export function PropertyMultiSelect({
     if (!open) setPendingIds(selectedIds);
   }, [open, selectedIds]);
 
-  const allIds = allPropertyIds(orderedProperties);
-  const allSelected = isAllPropertyScope(pendingIds, orderedProperties);
-  const summary = selectedIds.length === allIds.length && allIds.length > 0
+  const allIds = includeUnlinked ? allPaymentPropertyScopeIds(orderedProperties) : allPropertyIds(orderedProperties);
+  const allSelected = isAllPropertyScope(pendingIds, orderedProperties, includeUnlinked);
+  const selectedUnlinked = includeUnlinked && selectedIds.includes(UNLINKED_PROPERTY_SCOPE);
+  const summary = allSelected
     ? "全部房源"
     : selectedIds.length === 0
       ? "未选择房源"
+      : selectedUnlinked && selectedIds.length === 1
+        ? "未关联房源"
       : selectedIds.length === 1
         ? orderedProperties.find((property) => property.id === selectedIds[0])?.name || "已选 1 套房源"
         : `已选 ${selectedIds.length} 套房源`;
@@ -60,6 +65,7 @@ export function PropertyMultiSelect({
         </div>
         <div className="property-multi-select-options">
           {orderedProperties.map((property) => <label className="partner-participant" key={property.id}><input type="checkbox" checked={pendingIds.includes(property.id)} onChange={() => toggle(property.id)} /><span>{property.name}</span></label>)}
+          {includeUnlinked ? <label className="partner-participant" key={UNLINKED_PROPERTY_SCOPE}><input type="checkbox" checked={pendingIds.includes(UNLINKED_PROPERTY_SCOPE)} onChange={() => toggle(UNLINKED_PROPERTY_SCOPE)} /><span>未关联房源</span></label> : null}
         </div>
         <div className="modal-actions"><button className="btn" type="button" onClick={() => setPendingIds([])}>全部取消</button><button className="btn primary" type="button" onClick={() => { if (!pendingIds.length) { window.alert("请至少选择一个房源"); return; } onChange([...new Set(pendingIds)]); setOpen(false); }}>确认</button></div>
       </section>

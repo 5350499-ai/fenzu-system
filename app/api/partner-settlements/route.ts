@@ -54,7 +54,7 @@ async function loadInputs(ownerId: string) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    await requireSensitivePermission(context, "can_view_partnership_settlement");
+    if (!isFreeSingleAccount(context)) await requireSensitivePermission(context, "can_view_partnership_settlement");
     if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
     const admin = getSupabaseAdmin();
     const url = new URL(request.url);

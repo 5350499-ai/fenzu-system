@@ -10,13 +10,13 @@ export function isFreeSinglePlan(value: unknown): value is typeof FREE_SINGLE_PL
 }
 
 export function isFreeSingleRestrictedModule(moduleKey: string) {
-  return ["attachments", "archive", "accounts", "partnership_settlement"].includes(moduleKey);
+  return ["attachments", "archive", "accounts"].includes(moduleKey);
 }
 
 export function isFreeSingleRestrictedSensitivePermission(key: string) {
   return [
     "can_view_contract_files", "can_view_rent_files", "can_view_expense_files", "can_view_attachments",
     "can_download_files", "can_upload_files", "can_replace_files", "can_delete_files",
-    "can_manage_accounts", "can_view_partnership_settlement"
+    "can_manage_accounts"
   ].includes(key);
 }

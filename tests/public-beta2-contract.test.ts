@@ -16,11 +16,12 @@ const moveRoomOccupancyMigration = readFileSync("supabase/migrations/20260815130
 const moveRoomRoute = readFileSync("app/api/tenants/move-room/route.ts", "utf8");
 const partnersPage = readFileSync("app/partners/page.tsx", "utf8");
 
-test("ordinary Beta capability root closes Partner and Settlement", () => {
-  assert.match(freeSingle, /partnership_settlement/);
-  assert.doesNotMatch(accountMe, /base\.moduleKey === "partnership_settlement"\) return \{ \{\.\.\.base, canView: true/);
-  assert.doesNotMatch(accountAuth, /moduleKey === "partnership_settlement"\) return/);
-  assert.doesNotMatch(accountAuth, /can_view_partnership_settlement"\) return/);
+test("ordinary Beta exposes read-only Settlement while keeping Partner administration closed", () => {
+  assert.doesNotMatch(freeSingle, /partnership_settlement/);
+  assert.match(accountMe, /base\.moduleKey === "partnership_settlement"/);
+  assert.match(accountMe, /partnership_settlement"\) return \{ \.\.\.base, canView: true/);
+  assert.doesNotMatch(accountAuth, /isFreeSingleRestrictedModule\(context, "partnership_settlement"/);
+  assert.doesNotMatch(accountAuth, /isFreeSingleRestrictedSensitivePermission\(context, "can_view_partnership_settlement"/);
 });
 test("ordinary Beta keeps a self-only member directory while multi-member management remains denied", () => {
   assert.match(partnersRoute, /const self = freeSingle \? await ensureFreeSingleMember\(context\) : null/);
