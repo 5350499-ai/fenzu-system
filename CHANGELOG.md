@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-22 - Global action reachability modal contract
+
+- Moved remaining App-level edit/share/appointment modal call sites out of the `.main` scroll tree and into the shared viewport `ModalPortal` layer.
+- Defined a shared modal action end-gap contract and geometry regression coverage so terminal actions must be reachable in the normal maximum-scroll range rather than through iOS rubber-band overscroll.
+- Kept Account Center as the existing content-region sheet; no App Shell, navigation, business/data, database, schema or migration behavior changed.
+
 ## 2026-08-22 - Responsive Architecture Batch 4 secondary page owners
 
 - Kept Tenant, Property, Settlement and Data Center semantic layouts on their existing stable owners after audit.

@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -135,7 +136,7 @@ export default function PropertiesPage() {
       </section>
 
       {open ? (
-        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+        <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <h2 className="panel-title">新增房源</h2>
@@ -163,7 +164,7 @@ export default function PropertiesPage() {
               </div>
             </form>
           </section>
-        </div>
+        </div></ModalPortal>
       ) : null}
     </AppLayout>
   );

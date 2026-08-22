@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { useAccountAccess } from "@/components/account-access";
 import type { AccountModuleKey } from "@/lib/account-permissions";
@@ -529,7 +530,7 @@ export default function PropertyDetailPage() {
         </section>
       ) : null}
 
-      {propertyEditorOpen ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPropertyEditorOpen(false); }}>
+      {propertyEditorOpen ? <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPropertyEditorOpen(false); }}>
         <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
           <div className="panel-header"><h2 className="panel-title">编辑房源</h2><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}><X size={17} /> 关闭</button></div>
           <form className="form-grid" onSubmit={saveProperty}>
@@ -543,7 +544,7 @@ export default function PropertyDetailPage() {
             <div className="modal-actions"><button className="btn" type="button" onClick={() => setPropertyEditorOpen(false)}>取消</button><button className="btn primary" disabled={propertySaving} type="submit">保存</button></div>
           </form>
         </section>
-      </div> : null}
+      </div></ModalPortal> : null}
 
       {editor ? (
         <PropertyEditor
@@ -624,7 +625,7 @@ function PropertyEditor(props: any) {
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
+    <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
       <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-header">
           <h2 className="panel-title">编辑{editorTitles[props.editor]}</h2>
@@ -640,7 +641,7 @@ function PropertyEditor(props: any) {
           <div className="modal-actions"><button className="btn" onClick={props.onClose} type="button">取消</button><button className="btn primary" type="submit">保存</button></div>
         </form>
       </section>
-    </div>
+    </div></ModalPortal>
   );
 }
 

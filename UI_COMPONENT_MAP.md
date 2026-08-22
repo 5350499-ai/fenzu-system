@@ -44,6 +44,7 @@ or local state to a second source of truth.
 - `--ui-space-*` owns the shared spacing scale; form rows/columns consume the existing form spacing aliases.
 - `--ui-grid-gap` is the shared spacing owner for the generic `.grid` primitive. Business-specific grids retain their own layout ownership and may consume shared spacing without inheriting generic columns.
 - `--ui-mobile-nav-structural-height`, `--ui-mobile-nav-overlay-gap` and `--ui-mobile-nav-overlay-offset` remain the dedicated fixed-overlay avoidance facts. Page content does not consume them.
+- `ModalPortal` owns all App-level edit/confirm form overlays through `#app-overlay-root`; it keeps their single `.modal-card` scroll surface above the navigation layer. `ContentRegionPortal` remains the separate owner only for Account Center, whose sheet intentionally stays inside `.main` while navigation remains visible.
 - Page padding, card padding, modal padding, fixed-overlay offsets and business slot contracts remain separate unless their semantic ownership is identical and covered by a contract test.
 - Shared field/detail/settings grids use their own intrinsic capacity tracks; a narrow container may become single-column, but no page may add a `359px`/`360px` device-specific layout branch for that transition.
 

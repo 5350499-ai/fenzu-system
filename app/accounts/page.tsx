@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { ACCOUNT_MODULES, emptyModulePermissions, emptySensitivePermissions, SENSITIVE_PERMISSIONS, type ModulePermission, type SensitivePermissions } from "@/lib/account-permissions";
 import type { AccountPlan } from "@/lib/free-single";
@@ -298,7 +299,7 @@ export default function AccountsPage() {
       </section>
 
       {shareOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShareOpen(false); }}>
+        <ModalPortal><div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShareOpen(false); }}>
           <section className="card modal-card account-share-card" role="dialog" aria-modal="true" aria-label="分享登录">
             <div className="panel-header">
               <div><h2 className="panel-title">分享登录</h2><p className="muted">仅分享登录地址和账号，不包含密码或内部邮箱。</p></div>
@@ -325,7 +326,7 @@ export default function AccountsPage() {
               <button className="btn primary" type="button" disabled={!selectedShareAccount} onClick={shareLoginInfo}><Share2 size={16} /> 系统分享</button>
             </div>
           </section>
-        </div>
+        </div></ModalPortal>
       ) : null}
 
       <section className="card panel account-editor">

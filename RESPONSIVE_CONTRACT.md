@@ -18,6 +18,8 @@ Contract probe widths: `320, 360, 375, 390, 393, 414, 430, 480, 600, 640, 641, 7
 - Phone `.mobile-nav` is a reserved grid row, not a fixed overlay. It owns its internal Home Indicator safe area.
 - `--ui-mobile-nav-overlay-offset` is limited to fixed overlays such as toast/upload progress; it is not page-content clearance.
 - `ModalLayerManager` owns document scroll lock; `.modal-backdrop` and `.modal-card` have one CSS owner each.
+- App-level edit/confirm forms are rendered through `ModalPortal` into `#app-overlay-root`. Their backdrop owns the visual viewport above navigation; `.modal-card` is the sole form scroll owner and its terminal action must remain inside the normal maximum-scroll range with the modal end gap.
+- `ContentRegionPortal` is reserved for sheets that intentionally preserve the App Shell navigation, currently Account Center. Its scroll surface is bounded by the `.main` content region and must not be used for app-level edit forms.
 - Tenant List remains a frozen three-row contract: identity `30/40/30`, rent `31/25/44`, and five fixed status slots.
 - BUG-01 keeps the shared `SearchableSelect`/`DropdownListbox` path and the local advanced-options `overflow: visible` contract.
 - `.table-wrap` and chart scroll wrappers own intentional internal horizontal scrolling. Pages and the document do not become the scroll surface.

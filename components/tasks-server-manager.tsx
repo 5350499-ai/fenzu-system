@@ -14,6 +14,7 @@ import {
   type TaskMigrationPreviewResponse
 } from "@/lib/task-repository";
 import { TasksLocalMigrationPreview } from "@/components/tasks-local-migration-preview";
+import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
 
@@ -233,7 +234,7 @@ export function TasksServerManager() {
         </div>}
       </section>
 
-      {showForm ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
+      {showForm ? <ModalPortal><div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
         <section className="card modal-card" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
           <div className="panel-header"><h2 className="panel-title">{editingId ? "编辑待办" : "新增待办"}</h2><button className="btn" type="button" onClick={closeForm}><X size={17} />关闭</button></div>
           <form className="form-grid" onSubmit={saveTask}>
@@ -246,7 +247,7 @@ export function TasksServerManager() {
             <button className="btn primary" disabled={saving} type="submit">{saving ? "正在保存…" : "保存待办"}</button>
           </form>
         </section>
-      </div> : null}
+      </div></ModalPortal> : null}
     </div>
   );
 }

@@ -11522,6 +11522,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   --modal-safe-right: max(8px, env(safe-area-inset-right));
   --modal-safe-bottom: max(8px, env(safe-area-inset-bottom));
   --modal-safe-left: max(8px, env(safe-area-inset-left));
+  --modal-action-safe-gap: var(--ui-space-3);
   --modal-viewport-block-size: calc(100dvh - var(--modal-safe-top) - var(--modal-safe-bottom));
 }
 
@@ -11566,6 +11567,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  scroll-padding-block-end: var(--modal-action-safe-gap);
   padding: 20px;
 }
 

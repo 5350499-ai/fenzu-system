@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { AttachmentAddControl } from "@/components/attachment-add-control";
 import { AttachmentLoadState, AttachmentLoadStateNotice } from "@/components/attachment-load-state";
@@ -374,7 +375,7 @@ export default function ExpensesPage() {
       </section>
 
       {open ? (
-        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+        <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
           <section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑支出" : "录入支出"}</h2><button className="btn" onClick={close} type="button"><X size={17} /> 关闭</button></div>
             <form className="form-grid expense-form-grid" onSubmit={submit}>
@@ -396,7 +397,7 @@ export default function ExpensesPage() {
               <div className="modal-actions"><button className="btn" onClick={close} type="button">取消</button><button className="btn primary" disabled={saving} type="submit">{!form.id && pendingFiles.length ? "保存并上传附件" : "保存"}</button></div>
             </form>
           </section>
-        </div>
+        </div></ModalPortal>
       ) : null}
     </AppLayout>
   );

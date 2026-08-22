@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { AttachmentSummary } from "@/lib/server/attachment-management";
 import type { AttachmentCleanupCandidate, AttachmentCleanupReport, AttachmentInventoryItem } from "@/lib/server/attachment-cleanup";
@@ -303,7 +304,7 @@ export default function AttachmentArchivePage() {
       {cleanupMessage ? <p className="error-text">{cleanupMessage}</p> : null}
       {cleanupReport ? <div className="attachment-management-row"><strong>清理完成</strong><span>计划删除：{cleanupReport.planned} 个 · 成功删除：{cleanupReport.deleted} 个 · 删除失败：{cleanupReport.failed} 个</span><span>释放空间：{formatBytes(cleanupReport.releasedBytes)} · 未释放：{formatBytes(cleanupReport.unreleasedBytes)}</span>{cleanupReport.skippedGoogleDrive ? <span className="muted">跳过外部云端附件 {cleanupReport.skippedGoogleDrive} 个，需要人工处理。</span> : null}{cleanupReport.errors.length ? <details><summary>查看失败原因（{cleanupReport.errors.length}）</summary><ul>{cleanupReport.errors.map((item) => <li key={`${item.attachmentId}-${item.fileName}`}>{item.fileName}：{item.reason}</li>)}</ul></details> : null}</div> : null}
 
-      {confirmKind ? <div className="attachment-modal-backdrop"><section role="dialog" aria-modal="true" className="card panel attachment-cleanup-confirm"><p className="warning-text">{confirmKind === "single" ? <>确定永久删除这个附件吗？<br />删除后无法恢复。</> : confirmKind === "tenants" ? <>本操作只永久删除所选租客名下的附件，不删除租客、租约、收款、押金或其他业务记录。<br />附件删除后无法恢复。</> : <>即将永久删除 {selectedItems.length} 个附件，共 {formatBytes(selectedItems.reduce((total, item) => total + item.fileSize, 0))}。<br />请确认已经完成本地归档。</>}</p><div className="settings-actions"><button className="btn" type="button" onClick={() => { setConfirmKind(null); setSingleAttachmentId(null); }} disabled={cleaning}>取消</button><button className="btn danger" type="button" onClick={() => void runCleanup()} disabled={cleaning}>{cleaning ? "正在清理…" : "确认删除"}</button></div></section></div> : null}
+      {confirmKind ? <ModalPortal><div className="attachment-modal-backdrop"><section role="dialog" aria-modal="true" className="card panel attachment-cleanup-confirm"><p className="warning-text">{confirmKind === "single" ? <>确定永久删除这个附件吗？<br />删除后无法恢复。</> : confirmKind === "tenants" ? <>本操作只永久删除所选租客名下的附件，不删除租客、租约、收款、押金或其他业务记录。<br />附件删除后无法恢复。</> : <>即将永久删除 {selectedItems.length} 个附件，共 {formatBytes(selectedItems.reduce((total, item) => total + item.fileSize, 0))}。<br />请确认已经完成本地归档。</>}</p><div className="settings-actions"><button className="btn" type="button" onClick={() => { setConfirmKind(null); setSingleAttachmentId(null); }} disabled={cleaning}>取消</button><button className="btn danger" type="button" onClick={() => void runCleanup()} disabled={cleaning}>{cleaning ? "正在清理…" : "确认删除"}</button></div></section></div></ModalPortal> : null}
     </> : null}
     <p className="muted attachment-management-reserved"><FileArchive size={16} />数据备份与附件归档彼此独立；本页面不提供附件重新导入。</p>
   </AppLayout>;

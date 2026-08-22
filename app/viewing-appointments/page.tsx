@@ -1,6 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/app-layout";
+import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { localToday } from "@/lib/actual-move-out-date";
 import { formatAppointmentLocation, formatManagementAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
@@ -173,7 +174,7 @@ export default function ViewingAppointmentsPage() {
         })}</div></section>)}</div> : <p className="muted">暂无看房预约</p>}
       </section>
 
-      {open ? <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
+      {open ? <ModalPortal><div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="card modal-card" onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-header"><h2 className="panel-title">{form.id ? "编辑预约" : "新增预约"}</h2><button className="btn" type="button" onClick={close}><X size={17} /> 关闭</button></div>
         <form className="form-grid" onSubmit={submit}>
           <div className="field"><label>预约日期</label><input required type="date" value={form.appointmentDate} onChange={(event) => setForm((current) => ({ ...current, appointmentDate: event.target.value }))} /></div>
@@ -187,7 +188,7 @@ export default function ViewingAppointmentsPage() {
           <div className="field" style={{ gridColumn: "1 / -1" }}><label>备注</label><textarea value={form.notes || ""} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></div>
           <div className="modal-actions"><button className="btn" type="button" onClick={close}>取消</button>{statusMode === "已成交" ? <button className="btn" type="button" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: form.propertyId || "", roomId: form.roomId || "", tenantName: form.contactName || "", phone: form.contactPhone || form.contactWhatsapp || "", notes: form.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}>一键入住</button> : null}<button className="btn primary" type="submit" disabled={saving}>{saving ? "保存中..." : "保存预约"}</button></div>
         </form>
-      </section></div> : null}
+      </section></div></ModalPortal> : null}
     </AppLayout>
   );
 }
