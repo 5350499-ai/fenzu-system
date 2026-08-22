@@ -23,7 +23,7 @@ import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-s
 import { buildAttributionOptions, getPartners, preserveStoredPartnerOption } from "@/lib/partners";
 import { isLinkedRentDeposit } from "@/lib/profit";
 import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
-import { isOperationsPendingDeposit } from "@/lib/operations-analytics";
+import { selectPendingDepositRecords } from "@/lib/deposit-pending";
 import { Ban, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAccountAccess } from "@/components/account-access";
@@ -90,10 +90,17 @@ export default function DepositsPage() {
   const availableTenants = tenants.filter((tenant) => tenant.propertyId === form.propertyId && tenant.roomId === form.roomId);
   const filteredDeposits = useMemo(() => {
     const keyword = query.trim().toLowerCase();
+    const pendingRecords = pendingOnly
+      ? new Set(selectPendingDepositRecords(
+        deposits,
+        tenants,
+        propertyScopeIds === null ? null : new Set(propertyScopeIds)
+      ).map((deposit) => deposit.id))
+      : null;
     return deposits.filter((deposit) => {
-      if (isLinkedRentDeposit(deposit)) return false;
+      if (!pendingOnly && isLinkedRentDeposit(deposit)) return false;
       if (propertyScopeIds !== null && !propertyScopeIds.includes(deposit.propertyId)) return false;
-      if (pendingOnly && !isOperationsPendingDeposit(deposit, tenants)) return false;
+      if (pendingOnly && !pendingRecords?.has(deposit.id)) return false;
       if (!keyword) return true;
       const property = properties.find((item) => item.id === deposit.propertyId);
       const room = rooms.find((item) => item.id === deposit.roomId);

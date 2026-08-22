@@ -17,6 +17,7 @@ import {
 import { compareOperationsRooms } from "./room-status-sort";
 import { sumOccupants } from "./tenant-occupancy";
 import { getDebtCases } from "./debt-case";
+import { selectPendingDepositTenantIds } from "./deposit-pending";
 
 export { compareOperationsRooms } from "./room-status-sort";
 
@@ -52,8 +53,7 @@ export function isOperationsRentDueTenant(tenant: BusinessTenant, payments: Busi
 }
 
 export function isOperationsPendingDeposit(deposit: BusinessDeposit, tenants: BusinessTenant[]) {
-  const tenant = tenants.find((item) => item.id === deposit.tenantId);
-  return Boolean(tenant?.status.includes("已退租") && deposit.status === "待退" && !isVoided(deposit.notes));
+  return selectPendingDepositTenantIds([deposit], tenants).has(deposit.tenantId);
 }
 
 export type OperationsRoom = {
@@ -105,7 +105,7 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
   const overdueCases = getDebtCases({ properties: scope.properties, rooms: scope.rooms, tenants: scope.tenants, rentPayments: scope.payments, today })
     .filter((debtCase) => activeTenantIds.has(debtCase.tenantId));
   const overdueTenantIds = new Set(overdueCases.map((debtCase) => debtCase.tenantId));
-  const pendingDepositTenantIds = new Set(scope.deposits.filter((deposit) => isOperationsPendingDeposit(deposit, scope.tenants)).map((deposit) => deposit.tenantId));
+  const pendingDepositTenantIds = selectPendingDepositTenantIds(scope.deposits, scope.tenants);
 
   const visibleRooms = scope.rooms.filter((room) => !isArchivedRoom(room));
   const roomStatuses = visibleRooms.map((room) => roomOccupancyStatus(room, scope.tenants));
