@@ -3,7 +3,7 @@ import { apiErrorResponse, AccountApiError, isFreeSingleAccount, parseJson, requ
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember } from "@/lib/server/free-single-member";
 import { buildSettlement, isVoided } from "@/lib/partner-settlement";
-import { isValidSettlementRange } from "@/lib/settlement-date";
+import { getMaxSettlementEndDate, getSettlementDateValidationError } from "@/lib/settlement-date";
 import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
 import type { BusinessExpense, BusinessRentPayment } from "@/lib/business-data";
 import type { Partner, PartnerPropertyShare } from "@/lib/partners";
@@ -88,7 +88,9 @@ export async function POST(request: Request) {
     const propertyId = String(body.propertyId || "");
     const startDate = String(body.startDate || "");
     const endDate = String(body.endDate || "");
-    if (!isValidSettlementRange(startDate, endDate)) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
+    const dateError = getSettlementDateValidationError(startDate, endDate);
+    if (dateError === "future_end") throw new AccountApiError(`结算结束日期不能晚于昨天（${getMaxSettlementEndDate()}）。`, 400, "future_end");
+    if (dateError) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
     if (!propertyId || propertyId === "all") throw new AccountApiError("确认结算时必须选择一套房源。", 400, "property_required");
     await requirePropertyAccess(context, propertyId);
     const inputs = await loadInputs(context.profile.workspace_owner_id, singleOwnerFallback);

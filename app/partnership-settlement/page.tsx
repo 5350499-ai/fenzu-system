@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { PARTNER_SETTLEMENT_CACHE_KEY } from "@/lib/cache/cache-keys";
+import { getMaxSettlementEndDate, getSettlementDateValidationError } from "@/lib/settlement-date";
 import { DetailCard, DetailGrid, DetailItem, MoneyValue } from "@/components/ui";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 
@@ -50,6 +51,7 @@ export default function PartnershipSettlementPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [batchExecution, setBatchExecution] = useState<SettlementBatchExecution | null>(null);
+  const maxSettlementEndDate = getMaxSettlementEndDate();
 
   const activeRange = useMemo(() => rangeMode === "custom" ? { startDate: customStartDate, endDate: customEndDate } : presetRange(rangeMode), [customEndDate, customStartDate, rangeMode]);
   const ledgerPayments = useMemo(() => [...payments, ...projectDepositIncomePayments(deposits, payments)], [deposits, payments]);
@@ -107,10 +109,12 @@ export default function PartnershipSettlementPage() {
   function changeProperty(value: string[]) { setSelectedPropertyIds(value); invalidateTrial(); }
   function changeRangeMode(value: RangeMode) { setRangeMode(value); invalidateTrial(); }
   function changeCustomStart(value: string) { setCustomStartDate(value); invalidateTrial(); }
-  function changeCustomEnd(value: string) { setCustomEndDate(value); invalidateTrial(); }
+  function changeCustomEnd(value: string) { const nextEnd = value > maxSettlementEndDate ? maxSettlementEndDate : value; setCustomEndDate(nextEnd); setCustomStartDate((current) => current > nextEnd ? nextEnd : current); invalidateTrial(); }
   function startTrial() {
     if (!selectedPropertyIds.length || !activeRange.startDate || !activeRange.endDate) { setMessage("请选择至少一个房源、开始日期和结束日期。"); return; }
-    if (activeRange.startDate > activeRange.endDate) { setMessage("开始日期不得晚于结束日期。"); return; }
+    const dateError = getSettlementDateValidationError(activeRange.startDate, activeRange.endDate);
+    if (dateError === "future_end") { setMessage(`结算结束日期不能晚于昨天（${maxSettlementEndDate}）。`); return; }
+    if (dateError) { setMessage("开始日期不得晚于结束日期或日期格式无效。"); return; }
     setMessage(""); setTrialKey(currentKey);
   }
   function resetFilters() { const next = presetRange("previous"); setRangeMode("previous"); setCustomStartDate(next.startDate); setCustomEndDate(next.endDate); setTrialKey(""); setMessage(""); }
@@ -173,7 +177,7 @@ export default function PartnershipSettlementPage() {
       <div className="filter-grid">
         <PropertyMultiSelect properties={properties} selectedIds={selectedPropertyIds} onChange={changeProperty} />
         <div className="field"><label>时间范围</label><select value={rangeMode} onChange={(event) => changeRangeMode(event.target.value as RangeMode)}><option value="previous">上一个完整月份</option><option value="threeMonths">近3个月</option><option value="custom">自定义</option></select></div>
-        {rangeMode === "custom" ? <><div className="field"><label>开始日期</label><input type="date" value={customStartDate} onChange={(event) => changeCustomStart(event.target.value)} /></div><div className="field"><label>结束日期</label><input type="date" value={customEndDate} onChange={(event) => changeCustomEnd(event.target.value)} /></div></> : null}
+        {rangeMode === "custom" ? <><div className="field"><label>开始日期</label><input type="date" value={customStartDate} max={customEndDate || maxSettlementEndDate} onChange={(event) => changeCustomStart(event.target.value)} /></div><div className="field"><label>结束日期</label><input type="date" value={customEndDate} min={customStartDate} max={maxSettlementEndDate} onChange={(event) => changeCustomEnd(event.target.value)} /></div></> : null}
       </div>
       <p className="muted">实际范围：{activeRange.startDate} 至 {activeRange.endDate}</p>
       <div className="button-row"><button className="btn primary" type="button" onClick={startTrial}>开始试算</button><button className="btn" type="button" onClick={resetFilters}>重置</button></div>
@@ -200,5 +204,5 @@ function CompactDetailList({ title, rows }: { title: string; rows: Array<{ id: s
 function displayPartner(value: string | undefined, partners: PartnerWorkspaceData["partners"], accountAlias?: string | null) { const partner = partners.find((item) => item.id === value || item.displayName === value || (item.legacyCode || "").toUpperCase() === (value || "").toUpperCase()); if (partner) return partner.displayName; if (partners.length === 1 && (value === "本人" || value === accountAlias)) return partners[0].displayName; return value || "未分配"; }
 function isVoided(notes?: string) { return Boolean(notes?.includes("[已作废]") || notes?.toLowerCase().includes("[void]")); }
 function inRange(value: string | null | undefined, range: { startDate: string; endDate: string }) { return Boolean(value && value >= range.startDate && value <= range.endDate); }
-function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return { startDate: formatDate(new Date(year, month - 2, 1)), endDate: formatDate(today) }; return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
+function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return { startDate: formatDate(new Date(year, month - 2, 1)), endDate: getMaxSettlementEndDate(today) }; return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
 function formatDate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
