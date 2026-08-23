@@ -14,6 +14,7 @@ import Link from "next/link";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { PARTNER_SETTLEMENT_CACHE_KEY } from "@/lib/cache/cache-keys";
 import { getMaxSettlementEndDate, getRollingThreeMonthSettlementRange, getSettlementDateValidationError } from "@/lib/settlement-date";
+import { findPreExistingSettlementConflict } from "@/lib/settlement-batch-state";
 import { DetailCard, DetailGrid, DetailItem, MoneyValue } from "@/components/ui";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 
@@ -61,7 +62,7 @@ export default function PartnershipSettlementPage() {
     return buildSettlement(selectedPropertyIds, activeRange, properties, partnerData.partners, partnerData.shares, ledgerPayments, expenses, partnerData.accountAlias, access.isFreeSingle);
   }, [access.isFreeSingle, activeRange, currentKey, expenses, ledgerPayments, partnerData, properties, selectedPropertyIds, trialKey]);
   const effectiveSettlementCount = countEffectiveSettlementBatches(batches);
-  const overlap = useMemo(() => settlement ? batches.find((batch) => batch.status === "confirmed" && selectedPropertyIds.includes(batch.property_id) && batch.period_start <= activeRange.endDate && batch.period_end >= activeRange.startDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
+  const overlap = useMemo(() => settlement && selectedPropertyIds.length === 1 ? findPreExistingSettlementConflict(batches, selectedPropertyIds[0], activeRange) : null, [activeRange, batches, selectedPropertyIds, settlement]);
   const exactBatch = useMemo(() => selectedPropertyIds.length === 1 && settlement ? batches.find((batch) => batch.status === "confirmed" && batch.property_id === selectedPropertyIds[0] && batch.period_start === activeRange.startDate && batch.period_end === activeRange.endDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
 
   useEffect(() => {
@@ -120,7 +121,8 @@ export default function PartnershipSettlementPage() {
   function resetFilters() { const next = presetRange("previous"); setRangeMode("previous"); setCustomStartDate(next.startDate); setCustomEndDate(next.endDate); setTrialKey(""); setMessage(""); }
 
   async function confirmSettlement() {
-    if (busy || !settlement || !selectedPropertyIds.length || overlap || exactBatch || settlement.unknownAttributions.length || settlement.invalidRange) return;
+    if (busy || !settlement || !selectedPropertyIds.length || (selectedPropertyIds.length === 1 && (overlap || exactBatch)) || settlement.unknownAttributions.length || settlement.invalidRange) return;
+    const preBatchBatches = batches;
     const propertyNames = selectedPropertyIds.map((id) => properties.find((property) => property.id === id)?.name || id).join("、");
     const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, ledgerPayments, expenses, partnerData!.accountAlias, access.isFreeSingle) }));
     if (perProperty.some((item) => !item.result.coverageComplete || item.result.unknownAttributions.length)) { setMessage("所选房源中存在未完成的比例方案或无法识别归属，暂不能确认结算。"); return; }
@@ -135,6 +137,12 @@ export default function PartnershipSettlementPage() {
       for (let index = 0; index < selectedPropertyIds.length; index += 1) {
         const propertyId = selectedPropertyIds[index];
         const propertySettlement = perProperty[index].result;
+        const preExistingConflict = findPreExistingSettlementConflict(preBatchBatches, propertyId, activeRange);
+        if (preExistingConflict) {
+          executionResults[index] = { ...executionResults[index], status: "FAILED", error: "所选时间段与已结算记录重叠。" };
+          setBatchExecution({ clientBatchId, status: "BATCH_PARTIAL_SUCCESS", results: executionResults.map((result) => ({ ...result })) });
+          continue;
+        }
         try {
           const response = await fetch("/api/partner-settlements", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ propertyId, startDate: activeRange.startDate, endDate: activeRange.endDate }) });
           const payload = await readApi(response);
@@ -169,7 +177,7 @@ export default function PartnershipSettlementPage() {
   const result = settlement;
   const propertyId = selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : "";
   const coverageBlocked = Boolean(result && !result.coverageComplete);
-  const canConfirm = Boolean(result && selectedPropertyIds.length > 0 && (access.isOwner || access.isFreeSingle) && !coverageBlocked && !overlap && !exactBatch && !result.invalidRange && !result.unknownAttributions.length && !busy);
+  const canConfirm = Boolean(result && selectedPropertyIds.length > 0 && (access.isOwner || access.isFreeSingle) && !coverageBlocked && (selectedPropertyIds.length > 1 || (!overlap && !exactBatch)) && !result.invalidRange && !result.unknownAttributions.length && !busy);
   if (coverageBlocked && result) return <AppLayout title="合伙结算"><section className="card panel"><h2 className="panel-title">无法开始结算</h2><div className="warning-text">所选结算期间存在未配置利润比例的日期：{result.uncoveredRanges.map((range) => `${range.startDate} 至 ${range.endDate}`).join("、") || `${activeRange.startDate} 至 ${activeRange.endDate}`}。请先调整该房源首个比例方案起始日。</div><a className="btn compact" href="/partners">进入合伙人管理</a></section></AppLayout>;
   return <AppLayout title="合伙结算" description="按房源、比例生效区间和真实收支归属生成动态合伙结算。">
     <section className="card panel settlement-controls">
