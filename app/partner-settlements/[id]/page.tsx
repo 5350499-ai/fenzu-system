@@ -23,6 +23,14 @@ function segmentShares(value: unknown, partners: any[]) {
   }));
 }
 
+function segmentLabel(segment: any, fallbackPropertyName: string) {
+  const segmentPropertyName = String(
+    segment.property_name_snapshot || segment.propertyName || segment.property_name || "",
+  ).trim();
+  if (segmentPropertyName) return segmentPropertyName;
+  return fallbackPropertyName === "房源名称未保存" ? "结算分段" : fallbackPropertyName;
+}
+
 export default function PartnerSettlementSnapshotPage({ params }: { params: Promise<{ id: string }> }) {
   const access = useAccountAccess();
   const [data, setData] = useState<SnapshotData | null>(null);
@@ -75,7 +83,7 @@ export default function PartnerSettlementSnapshotPage({ params }: { params: Prom
       <DetailCard className="snapshot-basic-card" title="结算基本信息" subtitle={`${batch.period_start} ～ ${batch.period_end}`}><div className="snapshot-status-line"><span className={`status-badge ${batch.status === "confirmed" ? "success" : "muted-badge"}`}>{batch.status === "confirmed" ? "已结算" : "已撤销"}</span></div><DetailGrid><DetailItem label="房源" value={propertyName} /><DetailItem label="确认时间" value={new Date(batch.confirmed_at).toLocaleString("zh-CN")} /><DetailItem label="确认人" value={<>{confirmedBy}{!batch.confirmed_by_display_name_snapshot ? <small className="muted">（账号标识已保留）</small> : null}</>} />{batch.reversed_at ? <DetailItem label="撤销时间" value={new Date(batch.reversed_at).toLocaleString("zh-CN")} /> : null}{batch.reversed_by_account_id ? <DetailItem label="撤销账号" value="已记录" /> : null}{batch.reversal_reason ? <DetailItem label="撤销原因" value={batch.reversal_reason} /> : null}{batch.note ? <DetailItem label="备注" value={batch.note} /> : null}</DetailGrid></DetailCard>
       <DetailCard title="汇总金额"><DetailGrid><DetailItem label="收入" value={<MoneyValue value={Number(batch.total_income)} tone="income" />} tone="income" /><DetailItem label="支出" value={<MoneyValue value={Number(batch.total_expense)} tone="expense" />} tone="expense" /><DetailItem label="净利润" value={<MoneyValue value={Number(batch.net_profit)} tone={Number(batch.net_profit) < 0 ? "loss" : "profit"} />} tone={Number(batch.net_profit) < 0 ? "loss" : "profit"} /></DetailGrid></DetailCard>
 
-      <DetailCard title="比例分段">{data.segments.map((segment, index) => <article className="snapshot-segment" key={segment.id}><h4>比例分段 {index + 1}</h4><p className="snapshot-period">{segment.segment_start} ～ {segment.segment_end}</p><div className="snapshot-share-list">{segmentShares(segment.shares_snapshot, data.partners).map((share: any, shareIndex: number) => <span key={`${share.name}-${shareIndex}`}>{share.name}（{share.percentage}%）{share.legacyCode ? <small className="muted">兼容归属代码：{share.legacyCode}</small> : null}</span>)}</div><DetailGrid><DetailItem label="收入" value={<MoneyValue value={Number(segment.total_income)} tone="income" />} tone="income" /><DetailItem label="支出" value={<MoneyValue value={Number(segment.total_expense)} tone="expense" />} tone="expense" /><DetailItem label="净利润" value={<MoneyValue value={Number(segment.net_profit)} tone={Number(segment.net_profit) < 0 ? "loss" : "profit"} />} tone={Number(segment.net_profit) < 0 ? "loss" : "profit"} /></DetailGrid></article>)}</DetailCard>
+      <DetailCard title="结算明细">{data.segments.map((segment) => <article className="snapshot-segment" key={segment.id}><h4>{segmentLabel(segment, propertyName)}</h4><p className="snapshot-period">{segment.segment_start} ～ {segment.segment_end}</p><div className="snapshot-share-list">{segmentShares(segment.shares_snapshot, data.partners).map((share: any, shareIndex: number) => <span key={`${share.name}-${shareIndex}`}>{share.name}（{share.percentage}%）{share.legacyCode ? <small className="muted">兼容归属代码：{share.legacyCode}</small> : null}</span>)}</div><DetailGrid><DetailItem label="收入" value={<MoneyValue value={Number(segment.total_income)} tone="income" />} tone="income" /><DetailItem label="支出" value={<MoneyValue value={Number(segment.total_expense)} tone="expense" />} tone="expense" /><DetailItem label="净利润" value={<MoneyValue value={Number(segment.net_profit)} tone={Number(segment.net_profit) < 0 ? "loss" : "profit"} />} tone={Number(segment.net_profit) < 0 ? "loss" : "profit"} /></DetailGrid></article>)}</DetailCard>
 
       <DetailCard title="最终转账建议">{data.transfers.length ? data.transfers.map((transfer) => <p className="snapshot-transfer-line" key={transfer.id}><strong>{transfer.from_name_snapshot}</strong> 转给 <strong>{transfer.to_name_snapshot}</strong><MoneyValue value={Number(transfer.amount)} tone="loss" /></p>) : <p className="muted">本次无需相互转账</p>}</DetailCard>
 

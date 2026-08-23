@@ -1311,3 +1311,8 @@
 - Added the single-owner settlement 100% in-memory fallback so the existing confirmation snapshot flow can create one-participant settlement history without changing settlement formulas or schema.
 - Unified appointment queue ordering for future pending, past pending and history, added homepage reuse, and added compact quick status actions with existing permission and persistence boundaries.
 - No database migration, database mutation, real-user data change or Production deployment.
+
+## 2026-08-23 - Settlement history detail presentation closeout (Preview)
+
+- Settlement history snapshot surfaces now use the shared light/dark theme tokens, and snapshot segments display the property name with a natural fallback instead of internal segment labels.
+- No settlement data, calculation, overlap protection, authorization, database, real-user data or Production behavior changed.

@@ -7424,6 +7424,24 @@ td:last-child {
 .settlement-history-card-body{display:grid;gap:10px;padding:14px 14px 13px}.settlement-history-property{font-size:1rem;line-height:1.35;overflow-wrap:anywhere}.settlement-history-period{color:var(--muted-text,#94a3b8);font-variant-numeric:tabular-nums}.settlement-history-summary-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}.settlement-history-money-item{display:grid;gap:5px;min-width:0;padding:9px;border:1px solid var(--border);border-radius:var(--ui-radius-md,12px);background:color-mix(in srgb,var(--surface-soft) 74%,transparent);font-variant-numeric:tabular-nums}.settlement-history-money-item>span{color:var(--muted);font-size:.76rem;font-weight:750}.settlement-history-money-item>strong{text-align:right}.settlement-history-allocation,.settlement-history-transfers{display:grid;gap:6px;border-top:1px solid rgba(148,163,184,.16);padding-top:9px}.settlement-history-allocation-title,.settlement-history-transfers>strong{font-size:.82rem;color:var(--muted-text,#94a3b8)}.settlement-history-partner{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:9px;align-items:baseline;font-variant-numeric:tabular-nums}.settlement-history-partner>strong{min-width:0;overflow-wrap:anywhere}.settlement-history-partner>span:last-child{white-space:nowrap;text-align:right}.settlement-history-transfers span{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.settlement-history-reversal{display:grid;gap:4px;color:var(--muted-text,#94a3b8);font-size:.84rem}.settlement-history-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid rgba(148,163,184,.16);padding-top:10px}.settlement-history-card-footer .btn{white-space:nowrap}.settlement-history-card>summary{display:none}.settlement-history-card-actions{display:none}
 @media(max-width:640px){.settlement-history-card-body{padding:13px 12px}.settlement-history-summary-metrics{gap:5px;font-size:.78rem}.settlement-history-summary-metrics span{white-space:nowrap}.settlement-history-partner{grid-template-columns:minmax(0,1fr) auto auto;gap:5px;font-size:.88rem}.settlement-history-card-footer{padding-top:9px}.settlement-history-card-footer .btn{font-size:.84rem}}
 
+/* Settlement snapshot presentation follows the shared light/dark theme tokens. */
+.settlement-history-card,
+.settlement-snapshot-page { color: var(--text); }
+.settlement-history-card { border-color: var(--border); background: var(--surface); }
+.settlement-snapshot-page .snapshot-meta { color: var(--muted); }
+.settlement-snapshot-page .snapshot-section,
+.settlement-snapshot-page .snapshot-reversal { border-color: var(--border); }
+.settlement-snapshot-page .snapshot-segment,
+.settlement-history-card .settlement-history-allocation,
+.settlement-history-card .settlement-history-transfers,
+.settlement-history-card .settlement-history-card-footer { border-color: color-mix(in srgb, var(--border) 70%, transparent); }
+.settlement-snapshot-page .snapshot-segment pre { color: var(--muted); }
+.settlement-history-card .settlement-history-period,
+.settlement-history-card .settlement-history-expand,
+.settlement-history-card .settlement-history-allocation-title,
+.settlement-history-card .settlement-history-transfers > strong,
+.settlement-history-card .settlement-history-reversal { color: var(--muted); }
+
 /* UI Design Standard V1: reusable detail cards and right-aligned money values. */
 .ui-detail-card { display: grid; gap: var(--ui-space-3, 12px); }
 .ui-detail-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ui-space-3, 12px); }
