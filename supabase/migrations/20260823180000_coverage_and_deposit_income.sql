@@ -215,8 +215,8 @@ begin
   end if;
   v_rent_patched := regexp_replace(
     v_rent_block,
-    'client_request_id\s*=\s*excluded\.client_request_id\s*;',
-    'client_request_id=excluded.client_request_id, source_deposit_id=excluded.source_deposit_id;',
+    ';\s*$',
+    ', source_deposit_id=excluded.source_deposit_id;',
     1, 1, 'n'
   );
   if v_rent_patched = v_rent_block then

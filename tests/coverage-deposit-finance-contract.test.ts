@@ -82,5 +82,27 @@ test("restore rent-payment matcher is field-semantic and fail-closed", () => {
   assert.match(migration, /Restore rent payment source-deposit mapping already exists/);
   assert.match(migration, /source_deposit_id=excluded\.source_deposit_id/);
   assert.match(migration, /Restore rent payment source-deposit insertion point not found/);
-  assert.match(migration, /client_request_id\\s\*=\\s\*excluded\\\.client_request_id\\s\*;/);
+  assert.match(migration, /';\\s\*\$'/);
+});
+
+test("rent-payment matcher variants preserve fail-closed behavior", () => {
+  const required = ["payment_status", "income_type", "income_item", "client_request_id"];
+  const mappingPasses = (block: string) => {
+    const normalized = block.replace(/\s+/g, "");
+    return required.every((field) => normalized.includes(`${field}=excluded.${field}`))
+      && !normalized.includes("source_deposit_id=excluded.source_deposit_id")
+      && /;\s*$/.test(block);
+  };
+
+  const reviewed = `
+    payment_status = excluded.payment_status,
+    income_type = excluded.income_type,
+    income_item = excluded.income_item,
+    client_request_id = excluded.client_request_id;
+  `;
+  assert.equal(mappingPasses(reviewed), true);
+  assert.equal(mappingPasses(`client_request_id=excluded.client_request_id, income_item=excluded.income_item, payment_status=excluded.payment_status, income_type=excluded.income_type;`), true);
+  assert.equal(mappingPasses(`payment_status=excluded.payment_status, income_type=excluded.income_type, client_request_id=excluded.client_request_id;`), false);
+  assert.equal(mappingPasses(`payment_status=excluded.payment_status, income_type=excluded.income_type, income_item=excluded.income_item;`), false);
+  assert.equal(mappingPasses(`payment_status=excluded.payment_status, income_type=excluded.income_type, income_item=excluded.income_item, client_request_id=excluded.client_request_id, source_deposit_id=excluded.source_deposit_id;`), false);
 });
