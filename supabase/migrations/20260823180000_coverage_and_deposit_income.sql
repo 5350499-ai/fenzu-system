@@ -99,8 +99,10 @@ $migration$;
 do $restore$
 declare
   v_source text;
-  v_marker text;
-  v_replacement text;
+  v_contract_block text;
+  v_contract_patched text;
+  v_contract_start integer;
+  v_contract_end integer;
 begin
   select pg_get_functiondef('public.restore_workspace_backup_impl(uuid,uuid,jsonb)'::regprocedure)
     into v_source;
@@ -108,19 +110,63 @@ begin
     raise exception 'restore_workspace_backup_impl was not found';
   end if;
 
-  v_marker := 'end_date=excluded.end_date, monthly_rent=excluded.monthly_rent, deposit_amount=excluded.deposit_amount, status=excluded.status, notes=excluded.notes, created_at=excluded.created_at, updated_at=excluded.updated_at;';
-  v_replacement := 'end_date=excluded.end_date, coverage_start_date=excluded.coverage_start_date, coverage_end_date=excluded.coverage_end_date, monthly_rent=excluded.monthly_rent, deposit_amount=excluded.deposit_amount, status=excluded.status, notes=excluded.notes, created_at=excluded.created_at, updated_at=excluded.updated_at;';
-  if position(v_marker in v_source) = 0 then
-    raise exception 'Restore contract coverage marker not found';
+  if position('insert into public.contracts select * from jsonb_populate_recordset(null::public.contracts' in v_source) = 0 then
+    raise exception 'Restore contract insert mapping is unknown; refusing to alter it';
   end if;
-  v_source := replace(v_source, v_marker, v_replacement);
 
-  v_marker := 'income_type=excluded.income_type, income_item=excluded.income_item;';
-  v_replacement := 'income_type=excluded.income_type, income_item=excluded.income_item, source_deposit_id=excluded.source_deposit_id;';
-  if position(v_marker in v_source) = 0 then
-    raise exception 'Restore deposit-source marker not found';
+  v_contract_start := position('insert into public.contracts select * from jsonb_populate_recordset(null::public.contracts' in v_source);
+  v_contract_end := position('raise log ''restore_stage=insert_rent_payments_start'';' in substring(v_source from v_contract_start));
+  if v_contract_end = 0 then
+    raise exception 'Restore contract upsert boundary is unknown; refusing to alter it';
   end if;
-  v_source := replace(v_source, v_marker, v_replacement);
+  v_contract_block := substring(v_source from v_contract_start for v_contract_end - 1);
+
+  foreach v_contract_start in array array[
+    position('user_id=excluded.user_id' in v_contract_block),
+    position('property_id=excluded.property_id' in v_contract_block),
+    position('room_id=excluded.room_id' in v_contract_block),
+    position('tenant_id=excluded.tenant_id' in v_contract_block),
+    position('landlord_id=excluded.landlord_id' in v_contract_block),
+    position('monthly_rent=excluded.monthly_rent' in v_contract_block),
+    position('deposit_amount=excluded.deposit_amount' in v_contract_block),
+    position('start_date=excluded.start_date' in v_contract_block),
+    position('end_date=excluded.end_date' in v_contract_block),
+    position('is_signed=excluded.is_signed' in v_contract_block),
+    position('is_active=excluded.is_active' in v_contract_block),
+    position('status=excluded.status' in v_contract_block),
+    position('file_url=excluded.file_url' in v_contract_block),
+    position('storage_path=excluded.storage_path' in v_contract_block),
+    position('notes=excluded.notes' in v_contract_block),
+    position('created_at=excluded.created_at' in v_contract_block),
+    position('updated_at=excluded.updated_at' in v_contract_block)
+  ] loop
+    if v_contract_start = 0 then
+      raise exception 'Restore contract relationship or field mapping is incomplete; refusing to alter it';
+    end if;
+  end loop;
+
+  if position('coverage_start_date=excluded.coverage_start_date' in v_contract_block) > 0
+     or position('coverage_end_date=excluded.coverage_end_date' in v_contract_block) > 0 then
+    raise exception 'Restore contract coverage mapping already exists in an unknown shape; refusing to alter it';
+  end if;
+  v_contract_patched := regexp_replace(
+    v_contract_block,
+    'start_date\s*=\s*excluded\.start_date\s*,\s*end_date\s*=\s*excluded\.end_date\s*,',
+    'start_date=excluded.start_date, end_date=excluded.end_date, coverage_start_date=excluded.coverage_start_date, coverage_end_date=excluded.coverage_end_date,',
+    1, 1, 'n'
+  );
+  if v_contract_patched = v_contract_block then
+    raise exception 'Restore contract coverage insertion point not found; refusing to alter it';
+  end if;
+  v_source := replace(v_source, v_contract_block, v_contract_patched);
+
+  if position('income_type=excluded.income_type, income_item=excluded.income_item;' in v_source) = 0 then
+    raise exception 'Restore deposit-source mapping marker not found';
+  end if;
+  v_source := replace(v_source,
+    'income_type=excluded.income_type, income_item=excluded.income_item;',
+    'income_type=excluded.income_type, income_item=excluded.income_item, source_deposit_id=excluded.source_deposit_id;'
+  );
 
   execute v_source;
 end;
