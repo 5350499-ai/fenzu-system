@@ -1316,3 +1316,9 @@
 
 - Settlement history snapshot surfaces now use the shared light/dark theme tokens, and snapshot segments display the property name with a natural fallback instead of internal segment labels.
 - No settlement data, calculation, overlap protection, authorization, database, real-user data or Production behavior changed.
+
+## 2026-08-23 - Settlement closeout Production deployment
+
+- Production deployed the user-accepted settlement closeout at HEAD `c5298050d5628ed4766be2f698f2f7c01c9b5016`; deployment `dpl_8mBHsGf22MMrhgG39WT75y1eK2Aw` is READY at `https://fenzu-system.vercel.app`.
+- The `baseline-core-runtime-pass-20260823-1845` anchor remains the core recovery reference. Free-single settlement, yesterday boundary, rolling three months, reversal, light-theme history detail and property segment labels are recorded as accepted; true overlap protection was real-runtime verified.
+- The multi-property batch false overlap warning remains PARKED. Save-latency performance audit is PARKED. No database migration, real-user data change or additional business behavior changed.
