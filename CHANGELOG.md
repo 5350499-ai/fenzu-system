@@ -1292,3 +1292,10 @@
 - Added a shared `PasswordInput` control across authentication, account-security and managed-account forms. A non-empty password field now provides an accessible 44px clear action that preserves focus without submitting the form; existing Account Center show/hide behavior remains parent-owned.
 - Replaced Property Profit monthly profit/loss bare text with the existing positive/negative status badge system without changing the three-region financial layout or any calculations.
 - No business logic, data, schema, migration, real-user data or Production behavior changed.
+
+## 2026-08-23 - Ledger zero-history and settlement/appointment operations (Preview)
+
+- Scoped historical zero-value filtering to manual income and expense ledger lists; rent due, deposit, debt, reminder, settlement and analytics zero-value semantics remain unchanged.
+- Added the single-owner settlement 100% in-memory fallback so the existing confirmation snapshot flow can create one-participant settlement history without changing settlement formulas or schema.
+- Unified appointment queue ordering for future pending, past pending and history, added homepage reuse, and added compact quick status actions with existing permission and persistence boundaries.
+- No database migration, database mutation, real-user data change or Production deployment.

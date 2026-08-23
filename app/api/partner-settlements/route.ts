@@ -33,7 +33,7 @@ function displayPartner(value: string | undefined, partners: Partner[]) {
   return partners.find((partner) => partner.id === normalized || partner.displayName === normalized || (partner.legacyCode || "").toUpperCase() === upper)?.displayName || normalized || "未分配";
 }
 
-async function loadInputs(ownerId: string) {
+async function loadInputs(ownerId: string, singleOwnerFallback = false) {
   const admin = getSupabaseAdmin();
   const [propertiesResult, partnersResult, sharesResult, paymentsResult, expensesResult] = await Promise.all([
     admin.from("properties").select("id,name,address,city").eq("user_id", ownerId),
@@ -48,7 +48,7 @@ async function loadInputs(ownerId: string) {
   const shares = (sharesResult.data || []).map((row) => ({ id: row.id, workspaceOwnerId: row.workspace_owner_id, propertyId: row.property_id, partnerId: row.partner_id, percentage: Number(row.percentage), effectiveFrom: row.effective_from, effectiveTo: row.effective_to })) as PartnerPropertyShare[];
   const payments = (paymentsResult.data || []).map((row) => ({ id: row.id, propertyId: row.property_id || "", roomId: row.room_id || "", tenantId: row.tenant_id || "", incomeType: row.income_type, incomeItem: row.income_item || "", rentMonth: String(row.rent_month || "").slice(0, 7), paymentDate: row.payment_date || "", amountDue: Number(row.amount_due || 0), amountPaid: Number(row.amount_paid || 0), amountUnpaid: Number(row.amount_unpaid || 0), coverageStartDate: row.coverage_start_date || "", coverageEndDate: row.coverage_end_date || "", paymentMethod: row.payment_method || "", receivedBy: row.received_by || "", paymentStatus: row.payment_status || "", isOverdue: Boolean(row.is_overdue), notes: row.notes || "" })) as BusinessRentPayment[];
   const expenses = (expensesResult.data || []).map((row) => ({ id: row.id, propertyId: row.property_id || "", roomId: row.room_id || "", expenseMonth: String(row.expense_month || "").slice(0, 7), category: row.category || "", amount: Number(row.amount || 0), paymentDate: row.payment_date || "", paymentMethod: row.payment_method || "", paidBy: row.paid_by || "", isPaid: Boolean(row.is_paid), notes: row.notes || "" })) as BusinessExpense[];
-  return { properties: propertiesResult.data || [], partners, shares, payments, expenses };
+  return { properties: propertiesResult.data || [], partners, shares, payments, expenses, singleOwnerFallback };
 }
 
 export async function GET(request: Request) {
@@ -80,14 +80,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request, true);
+    const singleOwnerFallback = isFreeSingleAccount(context);
+    if (singleOwnerFallback) await ensureFreeSingleMember(context);
     const body = await parseJson(request) as Record<string, unknown>;
     const propertyId = String(body.propertyId || "");
     const startDate = String(body.startDate || "");
     const endDate = String(body.endDate || "");
     if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(endDate) || startDate > endDate) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
     if (!propertyId || propertyId === "all") throw new AccountApiError("确认结算时必须选择一套房源。", 400, "property_required");
-    const inputs = await loadInputs(context.profile.workspace_owner_id);
-    const settlement = buildSettlement(propertyId, { startDate, endDate }, inputs.properties, inputs.partners, inputs.shares, inputs.payments, inputs.expenses);
+    const inputs = await loadInputs(context.profile.workspace_owner_id, singleOwnerFallback);
+    const settlement = buildSettlement(propertyId, { startDate, endDate }, inputs.properties, inputs.partners, inputs.shares, inputs.payments, inputs.expenses, undefined, inputs.singleOwnerFallback);
     if (!settlement.coverageComplete) {
       const ranges = settlement.uncoveredRanges.map((range) => `${range.startDate} 至 ${range.endDate}`).join("、");
       throw new AccountApiError(`所选结算期间存在未配置利润比例的日期：${ranges || `${startDate} 至 ${endDate}`}。请先调整该房源首个比例方案起始日。`, 409, "share_coverage_incomplete");

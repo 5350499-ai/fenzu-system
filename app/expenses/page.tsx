@@ -40,6 +40,7 @@ import { partnerDisplayClass, partnerDisplayLabel, usePartnerDirectoryState, typ
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { matchesFinanceSearch } from "@/lib/finance-search";
+import { isManualExpenseLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -149,8 +150,9 @@ export default function ExpensesPage() {
 
   const filteredExpenses = useMemo(
     () =>
-      expenses.filter(
+        expenses.filter(
         (expense) =>
+          isManualExpenseLedgerVisible(expense) &&
           selectedPropertyIds.includes(expense.propertyId) &&
           (!categoryFilter || expense.category === categoryFilter) &&
           isDateInRange(expense.paymentDate, { startDate: dateStart, endDate: dateEnd }) &&

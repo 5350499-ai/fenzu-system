@@ -2,6 +2,7 @@ import type { BusinessExpense, BusinessRentPayment } from "./business-data";
 import type { Partner, PartnerPropertyShare } from "./partners";
 // Settlement and profit use the same canonical accounting-date and received-amount rules.
 import { paymentAccountingDate, rentIncomeForPayment } from "./profit";
+import { settlementSharesForProperty } from "./single-owner-settlement";
 
 function isMonthInRange(month: string | null | undefined, range: SettlementRange) {
   if (!month) return false;
@@ -160,7 +161,8 @@ export function buildSettlement(
   shares: PartnerPropertyShare[],
   payments: BusinessRentPayment[],
   expenses: BusinessExpense[],
-  accountAlias?: string | null
+  accountAlias?: string | null,
+  singleOwnerFallback = false
 ): SettlementResult {
   const invalidRange = !validDate(range.startDate) || !validDate(range.endDate) || range.startDate > range.endDate;
   const propertyIds = Array.isArray(propertyId) ? propertyId : propertyId === "all" ? properties.map((property) => property.id) : [propertyId];
@@ -172,7 +174,8 @@ export function buildSettlement(
   if (invalidRange) return { totalIncome: 0, totalExpense: 0, netProfit: 0, segments, partners: [...stats.values()], transfers: [], unknownAttributions, invalidRange, coverageComplete: false, uncoveredRanges, baseIncomeTotal: 0, baseExpenseTotal: 0, segmentIncomeTotal: 0, segmentExpenseTotal: 0 };
 
   for (const scopedPropertyId of propertyIds) {
-    for (const segment of buildSegments(scopedPropertyId, range, shares)) {
+    const scopedShares = settlementSharesForProperty(scopedPropertyId, range.startDate, shares, partners, singleOwnerFallback);
+    for (const segment of buildSegments(scopedPropertyId, range, scopedShares)) {
       if (!segment.shares.length) uncoveredRanges.push({ propertyId: scopedPropertyId, startDate: segment.startDate, endDate: segment.endDate });
       const segmentPayments = payments.filter((payment) => payment.propertyId === scopedPropertyId && inRange(paymentAccountingDate(payment), { startDate: segment.startDate, endDate: segment.endDate }) && !isVoided(payment.notes));
       const segmentExpenses = expenses.filter((expense) => expense.propertyId === scopedPropertyId && inRange(expense.expenseMonth ? `${expense.expenseMonth}-01` : "", { startDate: segment.startDate, endDate: segment.endDate }) && !isVoided(expense.notes));

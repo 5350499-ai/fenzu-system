@@ -51,6 +51,7 @@ import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
 import { allPaymentPropertyScopeIds, paymentMatchesPropertyScope } from "@/lib/property-scope";
 import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { matchesFinanceSearch } from "@/lib/finance-search";
+import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -252,6 +253,7 @@ export default function RentPaymentsPage() {
   );
   const filteredPayments = useMemo(() => {
     return payments.filter((payment) => {
+      if (!isManualIncomeLedgerVisible(payment)) return false;
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
       const tenant = tenants.find((item) => item.id === payment.tenantId);

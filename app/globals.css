@@ -985,6 +985,17 @@ a {
 
 .icon-button.danger { color: var(--red); }
 
+.appointment-quick-status {
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+}
+
 .appointment-status {
   display: inline-flex;
   width: 80px;

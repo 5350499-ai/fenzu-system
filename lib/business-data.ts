@@ -568,7 +568,7 @@ const CACHE_INVALIDATION: Record<string, string[]> = {
   [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
   [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
   [contractKey]: [contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [viewingAppointmentKey]: [viewingAppointmentKey],
+  [viewingAppointmentKey]: [viewingAppointmentKey, "home-summary", "dashboard-v3"],
   [taskKey]: [taskKey, "home-summary"]
 };
 

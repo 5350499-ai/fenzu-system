@@ -54,8 +54,8 @@ export default function PartnershipSettlementPage() {
   const currentKey = `${selectedPropertyIds.join(",")}|${activeRange.startDate}|${activeRange.endDate}`;
   const settlement = useMemo<SettlementResult | null>(() => {
     if (!trialKey || trialKey !== currentKey || !partnerData || !selectedPropertyIds.length) return null;
-    return buildSettlement(selectedPropertyIds, activeRange, properties, partnerData.partners, partnerData.shares, payments, expenses, partnerData.accountAlias);
-  }, [activeRange, currentKey, expenses, partnerData, payments, properties, selectedPropertyIds, trialKey]);
+    return buildSettlement(selectedPropertyIds, activeRange, properties, partnerData.partners, partnerData.shares, payments, expenses, partnerData.accountAlias, access.isFreeSingle);
+  }, [access.isFreeSingle, activeRange, currentKey, expenses, partnerData, payments, properties, selectedPropertyIds, trialKey]);
   const effectiveSettlementCount = countEffectiveSettlementBatches(batches);
   const overlap = useMemo(() => settlement ? batches.find((batch) => batch.status === "confirmed" && selectedPropertyIds.includes(batch.property_id) && batch.period_start <= activeRange.endDate && batch.period_end >= activeRange.startDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
   const exactBatch = useMemo(() => selectedPropertyIds.length === 1 && settlement ? batches.find((batch) => batch.status === "confirmed" && batch.property_id === selectedPropertyIds[0] && batch.period_start === activeRange.startDate && batch.period_end === activeRange.endDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
@@ -115,7 +115,7 @@ export default function PartnershipSettlementPage() {
   async function confirmSettlement() {
     if (busy || !settlement || !selectedPropertyIds.length || overlap || exactBatch || settlement.unknownAttributions.length || settlement.invalidRange) return;
     const propertyNames = selectedPropertyIds.map((id) => properties.find((property) => property.id === id)?.name || id).join("、");
-    const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, payments, expenses, partnerData!.accountAlias) }));
+    const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, payments, expenses, partnerData!.accountAlias, access.isFreeSingle) }));
     if (perProperty.some((item) => !item.result.coverageComplete || item.result.unknownAttributions.length)) { setMessage("所选房源中存在未完成的比例方案或无法识别归属，暂不能确认结算。"); return; }
     if (!window.confirm(`确认保存所选房源的结算快照吗？\n\n房源：${propertyNames}\n期间：${activeRange.startDate} 至 ${activeRange.endDate}\n总收入：${euro(settlement.totalIncome)}\n总支出：${euro(settlement.totalExpense)}\n净利润：${euro(settlement.netProfit)}\n\n确认后不会修改原始账目。`)) return;
     const clientBatchId = crypto.randomUUID();

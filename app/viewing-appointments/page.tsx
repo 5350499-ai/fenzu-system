@@ -5,13 +5,14 @@ import { ModalPortal } from "@/components/modal-portal";
 import { useAccountAccess } from "@/components/account-access";
 import { localToday } from "@/lib/actual-move-out-date";
 import { formatAppointmentLocation, formatManagementAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
+import { sortViewingAppointments } from "@/lib/viewing-appointment-queue";
 import { BusinessProperty, BusinessRoom, BusinessViewingAppointment, getInitialProperties, getInitialRooms, loadBusinessData, propertyKey, roomKey, saveBusinessData, viewingAppointmentKey } from "@/lib/business-data";
 import { CalendarCheck, Edit3, LogIn, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const statuses = ["待看房", "已看房", "已改期", "已成交", "已取消"];
+const statuses = ["待看房", "已看房", "未到场", "已改期", "已成交", "已取消"];
 const customStatus = "其他…";
-const statusOrder = ["待看房", "已看房", "已改期", "已成交", "已取消"];
+const statusOrder = ["待看房", "已看房", "未到场", "已改期", "已成交", "已取消"];
 const today = () => localToday();
 const emptyAppointment: BusinessViewingAppointment = {
   id: "",
@@ -28,6 +29,7 @@ function contactLabel(item: BusinessViewingAppointment) {
 function statusTone(status: string) {
   if (status === "待看房") return "pending";
   if (status === "已看房") return "viewed";
+  if (status === "未到场") return "cancelled";
   if (status === "已改期" || status === "改期") return "rescheduled";
   if (status === "已成交" || status === "已转租客") return "converted";
   if (status === "已取消") return "cancelled";
@@ -66,24 +68,7 @@ export default function ViewingAppointmentsPage() {
 
   const grouped = useMemo(() => {
     const keyFor = (item: BusinessViewingAppointment) => item.status === "已转租客" ? "已成交" : item.status === "改期" ? "已改期" : item.status;
-    return [...appointments].sort((a, b) => {
-      const groupA = statusOrder.indexOf(keyFor(a));
-      const groupB = statusOrder.indexOf(keyFor(b));
-      const rankA = groupA === -1 ? statusOrder.length : groupA;
-      const rankB = groupB === -1 ? statusOrder.length : groupB;
-      if (rankA !== rankB) return rankA - rankB;
-      const locationA = resolveAppointmentLocation(a, properties, rooms);
-      const locationB = resolveAppointmentLocation(b, properties, rooms);
-      const propertyA = locationA.code || "未选房源";
-      const propertyB = locationB.code || "未选房源";
-      if (propertyA !== propertyB) {
-        if (!locationA.code) return 1;
-        if (!locationB.code) return -1;
-        const propertyOrder = propertyA.localeCompare(propertyB, undefined, { numeric: true, sensitivity: "base" });
-        if (propertyOrder !== 0) return propertyOrder;
-      }
-      return `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`);
-    });
+    return sortViewingAppointments(appointments, today());
   }, [appointments, properties, rooms]);
   const groupedSections = useMemo(() => {
     const keyFor = (item: BusinessViewingAppointment) => item.status === "已转租客" ? "已成交" : item.status === "改期" ? "已改期" : item.status;
@@ -150,6 +135,20 @@ export default function ViewingAppointmentsPage() {
     }
   }
 
+  async function updateStatus(item: BusinessViewingAppointment, status: "已看房" | "未到场" | "已取消") {
+    if (!access.can("properties", "edit") || saving) return;
+    setSaving(true);
+    try {
+      const next = appointments.map((current) => current.id === item.id ? { ...current, status } : current);
+      await saveBusinessData(viewingAppointmentKey, next);
+      setAppointments(next);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "更新预约状态失败。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <AppLayout title="看房预约" description="记录和管理潜在租客的看房时间。">
       <section className="card panel appointment-page-panel">
@@ -164,12 +163,12 @@ export default function ViewingAppointmentsPage() {
           if (location) return <article className="appointment-row" key={item.id}>
             <div className="appointment-main-line"><strong>{formatManagementAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{contactLabel(item)}</span><small className={`appointment-status status-${statusTone(item.status)}`}><i className={`appointment-status-dot ${statusTone(item.status)}`} aria-hidden="true" />{item.status}</small></div>
             <div className="appointment-meta-line"><span className={`property-code property-tone-${location.tone}`}>{location.code || "未选房源"}</span><span> · {location.roomLabel}</span>{item.notes ? <small className="appointment-note">{item.notes}</small> : null}</div>
-            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button>{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
+            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button><QuickStatusMenu disabled={saving || !access.can("properties", "edit")} onChange={(status) => void updateStatus(item, status)} />{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
           </article>;
           return <article className="appointment-row" key={item.id}>
             <div className="appointment-main-line"><strong>{formatManagementAppointmentDateTime(item.appointmentDate, item.appointmentTime)}</strong><span>{formatAppointmentLocation(property?.name, room?.roomNumber || room?.name)}</span><span>{contactLabel(item)}</span></div>
             <div className="appointment-meta-line"><small className={`appointment-status status-${statusTone(item.status)}`}>{item.status}</small>{item.notes ? <small className="appointment-note">{item.notes}</small> : null}</div>
-            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button>{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
+            <div className="appointment-actions"><button className="icon-button" type="button" aria-label="编辑预约" onClick={() => openForm(item)}><Edit3 size={16} /></button><QuickStatusMenu disabled={saving || !access.can("properties", "edit")} onChange={(status) => void updateStatus(item, status)} />{statusTone(item.status) === "converted" ? <button className="icon-button" type="button" aria-label="一键入住" onClick={() => { const params = new URLSearchParams({ fromViewing: "1", propertyId: item.propertyId || "", roomId: item.roomId || "", tenantName: item.contactName || "", phone: item.contactPhone || item.contactWhatsapp || "", notes: item.notes || "" }); window.location.href = `/check-in?${params.toString()}`; }}><LogIn size={16} /></button> : null}<button className="icon-button danger" type="button" aria-label="删除预约" onClick={() => void remove(item)} disabled={saving}><Trash2 size={16} /></button></div>
           </article>;
         })}</div></section>)}</div> : <p className="muted">暂无看房预约</p>}
       </section>
@@ -191,4 +190,8 @@ export default function ViewingAppointmentsPage() {
       </section></div></ModalPortal> : null}
     </AppLayout>
   );
+}
+
+function QuickStatusMenu({ disabled, onChange }: { disabled: boolean; onChange: (status: "已看房" | "未到场" | "已取消") => void }) {
+  return <select className="appointment-quick-status" aria-label="快捷更新预约状态" value="" disabled={disabled} onChange={(event) => { const value = event.target.value as "已看房" | "未到场" | "已取消"; if (value) onChange(value); }}><option value="">状态</option><option value="已看房">已看房</option><option value="未到场">未到场</option><option value="已取消">已取消</option></select>;
 }

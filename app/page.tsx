@@ -36,6 +36,7 @@ import {
 import { euro } from "@/lib/format";
 import { localToday } from "@/lib/actual-move-out-date";
 import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
+import { selectHomepageAppointments } from "@/lib/viewing-appointment-queue";
 import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
 import { buildEffectiveReminders, summarizeEffectiveReminders } from "@/lib/reminder-engine";
 import { getValidSupabaseSession } from "@/lib/supabase";
@@ -197,10 +198,7 @@ export default function DashboardPage() {
     [reminders]
   );
   const today = localToday();
-  const pendingAppointments = useMemo(() => [...viewingAppointments]
-    .filter((item) => item.status === "待看房" && item.appointmentDate >= today)
-    .sort((a, b) => `${a.appointmentDate}T${a.appointmentTime}`.localeCompare(`${b.appointmentDate}T${b.appointmentTime}`))
-    , [today, viewingAppointments]);
+  const pendingAppointments = useMemo(() => selectHomepageAppointments(viewingAppointments, today), [today, viewingAppointments]);
   const upcomingAppointments = pendingAppointments.slice(0, 3);
 
   return (
