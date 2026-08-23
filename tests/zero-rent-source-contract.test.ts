@@ -68,10 +68,10 @@ test("appointment actions occupy semantic row owners instead of spanning both ro
 
 test("shared-room eligibility correction removes only the historical blockers", () => {
   assert.match(eligibilityMigration, /create_atomic_check_in\(uuid,uuid,uuid,text,text,text,numeric,numeric,numeric,smallint/);
-  assert.match(eligibilityMigration, /canonical create_atomic_check_in eligibility predicate does not match/);
-  assert.match(eligibilityMigration, /coalesce\(v_room\.status, ''\) in \('已租', 'occupied'\)/);
-  assert.match(eligibilityMigration, /status in \('在租', 'current'\)/);
-  assert.match(eligibilityMigration, /coalesce\(v_room\.status, ''\) like/);
+  assert.match(eligibilityMigration, /canonical create_atomic_check_in reviewed structure does not match/);
+  assert.match(eligibilityMigration, /v_old text := .*已租.*occupied/);
+  assert.match(eligibilityMigration, /v_old text := .*在租.*current/);
+  assert.match(eligibilityMigration, /v_new text := .*coalesce\(v_room\.status/);
   assert.doesNotMatch(eligibilityMigration, /capacity|max_?occup|remaining beds|满员|床位/i);
   assert.match(checkIn, /const availableRooms = rooms\.filter\(\(room\) => room\.propertyId === form\.propertyId && room\.status !== "已归档"\)/);
   assert.doesNotMatch(checkIn, /availableRooms[\s\S]{0,220}room\.status\s*!==\s*["']已租|availableRooms[\s\S]{0,220}occupied/);
@@ -80,6 +80,18 @@ test("shared-room eligibility correction removes only the historical blockers", 
 test("shared-room correction does not change RPC permission owners", () => {
   assert.doesNotMatch(eligibilityMigration, /grant\s+execute|revoke\s+all|security\s+definer|search_path/i);
   assert.doesNotMatch(eligibilityMigration, /occupant_count/i);
+  assert.ok(eligibilityMigration.includes(String.raw`v_normalized := regexp_replace(v_function, '\s+', ' ', 'g');`));
+  assert.match(eligibilityMigration, /reviewed structure does not match; refusing to alter unknown function/);
+  assert.match(eligibilityMigration, /eligibility blockers were not fully removed/);
+});
+
+test("shared-room matcher treats formatting-only changes as equivalent and fails closed on missing markers", () => {
+  const reviewed = `if not found\n  or coalesce(v_room.status, '') in ('已租', 'occupied')\n  or exists (\n    select 1 from public.tenants\n    where room_id = p_room_id\n      and status in ('在租', 'current')\n  )\n  or coalesce(v_room.status, '') like`;
+  const normalize = (value: string) => value.replace(/\s+/g, " ");
+  const expected = "if not found or coalesce(v_room.status, '') in ('已租', 'occupied') or exists ( select 1 from public.tenants where room_id = p_room_id and status in ('在租', 'current') ) or coalesce(v_room.status, '') like";
+  assert.equal(normalize(reviewed), expected);
+  assert.notEqual(normalize(reviewed.replace("status in ('在租', 'current')", 'status in (\'已租\')')), expected);
+  assert.match(eligibilityMigration, /position\(v_old in v_normalized\) = 0/);
 });
 
 test("move-out room status remains derived from remaining active tenants", () => {
