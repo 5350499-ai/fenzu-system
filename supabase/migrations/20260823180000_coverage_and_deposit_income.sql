@@ -130,7 +130,7 @@ begin
     || E'      ) end\n'
     || E'      from jsonb_array_elements(coalesce(p_data->''contracts'', ''[]''::jsonb)) x\n'
     || E'      left join public.contracts c on c.id=(x->>''id'')::uuid and c.user_id=p_workspace_owner_id\n'
-    || E'    ), ''[]''::jsonb),\n'
+    || E'    )), ''[]''::jsonb),\n'
     || E'    true\n'
     || E'  );';
   if position(v_marker in v_source) = 0 then
