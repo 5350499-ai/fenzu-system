@@ -27,6 +27,7 @@ import {
 import { formatFileSize, uploadContractFile } from "@/lib/contract-files";
 import { ATTACHMENT_FILE_ACCEPT, prepareAttachmentFile } from "@/lib/attachment-file-limits";
 import { uploadRentPaymentFile } from "@/lib/rent-payment-files";
+import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
 import { isCoverageExpired, monthEnd, monthStart } from "@/lib/rent-coverage";
 import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
@@ -187,13 +188,13 @@ export default function CheckInPage() {
       const result = payload?.result as {
         tenantId: string;
         contractId: string;
-        rentPaymentId: string;
+        rentPaymentId?: string | null;
         depositId?: string | null;
         monthlyRent: number;
       };
       const tenantId = result.tenantId;
       const contractId = result.contractId;
-      const paymentId = result.rentPaymentId;
+      const paymentId = result.rentPaymentId || "";
       const effectiveMonthlyRent = Number(result.monthlyRent ?? form.amountPaid ?? 0);
       const nextTenant: BusinessTenant = {
         id: tenantId,
@@ -256,12 +257,14 @@ export default function CheckInPage() {
         notes: form.notes
       };
       nextPayment.isOverdue = isCoverageExpired(nextPayment);
+      const hasRentPayment = Boolean(paymentId) && hasMeaningfulRentState(nextPayment);
 
       let attachmentFailed = false;
       try {
         for (const item of checkInAttachments) {
           if (item.target === "contract") await uploadContractFile(tenantId, contractId, item.file);
-          else await uploadRentPaymentFile(paymentId, item.file);
+          else if (hasRentPayment) await uploadRentPaymentFile(paymentId, item.file);
+          else attachmentFailed = true;
         }
       } catch {
         attachmentFailed = true;
@@ -269,7 +272,7 @@ export default function CheckInPage() {
       setTenants(nextTenants);
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts.filter((contract) => contract.id !== contractId)]);
-      setPayments([nextPayment, ...payments.filter((payment) => payment.id !== paymentId)]);
+      setPayments(hasRentPayment ? [nextPayment, ...payments.filter((payment) => payment.id !== paymentId)] : payments);
       await invalidateBusinessData([tenantKey, roomKey, contractKey, rentPaymentKey, depositKey]);
       setCheckInAttachments([]);
       setAdvancedOpen(false);

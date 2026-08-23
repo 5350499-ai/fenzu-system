@@ -162,7 +162,7 @@ export default function PartnershipSettlementPage() {
   const result = settlement;
   const propertyId = selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : "";
   const coverageBlocked = Boolean(result && !result.coverageComplete);
-  const canConfirm = Boolean(result && selectedPropertyIds.length > 0 && access.isOwner && !coverageBlocked && !overlap && !exactBatch && !result.invalidRange && !result.unknownAttributions.length && !busy);
+  const canConfirm = Boolean(result && selectedPropertyIds.length > 0 && (access.isOwner || access.isFreeSingle) && !coverageBlocked && !overlap && !exactBatch && !result.invalidRange && !result.unknownAttributions.length && !busy);
   if (coverageBlocked && result) return <AppLayout title="合伙结算"><section className="card panel"><h2 className="panel-title">无法开始结算</h2><div className="warning-text">所选结算期间存在未配置利润比例的日期：{result.uncoveredRanges.map((range) => `${range.startDate} 至 ${range.endDate}`).join("、") || `${activeRange.startDate} 至 ${activeRange.endDate}`}。请先调整该房源首个比例方案起始日。</div><a className="btn compact" href="/partners">进入合伙人管理</a></section></AppLayout>;
   return <AppLayout title="合伙结算" description="按房源、比例生效区间和真实收支归属生成动态合伙结算。">
     <section className="card panel settlement-controls">

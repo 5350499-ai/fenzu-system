@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-23 - Zero-rent source separation and mobile acceptance fixes
+
+- Made check-in rent payment creation conditional on meaningful rent due/paid/unpaid state while keeping tenant, contract, room occupancy and deposit work atomic; deposits are no longer folded into rent income.
+- Prevented tenant and renewal flows from creating empty rent placeholders, defaulted manual income entry to `其他收入`, enabled the canonical free-single settlement confirmation path, and stabilized appointment actions into two semantic mobile rows.
+- Added source-level regression coverage. The additive RPC migration is prepared for isolated/authorized execution only; no Production migration, historical-data cleanup, Restore or Production deployment was performed.
+
 ## 2026-08-22 - Global action reachability modal contract
 
 - Moved remaining App-level edit/share/appointment modal call sites out of the `.main` scroll tree and into the shared viewport `ModalPortal` layer.

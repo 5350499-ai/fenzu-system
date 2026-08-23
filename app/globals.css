@@ -877,7 +877,7 @@ a {
 .appointment-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: 28px 22px;
+  grid-template-rows: auto auto;
   align-items: center;
   gap: 5px;
   align-content: center;
@@ -963,13 +963,22 @@ a {
 
 .appointment-actions {
   display: flex;
-  width: 126px;
-  flex: 0 0 126px;
+  width: max-content;
+  max-width: 100%;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 2;
+}
+
+.appointment-row-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .icon-button {
@@ -2174,8 +2183,6 @@ a {
   }
 
   .appointment-actions {
-    width: 122px;
-    flex-basis: 122px;
     gap: 4px;
   }
 

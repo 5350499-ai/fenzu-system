@@ -62,6 +62,7 @@ import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-d
 import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
 import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
 import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
+import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
 import { DebtRow } from "@/components/debt-row";
 import { TenantMonthlyPaymentPanel } from "@/components/tenant-monthly-payment-panel";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
@@ -646,7 +647,8 @@ export default function TenantsPage() {
         ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
         : [nextContract, ...contracts];
       const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode }, newPaymentDepositAmount);
-      const nextPayments = nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
+      const shouldPersistPayment = hasMeaningfulRentState(nextPayment);
+      const nextPayments = !shouldPersistPayment ? payments : nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
         ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
         : [nextPayment, ...payments];
       const nextDeposits = newPaymentDepositAmount > 0
@@ -660,7 +662,7 @@ export default function TenantsPage() {
             status: "已收",
             transactionDate: nextPayment.paymentDate || today(),
             receivedBy: nextPayment.receivedBy,
-            notes: `[收租押金:${nextPayment.id}]`
+            notes: shouldPersistPayment ? `[收租押金:${nextPayment.id}]` : "租客建立时收取押金"
           }, ...deposits]
         : deposits;
       const saved = await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败");

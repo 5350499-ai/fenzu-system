@@ -53,6 +53,7 @@ import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { matchesFinanceSearch } from "@/lib/finance-search";
 import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
+import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -61,7 +62,7 @@ const emptyPayment: BusinessRentPayment = {
   propertyId: "",
   roomId: "",
   tenantId: "",
-  incomeType: "房租收入",
+  incomeType: "其他收入",
   incomeItem: "",
   rentMonth: new Date().toISOString().slice(0, 7),
   paymentDate: new Date().toISOString().slice(0, 10),
@@ -77,7 +78,7 @@ const emptyPayment: BusinessRentPayment = {
   notes: ""
 };
 
-const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["房租收入", "续交房租", "赔偿收入", "其他收入"];
+const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["其他收入", "房租收入", "续交房租", "赔偿收入"];
 
 function defaultCoverageEnd(startDate: string) {
   return startDate ? monthEnd(startDate.slice(0, 7)) : "";
@@ -455,6 +456,10 @@ export default function RentPaymentsPage() {
     }
     if ((!isRent || form.paymentStatus !== "未收") && !isValidManualAmount(Number(form.amountPaid))) {
       window.alert(manualAmountError());
+      return;
+    }
+    if (!form.id && form.incomeType === "续交房租" && !hasMeaningfulRentState({ amountDue: form.amountDue, amountPaid: form.amountPaid, amountUnpaid: form.amountUnpaid })) {
+      window.alert("续交房租必须填写有效的应收、实收或未收金额。");
       return;
     }
     setSaving(true);
