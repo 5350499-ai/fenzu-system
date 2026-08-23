@@ -3,6 +3,8 @@ import type { Partner, PartnerPropertyShare } from "./partners";
 // Settlement and profit use the same canonical accounting-date and received-amount rules.
 import { paymentAccountingDate, rentIncomeForPayment } from "./profit";
 import { settlementSharesForProperty } from "./single-owner-settlement";
+import { isValidSettlementRange, validDate } from "./settlement-date";
+export { isValidSettlementRange, validDate } from "./settlement-date";
 
 function isMonthInRange(month: string | null | undefined, range: SettlementRange) {
   if (!month) return false;
@@ -78,10 +80,6 @@ export function hasSettlementOverlap(
 
 function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function validDate(value: string | null | undefined): value is string {
-  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
 
 function inRange(value: string | null | undefined, range: SettlementRange) {
@@ -164,7 +162,7 @@ export function buildSettlement(
   accountAlias?: string | null,
   singleOwnerFallback = false
 ): SettlementResult {
-  const invalidRange = !validDate(range.startDate) || !validDate(range.endDate) || range.startDate > range.endDate;
+  const invalidRange = !isValidSettlementRange(range.startDate, range.endDate);
   const propertyIds = Array.isArray(propertyId) ? propertyId : propertyId === "all" ? properties.map((property) => property.id) : [propertyId];
   const segments: SettlementSegment[] = [];
   const stats = new Map<string, SettlementPartnerStat>();
