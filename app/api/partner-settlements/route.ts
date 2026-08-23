@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, AccountApiError, isFreeSingleAccount, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
+import { apiErrorResponse, AccountApiError, isFreeSingleAccount, parseJson, requireActiveAccount, requirePropertyAccess, requireSettlementConfirmationAccess, requireSettlementHistoryAccess } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember } from "@/lib/server/free-single-member";
 import { buildSettlement, isVoided } from "@/lib/partner-settlement";
@@ -54,7 +54,7 @@ async function loadInputs(ownerId: string, singleOwnerFallback = false) {
 export async function GET(request: Request) {
   try {
     const context = await requireActiveAccount(request);
-    if (!isFreeSingleAccount(context)) await requireSensitivePermission(context, "can_view_partnership_settlement");
+    await requireSettlementHistoryAccess(context);
     if (isFreeSingleAccount(context)) await ensureFreeSingleMember(context);
     const admin = getSupabaseAdmin();
     const url = new URL(request.url);
@@ -79,8 +79,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const context = await requireActiveAccount(request, true);
+    const context = await requireActiveAccount(request);
     const singleOwnerFallback = isFreeSingleAccount(context);
+    requireSettlementConfirmationAccess(context);
     if (singleOwnerFallback) await ensureFreeSingleMember(context);
     const body = await parseJson(request) as Record<string, unknown>;
     const propertyId = String(body.propertyId || "");
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
     const endDate = String(body.endDate || "");
     if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(endDate) || startDate > endDate) throw new AccountApiError("结算日期范围无效。", 400, "invalid_range");
     if (!propertyId || propertyId === "all") throw new AccountApiError("确认结算时必须选择一套房源。", 400, "property_required");
+    await requirePropertyAccess(context, propertyId);
     const inputs = await loadInputs(context.profile.workspace_owner_id, singleOwnerFallback);
     const settlement = buildSettlement(propertyId, { startDate, endDate }, inputs.properties, inputs.partners, inputs.shares, inputs.payments, inputs.expenses, undefined, inputs.singleOwnerFallback);
     if (!settlement.coverageComplete) {

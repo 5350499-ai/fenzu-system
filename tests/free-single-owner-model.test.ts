@@ -14,6 +14,9 @@ const rentPaymentsPage = readFileSync("app/rent-payments/page.tsx", "utf8");
 const expensesPage = readFileSync("app/expenses/page.tsx", "utf8");
 const depositsPage = readFileSync("app/deposits/page.tsx", "utf8");
 const tenantsPage = readFileSync("app/tenants/page.tsx", "utf8");
+const accountAuth = readFileSync("lib/server/account-auth.ts", "utf8");
+const settlementApi = readFileSync("app/api/partner-settlements/route.ts", "utf8");
+const settlementDetailApi = readFileSync("app/api/partner-settlements/[id]/route.ts", "utf8");
 
 test("free single has a persisted self-only owner directory with 100 percent attribution", () => {
   assert.match(freeSingleMember, /linked_account_id[\s\S]*context\.userId/);
@@ -51,4 +54,18 @@ test("ordinary business loaders cannot be blocked by a partner directory failure
     assert.doesNotMatch(page, /getPartners\(\)\.catch\(\(\) => null\)/);
   }
   assert.match(checkInPage, /const loadedProperties = await loadBusinessData[\s\S]*const partnerData = await getPartners\(\)\.catch/);
+});
+
+test("free-single settlement confirmation uses the canonical server authorization boundary", () => {
+  assert.match(accountAuth, /function isSettlementConfirmationActor/);
+  assert.match(accountAuth, /isFreeSingleWorkspaceOwner\(context\)/);
+  assert.match(settlementApi, /requireSettlementConfirmationAccess\(context\)/);
+  assert.match(settlementApi, /requirePropertyAccess\(context, propertyId\)/);
+  assert.doesNotMatch(settlementApi, /requireActiveAccount\(request, true\)/);
+});
+
+test("settlement history detail keeps free-single parity and property scope", () => {
+  assert.match(settlementDetailApi, /requireSettlementHistoryAccess\(context\)/);
+  assert.match(settlementDetailApi, /requirePropertyAccess\(context, batch\.property_id\)/);
+  assert.match(settlementDetailApi, /eq\("workspace_owner_id", context\.profile\.workspace_owner_id\)/);
 });

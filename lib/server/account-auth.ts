@@ -271,6 +271,21 @@ export function isFreeSingleWorkspaceOwner(context: Pick<AccountRequestContext, 
   return isFreeSingleAccount(context) && context.userId === context.profile.workspace_owner_id;
 }
 
+export function isSettlementConfirmationActor(context: Pick<AccountRequestContext, "userId" | "profile">) {
+  return context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context);
+}
+
+export function requireSettlementConfirmationAccess(context: Pick<AccountRequestContext, "userId" | "profile">) {
+  if (!isSettlementConfirmationActor(context)) {
+    throw new AccountApiError("当前账号没有确认合伙结算的权限。", 403, "settlement_confirmation_forbidden");
+  }
+}
+
+export async function requireSettlementHistoryAccess(context: AccountRequestContext) {
+  if (isSettlementConfirmationActor(context)) return;
+  await requireSensitivePermission(context, "can_view_partnership_settlement");
+}
+
 export async function requireWorkspaceCurrencyPermission(context: AccountRequestContext) {
   if (context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context)) return;
   const admin = getSupabaseAdmin();

@@ -29,6 +29,6 @@ test("free-single settlement read access is explicit and remains least-privilege
   assert.doesNotMatch(freeSingle, /partnership_settlement/);
   assert.match(meApi, /base\.moduleKey === "partnership_settlement"/);
   assert.match(meApi, /key === "canViewPartnershipSettlement"/);
-  assert.match(settlementApi, /if \(!isFreeSingleAccount\(context\)\) await requireSensitivePermission/);
-  assert.match(settlementApi, /requireActiveAccount\(request, true\)/);
+  assert.match(settlementApi, /requireSettlementHistoryAccess\(context\)/);
+  assert.match(settlementApi, /requireSettlementConfirmationAccess\(context\)/);
 });

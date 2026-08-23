@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requireSensitivePermission } from "@/lib/server/account-auth";
+import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requirePropertyAccess, requireSettlementHistoryAccess } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 function settlementErrorResponse(error: unknown) {
@@ -38,11 +38,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireActiveAccount(request);
-    await requireSensitivePermission(context, "can_view_partnership_settlement");
+    await requireSettlementHistoryAccess(context);
     const { id } = await params;
     const admin = getSupabaseAdmin();
     const { data: batch, error } = await admin.from("partner_settlement_batches").select("*").eq("id", id).eq("workspace_owner_id", context.profile.workspace_owner_id).maybeSingle();
     if (error || !batch) throw new AccountApiError("结算快照不存在。", 404, "settlement_not_found");
+    await requirePropertyAccess(context, batch.property_id);
     const [partners, segments, transfers] = await Promise.all([
       admin.from("partner_settlement_partner_snapshots").select("*").eq("settlement_batch_id", id).order("partner_display_name_snapshot"),
       admin.from("partner_settlement_segment_snapshots").select("*").eq("settlement_batch_id", id).order("segment_start"),
