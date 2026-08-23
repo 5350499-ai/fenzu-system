@@ -127,10 +127,10 @@ begin
     || E'      else x || jsonb_build_object(\n'
     || E'        ''coverage_start_date'', coalesce(x->''coverage_start_date'', to_jsonb(c.coverage_start_date)),\n'
     || E'        ''coverage_end_date'', coalesce(x->''coverage_end_date'', to_jsonb(c.coverage_end_date))\n'
-    || E'      ) end\n'
+    || E'      ) end)\n'
     || E'      from jsonb_array_elements(coalesce(p_data->''contracts'', ''[]''::jsonb)) x\n'
     || E'      left join public.contracts c on c.id=(x->>''id'')::uuid and c.user_id=p_workspace_owner_id\n'
-    || E'    )), ''[]''::jsonb),\n'
+    || E'    ), ''[]''::jsonb),\n'
     || E'    true\n'
     || E'  );';
   if position(v_marker in v_source) = 0 then

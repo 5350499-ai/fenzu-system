@@ -67,7 +67,8 @@ test("restore mapping carries both new durability fields", () => {
   assert.match(migration, /jsonb_array_elements\(coalesce\(p_data->''contracts''/);
   assert.match(migration, /c\.coverage_start_date/);
   assert.match(migration, /c\.coverage_end_date/);
-  assert.match(migration, /E'    \)\), ''\[\]''::jsonb\),\\n'/);
+  assert.match(migration, /E'      \) end\)\\n'/);
+  assert.match(migration, /E'    \), ''\[\]''::jsonb\),\\n'/);
 });
 
 test("restore rent-payment matcher is field-semantic and fail-closed", () => {
