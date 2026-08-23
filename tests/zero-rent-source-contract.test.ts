@@ -30,6 +30,9 @@ test("check-in RPC separates deposit cash from rent and makes rent payment optio
   assert.match(migration, /v_total_received := v_rent_paid \+ v_collected_deposit/);
   assert.doesNotMatch(migration, /delete\s+from\s+public\.rent_payments/i);
   assert.doesNotMatch(migration, /update\s+public\.rent_payments/i);
+  assert.match(migration, /revoke all on function public\.create_atomic_check_in\([\s\S]*?\) from public, anon, authenticated/);
+  assert.doesNotMatch(migration, /grant execute on function public\.create_atomic_check_in\([\s\S]*?\) to authenticated/i);
+  assert.doesNotMatch(migration, /occupant_count/);
   assert.match(checkIn, /rentPaymentId\?: string \| null/);
   assert.match(checkIn, /const hasRentPayment = Boolean\(paymentId\) && hasMeaningfulRentState/);
   assert.match(checkIn, /setPayments\(hasRentPayment \?/);

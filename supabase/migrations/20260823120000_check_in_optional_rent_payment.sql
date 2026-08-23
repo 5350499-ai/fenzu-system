@@ -225,10 +225,6 @@ $$;
 revoke all on function public.create_atomic_check_in(
   uuid, uuid, uuid, text, text, text, numeric, numeric, numeric, smallint,
   date, date, date, date, text, text, text, text, text
-) from public, anon;
-grant execute on function public.create_atomic_check_in(
-  uuid, uuid, uuid, text, text, text, numeric, numeric, numeric, smallint,
-  date, date, date, date, text, text, text, text, text
-) to authenticated;
+) from public, anon, authenticated;
 
 commit;
