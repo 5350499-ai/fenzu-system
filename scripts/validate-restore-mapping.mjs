@@ -6,6 +6,7 @@ const exportSource = fs.readFileSync(new URL("../app/api/data-restore/route.ts",
 const restoreSql = fs.readFileSync(new URL("../supabase/migrations/20260805120000_restore_v4_transaction.sql", import.meta.url), "utf8");
 const schemaMigration = fs.readFileSync(new URL("../supabase/migrations/20260806080332_restore_schema_single_source.sql", import.meta.url), "utf8");
 const currentMappingMigration = fs.readFileSync(new URL("../supabase/migrations/20260822100000_restore_full_field_mapping.sql", import.meta.url), "utf8");
+const coverageDepositMappingMigration = fs.readFileSync(new URL("../supabase/migrations/20260823180000_coverage_and_deposit_income.sql", import.meta.url), "utf8");
 
 // Table names define the restore boundary; column names intentionally do not
 // live in this script. The only column source is information_schema/PostgreSQL
@@ -43,7 +44,7 @@ for (const file of fs.readdirSync(new URL("../supabase/migrations/", import.meta
   }
 }
 
-const mappingSource = `${restoreSql}\n${currentMappingMigration}`;
+const mappingSource = `${restoreSql}\n${currentMappingMigration}\n${coverageDepositMappingMigration}`;
 
 for (const table of restoreTables) {
   if (!restoreSql.includes(`insert into public.${table}`)) missing.push(`restore-insert:${table}`);

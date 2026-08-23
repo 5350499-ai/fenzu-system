@@ -54,6 +54,7 @@ import { matchesFinanceSearch } from "@/lib/finance-search";
 import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
+import { projectDepositIncomePayments } from "@/lib/profit";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -78,7 +79,7 @@ const emptyPayment: BusinessRentPayment = {
   notes: ""
 };
 
-const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["其他收入", "房租收入", "续交房租", "赔偿收入"];
+const incomeTypes: NonNullable<BusinessRentPayment["incomeType"]>[] = ["其他收入", "房租收入", "续交房租", "押金收入", "赔偿收入"];
 
 function defaultCoverageEnd(startDate: string) {
   return startDate ? monthEnd(startDate.slice(0, 7)) : "";
@@ -252,8 +253,12 @@ export default function RentPaymentsPage() {
     () => preserveStoredPartnerOption(partnerOptions, form.id ? form.receivedBy : "", partnerDirectory),
     [form.id, form.receivedBy, partnerDirectory, partnerOptions]
   );
+  const ledgerPayments = useMemo(
+    () => [...payments, ...projectDepositIncomePayments(deposits, payments)],
+    [deposits, payments]
+  );
   const filteredPayments = useMemo(() => {
-    return payments.filter((payment) => {
+    return ledgerPayments.filter((payment) => {
       if (!isManualIncomeLedgerVisible(payment)) return false;
       const property = properties.find((item) => item.id === payment.propertyId);
       const room = rooms.find((item) => item.id === payment.roomId);
@@ -283,10 +288,10 @@ export default function RentPaymentsPage() {
       ]) &&
         paymentMatchesPropertyScope(payment.propertyId, selectedPropertyIds) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
-        (!overdueOnly || isLatestExpiredPayment(payment, payments)) &&
+        (!overdueOnly || isLatestExpiredPayment(payment, ledgerPayments)) &&
         (!rentDueOnly || Boolean(tenant && isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments)));
     });
-  }, [dateEnd, dateStart, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
+  }, [dateEnd, dateStart, ledgerPayments, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
   useEffect(() => {
     if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
@@ -706,8 +711,8 @@ export default function RentPaymentsPage() {
   return (
     <AppLayout title="收款管理" description="登记房租、押金、赔偿和其他收入，点击一条记录查看完整信息。">
       <section className="card panel">
-        <div className="panel-header">
-          <div><h2 className="panel-title">收款记录</h2><p className="muted">每次收款只生成一条流水，金额为房租与押金合计。</p></div>
+          <div className="panel-header">
+          <div><h2 className="panel-title">收款记录</h2><p className="muted">房租收入与押金收入分别记账，当前列表展示全部收款流水。</p></div>
           {access.can("rent_payments", "create") ? <button className="btn primary" disabled={!loaded || saving || !partnerOptions.length} onClick={() => { const coverageStartDate = todayString(); historicalOriginalRef.current = null; newPaymentIdRef.current = null; const initialPartner = partnerOptions[0]?.value || ""; setForm({ ...emptyPayment, paymentDate: coverageStartDate, rentMonth: coverageStartDate.slice(0, 7), coverageStartDate, coverageEndDate: defaultCoverageEnd(coverageStartDate), receivedBy: initialPartner }); setPendingFiles([]); setDepositAmount(0); setMonthlyRentStandard(null); setOwnershipMode(initialPartner); setOpen(true); }} type="button"><Plus size={17} /> 登记收款</button> : null}
         </div>
         {storageWarning ? <div className="notice warning">{storageWarning}</div> : null}
@@ -768,13 +773,13 @@ export default function RentPaymentsPage() {
                     onAddFile={(file) => addPaymentFile(payment, file)}
                     onFileDelete={removeFile}
                     saving={saving}
-                    canEdit={canEditHistorical}
-                    canArchive={access.can("rent_payments", "archive")}
-                    canDelete={access.can("rent_payments", "delete")}
-                    canViewFiles={access.can("attachments") && access.canSensitive("canViewRentFiles")}
-                    canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles")}
+                    canEdit={canEditHistorical && !payment.id.startsWith("deposit-income:")}
+                    canArchive={access.can("rent_payments", "archive") && !payment.id.startsWith("deposit-income:")}
+                    canDelete={access.can("rent_payments", "delete") && !payment.id.startsWith("deposit-income:")}
+                    canViewFiles={access.can("attachments") && access.canSensitive("canViewRentFiles") && !payment.id.startsWith("deposit-income:")}
+                    canUploadFiles={access.can("attachments", "create") && access.canSensitive("canUploadFiles") && !payment.id.startsWith("deposit-income:")}
                     canDownloadFiles={access.canSensitive("canDownloadFiles")}
-                    canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles")}
+                    canDeleteFiles={access.can("attachments", "delete") && access.canSensitive("canDeleteFiles") && !payment.id.startsWith("deposit-income:")}
                     showOwnership
                   />
                 ) : null}

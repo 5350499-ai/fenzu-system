@@ -3,12 +3,12 @@
 import { AppLayout } from "@/components/app-layout";
 import { useAccountAccess } from "@/components/account-access";
 import { StatusBadge } from "@/components/status-badge";
-import { BusinessExpense, BusinessProperty, BusinessRentPayment, expenseKey, getInitialExpenses, getInitialProperties, getInitialRentPayments, refreshBusinessData, propertyKey, rentPaymentKey } from "@/lib/business-data";
+import { BusinessDeposit, BusinessExpense, BusinessProperty, BusinessRentPayment, depositKey, expenseKey, getInitialDeposits, getInitialExpenses, getInitialProperties, getInitialRentPayments, refreshBusinessData, propertyKey, rentPaymentKey } from "@/lib/business-data";
 import { buildSettlement, countEffectiveSettlementBatches, SettlementResult } from "@/lib/partner-settlement";
 import { refreshPartners, PartnerWorkspaceData } from "@/lib/partners";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { euro } from "@/lib/format";
-import { isMonthInRange, paymentAccountingDate, rentIncomeForPayment } from "@/lib/profit";
+import { isMonthInRange, paymentAccountingDate, projectDepositIncomePayments, rentIncomeForPayment } from "@/lib/profit";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { cacheManager } from "@/lib/cache/cache-manager";
@@ -19,7 +19,7 @@ import { PropertyMultiSelect } from "@/components/property-multi-select";
 type RangeMode = "previous" | "threeMonths" | "custom";
 type Batch = { id: string; property_id: string; period_start: string; period_end: string; status: "confirmed" | "reversed"; total_income: number; total_expense: number; net_profit: number; confirmed_at: string; confirmed_by_account_id: string | null };
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
-type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
+type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; deposits?: BusinessDeposit[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
 type SettlementPropertyResult = { propertyId: string; propertyName: string; status: "SUCCESS" | "FAILED" | "NOT_ATTEMPTED"; batchId?: string; error?: string };
 type SettlementBatchExecution = { clientBatchId: string; status: "BATCH_FULL_SUCCESS" | "BATCH_PARTIAL_SUCCESS" | "BATCH_FULL_FAILURE"; results: SettlementPropertyResult[] };
 
@@ -38,6 +38,7 @@ export default function PartnershipSettlementPage() {
   const [properties, setProperties] = useState<BusinessProperty[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
+  const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
   const [partnerData, setPartnerData] = useState<PartnerWorkspaceData | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const defaultRange = presetRange("previous");
@@ -51,11 +52,12 @@ export default function PartnershipSettlementPage() {
   const [batchExecution, setBatchExecution] = useState<SettlementBatchExecution | null>(null);
 
   const activeRange = useMemo(() => rangeMode === "custom" ? { startDate: customStartDate, endDate: customEndDate } : presetRange(rangeMode), [customEndDate, customStartDate, rangeMode]);
+  const ledgerPayments = useMemo(() => [...payments, ...projectDepositIncomePayments(deposits, payments)], [deposits, payments]);
   const currentKey = `${selectedPropertyIds.join(",")}|${activeRange.startDate}|${activeRange.endDate}`;
   const settlement = useMemo<SettlementResult | null>(() => {
     if (!trialKey || trialKey !== currentKey || !partnerData || !selectedPropertyIds.length) return null;
-    return buildSettlement(selectedPropertyIds, activeRange, properties, partnerData.partners, partnerData.shares, payments, expenses, partnerData.accountAlias, access.isFreeSingle);
-  }, [access.isFreeSingle, activeRange, currentKey, expenses, partnerData, payments, properties, selectedPropertyIds, trialKey]);
+    return buildSettlement(selectedPropertyIds, activeRange, properties, partnerData.partners, partnerData.shares, ledgerPayments, expenses, partnerData.accountAlias, access.isFreeSingle);
+  }, [access.isFreeSingle, activeRange, currentKey, expenses, ledgerPayments, partnerData, properties, selectedPropertyIds, trialKey]);
   const effectiveSettlementCount = countEffectiveSettlementBatches(batches);
   const overlap = useMemo(() => settlement ? batches.find((batch) => batch.status === "confirmed" && selectedPropertyIds.includes(batch.property_id) && batch.period_start <= activeRange.endDate && batch.period_end >= activeRange.startDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
   const exactBatch = useMemo(() => selectedPropertyIds.length === 1 && settlement ? batches.find((batch) => batch.status === "confirmed" && batch.property_id === selectedPropertyIds[0] && batch.period_start === activeRange.startDate && batch.period_end === activeRange.endDate) || null : null, [activeRange, batches, selectedPropertyIds, settlement]);
@@ -66,10 +68,10 @@ export default function PartnershipSettlementPage() {
     let unsubscribe: (() => void) | undefined;
     const cachedSnapshot = access.userId ? cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId) : null;
       if (cachedSnapshot) {
-      setProperties(cachedSnapshot.properties); setPayments(cachedSnapshot.payments); setExpenses(cachedSnapshot.expenses); setPartnerData(cachedSnapshot.partnerData); setBatches(cachedSnapshot.batches); setSelectedPropertyIds((current) => current.length ? current : cachedSnapshot.properties.map((property) => property.id)); setLoadState("ready");
+      setProperties(cachedSnapshot.properties); setPayments(cachedSnapshot.payments); setExpenses(cachedSnapshot.expenses); setDeposits(cachedSnapshot.deposits || []); setPartnerData(cachedSnapshot.partnerData); setBatches(cachedSnapshot.batches); setSelectedPropertyIds((current) => current.length ? current : cachedSnapshot.properties.map((property) => property.id)); setLoadState("ready");
       unsubscribe = cacheManager.subscribe(access.userId, PARTNER_SETTLEMENT_CACHE_KEY, () => {
         const next = cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId);
-        if (next && !cancelled) { setProperties(next.properties); setPayments(next.payments); setExpenses(next.expenses); setPartnerData(next.partnerData); setBatches(next.batches); setLoadState("ready"); }
+        if (next && !cancelled) { setProperties(next.properties); setPayments(next.payments); setExpenses(next.expenses); setDeposits(next.deposits || []); setPartnerData(next.partnerData); setBatches(next.batches); setLoadState("ready"); }
       });
     }
     async function load() {
@@ -78,17 +80,18 @@ export default function PartnershipSettlementPage() {
         const session = await getValidSupabaseSession();
         if (!session) throw new SettlementPageError("登录已失效，请重新登录。", "unauthorized");
         const headers = { Authorization: `Bearer ${session.access_token}` };
-        const [loadedProperties, loadedPayments, loadedExpenses, partnerPayload, batchPayload] = await Promise.all([
+        const [loadedProperties, loadedPayments, loadedExpenses, loadedDeposits, partnerPayload, batchPayload] = await Promise.all([
           access.can("properties") ? refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : Promise.resolve([]),
           access.can("rent_payments") ? refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : Promise.resolve([]),
           access.can("expenses") ? refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses()) : Promise.resolve([]),
+          access.can("deposits") ? refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : Promise.resolve([]),
           refreshPartners(),
           fetch("/api/partner-settlements", { headers, cache: "no-store" }).then(readApi)
         ]);
         if (!loadedProperties.length) throw new SettlementPageError("当前工作区没有可用房源。", "no_data");
         if (!cancelled) {
-          setProperties(loadedProperties); setSelectedPropertyIds((current) => current.length ? current.filter((id) => loadedProperties.some((property) => property.id === id)) : loadedProperties.map((property) => property.id)); setPayments(loadedPayments); setExpenses(loadedExpenses); setPartnerData(partnerPayload); setBatches(batchPayload.batches || []); setLoadState("ready");
-          void cacheManager.set(PARTNER_SETTLEMENT_CACHE_KEY, { properties: loadedProperties, payments: loadedPayments, expenses: loadedExpenses, partnerData: partnerPayload, batches: batchPayload.batches || [] }, session.user.id);
+          setProperties(loadedProperties); setSelectedPropertyIds((current) => current.length ? current.filter((id) => loadedProperties.some((property) => property.id === id)) : loadedProperties.map((property) => property.id)); setPayments(loadedPayments); setExpenses(loadedExpenses); setDeposits(loadedDeposits); setPartnerData(partnerPayload); setBatches(batchPayload.batches || []); setLoadState("ready");
+          void cacheManager.set(PARTNER_SETTLEMENT_CACHE_KEY, { properties: loadedProperties, payments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, partnerData: partnerPayload, batches: batchPayload.batches || [] }, session.user.id);
         }
       } catch (error) {
         if (cancelled) return;
@@ -115,7 +118,7 @@ export default function PartnershipSettlementPage() {
   async function confirmSettlement() {
     if (busy || !settlement || !selectedPropertyIds.length || overlap || exactBatch || settlement.unknownAttributions.length || settlement.invalidRange) return;
     const propertyNames = selectedPropertyIds.map((id) => properties.find((property) => property.id === id)?.name || id).join("、");
-    const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, payments, expenses, partnerData!.accountAlias, access.isFreeSingle) }));
+    const perProperty = selectedPropertyIds.map((id) => ({ id, result: buildSettlement([id], activeRange, properties, partnerData!.partners, partnerData!.shares, ledgerPayments, expenses, partnerData!.accountAlias, access.isFreeSingle) }));
     if (perProperty.some((item) => !item.result.coverageComplete || item.result.unknownAttributions.length)) { setMessage("所选房源中存在未完成的比例方案或无法识别归属，暂不能确认结算。"); return; }
     if (!window.confirm(`确认保存所选房源的结算快照吗？\n\n房源：${propertyNames}\n期间：${activeRange.startDate} 至 ${activeRange.endDate}\n总收入：${euro(settlement.totalIncome)}\n总支出：${euro(settlement.totalExpense)}\n净利润：${euro(settlement.netProfit)}\n\n确认后不会修改原始账目。`)) return;
     const clientBatchId = crypto.randomUUID();
@@ -186,7 +189,7 @@ export default function PartnershipSettlementPage() {
       {result.totalIncome === 0 && result.totalExpense === 0 ? <p className="muted">该时间段暂无收入和支出记录。</p> : null}
       {result.unknownAttributions.length ? <div className="warning-text">存在无法识别归属的历史账目，当前只能试算，不能确认。</div> : null}
       <section className="card panel"><div className="panel-header"><div><h2 className="panel-title">动态合伙结算</h2><p className="muted">{properties.find((property) => property.id === propertyId)?.name} · {activeRange.startDate} 至 {activeRange.endDate}</p></div>{canConfirm ? <button className="btn primary" type="button" onClick={() => void confirmSettlement()}>确认结算</button> : null}</div><div className="settlement-segment-list">{result.segments.map((segment, index) => <DetailCard className="settlement-segment-card" key={`${segment.propertyId}-${segment.startDate}-${segment.endDate}`} title={properties.find((property) => property.id === segment.propertyId)?.name || "未命名房源"} subtitle={`${segment.startDate} ～ ${segment.endDate}`}><div className="settlement-share-list">{segment.shares.map((share) => <span key={share.partnerId}>{result.partners.find((partner) => partner.partnerId === share.partnerId)?.displayName || "未知"}（{share.percentage}%）</span>)}</div><DetailGrid><DetailItem label="收入" value={<MoneyValue value={segment.income} tone="income" />} tone="income" /><DetailItem label="支出" value={<MoneyValue value={segment.expense} tone="expense" />} tone="expense" /><DetailItem label="净利润" value={<MoneyValue value={segment.netProfit} tone={segment.netProfit < 0 ? "loss" : "profit"} />} tone={segment.netProfit < 0 ? "loss" : "profit"} /></DetailGrid></DetailCard>)}</div><div className="settlement-grid compact-settlement-grid">{result.partners.filter((partner) => partner.collected || partner.advanced || partner.profitEntitlement || partner.balance || result.segments.some((segment) => segment.shares.some((share) => share.partnerId === partner.partnerId))).map((partner) => <article className="settlement-card partner-settlement-card" key={partner.partnerId}><div className="profit-card-head"><div><strong>{partner.displayName}</strong></div><span className="settlement-balance-badge"><StatusBadge tone={partner.balance > 0 ? "amber" : partner.balance < 0 ? "blue" : "green"}>{partner.balance > 0 ? "应付" : partner.balance < 0 ? "应收" : "已平衡"}</StatusBadge></span></div><div className="profit-card-metrics"><span><label>代收</label><b>{euro(partner.collected)}</b></span><span><label>垫付</label><b>{euro(partner.advanced)}</b></span><span><label>实际留存</label><b>{euro(partner.actualRetained)}</b></span><span><label>应得利润</label><b>{euro(partner.profitEntitlement)}</b></span></div><div className="partner-settlement-balance"><span>结算余额</span><strong className={partner.balance < 0 ? "profit" : partner.balance > 0 ? "danger-text" : "muted"}>{euro(partner.balance)}</strong></div></article>)}</div>{result.transfers.length ? <DetailCard className="settlement-transfer-card" title="最终转账建议">{result.transfers.map((transfer) => <p key={`${transfer.fromPartnerId}-${transfer.toPartnerId}`}><strong>{result.partners.find((partner) => partner.partnerId === transfer.fromPartnerId)?.displayName}</strong> 转给 <strong>{result.partners.find((partner) => partner.partnerId === transfer.toPartnerId)?.displayName}</strong> <MoneyValue value={transfer.amount} tone="loss" /></p>)}</DetailCard> : <p className="muted">当前无需互相转账。</p>}</section>
-      <div className="grid dashboard-panels"><CompactDetailList title="收入归属明细" rows={payments.filter((payment) => inRange(paymentAccountingDate(payment), activeRange) && selectedPropertyIds.includes(payment.propertyId) && !isVoided(payment.notes)).map((payment) => ({ id: `income-${payment.id}`, date: paymentAccountingDate(payment), partner: displayPartner(payment.receivedBy, partnerData?.partners || [], partnerData?.accountAlias), type: payment.incomeItem || payment.incomeType || "租金收入", amount: rentIncomeForPayment(payment) }))} /><CompactDetailList title="支出归属明细" rows={expenses.filter((expense) => inRange(expense.paymentDate || `${expense.expenseMonth}-01`, activeRange) && selectedPropertyIds.includes(expense.propertyId) && !isVoided(expense.notes)).map((expense) => ({ id: `expense-${expense.id}`, date: expense.paymentDate || expense.expenseMonth, partner: displayPartner(expense.paidBy, partnerData?.partners || [], partnerData?.accountAlias), type: expense.category, amount: Number(expense.amount || 0) }))} /></div>
+      <div className="grid dashboard-panels"><CompactDetailList title="收入归属明细" rows={ledgerPayments.filter((payment) => inRange(paymentAccountingDate(payment), activeRange) && selectedPropertyIds.includes(payment.propertyId) && !isVoided(payment.notes)).map((payment) => ({ id: `income-${payment.id}`, date: paymentAccountingDate(payment), partner: displayPartner(payment.receivedBy, partnerData?.partners || [], partnerData?.accountAlias), type: payment.incomeItem || payment.incomeType || "租金收入", amount: rentIncomeForPayment(payment) }))} /><CompactDetailList title="支出归属明细" rows={expenses.filter((expense) => inRange(expense.paymentDate || `${expense.expenseMonth}-01`, activeRange) && selectedPropertyIds.includes(expense.propertyId) && !isVoided(expense.notes)).map((expense) => ({ id: `expense-${expense.id}`, date: expense.paymentDate || expense.expenseMonth, partner: displayPartner(expense.paidBy, partnerData?.partners || [], partnerData?.accountAlias), type: expense.category, amount: Number(expense.amount || 0) }))} /></div>
     </>}
   </AppLayout>;
 }

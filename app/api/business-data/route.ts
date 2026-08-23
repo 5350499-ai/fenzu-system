@@ -56,7 +56,7 @@ type BusinessOperation = {
 const RENT_PAYMENT_IDENTITY_FIELDS = [
   "tenant_id", "property_id", "room_id", "rent_month", "income_type", "income_item",
   "payment_date", "amount_due", "amount_paid", "amount_unpaid", "coverage_start_date",
-  "coverage_end_date", "received_by", "payment_status", "payment_method", "is_overdue", "notes"
+  "coverage_end_date", "received_by", "payment_status", "payment_method", "is_overdue", "notes", "source_deposit_id"
 ] as const;
 
 function rentPaymentIdentityFingerprint(row: Record<string, unknown>) {

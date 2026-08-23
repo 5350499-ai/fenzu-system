@@ -470,7 +470,7 @@ export default function TenantsPage() {
       return;
     }
     const contract = latestContractForTenant(tenant.id, contracts);
-    const currentCoverage = latestCoverageForTenant(tenant.id, payments);
+    const currentCoverage = latestCoverageForTenant(tenant.id, payments, contracts);
     setForm(tenant);
     setContractForm({ startDate: contract?.startDate || today(), endDate: contract?.endDate || "" });
     setPaymentForm({
@@ -545,18 +545,15 @@ export default function TenantsPage() {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
       if (form.id) {
         if (!previousTenant) throw new Error("租客不存在，请刷新后重试。");
-        const currentCoverage = latestCoverageForTenant(form.id, payments);
+        const currentContract = latestContractForTenant(form.id, contracts);
+        const currentCoverage = latestCoverageForTenant(form.id, payments, contracts);
         const coverageStartDate = paymentForm.coverageStartDate || "";
         const coverageEndDate = paymentForm.coverageEndDate || "";
-        if (currentCoverage && (!coverageStartDate || !coverageEndDate || coverageStartDate > coverageEndDate)) {
+        if ((coverageStartDate || coverageEndDate) && (!coverageStartDate || !coverageEndDate || coverageStartDate > coverageEndDate)) {
           window.alert("请填写有效的当前租金覆盖起止日期。");
           return;
         }
-        if (!currentCoverage && (coverageStartDate || coverageEndDate)) {
-          window.alert("当前租客没有可编辑的租金覆盖记录。");
-          return;
-        }
-        const nextPayments = currentCoverage
+        const nextPayments = currentCoverage && !currentCoverage.id.startsWith("contract-coverage:")
           ? payments.map((payment) => payment.id === currentCoverage.id
             ? { ...payment, coverageStartDate, coverageEndDate, isOverdue: isCoverageExpired({ ...payment, coverageStartDate, coverageEndDate }) }
             : payment)
@@ -578,12 +575,13 @@ export default function TenantsPage() {
             const savedPaymentIds = await saveBusinessData(rentPaymentKey, nextPayments);
             if (!savedPaymentIds.includes(currentCoverage!.id)) throw new Error("租金覆盖日期保存失败");
           }
-          const currentContract = latestContractForTenant(form.id, contracts);
           if (currentContract) {
             const nextContract = {
               ...currentContract,
               monthlyRent: form.monthlyRent,
               depositAmount: form.depositAmount,
+              coverageStartDate: coverageStartDate || currentContract.coverageStartDate || "",
+              coverageEndDate: coverageEndDate || currentContract.coverageEndDate || "",
               notes: form.notes || currentContract.notes || ""
             };
             const nextContracts = contracts.map((contract) => contract.id === currentContract.id ? nextContract : contract);
@@ -626,6 +624,8 @@ export default function TenantsPage() {
             tenantId: nextTenant.id,
             startDate: contractForm.startDate,
             endDate: contractForm.endDate,
+            coverageStartDate: paymentForm.coverageStartDate,
+            coverageEndDate: paymentForm.coverageEndDate,
             monthlyRent: nextTenant.monthlyRent,
             depositAmount: nextTenant.depositAmount,
             status: currentContract.status || "有效",
@@ -1010,7 +1010,7 @@ export default function TenantsPage() {
             const displayStatus = rentDisplay.displayStatus;
             const depositStatus = tenantDepositStatus(tenant, deposits);
             const expiryInfo = rentDisplay.expiry;
-            const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments);
+            const latestReceivedPayment = latestReceivedPaymentForTenant(tenant.id, payments, contracts);
             const paymentPerformance = tenantPaymentPerformanceById.get(tenant.id);
             const paymentPerformanceHasPeriods = Boolean(paymentPerformance?.periods.length);
             const paymentPerformanceLabel = paymentPerformanceHasPeriods
@@ -1425,7 +1425,7 @@ function TenantDetail({
     ? performance.onTimeRate === 100 ? "green" : (performance.onTimeRate || 0) >= 80 ? "blue" : "orange"
     : "neutral";
   const timeline = buildTenantTimeline(tenant, contract, payments, deposits, localToday());
-  const latestReceived = latestCoverageForTenant(tenant.id, payments)?.amountPaid || 0;
+  const latestReceived = latestCoverageForTenant(tenant.id, payments, contract ? [contract] : [])?.amountPaid || 0;
   const primaryDebtCase = debtCases[0] || null;
   return (
     <div className="record-detail-panel tenant-detail-panel">
@@ -1618,8 +1618,8 @@ function isTenantRentPayment(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
-function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRentPayment[]) {
-  return latestCoverageForTenant(tenantId, payments);
+function latestReceivedPaymentForTenant(tenantId: string, payments: BusinessRentPayment[], contracts: BusinessContract[] = []) {
+  return latestCoverageForTenant(tenantId, payments, contracts);
 }
 
 function collectedDepositForTenant(payments: BusinessRentPayment[], deposits: BusinessDeposit[]) {

@@ -36,7 +36,7 @@ test("check-in RPC separates deposit cash from rent and makes rent payment optio
   assert.doesNotMatch(migration, /occupant_count/);
   assert.match(checkIn, /rentPaymentId\?: string \| null/);
   assert.match(checkIn, /const hasRentPayment = Boolean\(paymentId\) && hasMeaningfulRentState/);
-  assert.match(checkIn, /setPayments\(hasRentPayment \?/);
+  assert.match(checkIn, /setPayments\(nextLedgerPayments\.length/);
 });
 
 test("tenant creation does not persist an empty rent placeholder", () => {
@@ -48,7 +48,7 @@ test("tenant creation does not persist an empty rent placeholder", () => {
 
 test("manual income defaults to unlinked other income while rent remains selectable", () => {
   assert.match(payments, /incomeType: "其他收入"/);
-  assert.match(payments, /\["其他收入", "房租收入", "续交房租", "赔偿收入"\]/);
+  assert.match(payments, /\["其他收入", "房租收入", "续交房租", "押金收入", "赔偿收入"\]/);
 });
 
 test("free-single confirmation uses the canonical owner or free-single authorization", () => {

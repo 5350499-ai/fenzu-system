@@ -247,7 +247,7 @@ export default function RoomsPage() {
             const nearestContract = [...currentContracts].filter((contract) => contract.endDate).sort((a, b) => a.endDate.localeCompare(b.endDate))[0] || null;
             const displayStatus = roomOccupancyStatus(room, tenants);
             const currentCoveragePayment = currentTenants
-              .map((tenant) => latestCoverageForTenant(tenant.id, payments))
+              .map((tenant) => latestCoverageForTenant(tenant.id, payments, contracts))
               .filter((payment): payment is BusinessRentPayment => Boolean(payment?.coverageEndDate))
               .sort((a, b) => (a.coverageEndDate || "").localeCompare(b.coverageEndDate || ""))[0] || null;
             const currentCoverageEnd = currentCoveragePayment?.coverageEndDate || "";
@@ -416,7 +416,7 @@ function RoomDetail({
       <div className="room-current-tenants">
         <div className="detail-section-title">当前在租租客（{sumOccupants(currentTenants)}人）</div>
         {currentTenants.map((tenant) => {
-          const payment = latestCoverageForTenant(tenant.id, allPayments);
+          const payment = latestCoverageForTenant(tenant.id, allPayments, contracts);
           const currentRent = currentRentForTenant(tenant, allPayments);
           const contract = latestActiveContractForTenant(tenant.id, contracts);
           return (
@@ -442,7 +442,7 @@ function RoomDetail({
             <div className="detail-section-title">历史租客记录（{historicalTenants.length}位）</div>
             <div className="room-history-tenant-list">
               {historicalTenants.map((tenant) => {
-                const payment = latestCoverageForTenant(tenant.id, allPayments);
+                const payment = latestCoverageForTenant(tenant.id, allPayments, contracts);
                 const contract = latestActiveContractForTenant(tenant.id, contracts);
                 return <Link className="room-current-tenant room-history-tenant" href={`/tenants?tenantId=${tenant.id}`} key={tenant.id}>
                   <strong>{tenant.name}</strong>

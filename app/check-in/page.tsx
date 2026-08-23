@@ -189,12 +189,14 @@ export default function CheckInPage() {
         tenantId: string;
         contractId: string;
         rentPaymentId?: string | null;
+        depositIncomePaymentId?: string | null;
         depositId?: string | null;
         monthlyRent: number;
       };
       const tenantId = result.tenantId;
       const contractId = result.contractId;
       const paymentId = result.rentPaymentId || "";
+      const depositIncomePaymentId = result.depositIncomePaymentId || "";
       const effectiveMonthlyRent = Number(result.monthlyRent ?? form.amountPaid ?? 0);
       const nextTenant: BusinessTenant = {
         id: tenantId,
@@ -226,6 +228,8 @@ export default function CheckInPage() {
         tenantId,
         startDate: form.coverageStartDate || form.paymentDate,
         endDate: form.contractEndDate,
+        coverageStartDate: form.coverageStartDate,
+        coverageEndDate: form.coverageEndDate,
         monthlyRent: effectiveMonthlyRent,
         depositAmount: form.depositAmount,
         status: "有效",
@@ -234,7 +238,7 @@ export default function CheckInPage() {
       const rentMonth = (form.coverageStartDate || form.paymentDate || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const rentAmount = Number(form.amountPaid || 0);
       const collectedDeposit = form.depositStatus === "已收" ? Number(form.depositAmount || 0) : 0;
-      const actualPaid = form.paymentStatus === "未收" ? collectedDeposit : rentAmount + collectedDeposit;
+      const actualPaid = form.paymentStatus === "未收" ? 0 : rentAmount;
       const amountUnpaid = form.paymentStatus === "未收" ? rentAmount : 0;
       const nextPayment: BusinessRentPayment = {
         id: paymentId,
@@ -258,6 +262,27 @@ export default function CheckInPage() {
       };
       nextPayment.isOverdue = isCoverageExpired(nextPayment);
       const hasRentPayment = Boolean(paymentId) && hasMeaningfulRentState(nextPayment);
+      const nextDepositPayment: BusinessRentPayment | null = depositIncomePaymentId && collectedDeposit > 0
+        ? {
+            id: depositIncomePaymentId,
+            sourceDepositId: result.depositId || undefined,
+            propertyId: form.propertyId,
+            roomId: form.roomId,
+            tenantId,
+            incomeType: "押金收入",
+            incomeItem: "押金收入",
+            rentMonth,
+            paymentDate: form.paymentDate,
+            amountDue: 0,
+            amountPaid: collectedDeposit,
+            amountUnpaid: 0,
+            paymentMethod: form.paymentMethod,
+            receivedBy: finalReceivedBy,
+            paymentStatus: "已收",
+            isOverdue: false,
+            notes: "[押金收入]"
+          }
+        : null;
 
       let attachmentFailed = false;
       try {
@@ -272,7 +297,13 @@ export default function CheckInPage() {
       setTenants(nextTenants);
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts.filter((contract) => contract.id !== contractId)]);
-      setPayments(hasRentPayment ? [nextPayment, ...payments.filter((payment) => payment.id !== paymentId)] : payments);
+      const nextLedgerPayments = [
+        ...(hasRentPayment ? [nextPayment] : []),
+        ...(nextDepositPayment ? [nextDepositPayment] : [])
+      ];
+      setPayments(nextLedgerPayments.length
+        ? [...nextLedgerPayments, ...payments.filter((payment) => !nextLedgerPayments.some((item) => item.id === payment.id))]
+        : payments);
       await invalidateBusinessData([tenantKey, roomKey, contractKey, rentPaymentKey, depositKey]);
       setCheckInAttachments([]);
       setAdvancedOpen(false);

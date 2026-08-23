@@ -193,6 +193,38 @@ export function depositIncome(deposits: BusinessDeposit[]) {
     .reduce((total, deposit) => total + Number(deposit.amount || 0), 0);
 }
 
+/**
+ * Read-only compatibility projection for historical collected deposits that
+ * predate the dedicated deposit-income ledger row. New rows carry
+ * source_deposit_id and are therefore not projected a second time.
+ */
+export function projectDepositIncomePayments(deposits: BusinessDeposit[], payments: BusinessRentPayment[]) {
+  const ledgerDepositIds = new Set(payments.map((payment) => payment.sourceDepositId).filter(Boolean));
+  return deposits
+    .filter((deposit) => deposit.type === "收取" && !isLinkedRentDeposit(deposit) && !isVoided(deposit.notes) && !ledgerDepositIds.has(deposit.id))
+    .map((deposit) => ({
+      id: `deposit-income:${deposit.id}`,
+      sourceDepositId: deposit.id,
+      propertyId: deposit.propertyId,
+      roomId: deposit.roomId,
+      tenantId: deposit.tenantId,
+      incomeType: "押金收入" as const,
+      incomeItem: "押金收入",
+      rentMonth: (deposit.transactionDate || "").slice(0, 7),
+      paymentDate: deposit.transactionDate,
+      amountDue: 0,
+      amountPaid: Number(deposit.amount || 0),
+      amountUnpaid: 0,
+      coverageStartDate: "",
+      coverageEndDate: "",
+      paymentMethod: "",
+      receivedBy: deposit.receivedBy,
+      paymentStatus: "已收",
+      isOverdue: false,
+      notes: "[押金收入][历史投影]"
+    } satisfies BusinessRentPayment));
+}
+
 export function depositRefundExpense(deposits: BusinessDeposit[]) {
   return deposits
     .filter((deposit) => deposit.type === "退还" && !isVoided(deposit.notes))

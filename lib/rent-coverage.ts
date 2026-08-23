@@ -24,7 +24,28 @@ export function latestCoveragePayment(payments: BusinessRentPayment[]) {
   return latestValidRentPeriodPayment(payments);
 }
 
-export function latestCoverageForTenant(tenantId: string, payments: BusinessRentPayment[]) {
+export function latestCoverageForTenant(tenantId: string, payments: BusinessRentPayment[], contracts: BusinessContract[] = []) {
+  const contract = [...contracts]
+    .filter((item) => item.tenantId === tenantId && item.coverageStartDate && item.coverageEndDate && !isVoided(item.notes))
+    .sort((left, right) => (right.coverageEndDate || right.endDate || "").localeCompare(left.coverageEndDate || left.endDate || ""))[0];
+  if (contract) return {
+    id: `contract-coverage:${contract.id}`,
+    propertyId: contract.propertyId,
+    roomId: contract.roomId,
+    tenantId: contract.tenantId,
+    incomeType: "房租收入" as const,
+    rentMonth: (contract.coverageStartDate || contract.startDate || "").slice(0, 7),
+    paymentDate: contract.coverageStartDate || contract.startDate,
+    amountDue: Number(contract.monthlyRent || 0),
+    amountPaid: 0,
+    amountUnpaid: 0,
+    coverageStartDate: contract.coverageStartDate,
+    coverageEndDate: contract.coverageEndDate,
+    paymentMethod: "",
+    paymentStatus: "未收",
+    isOverdue: false,
+    notes: contract.notes || ""
+  } satisfies BusinessRentPayment;
   return latestCoveragePayment(payments.filter((payment) => payment.tenantId === tenantId));
 }
 

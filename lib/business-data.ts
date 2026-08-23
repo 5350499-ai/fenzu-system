@@ -61,6 +61,8 @@ export type BusinessContract = {
   tenantId: string;
   startDate: string;
   endDate: string;
+  coverageStartDate?: string;
+  coverageEndDate?: string;
   monthlyRent: number;
   depositAmount: number;
   status: string;
@@ -72,6 +74,7 @@ export type BusinessRentPayment = {
   id: string;
   /** Stable identity for retrying a newly submitted payment. */
   clientRequestId?: string;
+  sourceDepositId?: string;
   createdAt?: string;
   propertyId: string;
   roomId: string;
@@ -238,6 +241,8 @@ const tableConfigs: Record<string, TableConfig> = {
         tenantId: row.tenant_id || "",
         startDate: row.start_date || "",
         endDate: row.end_date || "",
+        coverageStartDate: row.coverage_start_date || "",
+        coverageEndDate: row.coverage_end_date || "",
         monthlyRent: Number(row.monthly_rent || 0),
         depositAmount: Number(row.deposit_amount || 0),
         status: normalizeContractStatus(row.status || "有效"),
@@ -254,6 +259,8 @@ const tableConfigs: Record<string, TableConfig> = {
       deposit_amount: Number(row.depositAmount || 0),
       start_date: row.startDate || null,
       end_date: row.endDate || null,
+      coverage_start_date: row.coverageStartDate || null,
+      coverage_end_date: row.coverageEndDate || null,
       status: normalizeContractStatus(row.status || "有效"),
       notes: packContractNotes(row.notes || "")
     })
@@ -264,6 +271,7 @@ const tableConfigs: Record<string, TableConfig> = {
     fromDb: (row) => ({
       id: row.id,
       clientRequestId: row.client_request_id || undefined,
+      sourceDepositId: row.source_deposit_id || undefined,
       createdAt: row.created_at || "",
       propertyId: row.property_id || "",
       roomId: row.room_id || "",
@@ -287,6 +295,7 @@ const tableConfigs: Record<string, TableConfig> = {
       id: row.id,
       user_id: userId,
       ...(row.clientRequestId ? { client_request_id: row.clientRequestId } : {}),
+      ...(row.sourceDepositId ? { source_deposit_id: row.sourceDepositId } : {}),
       property_id: row.propertyId || null,
       room_id: row.roomId || null,
       tenant_id: row.tenantId || null,

@@ -47,8 +47,8 @@ export type OperationsStats = {
   occupancy: number;
 };
 
-export function isOperationsRentDueTenant(tenant: BusinessTenant, payments: BusinessRentPayment[], today = todayString()) {
-  const stage = fixedRentCollectionReminderStage(tenant, latestCoverageForTenant(tenant.id, payments), today);
+export function isOperationsRentDueTenant(tenant: BusinessTenant, payments: BusinessRentPayment[], today = todayString(), contracts: BusinessContract[] = []) {
+  const stage = fixedRentCollectionReminderStage(tenant, latestCoverageForTenant(tenant.id, payments, contracts), today);
   return Boolean(stage && stage.level !== "overdue");
 }
 
@@ -101,7 +101,7 @@ export function calculateOperationsStats(scope: OperationsScope, today = todaySt
   const contractsStartedThisMonth = validContracts.filter((contract) => contract.startDate.startsWith(thisMonth)).length;
   const expiringContracts = validContracts.filter((contract) => isCurrentContract(contract, today) && daysBetween(today, contract.endDate) <= 30).length;
 
-  const rentDueTenants = activeTenants.filter((tenant) => isOperationsRentDueTenant(tenant, scope.payments, today));
+  const rentDueTenants = activeTenants.filter((tenant) => isOperationsRentDueTenant(tenant, scope.payments, today, scope.contracts));
   const overdueCases = getDebtCases({ properties: scope.properties, rooms: scope.rooms, tenants: scope.tenants, rentPayments: scope.payments, today })
     .filter((debtCase) => activeTenantIds.has(debtCase.tenantId));
   const overdueTenantIds = new Set(overdueCases.map((debtCase) => debtCase.tenantId));
@@ -140,7 +140,7 @@ export function buildOperationsRooms(scope: OperationsScope, today = todayString
       const currentTenants = scope.tenants.filter((tenant) => tenant.roomId === room.id && isCurrentRentalRelationship(tenant));
       const coverageEnds = currentTenants
         .map((tenant) => {
-          const payment = latestCoverageForTenant(tenant.id, scope.payments);
+          const payment = latestCoverageForTenant(tenant.id, scope.payments, scope.contracts);
           return payment ? paymentCoverageEnd(payment) : "";
         })
         .filter(Boolean)

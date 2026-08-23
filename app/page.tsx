@@ -37,7 +37,7 @@ import { euro } from "@/lib/format";
 import { localToday } from "@/lib/actual-move-out-date";
 import { formatHomeAppointmentDateTime, resolveAppointmentLocation } from "@/lib/viewing-appointments";
 import { selectHomepageAppointments } from "@/lib/viewing-appointment-queue";
-import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange } from "@/lib/profit";
+import { calculatePropertyProfits, calculateTotals, calculateUnassignedIncome, getDateRange, projectDepositIncomePayments } from "@/lib/profit";
 import { buildEffectiveReminders, summarizeEffectiveReminders } from "@/lib/reminder-engine";
 import { getValidSupabaseSession } from "@/lib/supabase";
 import { AlertTriangle, BedDouble, Building2, CalendarCheck, ChevronDown, CreditCard, HandCoins, LogIn, MoreHorizontal, ReceiptText, UserPlus } from "lucide-react";
@@ -182,11 +182,15 @@ export default function DashboardPage() {
   */
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const propertyStats = useMemo(
-    () => calculatePropertyProfits(properties, rooms, tenants, rentPayments, expenses, deposits, thisMonthRange, waivedPaymentIds),
-    [deposits, expenses, properties, rentPayments, rooms, tenants, thisMonthRange, waivedPaymentIds]
+  const ledgerPayments = useMemo(
+    () => [...rentPayments, ...projectDepositIncomePayments(deposits, rentPayments)],
+    [deposits, rentPayments]
   );
-  const totals = calculateTotals(propertyStats, calculateUnassignedIncome(rentPayments, thisMonthRange));
+  const propertyStats = useMemo(
+    () => calculatePropertyProfits(properties, rooms, tenants, ledgerPayments, expenses, deposits, thisMonthRange, waivedPaymentIds),
+    [deposits, expenses, ledgerPayments, properties, rooms, tenants, thisMonthRange, waivedPaymentIds]
+  );
+  const totals = calculateTotals(propertyStats, calculateUnassignedIncome(ledgerPayments, thisMonthRange));
   const dashboardTotals = totals;
   const reminders = useMemo(
     () => buildEffectiveReminders({ properties, rooms, tenants, contracts, rentPayments, deposits, waivedPaymentIds, backupReminderSettings, includeBackupReminder: access.canSensitive("canExportData") }),
