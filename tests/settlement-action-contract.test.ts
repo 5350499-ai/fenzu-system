@@ -6,6 +6,7 @@ const page = readFileSync("app/partnership-settlement/page.tsx", "utf8");
 const api = readFileSync("app/api/partner-settlements/route.ts", "utf8");
 const migration = readFileSync("supabase/migrations/20260804120000_partner_settlement_snapshots.sql", "utf8");
 const reversal = readFileSync("app/partner-settlements/[id]/page.tsx", "utf8") + readFileSync("app/api/partner-settlements/[id]/route.ts", "utf8");
+const reversalRoute = readFileSync("app/api/partner-settlements/[id]/route.ts", "utf8");
 const contract = readFileSync("ACTION_TREE_CONTRACT.md", "utf8");
 
 test("Settlement is one user batch over independent property transactions", () => {
@@ -45,6 +46,12 @@ test("server property-period conflict protection and missing batch idempotency s
 test("Settlement Reversal remains its existing single RPC contract", () => {
   assert.match(reversal, /reverse_partner_settlement/);
   assert.match(reversal, /reason/);
+  assert.match(reversal, /access\.isOwner \|\| access\.isFreeSingle/);
+  assert.match(reversalRoute, /requireSettlementReversalAccess\(context\)/);
+  assert.match(reversalRoute, /requirePropertyAccess\(context, batch\.property_id\)/);
+  assert.match(reversalRoute, /eq\("workspace_owner_id", context\.profile\.workspace_owner_id\)/);
+  assert.doesNotMatch(reversalRoute, /requireActiveAccount\(request, true\)/);
+  assert.doesNotMatch(reversalRoute, /delete\(/i);
 });
 
 test("Settlement calculation and responsive frozen contracts remain outside this root", () => {

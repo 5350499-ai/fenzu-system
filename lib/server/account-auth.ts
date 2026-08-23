@@ -281,6 +281,12 @@ export function requireSettlementConfirmationAccess(context: Pick<AccountRequest
   }
 }
 
+export function requireSettlementReversalAccess(context: Pick<AccountRequestContext, "userId" | "profile">) {
+  if (!isSettlementConfirmationActor(context)) {
+    throw new AccountApiError("当前账号没有撤销合伙结算的权限。", 403, "settlement_reversal_forbidden");
+  }
+}
+
 export async function requireSettlementHistoryAccess(context: AccountRequestContext) {
   if (isSettlementConfirmationActor(context)) return;
   await requireSensitivePermission(context, "can_view_partnership_settlement");

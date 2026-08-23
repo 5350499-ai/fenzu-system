@@ -79,7 +79,7 @@ export default function PartnerSettlementSnapshotPage({ params }: { params: Prom
 
       <DetailCard title="最终转账建议">{data.transfers.length ? data.transfers.map((transfer) => <p className="snapshot-transfer-line" key={transfer.id}><strong>{transfer.from_name_snapshot}</strong> 转给 <strong>{transfer.to_name_snapshot}</strong><MoneyValue value={Number(transfer.amount)} tone="loss" /></p>) : <p className="muted">本次无需相互转账</p>}</DetailCard>
 
-      {batch.status === "confirmed" && access.isOwner ? <DetailCard className="snapshot-reversal" title="撤销结算" subtitle="原快照将永久保留，并记录撤销原因。"><div className="field"><label>撤销原因（必填）</label><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="请填写撤销原因" /></div><DangerButton type="button" disabled={!reason.trim()} onClick={() => void reverse()}>撤销结算</DangerButton></DetailCard> : null}
+      {batch.status === "confirmed" && (access.isOwner || access.isFreeSingle) ? <DetailCard className="snapshot-reversal" title="撤销结算" subtitle="原快照将永久保留，并记录撤销原因。"><div className="field"><label>撤销原因（必填）</label><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="请填写撤销原因" /></div><DangerButton type="button" disabled={!reason.trim()} onClick={() => void reverse()}>撤销结算</DangerButton></DetailCard> : null}
       {message ? <p className="success-text">{message}</p> : null}
 
       <details className="snapshot-section technical-info"><summary>技术信息</summary><div className="snapshot-meta"><span>快照编号：{batch.id}</span><span>房源内部编号：{batch.property_id}</span><span>确认账号标识：{batch.confirmed_by_account_id}</span><span>数据状态：{batch.status}</span></div></details>

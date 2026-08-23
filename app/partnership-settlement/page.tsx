@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { PARTNER_SETTLEMENT_CACHE_KEY } from "@/lib/cache/cache-keys";
-import { getMaxSettlementEndDate, getSettlementDateValidationError } from "@/lib/settlement-date";
+import { getMaxSettlementEndDate, getRollingThreeMonthSettlementRange, getSettlementDateValidationError } from "@/lib/settlement-date";
 import { DetailCard, DetailGrid, DetailItem, MoneyValue } from "@/components/ui";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 
@@ -204,5 +204,5 @@ function CompactDetailList({ title, rows }: { title: string; rows: Array<{ id: s
 function displayPartner(value: string | undefined, partners: PartnerWorkspaceData["partners"], accountAlias?: string | null) { const partner = partners.find((item) => item.id === value || item.displayName === value || (item.legacyCode || "").toUpperCase() === (value || "").toUpperCase()); if (partner) return partner.displayName; if (partners.length === 1 && (value === "本人" || value === accountAlias)) return partners[0].displayName; return value || "未分配"; }
 function isVoided(notes?: string) { return Boolean(notes?.includes("[已作废]") || notes?.toLowerCase().includes("[void]")); }
 function inRange(value: string | null | undefined, range: { startDate: string; endDate: string }) { return Boolean(value && value >= range.startDate && value <= range.endDate); }
-function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return { startDate: formatDate(new Date(year, month - 2, 1)), endDate: getMaxSettlementEndDate(today) }; return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
+function presetRange(mode: RangeMode) { const today = new Date(); const year = today.getFullYear(); const month = today.getMonth(); if (mode === "threeMonths") return getRollingThreeMonthSettlementRange(today); return { startDate: formatDate(new Date(year, month - 1, 1)), endDate: formatDate(new Date(year, month, 0)) }; }
 function formatDate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }

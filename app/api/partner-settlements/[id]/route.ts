@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requirePropertyAccess, requireSettlementHistoryAccess } from "@/lib/server/account-auth";
+import { apiErrorResponse, AccountApiError, parseJson, requireActiveAccount, requirePropertyAccess, requireSettlementHistoryAccess, requireSettlementReversalAccess } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 function settlementErrorResponse(error: unknown) {
@@ -14,12 +14,17 @@ function settlementErrorResponse(error: unknown) {
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const context = await requireActiveAccount(request, true);
+    const context = await requireActiveAccount(request);
+    requireSettlementReversalAccess(context);
     const { id } = await params;
     const body = await parseJson(request) as Record<string, unknown>;
     const reason = String(body.reason || "").trim();
     if (!reason) throw new AccountApiError("撤销结算必须填写原因。", 400, "reversal_reason_required");
-    const { error } = await getSupabaseAdmin().rpc("reverse_partner_settlement", {
+    const admin = getSupabaseAdmin();
+    const { data: batch, error: batchError } = await admin.from("partner_settlement_batches").select("property_id,status").eq("id", id).eq("workspace_owner_id", context.profile.workspace_owner_id).maybeSingle();
+    if (batchError || !batch) throw new AccountApiError("结算快照不存在。", 404, "settlement_not_found");
+    await requirePropertyAccess(context, batch.property_id);
+    const { error } = await admin.rpc("reverse_partner_settlement", {
       p_workspace_owner_id: context.profile.workspace_owner_id,
       p_batch_id: id,
       p_reversed_by_account_id: context.userId,
