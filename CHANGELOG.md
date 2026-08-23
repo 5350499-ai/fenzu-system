@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-23 - Restore shared-room check-in eligibility
+
+- Prepared an additive, fail-closed corrective migration so non-archived rooms can accept additional tenants without changing the optional rent-payment, deposit separation, atomicity, or occupant-count wrapper contracts.
+- Preserved the existing frontend non-archived room selection rule and added regression protection for shared-room relationships and move-out occupancy derivation.
+- Production migration and deployment remain pending explicit activation; no historical or real-user data was changed.
+
 ## 2026-08-23 - Zero-rent source separation and mobile acceptance fixes
 
 - Made check-in rent payment creation conditional on meaningful rent due/paid/unpaid state while keeping tenant, contract, room occupancy and deposit work atomic; deposits are no longer folded into rent income.

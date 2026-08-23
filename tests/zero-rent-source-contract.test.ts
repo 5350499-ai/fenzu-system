@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { hasMeaningfulRentState } from "../lib/rent-payment-entry.ts";
 
 const migration = readFileSync("supabase/migrations/20260823120000_check_in_optional_rent_payment.sql", "utf8");
+const eligibilityMigration = readFileSync("supabase/migrations/20260823150000_check_in_allow_shared_room.sql", "utf8");
 const checkIn = readFileSync("app/check-in/page.tsx", "utf8");
 const tenants = readFileSync("app/tenants/page.tsx", "utf8");
 const payments = readFileSync("app/rent-payments/page.tsx", "utf8");
@@ -63,4 +64,28 @@ test("appointment actions occupy semantic row owners instead of spanning both ro
   assert.match(css, /\.appointment-row-actions[\s\S]*grid-row: 1/);
   assert.match(css, /\.appointment-actions[\s\S]*grid-row: 2/);
   assert.doesNotMatch(css, /\.appointment-actions[\s\S]*grid-row: 1 \/ span 2/);
+});
+
+test("shared-room eligibility correction removes only the historical blockers", () => {
+  assert.match(eligibilityMigration, /create_atomic_check_in\(uuid,uuid,uuid,text,text,text,numeric,numeric,numeric,smallint/);
+  assert.match(eligibilityMigration, /canonical create_atomic_check_in eligibility predicate does not match/);
+  assert.match(eligibilityMigration, /coalesce\(v_room\.status, ''\) in \('已租', 'occupied'\)/);
+  assert.match(eligibilityMigration, /status in \('在租', 'current'\)/);
+  assert.match(eligibilityMigration, /coalesce\(v_room\.status, ''\) like/);
+  assert.doesNotMatch(eligibilityMigration, /capacity|max_?occup|remaining beds|满员|床位/i);
+  assert.match(checkIn, /const availableRooms = rooms\.filter\(\(room\) => room\.propertyId === form\.propertyId && room\.status !== "已归档"\)/);
+  assert.doesNotMatch(checkIn, /availableRooms[\s\S]{0,220}room\.status\s*!==\s*["']已租|availableRooms[\s\S]{0,220}occupied/);
+});
+
+test("shared-room correction does not change RPC permission owners", () => {
+  assert.doesNotMatch(eligibilityMigration, /grant\s+execute|revoke\s+all|security\s+definer|search_path/i);
+  assert.doesNotMatch(eligibilityMigration, /occupant_count/i);
+});
+
+test("move-out room status remains derived from remaining active tenants", () => {
+  const moveOut = readFileSync("supabase/migrations/20260815100000_beta2a_write_hardening.sql", "utf8");
+  assert.match(moveOut, /select count\(\*\) into v_active_count/);
+  assert.match(moveOut, /status = case when v_active_count > 0 then/);
+  assert.match(moveOut, /U&'\\5df2\\79df'/);
+  assert.match(moveOut, /U&'\\7a7a\\7f6e'/);
 });
