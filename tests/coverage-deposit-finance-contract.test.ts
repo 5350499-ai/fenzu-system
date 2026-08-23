@@ -68,3 +68,19 @@ test("restore mapping carries both new durability fields", () => {
   assert.match(migration, /c\.coverage_start_date/);
   assert.match(migration, /c\.coverage_end_date/);
 });
+
+test("restore rent-payment matcher is field-semantic and fail-closed", () => {
+  assert.match(migration, /v_rent_block/);
+  assert.match(migration, /v_rent_normalized := regexp_replace/);
+  assert.ok(migration.includes("regexp_replace(v_rent_block"));
+  assert.match(migration, /v_rent_normalized[\s\S]*'g'/);
+  for (const field of ["payment_status", "income_type", "income_item", "client_request_id"]) {
+    assert.match(migration, new RegExp(`${field}=excluded\\.${field}`));
+  }
+  assert.match(migration, /Restore rent payment field mapping is incomplete/);
+  assert.match(migration, /Restore rent payment upsert boundary is unknown/);
+  assert.match(migration, /Restore rent payment source-deposit mapping already exists/);
+  assert.match(migration, /source_deposit_id=excluded\.source_deposit_id/);
+  assert.match(migration, /Restore rent payment source-deposit insertion point not found/);
+  assert.match(migration, /client_request_id\\s\*=\\s\*excluded\\\.client_request_id\\s\*;/);
+});

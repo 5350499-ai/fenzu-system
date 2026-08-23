@@ -105,6 +105,12 @@ declare
   v_contract_patched text;
   v_contract_start integer;
   v_contract_end integer;
+  v_rent_block text;
+  v_rent_normalized text;
+  v_rent_patched text;
+  v_rent_start integer;
+  v_rent_end integer;
+  v_field text;
 begin
   select pg_get_functiondef('public.restore_workspace_backup_impl(uuid,uuid,jsonb)'::regprocedure)
     into v_source;
@@ -182,13 +188,41 @@ begin
   end if;
   v_source := replace(v_source, v_contract_block, v_contract_patched);
 
-  if position('income_type=excluded.income_type, income_item=excluded.income_item;' in v_source) = 0 then
-    raise exception 'Restore deposit-source mapping marker not found';
+  v_rent_start := position('insert into public.rent_payments select * from jsonb_populate_recordset(null::public.rent_payments' in v_source);
+  if v_rent_start = 0 then
+    raise exception 'Restore rent payment insert mapping is unknown; refusing to alter it';
   end if;
-  v_source := replace(v_source,
-    'income_type=excluded.income_type, income_item=excluded.income_item;',
-    'income_type=excluded.income_type, income_item=excluded.income_item, source_deposit_id=excluded.source_deposit_id;'
+  v_rent_end := position('raise log ''restore_stage=insert_expenses_start'';' in substring(v_source from v_rent_start));
+  if v_rent_end = 0 then
+    raise exception 'Restore rent payment upsert boundary is unknown; refusing to alter it';
+  end if;
+  v_rent_block := substring(v_source from v_rent_start for v_rent_end - 1);
+  v_rent_normalized := regexp_replace(v_rent_block, '\s+', '', 'g');
+
+  foreach v_field in array array[
+    'payment_status=excluded.payment_status',
+    'income_type=excluded.income_type',
+    'income_item=excluded.income_item',
+    'client_request_id=excluded.client_request_id'
+  ] loop
+    if position(v_field in v_rent_normalized) = 0 then
+      raise exception 'Restore rent payment field mapping is incomplete; refusing to alter it';
+    end if;
+  end loop;
+
+  if position('source_deposit_id=excluded.source_deposit_id' in v_rent_normalized) > 0 then
+    raise exception 'Restore rent payment source-deposit mapping already exists in an unknown shape; refusing to alter it';
+  end if;
+  v_rent_patched := regexp_replace(
+    v_rent_block,
+    'client_request_id\s*=\s*excluded\.client_request_id\s*;',
+    'client_request_id=excluded.client_request_id, source_deposit_id=excluded.source_deposit_id;',
+    1, 1, 'n'
   );
+  if v_rent_patched = v_rent_block then
+    raise exception 'Restore rent payment source-deposit insertion point not found; refusing to alter it';
+  end if;
+  v_source := replace(v_source, v_rent_block, v_rent_patched);
 
   execute v_source;
 end;
