@@ -63,4 +63,8 @@ test("restore mapping carries both new durability fields", () => {
   assert.match(migration, /Restore contract relationship or field mapping is incomplete/);
   assert.match(migration, /Restore contract coverage insertion point not found/);
   assert.match(migration, /Restore contract coverage mapping already exists in an unknown shape/);
+  assert.match(migration, /Restore legacy contract compatibility marker not found/);
+  assert.match(migration, /jsonb_array_elements\(coalesce\(p_data->''contracts''/);
+  assert.match(migration, /c\.coverage_start_date/);
+  assert.match(migration, /c\.coverage_end_date/);
 });

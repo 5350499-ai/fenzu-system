@@ -99,6 +99,8 @@ $migration$;
 do $restore$
 declare
   v_source text;
+  v_marker text;
+  v_replacement text;
   v_contract_block text;
   v_contract_patched text;
   v_contract_start integer;
@@ -109,6 +111,26 @@ begin
   if v_source is null then
     raise exception 'restore_workspace_backup_impl was not found';
   end if;
+
+  v_marker := E'begin\n  raise log ''restore_stage=impl_start'';';
+  v_replacement := v_marker || E'\n  p_data := jsonb_set(\n'
+    || E'    p_data,\n'
+    || E'    ''{contracts}'',\n'
+    || E'    coalesce((select jsonb_agg(\n'
+    || E'      case when x ? ''coverage_start_date'' and x ? ''coverage_end_date'' then x\n'
+    || E'      else x || jsonb_build_object(\n'
+    || E'        ''coverage_start_date'', coalesce(x->''coverage_start_date'', to_jsonb(c.coverage_start_date)),\n'
+    || E'        ''coverage_end_date'', coalesce(x->''coverage_end_date'', to_jsonb(c.coverage_end_date))\n'
+    || E'      ) end\n'
+    || E'      from jsonb_array_elements(coalesce(p_data->''contracts'', ''[]''::jsonb)) x\n'
+    || E'      left join public.contracts c on c.id=(x->>''id'')::uuid and c.user_id=p_workspace_owner_id\n'
+    || E'    ), ''[]''::jsonb),\n'
+    || E'    true\n'
+    || E'  );';
+  if position(v_marker in v_source) = 0 then
+    raise exception 'Restore legacy contract compatibility marker not found; refusing to alter it';
+  end if;
+  v_source := replace(v_source, v_marker, v_replacement);
 
   if position('insert into public.contracts select * from jsonb_populate_recordset(null::public.contracts' in v_source) = 0 then
     raise exception 'Restore contract insert mapping is unknown; refusing to alter it';
