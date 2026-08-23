@@ -7,13 +7,15 @@ export function MoneyInput({
   value,
   onChange,
   readOnly,
-  className
+  className,
+  min = 0
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   readOnly?: boolean;
   className?: string;
+  min?: number;
 }) {
   const [text, setText] = useState(value ? String(value) : "");
 
@@ -26,7 +28,7 @@ export function MoneyInput({
       <label>{label}</label>
       <input
         inputMode="decimal"
-        min="0"
+        min={min}
         placeholder="请输入金额"
         readOnly={readOnly}
         step="0.01"

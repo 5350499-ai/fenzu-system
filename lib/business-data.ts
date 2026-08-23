@@ -494,7 +494,7 @@ async function loadBusinessDataFromServer<T extends AnyRecord>(key: string, fall
   return rows;
 }
 
-async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
+async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean }) {
   if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
     if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
     return value.map((row) => row.id).filter(Boolean);
@@ -529,7 +529,7 @@ async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value:
     ...removedIds.map((id) => ({ action: "delete", id }))
   ];
   if (!operations.length) return [];
-  const requestBody = JSON.stringify({ key, operations, ownerOnly: options?.ownerOnly === true });
+  const requestBody = JSON.stringify({ key, operations, ownerOnly: options?.ownerOnly === true, manualEntry: options?.manualEntry === true });
   const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
@@ -591,7 +591,7 @@ export async function invalidateBusinessData(keys: string[]) {
   await cacheManager.invalidate(invalidated, scope);
 }
 
-export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean }) {
+export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean }) {
   const scope = await getCacheScope();
   const result = await saveBusinessDataToServer(key, value, options);
   await cacheManager.set(key, value, scope);

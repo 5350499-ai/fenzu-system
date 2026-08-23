@@ -7,6 +7,7 @@ import { classifyBusinessDeleteError } from "@/lib/server/delete-error";
 import { createBeforeDestructiveRecoveryPoint } from "@/lib/server/scheduled-recovery-service";
 import { TENANT_PERMANENT_DELETE_DISABLED, isTenantPermanentDeleteEnabled, tenantPermanentDeleteDisabledMessage } from "@/lib/tenant-delete";
 import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
+import { isValidManualAmount } from "@/lib/manual-amount";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -62,6 +63,14 @@ function rentPaymentIdentityFingerprint(row: Record<string, unknown>) {
   return JSON.stringify(RENT_PAYMENT_IDENTITY_FIELDS.map((field) => [field, row[field] == null ? null : String(row[field])]));
 }
 
+function validateManualAmount(resource: { table: string }, row: Record<string, unknown>, manualEntry: boolean) {
+  if (!manualEntry) return;
+  const amount = resource.table === "expenses" ? row.amount : resource.table === "rent_payments" && row.payment_status !== "未收" ? row.amount_paid : null;
+  if (amount !== null && !isValidManualAmount(Number(amount))) {
+    throw new AccountApiError("金额必须大于 0", 400, "manual_amount_must_be_positive");
+  }
+}
+
 async function enforceFreeSingleQuota(context: Awaited<ReturnType<typeof requireActiveAccount>>, resource: { table: string }, row: Record<string, unknown>, existing?: Record<string, unknown>) {
   if (!isFreeSingleAccount(context)) return;
   const client = getSupabaseAuthVerifier(context.accessToken);
@@ -107,7 +116,7 @@ async function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof
 
 export async function POST(request: Request) {
   try {
-    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean; dryRun?: boolean };
+    const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean; manualEntry?: boolean; dryRun?: boolean };
     const paymentUpdateRequiresOwner = body.key === "business-rent-payments"
       && body.operations?.some((operation) => operation?.action === "update");
     const context = await requireActiveAccount(request, body.ownerOnly === true);
@@ -146,6 +155,7 @@ export async function POST(request: Request) {
         const propertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
         await requirePropertyAccess(context, propertyId as string | undefined);
         if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
+        validateManualAmount(resource, row, body.manualEntry === true);
         const { data, error } = await client.from(resource.table).insert(row).select("id");
         if (error && resource.table === "rent_payments" && row.client_request_id && error.code === "23505") {
           const { data: existingPayment, error: existingPaymentError } = await client
@@ -206,6 +216,7 @@ export async function POST(request: Request) {
       const newPropertyId = resource.propertyColumn === "id" ? id : row[resource.propertyColumn];
       await requirePropertyAccess(context, newPropertyId as string | undefined);
       if (row.user_id !== context.profile.workspace_owner_id) throw new AccountApiError("业务数据空间不正确。", 403);
+      validateManualAmount(resource, row, body.manualEntry === true);
       const { data, error } = await client.from(resource.table).update(row).eq("id", id).select("id");
       if (error) throw new AccountApiError(error.code === "42501" ? "没有权限执行此操作。" : "保存失败，请稍后重试。", error.code === "42501" ? 403 : 500);
       if (!data || data.length !== 1) throw new AccountApiError(resource.table === "rent_payments" ? "收款记录未更新，请刷新后重试。" : "记录未更新，请刷新后重试。", 409);

@@ -51,6 +51,7 @@ import { parseAnalyticsPropertyScope } from "@/lib/analytics-drilldown";
 import { allPaymentPropertyScopeIds, paymentMatchesPropertyScope } from "@/lib/property-scope";
 import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { matchesFinanceSearch } from "@/lib/finance-search";
+import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -450,6 +451,10 @@ export default function RentPaymentsPage() {
       window.alert("请填写租金覆盖开始日期和结束日期。");
       return;
     }
+    if ((!isRent || form.paymentStatus !== "未收") && !isValidManualAmount(Number(form.amountPaid))) {
+      window.alert(manualAmountError());
+      return;
+    }
     setSaving(true);
     let tenantId = form.tenantId;
     let tenantNameSnapshot = tenants.find((tenant) => tenant.id === form.tenantId)?.name || "";
@@ -555,7 +560,7 @@ export default function RentPaymentsPage() {
       ? tenants.map((tenant) => tenant.id === tenantId ? { ...tenant, monthlyRent: requestedMonthlyRent } : tenant)
       : null;
     try {
-      await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit });
+      await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit, manualEntry: true });
       // The core financial write is confirmed here.  From this point on,
       // failures must be reported as side-effect failures, never as a failed
       // rent payment, and the confirmed payment must remain visible locally.
@@ -791,9 +796,9 @@ export default function RentPaymentsPage() {
               <TapSelect label={isRentPayment(form) ? "租客" : "租客（可选）"} value={form.tenantId} disabled={Boolean(form.id) || !form.roomId} options={availableTenants.map((tenant) => ({ value: tenant.id, label: tenant.name, description: `${tenant.phone || "无电话"} · 月租 ${euro(tenant.monthlyRent || 0)} · 押金 ${euro(tenant.depositAmount || 0)}` }))} onChange={(tenantId) => { chooseTenant(tenantId); setNewTenantName(""); }} placeholder={form.roomId ? "点这里选择租客" : "先选择房间"} allowEmpty />
               {isRentPayment(form) && !form.id ? <div className="field"><label>租客姓名（可直接输入）</label><input disabled={!form.roomId} maxLength={80} placeholder={form.roomId ? "没有租客时直接输入，例如 01、李、临时租客" : "先选择房间"} value={newTenantName} onChange={(event) => { setNewTenantName(event.target.value); if (event.target.value.trim()) setForm((current) => ({ ...current, tenantId: "" })); }} /></div> : null}
               {isRentPayment(form) && !form.id ? <MoneyInput label="当前月租标准" value={monthlyRentStandard ?? tenants.find((tenant) => tenant.id === form.tenantId)?.monthlyRent ?? rooms.find((room) => room.id === form.roomId)?.monthlyRent ?? 0} onChange={setMonthlyRentStandard} /> : null}
-              {isRentPayment(form) ? <MoneyInput readOnly={Boolean(collectionPaymentId)} label={collectionPaymentId ? "本次剩余欠租" : "本次实收房租"} value={form.amountDue} onChange={(amountDue) => { if (!collectionPaymentId) { updateMoney({ amountDue }); if (!form.tenantId && (monthlyRentStandard == null || monthlyRentStandard === 0)) setMonthlyRentStandard(amountDue); } }} /> : <MoneyInput label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
+              {isRentPayment(form) ? <MoneyInput min={0.01} readOnly={Boolean(collectionPaymentId)} label={collectionPaymentId ? "本次剩余欠租" : "本次实收房租"} value={form.amountDue} onChange={(amountDue) => { if (!collectionPaymentId) { updateMoney({ amountDue }); if (!form.tenantId && (monthlyRentStandard == null || monthlyRentStandard === 0)) setMonthlyRentStandard(amountDue); } }} /> : <MoneyInput min={0.01} label="金额" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} />}
               {isRentPayment(form) ? <MoneyInput label="本次新增押金" value={depositAmount} onChange={setDepositAmount} /> : null}
-              {isRentPayment(form) && (form.id || collectionPaymentId) ? <MoneyInput label="本次实际收款" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /> : null}
+              {isRentPayment(form) && (form.id || collectionPaymentId) ? <MoneyInput min={0.01} label="本次实际收款" value={form.amountPaid} onChange={(amountPaid) => updateMoney({ amountPaid })} /> : null}
               {isRentPayment(form) ? <div className="field rent-total-field"><label>本次合计收入</label><input readOnly value={euro(Number(form.amountDue || 0) + Number(depositAmount || 0))} /></div> : null}
               {form.incomeType === "赔偿收入" || form.incomeType === "其他收入" ? <div className="field"><label>{form.incomeType === "赔偿收入" ? "赔偿项目/说明（可选）" : "收入项目/说明（可选）"}</label><input maxLength={100} placeholder={form.incomeType === "赔偿收入" ? "例如：床架损坏赔偿" : "可直接留空"} value={form.incomeItem || ""} onChange={(event) => setForm((current) => ({ ...current, incomeItem: event.target.value }))} /></div> : null}
               <div className="field rent-payment-date-field"><label>收款日期 / 交费日期</label><input required type="date" value={form.paymentDate || ""} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, rentMonth: event.target.value.slice(0, 7) }))} /></div>

@@ -11,6 +11,7 @@ function isMonthInRange(month: string | null | undefined, range: SettlementRange
 
 export type SettlementRange = { startDate: string; endDate: string };
 export type SettlementSegment = {
+  propertyId: string;
   startDate: string;
   endDate: string;
   income: number;
@@ -178,7 +179,7 @@ export function buildSettlement(
       const income = roundMoney(segmentPayments.reduce((sum, payment) => sum + rentIncomeForPayment(payment), 0));
       const expense = roundMoney(segmentExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0));
       const netProfit = roundMoney(income - expense);
-      segments.push({ startDate: segment.startDate, endDate: segment.endDate, income, expense, netProfit, shares: segment.shares });
+      segments.push({ propertyId: scopedPropertyId, startDate: segment.startDate, endDate: segment.endDate, income, expense, netProfit, shares: segment.shares });
       segment.shares.forEach((share) => {
         const stat = stats.get(share.partnerId);
         if (stat) stat.profitEntitlement = roundMoney(stat.profitEntitlement + netProfit * share.percentage / 100);

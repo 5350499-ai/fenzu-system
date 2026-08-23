@@ -40,6 +40,7 @@ import { partnerDisplayClass, partnerDisplayLabel, usePartnerDirectoryState, typ
 import { EXPENSE_TYPE_PRESETS } from "@/lib/expense-type-presets";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { matchesFinanceSearch } from "@/lib/finance-search";
+import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -230,6 +231,10 @@ export default function ExpensesPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!loaded || !form.propertyId) return;
+    if (!isValidManualAmount(Number(form.amount))) {
+      window.alert(manualAmountError());
+      return;
+    }
     setSaving(true);
     const expenseId = form.id || crypto.randomUUID();
     const nextExpense = {
@@ -243,7 +248,7 @@ export default function ExpensesPage() {
       ? expenses.map((expense) => (expense.id === form.id ? nextExpense : expense))
       : [nextExpense, ...expenses];
     try {
-      await saveBusinessData(expenseKey, next);
+      await saveBusinessData(expenseKey, next, { manualEntry: true });
       setExpenses(next);
       if (!form.id && pendingFiles.length) {
         const uploadedFiles: ExpenseFile[] = [];
@@ -383,7 +388,7 @@ export default function ExpensesPage() {
               <SearchableSelect className="expense-form-wide" label="房间（可选）" value={form.roomId || ""} disabled={!form.propertyId} options={[{ value: "", label: "不关联房间" }, ...roomOptions.map((room) => ({ value: room.id, label: room.name, description: `编号 ${room.roomNumber} · ${room.status}`, keywords: room.roomNumber }))]} onChange={(roomId) => setForm((current) => ({ ...current, roomId }))} />
               <div className="field"><label>支出日期</label><input required type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value, expenseMonth: event.target.value.slice(0, 7) }))} /></div>
               <CategoryInput value={form.category} onChange={(category) => setForm((current) => ({ ...current, category }))} />
-              <MoneyInput label="金额" value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
+              <MoneyInput label="金额" min={0.01} value={form.amount} onChange={(amount) => setForm((current) => ({ ...current, amount }))} />
               <SearchableSelect label="付款方式" value={form.paymentMethod || "转账"} options={paymentMethodOptions(form.paymentMethod || "转账")} onChange={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))} />
               <SearchableSelect label="付款归属" value={form.paidBy || ""} disabled={!expensePartnerOptions.length} placeholder={expensePartnerOptions.length ? undefined : "暂无可用成员"} options={expensePartnerOptions} onChange={(paidBy) => setForm((current) => ({ ...current, paidBy }))} />
               <SearchableSelect label="账目状态" value={isVoided(form.notes) ? "已作废" : "已支出"} options={["已支出", "已作废"].map((status) => ({ value: status, label: status }))} onChange={(status) => setForm((current) => ({ ...current, notes: status === "已作废" ? markVoided(current.notes) : cleanVoidNote(current.notes) }))} />
