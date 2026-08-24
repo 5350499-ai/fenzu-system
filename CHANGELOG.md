@@ -1402,3 +1402,28 @@
 - Added a memory-only, exact access-token-bound, five-second one-shot handoff from the login page's server-verified account resolution to the root `AccountAccessProvider` sign-in refresh.
 - Logout, account-snapshot clearing, token mismatch, expiry and invalid handoff results clear or bypass the handoff and retain the normal server verification path. Preview login timing now records handoff use and the immediate account-resolution request count.
 - No authentication semantics, server authorization, permissions, business logic, database, migration, real-user data or Production deployment changed.
+
+## 2026-08-24 - PRE_RESTORE_STABLE_RELEASE_CHECKPOINT
+
+- CHECKPOINT_DATE: 2026-08-24 Europe/Madrid
+- PRE_DEPLOY_HEAD: `81474358d6aa3b34b0cea90d531c328e1953d49a`
+- PREVIOUS_PRODUCTION_HEAD: `c5298050d5628ed4766be2f698f2f7c01c9b5016`
+- Recorded user-device acceptance for shared-room check-in, one-click check-in, atomic tenant creation, rent/deposit separation, check-in `1 + 2 = 3`, renewal parity, payment/income, expense create/edit, linked-receipt void/delete, typed DELETE confirmation, aggregate audit/grouping, Dashboard/net-profit/Settlement parity, cache v4 alignment, Home performance, tenant-create performance and login access handoff.
+- Performance baseline: Home approximately 1.3–2.3s common samples; tenant create approximately 3–4s after the atomic path (previous chain approximately 19.9s); latest login 4942ms (previous baseline 7591ms); payment approximately 2.5s; renewal approximately 2.8–4.1s; check-in approximately 3.7–4.3s observable server time; expense approximately 4–5.7s and retained for monitoring.
+- KNOWN_NON_BLOCKING_ITEMS: technical audit trigger logs remain; expense runtime variance; occasional Home slow sample for future monitoring; Backup/Restore destructive round-trip not executed.
+- BACKUP_RESTORE_DESTRUCTIVE_ACCEPTANCE: NOT_STARTED
+- This is a last-known-good pre-Restore-drill recovery anchor, not a zero-bug claim. Production deployment and post-deploy stable tag remain pending the authorized release step.
+
+## 2026-08-24 - Production stable pre-Restore-drill checkpoint completed
+
+- PRODUCTION_DEPLOYED: YES
+- PRODUCTION_HEAD: `81474358d6aa3b34b0cea90d531c328e1953d49a`
+- PRODUCTION_DEPLOYMENT_ID: `dpl_CevTPK5Vcq5o8BqX4C15yQQoEUhz`
+- PRODUCTION_URL: `https://fenzu-system.vercel.app`
+- PRODUCTION_STATUS: READY
+- STABLE_TAG: `stable-pre-restore-drill-20260824`
+- STABLE_TAG_TARGET: `81474358d6aa3b34b0cea90d531c328e1953d49a`
+- CHECKPOINT_PURPOSE: 当前核心业务、财务、删除生命周期、日志展示及主要性能优化已通过用户真机验收；作为 Backup/Restore destructive drill 开始前的稳定恢复锚点。
+- THIS_IS_NOT_A_ZERO_BUG_CLAIM: true
+- BACKUP_RESTORE_DESTRUCTIVE_ACCEPTANCE: NOT_STARTED
+- Production smoke passed for `/`, `/login`, `/tenants`, `/check-in`, `/rent-payments`, `/expenses`, `/audit-logs`, `/partnership-settlement`, `/viewing-appointments` and `/data-center` (HTTP 200); unauthenticated `POST /api/tenants/create` returned 401. No post-deploy runtime errors were found in the deployment window.
