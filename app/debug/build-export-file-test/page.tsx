@@ -69,6 +69,7 @@ export default function BuildExportFileTestPage() {
     const payload = await createDataExportPayload({
       properties, rooms, tenants, contracts, rentPayments, expenses, deposits,
       tasks, viewingAppointments, partners, partnerShares, partnerNameHistory,
+      checkInRequests: [], tenantCreateRequests: [],
       propertyHistory: [], settlementBatches, settlementSnapshots,
       accounts: Array.isArray(accountBody.accounts) ? accountBody.accounts : [],
       auditLogs: Array.isArray(auditBody.logs) ? auditBody.logs : [],
@@ -76,6 +77,7 @@ export default function BuildExportFileTestPage() {
     }, new Date().toISOString(), {
       backupType: "local",
       exportedBy: access.userId || null,
+      sourceWorkspaceId: access.workspaceOwnerId,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
     });
     const json = JSON.stringify(payload, null, 2);

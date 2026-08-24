@@ -12,11 +12,11 @@ const syntheticData = {
   expenses: [{ id: "expense-a", propertyId: "property-a", roomId: "room-a", amount: 100 }],
   deposits: [{ id: "deposit-a", propertyId: "property-a", roomId: "room-a", tenantId: "tenant-a", amount: 800 }],
   viewingAppointments: [], tasks: [], partners: [], partnerShares: [], partnerNameHistory: [],
-  propertyHistory: [], settlementBatches: [], settlementSnapshots: [], settings: {}
+  propertyHistory: [], checkInRequests: [], tenantCreateRequests: [], settlementBatches: [], settlementSnapshots: [], settings: {}
 };
 
 test("automated recovery drill verifies data equivalence after synthetic corruption", async () => {
-  const payload = await createDataExportPayload(syntheticData, "2026-08-15T00:00:00.000Z", { backupType: "local", exportReason: "Manual" });
+  const payload = await createDataExportPayload(syntheticData, "2026-08-15T00:00:00.000Z", { sourceWorkspaceId: "11111111-1111-4111-8111-111111111111", backupType: "local", exportReason: "Manual" });
   const corrupted = { ...syntheticData, properties: [], rentPayments: [{ id: "wrong", amountPaid: 1 }] };
   assert.notDeepEqual(corrupted, payload.data);
   const dryRun = await dryRunRestore(payload);
@@ -27,7 +27,7 @@ test("automated recovery drill verifies data equivalence after synthetic corrupt
 });
 
 test("corruption drill rejects truncated, schema, checksum, duplicate and foreign-reference payloads", async () => {
-  const payload = await createDataExportPayload(syntheticData);
+  const payload = await createDataExportPayload(syntheticData, new Date().toISOString(), { sourceWorkspaceId: "11111111-1111-4111-8111-111111111111" });
   const truncated = JSON.parse(JSON.stringify(payload));
   delete truncated.data.rooms;
   assert.equal((await dryRunRestore(truncated)).valid, false);

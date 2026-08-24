@@ -43,12 +43,12 @@ async function readTable<T extends { data: unknown; error: unknown }>(table: str
 }
 
 export async function loadServerBackupData(admin: AdminClient, ownerId: string): Promise<Record<string, unknown>> {
-  const [properties, rooms, tenants, contracts, rentPayments, expenses, deposits, viewingAppointments, tasks, partners, partnerShares, partnerNameHistory, settlementBatches] = await Promise.all([
+  const [properties, rooms, tenants, contracts, rentPayments, expenses, deposits, viewingAppointments, tasks, partners, partnerShares, partnerNameHistory, settlementBatches, checkInRequests, tenantCreateRequests] = await Promise.all([
     readRows(admin, "properties", "user_id", ownerId), readRows(admin, "rooms", "user_id", ownerId), readRows(admin, "tenants", "user_id", ownerId),
     readRows(admin, "contracts", "user_id", ownerId), readRows(admin, "rent_payments", "user_id", ownerId), readRows(admin, "expenses", "user_id", ownerId),
     readRows(admin, "deposits", "user_id", ownerId), readRows(admin, "viewing_appointments", "user_id", ownerId), readRows(admin, "tasks", "user_id", ownerId),
     readRows(admin, "partners", "workspace_owner_id", ownerId), readRows(admin, "partner_property_shares", "workspace_owner_id", ownerId), readRows(admin, "partner_name_history", "workspace_owner_id", ownerId),
-    readRows(admin, "partner_settlement_batches", "workspace_owner_id", ownerId)
+    readRows(admin, "partner_settlement_batches", "workspace_owner_id", ownerId), readRows(admin, "check_in_requests", "workspace_owner_id", ownerId), readRows(admin, "tenant_create_requests", "workspace_owner_id", ownerId)
   ]);
   const batchIds = settlementBatches.map((batch) => String(batch.id));
   const partnerSnapshots = batchIds.length ? await readTable("partner_settlement_partner_snapshots", admin.from("partner_settlement_partner_snapshots").select("*").in("settlement_batch_id", batchIds)) : [];
@@ -105,11 +105,11 @@ export async function loadServerBackupData(admin: AdminClient, ownerId: string):
     };
   });
   return {
-    properties: toExportRows(properties), rooms: toExportRows(rooms), tenants: toExportRows(tenants), contracts: toExportRows(contracts), rentPayments: toExportRows(rentPayments), expenses: toExportRows(expenses), deposits: toExportRows(deposits), viewingAppointments: toExportRows(viewingAppointments), tasks: toExportRows(tasks), partners: toExportRows(partners), partnerShares: toExportRows(partnerShares), partnerNameHistory: toExportRows(partnerNameHistory), propertyHistory: [],
+    properties: toExportRows(properties), rooms: toExportRows(rooms), tenants: toExportRows(tenants), contracts: toExportRows(contracts), rentPayments: toExportRows(rentPayments), expenses: toExportRows(expenses), deposits: toExportRows(deposits), viewingAppointments: toExportRows(viewingAppointments), tasks: toExportRows(tasks), partners: toExportRows(partners), partnerShares: toExportRows(partnerShares), partnerNameHistory: toExportRows(partnerNameHistory), checkInRequests: toExportRows(checkInRequests), tenantCreateRequests: toExportRows(tenantCreateRequests), propertyHistory: [],
     settlementBatches: toExportRows(settlementBatches), settlementSnapshots: settlementBatches.map((batch) => ({ batch: toExportRows([batch])[0], partners: toExportRows(partnerByBatch.get(String(batch.id)) || []), segments: toExportRows(segmentByBatch.get(String(batch.id)) || []), transfers: toExportRows(transferByBatch.get(String(batch.id)) || [] ) })), accounts, auditLogs, settings: { legacyPartnerRatios: { A: 50, B: 50 }, ...(currencyCode ? { currencyCode } : {}) }
   };
 }
 
 export async function createDataBackup(admin: AdminClient, ownerId: string, options: Parameters<typeof createDataExportPayload>[2] = {}): Promise<DataExportPayload> {
-  return createDataExportPayload(await loadServerBackupData(admin, ownerId), new Date().toISOString(), options);
+  return createDataExportPayload(await loadServerBackupData(admin, ownerId), new Date().toISOString(), { ...options, sourceWorkspaceId: ownerId });
 }

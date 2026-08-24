@@ -243,6 +243,7 @@ function normalizeRestoreDataFromDatabaseSchema(payload: DataExportPayload, work
   });
 
   return {
+    sourceWorkspaceId: payload.metadata.sourceWorkspaceId,
     properties: normalizeCollection(source.properties, "user_id", workspaceOwnerId),
     rooms: normalizeCollection(source.rooms, "user_id", workspaceOwnerId),
     tenants: normalizeCollection(source.tenants, "user_id", workspaceOwnerId),
@@ -255,6 +256,8 @@ function normalizeRestoreDataFromDatabaseSchema(payload: DataExportPayload, work
     partners: normalizeCollection(source.partners, "workspace_owner_id", workspaceOwnerId),
     partnerShares: normalizeCollection(source.partnerShares, "workspace_owner_id", workspaceOwnerId),
     partnerNameHistory: normalizeCollection(source.partnerNameHistory, "workspace_owner_id", workspaceOwnerId),
+    checkInRequests: normalizeCollection(source.checkInRequests, "workspace_owner_id", workspaceOwnerId),
+    tenantCreateRequests: normalizeCollection(source.tenantCreateRequests, "workspace_owner_id", workspaceOwnerId),
     settlementBatches: normalizeCollection(source.settlementBatches, "workspace_owner_id", workspaceOwnerId),
     settlementPartnerSnapshots: snapshotChildren("partners"),
     settlementSegmentSnapshots: snapshotChildren("segments"),
@@ -439,6 +442,9 @@ export async function POST(request: Request) {
     // checksum/schema failures visible instead of masking them.
     const sourceIntegrity = await dryRunRestore(uploadedPayload);
     if (!sourceIntegrity.valid) return NextResponse.json({ error: sourceIntegrity.errors[0] || "invalid_backup", code: "invalid_backup" }, { status: 400 });
+    if (uploadedPayload.metadata.sourceWorkspaceId !== context.profile.workspace_owner_id) {
+      return NextResponse.json({ error: "此备份属于其他工作区，已拒绝恢复。", code: "restore_workspace_mismatch" }, { status: 409 });
+    }
     const admin = getSupabaseAdmin();
     const restorePayload = isFreeSingleAccount(context)
       ? await (async () => {
@@ -470,7 +476,8 @@ export async function POST(request: Request) {
             backupType: uploadedPayload.metadata.backupType,
             exportedBy: context.userId,
             timezone: uploadedPayload.metadata.timezone,
-            exportReason: uploadedPayload.metadata.exportReason
+            exportReason: uploadedPayload.metadata.exportReason,
+            sourceWorkspaceId: context.profile.workspace_owner_id
           }
         );
       })()

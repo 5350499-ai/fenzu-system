@@ -7,6 +7,7 @@ const restoreSql = fs.readFileSync(new URL("../supabase/migrations/2026080512000
 const schemaMigration = fs.readFileSync(new URL("../supabase/migrations/20260806080332_restore_schema_single_source.sql", import.meta.url), "utf8");
 const currentMappingMigration = fs.readFileSync(new URL("../supabase/migrations/20260822100000_restore_full_field_mapping.sql", import.meta.url), "utf8");
 const coverageDepositMappingMigration = fs.readFileSync(new URL("../supabase/migrations/20260823180000_coverage_and_deposit_income.sql", import.meta.url), "utf8");
+const requestScopeMigration = fs.readFileSync(new URL("../supabase/migrations/20260824180000_backup_restore_core_request_scope.sql", import.meta.url), "utf8");
 
 // Table names define the restore boundary; column names intentionally do not
 // live in this script. The only column source is information_schema/PostgreSQL
@@ -15,7 +16,8 @@ const restoreTables = [
   "properties", "rooms", "tenants", "contracts", "rent_payments", "expenses", "deposits",
   "viewing_appointments", "tasks", "partners", "partner_property_shares", "partner_name_history",
   "partner_settlement_batches", "partner_settlement_partner_snapshots",
-  "partner_settlement_segment_snapshots", "partner_settlement_transfer_snapshots"
+  "partner_settlement_segment_snapshots", "partner_settlement_transfer_snapshots",
+  "check_in_requests", "tenant_create_requests"
 ];
 const conflictUpdateTables = new Set([
   "properties", "rooms", "tenants", "contracts", "rent_payments", "expenses", "deposits",
@@ -44,10 +46,11 @@ for (const file of fs.readdirSync(new URL("../supabase/migrations/", import.meta
   }
 }
 
-const mappingSource = `${restoreSql}\n${currentMappingMigration}\n${coverageDepositMappingMigration}`;
+const mappingSource = `${restoreSql}\n${currentMappingMigration}\n${coverageDepositMappingMigration}\n${requestScopeMigration}`;
 
 for (const table of restoreTables) {
-  if (!restoreSql.includes(`insert into public.${table}`)) missing.push(`restore-insert:${table}`);
+  const insertSource = ["check_in_requests", "tenant_create_requests"].includes(table) ? requestScopeMigration : restoreSql;
+  if (!insertSource.includes(`insert into public.${table}`)) missing.push(`restore-insert:${table}`);
   for (const column of conflictUpdateTables.has(table) ? columnsByTable.get(table) || [] : []) {
     if (column === "id") continue;
     if (table === "partner_settlement_batches" && column === "period_range") continue;
@@ -56,8 +59,10 @@ for (const table of restoreTables) {
 }
 
 if (!backupService.includes('select("*")')) missing.push("export:select-star-live-schema");
+if (!backupService.includes("check_in_requests") || !backupService.includes("tenant_create_requests")) missing.push("export:request-tables");
 if (!route.includes("function toSnakeKey")) missing.push("restore:generic-snake-case-mapping");
 if (!route.includes("normalizeRestoreDataFromDatabaseSchema")) missing.push("restore:generic-normalizer");
+if (!route.includes("sourceWorkspaceId") || !route.includes("restore_workspace_mismatch")) missing.push("restore:strict-workspace-binding");
 if (!route.includes("jsonb_populate_recordset")) missing.push("restore:database-record-mapping");
 if (!schemaMigration.includes("jsonb_each(v_expected)") || !schemaMigration.includes("where v_actual ? entry.key")) {
   missing.push("validation:dynamic-live-schema-projection");
@@ -71,11 +76,19 @@ if (route.includes("RESTORE_TABLE_COLUMNS") || schemaMigration.includes("backupF
 }
 
 let previousPosition = -1;
-for (const table of restoreTables) {
+for (const table of restoreTables.filter((name) => !["check_in_requests", "tenant_create_requests"].includes(name))) {
   const position = restoreSql.indexOf(`insert into public.${table}`);
   if (position <= previousPosition) missing.push(`restore-order:${table}`);
   previousPosition = position;
 }
+const coreRestorePosition = requestScopeMigration.indexOf("perform public.restore_workspace_backup_impl");
+for (const table of ["check_in_requests", "tenant_create_requests"]) {
+  const position = requestScopeMigration.indexOf(`insert into public.${table}`);
+  if (position < coreRestorePosition) missing.push(`restore-order:${table}:before-core`);
+  if (position < 0) missing.push(`restore-order:${table}:missing`);
+}
+if (requestScopeMigration.indexOf("delete from public.check_in_requests") < 0 || requestScopeMigration.indexOf("delete from public.tenant_create_requests") < 0) missing.push("restore-request-boundary-clear");
+if (!requestScopeMigration.includes("source workspace does not match target workspace")) missing.push("restore-rpc-workspace-binding");
 
 console.log(JSON.stringify({
   status: missing.length ? "FAIL" : "PASS",

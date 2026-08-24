@@ -1,8 +1,8 @@
 export const DATA_EXPORT_FORMAT = "fenzu-system-json" as const;
-export const BACKUP_FORMAT_VERSION = 1 as const;
+export const BACKUP_FORMAT_VERSION = 2 as const;
 export const DATA_EXPORT_VERSION = BACKUP_FORMAT_VERSION;
 export const APP_VERSION = "0.1.0" as const;
-export const SCHEMA_VERSION = "20260808000100" as const;
+export const SCHEMA_VERSION = "20260824180000" as const;
 export const GENERATED_BY = "Fenzu System" as const;
 export const SOFTWARE_EDITION = "Community" as const;
 export const APPLICATION_NAME = "咱家分租" as const;
@@ -14,6 +14,7 @@ const SENSITIVE_EXPORT_KEY = /password|password_hash|access[_-]?token|refresh[_-
 const REQUIRED_COLLECTIONS = [
   "properties", "rooms", "tenants", "contracts", "rentPayments", "expenses", "deposits",
   "viewingAppointments", "tasks", "partners", "partnerShares", "partnerNameHistory",
+  "checkInRequests", "tenantCreateRequests",
   "propertyHistory", "settlementBatches", "settlementSnapshots", "settings"
 ] as const;
 
@@ -28,6 +29,8 @@ export type BackupSummary = {
   appointmentsCount: number;
   todosCount: number;
   partnersCount: number;
+  checkInRequestsCount: number;
+  tenantCreateRequestsCount: number;
   settlementsCount: number;
   settlementSnapshotsCount: number;
   totalRecords: number;
@@ -54,6 +57,7 @@ export type BackupMetadata = {
   recordCount: number;
   applicationName: typeof APPLICATION_NAME;
   applicationId: typeof APPLICATION_ID;
+  sourceWorkspaceId: string;
 };
 
 export type DataExportPayload = {
@@ -67,6 +71,8 @@ export type BackupIntegrityResult = { valid: boolean; errors: string[] };
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
+
+function toSnakeKey(key: string) { return key.replace(/[A-Z]/g, (character) => `_${character.toLowerCase()}`); }
 
 export function stripSensitiveExportData(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveExportData);
@@ -128,7 +134,8 @@ export function buildBackupSummary(data: Record<string, unknown>, backupSizeByte
     propertiesCount: count(data, "properties"), roomsCount: count(data, "rooms"), tenantsCount: count(data, "tenants"),
     contractsCount: count(data, "contracts"), rentPaymentsCount: count(data, "rentPayments"), expensesCount: count(data, "expenses"),
     depositsCount: count(data, "deposits"), appointmentsCount: count(data, "viewingAppointments"), todosCount: count(data, "tasks"),
-    partnersCount: count(data, "partners"), settlementsCount: count(data, "settlementBatches"), settlementSnapshotsCount: count(data, "settlementSnapshots"),
+    partnersCount: count(data, "partners"), checkInRequestsCount: count(data, "checkInRequests"), tenantCreateRequestsCount: count(data, "tenantCreateRequests"),
+    settlementsCount: count(data, "settlementBatches"), settlementSnapshotsCount: count(data, "settlementSnapshots"),
     totalRecords: 0, backupSizeBytes, backupSizeHuman: formatBackupSize(backupSizeBytes)
   } satisfies BackupSummary;
   summary.totalRecords = Object.entries(data).reduce((total, [, value]) => total + (Array.isArray(value) ? value.length : 0), 0);
@@ -169,21 +176,21 @@ function jsonForSize(payload: DataExportPayload): string {
   return JSON.stringify(payload, null, 2);
 }
 
-function normalizedMetadata(options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] }, exportedAt: string): Omit<BackupMetadata, "checksum"> {
+function normalizedMetadata(options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] }, exportedAt: string): Omit<BackupMetadata, "checksum"> {
   return {
     backupFormatVersion: BACKUP_FORMAT_VERSION, appVersion: APP_VERSION, schemaVersion: SCHEMA_VERSION,
     backupId: crypto.randomUUID(), backupType: options.backupType || "local", exportedAt,
     exportedBy: options.exportedBy || null, timezone: options.timezone || "UTC", description: DESCRIPTION,
     generatedBy: GENERATED_BY, softwareEdition: SOFTWARE_EDITION, platform: options.platform || "Web",
     exportReason: options.exportReason || "Manual", exportDurationMs: 0, recordCount: 0,
-    applicationName: APPLICATION_NAME, applicationId: APPLICATION_ID
+    applicationName: APPLICATION_NAME, applicationId: APPLICATION_ID, sourceWorkspaceId: options.sourceWorkspaceId || ""
   };
 }
 
 export async function createDataExportPayload(
   data: Record<string, unknown>,
   exportedAt = new Date().toISOString(),
-  options: { backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
+  options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
 ): Promise<DataExportPayload> {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const cleanData = normalizeNullableUuidReferences(stripSensitiveExportData(data) as Record<string, unknown>);
@@ -241,6 +248,16 @@ export function validateDataExportIntegrity(payload: DataExportPayload): BackupI
       ids.add(row.id);
     }
   }
+  const requestRows = (key: "checkInRequests" | "tenantCreateRequests") => records(data, key);
+  for (const key of ["checkInRequests", "tenantCreateRequests"] as const) {
+    const ids = new Set<string>();
+    for (const row of requestRows(key)) {
+      const requestId = row.clientRequestId ?? row.client_request_id;
+      if (typeof requestId !== "string" || !requestId) errors.push(`${key} 缺少 clientRequestId`);
+      else if (ids.has(requestId)) errors.push(`${key} 存在重复 clientRequestId：${requestId}`);
+      else ids.add(requestId);
+    }
+  }
   addMissingReferenceErrors(errors, data, "rooms", "propertyId", "properties");
   addMissingReferenceErrors(errors, data, "tenants", "propertyId", "properties");
   addMissingReferenceErrors(errors, data, "tenants", "roomId", "rooms");
@@ -261,6 +278,16 @@ export function validateDataExportIntegrity(payload: DataExportPayload): BackupI
   addMissingReferenceErrors(errors, data, "partnerShares", "propertyId", "properties");
   addMissingReferenceErrors(errors, data, "partnerNameHistory", "partnerId", "partners");
   addMissingReferenceErrors(errors, data, "settlementBatches", "propertyId", "properties");
+  for (const key of ["checkInRequests", "tenantCreateRequests"] as const) {
+    for (const row of requestRows(key)) {
+      for (const [field, target] of [["tenantId", "tenants"], ["contractId", "contracts"], ["rentPaymentId", "rentPayments"], ["depositId", "deposits"]] as const) {
+        const reference = row[field] ?? row[toSnakeKey(field)];
+        if (typeof reference === "string" && reference && !records(data, target).some((targetRow) => targetRow.id === reference)) {
+          errors.push(`${key}.${field} 指向不存在的 ${target}：${reference}`);
+        }
+      }
+    }
+  }
   const expected = buildBackupSummary(data);
   if (!isRecord(payload.summary)) errors.push("Summary 格式错误。");
   else for (const key of Object.keys(expected) as Array<keyof BackupSummary>) {
@@ -285,7 +312,8 @@ export function isDataExportPayload(value: unknown): value is DataExportPayload 
     && typeof metadata.platform === "string" && typeof metadata.exportReason === "string"
     && typeof metadata.exportDurationMs === "number" && Number.isFinite(metadata.exportDurationMs)
     && typeof metadata.recordCount === "number" && Number.isInteger(metadata.recordCount)
-    && metadata.applicationName === APPLICATION_NAME && metadata.applicationId === APPLICATION_ID;
+    && metadata.applicationName === APPLICATION_NAME && metadata.applicationId === APPLICATION_ID
+    && typeof metadata.sourceWorkspaceId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(metadata.sourceWorkspaceId);
 }
 
 export async function dryRunRestore(payload: unknown): Promise<BackupIntegrityResult> {
