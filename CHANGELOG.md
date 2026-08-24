@@ -1348,3 +1348,10 @@
 - Added a fail-closed read boundary for explicit historical `check_in_requests` payment/deposit links and a shared classifier so historical mixed check-ins count once across payment management, Dashboard, net profit and settlement without rewriting any historical row.
 - Added a complete corrective 19-parameter RPC migration with the current owner, `SECURITY DEFINER`, empty `search_path`, service-role boundary, shared-room eligibility, optional meaningful rent row, contract-owned coverage plus the payment fallback, atomic request linkage and exact future marker. The occupant-count wrapper is unchanged.
 - Prepared only: no Production migration, Production deployment, database row mutation, backfill or real-user data change was performed.
+
+## 2026-08-24 - Linked receipt delete and aggregate audit correction (Prepared)
+
+- Separated finance classification from lifecycle ownership: a uniquely marker-linked deposit that passes workspace, tenant, property and room identity checks is deleted atomically with its payment even for historical mixed receipts.
+- Preserved existing void finance semantics while adding transaction-local aggregate void/delete audit snapshots with rent, deposit, total, classification and pre-action lifecycle states.
+- Added audit API/presentation support for aggregate amounts plus historical snake_case and camelCase snapshots; existing low-level table audit logs remain unchanged.
+- Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.

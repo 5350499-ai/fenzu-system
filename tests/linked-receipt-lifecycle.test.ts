@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const migration = readFileSync("supabase/migrations/20260824103204_linked_receipt_lifecycle.sql", "utf8");
+const migration = readFileSync("supabase/migrations/20260824124815_linked_receipt_delete_audit_snapshot.sql", "utf8");
 const route = readFileSync("app/api/rent-payments/lifecycle/route.ts", "utf8");
 const page = readFileSync("app/rent-payments/page.tsx", "utf8");
 
@@ -47,7 +47,7 @@ test("marker resolution is exact, cardinality checked, and entity scoped", () =>
 
 test("void changes both new separated sources but preserves legacy mixed deposits", () => {
   const rpc = functionBody("void_rent_payment_with_linked_deposit");
-  assert.match(rpc, /v_legacy_mixed :=[\s\S]*amount_paid[\s\S]*amount_due[\s\S]*v_deposit\.amount/);
+  assert.match(rpc, /v_deposit_amount := coalesce\(v_deposit\.amount, 0\);[\s\S]*v_legacy_mixed := v_deposit_amount > 0[\s\S]*amount_paid[\s\S]*amount_due/);
   assert.match(rpc, /if not v_legacy_mixed then[\s\S]*has_module_permission\('deposits', 'archive'\)/);
   assert.match(rpc, /update public\.deposits[\s\S]*set status = '已作废'/);
   assert.match(rpc, /update public\.rent_payments[\s\S]*'\[已作废\]'/);
@@ -56,11 +56,30 @@ test("void changes both new separated sources but preserves legacy mixed deposit
   assert.match(page, /filteredPayments\.reduce\(\(total, payment\) => total \+ \(isVoided\(payment\.notes\) \? 0 : paymentListAmount/);
 });
 
-test("permanent delete removes only a uniquely linked new deposit and the payment in one RPC", () => {
+test("permanent delete removes an exact unique linked deposit regardless of finance classification", () => {
   const rpc = functionBody("permanently_delete_rent_payment_with_linked_deposit");
-  assert.match(rpc, /if not v_legacy_mixed then[\s\S]*has_module_permission\('deposits', 'delete'\)/);
+  assert.match(rpc, /v_classification := case when v_legacy_mixed then 'LEGACY_MIXED_RENEWAL' else 'NEW_SEPARATED_RENEWAL' end/);
+  assert.match(rpc, /if v_candidate_count = 1 then[\s\S]*has_module_permission\('deposits', 'delete'\)/);
   assert.match(rpc, /delete from public\.deposits where id = v_deposit\.id;[\s\S]*delete from public\.rent_payments where id = v_payment\.id;/);
+  assert.doesNotMatch(rpc, /if not v_legacy_mixed then[\s\S]*delete from public\.deposits/);
   assert.doesNotMatch(rpc, /exception\s+when\s+others/i);
+});
+
+test("aggregate lifecycle audit is transaction-local and captures immutable amount components", () => {
+  for (const name of ["void_rent_payment_with_linked_deposit", "permanently_delete_rent_payment_with_linked_deposit"]) {
+    const rpc = functionBody(name);
+    assert.match(rpc, /insert into public\.audit_logs/);
+    for (const field of ["paymentId", "depositId", "propertyId", "roomId", "tenantId", "workspaceOwnerId", "actorUserId", "rentAmount", "depositAmount", "totalAmount", "classification", "paymentStatusBefore", "depositStatusBefore"]) {
+      assert.match(rpc, new RegExp(`'${field}'`), `${name}:${field}`);
+    }
+    assert.match(rpc, /v_total_amount, '(?:作废|永久删除)关联收款', true/);
+    assert.doesNotMatch(rpc, /exception\s+when\s+others/i);
+  }
+  const voidRpc = functionBody("void_rent_payment_with_linked_deposit");
+  const deleteRpc = functionBody("permanently_delete_rent_payment_with_linked_deposit");
+  assert.ok(voidRpc.indexOf("update public.rent_payments") < voidRpc.indexOf("insert into public.audit_logs"));
+  assert.ok(deleteRpc.indexOf("delete from public.deposits") < deleteRpc.indexOf("insert into public.audit_logs"));
+  assert.ok(deleteRpc.indexOf("delete from public.rent_payments") < deleteRpc.indexOf("insert into public.audit_logs"));
 });
 
 test("RPC grants stay authenticated-only and keep service-role/public closed", () => {

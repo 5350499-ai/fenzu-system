@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     let query = admin
       .from("audit_logs")
-      .select("id,log_category,actor_user_id,actor_username,actor_display_name,action_type,module_key,entity_type,entity_id,before_data,after_data,description,success,created_at")
+      .select("id,log_category,actor_user_id,actor_username,actor_display_name,action_type,module_key,entity_type,entity_id,before_data,after_data,amount,description,success,created_at")
       .eq("success", true)
       .order("created_at", { ascending: false })
       .limit(1000);

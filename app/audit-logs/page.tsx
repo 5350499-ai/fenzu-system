@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { supabase } from "@/lib/supabase";
 import { useAccountAccess } from "@/components/account-access";
 import { formatCurrency } from "@/lib/currency";
+import { buildAuditLogSummary } from "@/lib/audit-log-summary";
 import { useCallback, useEffect, useState } from "react";
 
 type AuditLog = {
@@ -17,6 +18,7 @@ type AuditLog = {
   success: boolean;
   before_data: unknown;
   after_data: unknown;
+  amount: number | string | null;
 };
 
 export default function AuditLogsPage() {
@@ -90,6 +92,8 @@ export default function AuditLogsPage() {
 const moduleLabels: Record<string, string> = { properties: "房源", rooms: "房间", tenants: "租客", contracts: "合同", rent_payments: "收款", expenses: "支出", deposits: "押金", reminders: "提醒", partners: "成员", partnership_settlement: "合伙结算", settings: "设置", auth: "账号", audit_logs: "操作日志", tasks: "待办", viewing_appointments: "看房预约" };
 function moduleLabel(value: string) { return moduleLabels[value] || "系统"; }
 function actionLabel(value: string) {
+  if (value === "linked_receipt_void") return "作废";
+  if (value === "linked_receipt_delete") return "永久删除";
   if (value === "insert" || value.startsWith("create") || value.includes("registered")) return "新增";
   if (value === "update" || value.startsWith("rename") || value.startsWith("adjust") || value.startsWith("deactivate")) return "修改";
   if (value === "delete" || value.startsWith("cancel")) return "删除";
@@ -105,12 +109,7 @@ function businessDescription(log: AuditLog, currencyCode: Parameters<typeof form
   return summary ? `${action}${module} · ${summary}` : `${action}${module}`;
 }
 function safeSummary(log: AuditLog, currencyCode: Parameters<typeof formatCurrency>[1]) {
-  const row = (log.after_data && typeof log.after_data === "object" ? log.after_data : log.before_data) as Record<string, unknown> | null;
-  if (!row) return "";
-  const text = [row.name, row.displayName, row.category, row.incomeItem].find((value) => typeof value === "string" && value.trim());
-  if (text) return String(text).slice(0, 80);
-  const amount = [row.amount, row.amountPaid, row.monthlyRent].find((value) => typeof value === "number" || (typeof value === "string" && value.trim()));
-  return amount === undefined ? "" : formatCurrency(Number(amount), currencyCode);
+  return buildAuditLogSummary(log, currencyCode, formatCurrency);
 }
 
 function formatTime(value: string) {
