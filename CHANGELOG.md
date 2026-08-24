@@ -1391,3 +1391,8 @@
 - Canonical linked-receipt deletion now recognizes a single, complete one-click check-in receipt graph, clears only that request's nullable payment/deposit references, preserves the check-in, tenant and contract history, then atomically deletes the verified receipt pair.
 - The preserved idempotency result explicitly returns null receipt IDs and `receiptDeleted=true`, so replay cannot recreate income or return stale payment/deposit IDs; aggregate lifecycle audit adds the check-in request, contract and origin snapshot fields.
 - Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.
+
+## 2026-08-24 - Login and expense Preview timing instrumentation (Prepared)
+
+- Added Preview-only trace timing for login through home interactive and expense create/edit through UI interactive, using shared trace helpers and authenticated observability sinks.
+- Preserved login, expense, transaction, save order and loading behavior; no database, migration, Production deployment or real-user data change was performed.

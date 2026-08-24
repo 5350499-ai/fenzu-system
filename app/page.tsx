@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
 import { createHomeLoadTiming, emitHomeLoadTiming, markHomeLoadTiming, setHomeLoadTiming } from "@/lib/home-load-timing";
+import { emitLoginTiming, markSaveTiming, takePendingLoginTiming, type SaveTimingTrace } from "@/lib/save-latency-timing";
 import { defaultBackupReminderSettings, loadBackupReminderSettings, loadServerBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { loadCheckInReceiptLinks, type CheckInReceiptLink } from "@/lib/check-in-receipt-links";
 
@@ -110,9 +111,11 @@ export default function DashboardPage() {
     };
     async function load() {
       const timing = createHomeLoadTiming();
+      const loginTiming = takePendingLoginTiming() as SaveTimingTrace | null;
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
       markHomeLoadTiming(timing, "AUTH_READY");
+      if (loginTiming) markSaveTiming(loginTiming, "HOME_LOAD_START");
       const scope = session.user.id;
       setBackupReminderSettings(loadBackupReminderSettings(scope));
       const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
@@ -170,6 +173,10 @@ export default function DashboardPage() {
         markHomeLoadTiming(timing, "HOME_INTERACTIVE");
         setHomeLoadTiming(timing, "HOME_TOTAL_MS", performance.now() - timing.startedAt);
         emitHomeLoadTiming(timing, session.access_token);
+        if (loginTiming) {
+          markSaveTiming(loginTiming, "HOME_INTERACTIVE");
+          emitLoginTiming(loginTiming, session.access_token);
+        }
       });
     }
     load().catch((error) => {

@@ -74,6 +74,8 @@ status.
 /api/partner-settlements
 /api/partner-settlements/[id]
 /api/performance-timing/home
+/api/performance-timing/login
+/api/performance-timing/expense
 /api/rent-collection
 /api/rent-payments/lifecycle
 /api/internal/recovery-scheduler

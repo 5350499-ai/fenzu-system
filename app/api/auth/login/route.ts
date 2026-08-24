@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizeLoginIdentifier } from "@/lib/account-permissions";
 import { AccountApiError, apiErrorResponse, type AccountRequestContext, writeAuditLog } from "@/lib/server/account-auth";
 import { getSupabaseAdmin, getSupabasePublicServerClient } from "@/lib/supabase-admin";
+import { finishServerTiming, markServerTiming, startServerTiming } from "@/lib/server/save-latency-timing";
 
 function readSessionId(accessToken: string) {
   try {
@@ -15,6 +16,8 @@ function readSessionId(accessToken: string) {
 }
 
 export async function POST(request: Request) {
+  const timing = startServerTiming(request, "login");
+  markServerTiming(timing, "authStart");
   try {
     const body = await request.json().catch(() => null) as { identifier?: unknown; password?: unknown } | null;
     const identifier = typeof body?.identifier === "string" ? normalizeLoginIdentifier(body.identifier) : "";
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
 
     if (!identity) {
       await writeAuditLog(null, { actionType: "login_failed", moduleKey: "auth", description: "账号登录失败", success: false });
-      return NextResponse.json({ error: "账号或密码错误。" }, { status: 401 });
+      return finishServerTiming(NextResponse.json({ error: "账号或密码错误。" }, { status: 401 }), timing);
     }
 
     const { data: profileData } = await admin
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!profileData || profileData.status !== "active") {
       await writeAuditLog(null, { actionType: "login_failed", moduleKey: "auth", description: "账号登录失败", success: false });
-      return NextResponse.json({ error: "账号或密码错误。" }, { status: 401 });
+      return finishServerTiming(NextResponse.json({ error: "账号或密码错误。" }, { status: 401 }), timing);
     }
 
     const authClient = getSupabasePublicServerClient();
@@ -50,10 +53,10 @@ export async function POST(request: Request) {
     });
     if (loginError || !authData.session || authData.user?.id !== identity.auth_user_id) {
       if (loginError?.message.toLowerCase().includes("email not confirmed")) {
-        return NextResponse.json({ error: "请先前往邮箱完成验证，再登录系统。", code: "email_not_confirmed" }, { status: 403 });
+        return finishServerTiming(NextResponse.json({ error: "请先前往邮箱完成验证，再登录系统。", code: "email_not_confirmed" }, { status: 403 }), timing);
       }
       await writeAuditLog(null, { actionType: "login_failed", moduleKey: "auth", description: "账号登录失败", success: false });
-      return NextResponse.json({ error: "账号或密码错误。" }, { status: 401 });
+      return finishServerTiming(NextResponse.json({ error: "账号或密码错误。" }, { status: 401 }), timing);
     }
 
     const sessionId = readSessionId(authData.session.access_token);
@@ -86,14 +89,16 @@ export async function POST(request: Request) {
     };
     await writeAuditLog(context, { actionType: "login_success", moduleKey: "auth", description: "账号登录成功" });
 
-    return NextResponse.json({
+    markServerTiming(timing, "authEnd");
+    return finishServerTiming(NextResponse.json({
       accessToken: authData.session.access_token,
       refreshToken: authData.session.refresh_token,
       expiresAt: authData.session.expires_at,
       expiresIn: authData.session.expires_in,
       tokenType: authData.session.token_type
-    });
+    }), timing);
   } catch (error) {
-    return apiErrorResponse(error);
+    markServerTiming(timing, "authEnd");
+    return finishServerTiming(apiErrorResponse(error), timing);
   }
 }

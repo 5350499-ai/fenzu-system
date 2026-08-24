@@ -1,4 +1,4 @@
-export type SaveTimingFlow = "check-in" | "tenant-create" | "renewal" | "payment-save";
+export type SaveTimingFlow = "check-in" | "tenant-create" | "renewal" | "payment-save" | "login" | "expense-create" | "expense-edit";
 
 export type SaveTimingTrace = {
   traceId: string;
@@ -85,6 +85,7 @@ export function emitSaveTiming(trace: SaveTimingTrace) {
 }
 
 const CHECK_IN_PENDING_KEY = "preview-save-timing-check-in";
+const LOGIN_PENDING_KEY = "preview-save-timing-login";
 
 export function storePendingCheckInTiming(trace: SaveTimingTrace) {
   if (typeof window === "undefined") return;
@@ -101,4 +102,59 @@ export function takePendingCheckInTiming() {
   } catch {
     return null;
   }
+}
+
+export function storePendingLoginTiming(trace: SaveTimingTrace) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(LOGIN_PENDING_KEY, JSON.stringify(trace));
+}
+
+export function takePendingLoginTiming() {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(LOGIN_PENDING_KEY);
+  window.sessionStorage.removeItem(LOGIN_PENDING_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SaveTimingTrace;
+  } catch {
+    return null;
+  }
+}
+
+export function emitLoginTiming(trace: SaveTimingTrace, accessToken: string) {
+  if (!trace.previewEnabled && typeof window !== "undefined" && !window.location.hostname.endsWith(".vercel.app")) return;
+  void fetch("/api/performance-timing/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      traceId: trace.traceId,
+      loginApiMs: durationBetween(trace, "API_START", "API_END"),
+      sessionMs: durationBetween(trace, "API_END", "SESSION_READY"),
+      accountMs: durationBetween(trace, "ACCOUNT_ACCESS_START", "ACCOUNT_ACCESS_END"),
+      redirectToHomeMs: durationBetween(trace, "REDIRECT_START", "HOME_LOAD_START"),
+      homeLoadMs: durationBetween(trace, "HOME_LOAD_START", "HOME_INTERACTIVE"),
+      totalMs: durationBetween(trace, "T0", "HOME_INTERACTIVE")
+    })
+  }).catch(() => undefined);
+}
+
+export function emitExpenseTiming(trace: SaveTimingTrace) {
+  if (!trace.previewEnabled && typeof window !== "undefined" && !window.location.hostname.endsWith(".vercel.app")) return;
+  void import("@/lib/supabase").then(({ getValidSupabaseSession }) => getValidSupabaseSession()).then((session) => {
+    if (!session) return;
+    void fetch("/api/performance-timing/expense", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({
+        traceId: trace.traceId,
+        flow: trace.flow,
+        validationMs: durationBetween(trace, "T0", "VALIDATION_END"),
+        apiMs: durationBetween(trace, "API_START", "API_END"),
+        dbMs: trace.details.serverDbMs ?? null,
+        attachmentMs: trace.details.attachmentMs === "N/A" ? null : durationBetween(trace, "ATTACHMENT_START", "ATTACHMENT_END"),
+        localStateMs: durationBetween(trace, "API_END", "LOCAL_STATE_READY"),
+        totalMs: durationBetween(trace, "T0", "UI_INTERACTIVE")
+      })
+    }).catch(() => undefined);
+  }).catch(() => undefined);
 }

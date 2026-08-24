@@ -7,6 +7,7 @@ import { establishSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/
 import { clearAccountAccessSnapshot, useAccountAccess } from "@/components/account-access";
 import { AuthBrand } from "@/components/auth-brand";
 import { PasswordInput } from "@/components/password-input";
+import { createSaveTiming, enablePreviewTimingFromResponse, markSaveTiming, saveTimingRequestHeaders, setSaveTimingDetail, serverTimingDuration, storePendingLoginTiming } from "@/lib/save-latency-timing";
 
 function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000) {
   return new Promise<T>((resolve, reject) => {
@@ -65,20 +66,28 @@ export default function LoginPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const timing = createSaveTiming("login");
     setError("");
 
     if (!isSupabaseConfigured || !supabase) {
+      markSaveTiming(timing, "T1");
       setError("系统尚未配置 Supabase 环境变量，请先在 Vercel 中配置登录服务。");
       return;
     }
 
+    markSaveTiming(timing, "T1");
     setLoading(true);
     try {
+      markSaveTiming(timing, "API_START");
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...saveTimingRequestHeaders(timing) },
         body: JSON.stringify({ identifier, password })
       });
+      markSaveTiming(timing, "API_END");
+      enablePreviewTimingFromResponse(timing, response);
+      setSaveTimingDetail(timing, "serverTotalMs", serverTimingDuration(response, "total"));
+      setSaveTimingDetail(timing, "serverAuthMs", serverTimingDuration(response, "auth"));
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (typeof payload?.error === "string") {
@@ -97,11 +106,16 @@ export default function LoginPage() {
         setError("登录会话创建失败，请重试。");
         return;
       }
+      markSaveTiming(timing, "SESSION_READY");
+      markSaveTiming(timing, "ACCOUNT_ACCESS_START");
       const verified = await withTimeout(access.refreshWithAccessToken(payload.accessToken), "账户状态验证超时，请重试。");
+      markSaveTiming(timing, "ACCOUNT_ACCESS_END");
       if (!verified.authenticated || !verified.isServerVerified) {
         setError(verified.invalidReason || "登录状态验证失败，请重新登录。");
         return;
       }
+      markSaveTiming(timing, "REDIRECT_START");
+      storePendingLoginTiming(timing);
       router.replace(returnTo);
     } catch {
       setError("登录服务暂时不可用，请稍后重试。");

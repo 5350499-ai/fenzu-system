@@ -42,6 +42,7 @@ import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { matchesFinanceSearch } from "@/lib/finance-search";
 import { isManualExpenseLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
+import { createSaveTiming, emitExpenseTiming, enablePreviewTimingFromResponse, markSaveTiming, serverTimingDuration, setSaveTimingDetail } from "@/lib/save-latency-timing";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -232,7 +233,9 @@ export default function ExpensesPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const timing = createSaveTiming(form.id ? "expense-edit" : "expense-create");
     if (!loaded || !form.propertyId) return;
+    markSaveTiming(timing, "VALIDATION_END");
     if (!isValidManualAmount(Number(form.amount))) {
       window.alert(manualAmountError());
       return;
@@ -250,8 +253,23 @@ export default function ExpensesPage() {
       ? expenses.map((expense) => (expense.id === form.id ? nextExpense : expense))
       : [nextExpense, ...expenses];
     try {
-      await saveBusinessData(expenseKey, next, { manualEntry: true });
+      markSaveTiming(timing, "API_START");
+      await saveBusinessData(expenseKey, next, {
+        manualEntry: true,
+        timing: {
+          traceId: timing.traceId,
+          flow: timing.flow,
+          onResponse: (response) => {
+            markSaveTiming(timing, "API_END");
+            enablePreviewTimingFromResponse(timing, response);
+            setSaveTimingDetail(timing, "serverTotalMs", serverTimingDuration(response, "total"));
+            setSaveTimingDetail(timing, "serverDbMs", serverTimingDuration(response, "rpc"));
+          }
+        }
+      });
       setExpenses(next);
+      markSaveTiming(timing, "LOCAL_STATE_READY");
+      markSaveTiming(timing, "ATTACHMENT_START");
       if (!form.id && pendingFiles.length) {
         const uploadedFiles: ExpenseFile[] = [];
         try {
@@ -262,11 +280,27 @@ export default function ExpensesPage() {
           window.alert(`支出已保存，但附件上传失败：${error.message || error}`);
         }
       }
+      markSaveTiming(timing, "ATTACHMENT_END");
       close();
     } catch (error: any) {
       window.alert(error.message || "保存支出失败，请稍后重试。");
     } finally {
       setSaving(false);
+      requestAnimationFrame(() => {
+        markSaveTiming(timing, "UI_INTERACTIVE");
+        setSaveTimingDetail(timing, "attachmentMs", pendingFiles.length ? null : "N/A");
+        if (timing.previewEnabled) console.info("[expense-timing]", JSON.stringify({
+          traceId: timing.traceId,
+          flow: timing.flow,
+          validationMs: timing.marks.API_START && timing.marks.VALIDATION_END ? Math.round(timing.marks.API_START - timing.marks.T0) : null,
+          apiMs: timing.marks.API_START && timing.marks.API_END ? Math.round(timing.marks.API_END - timing.marks.API_START) : null,
+          dbMs: timing.details.serverDbMs ?? "N/A",
+          attachmentMs: timing.details.attachmentMs ?? "N/A",
+          localStateMs: timing.marks.LOCAL_STATE_READY && timing.marks.API_END ? Math.round(timing.marks.LOCAL_STATE_READY - timing.marks.API_END) : null,
+          totalMs: Math.round(timing.marks.UI_INTERACTIVE - timing.marks.T0)
+        }));
+        emitExpenseTiming(timing);
+      });
     }
   }
 
