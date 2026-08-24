@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { supabase } from "@/lib/supabase";
 import { useAccountAccess } from "@/components/account-access";
 import { formatCurrency } from "@/lib/currency";
-import { buildAuditLogSummary, getLinkedReceiptAuditPresentation } from "@/lib/audit-log-summary";
+import { buildAuditLogSummary, getAuditBusinessPresentation, groupAuditEventsForDisplay, type AuditDisplayGroup } from "@/lib/audit-log-summary";
 import { useCallback, useEffect, useState } from "react";
 
 type AuditLog = {
@@ -14,6 +14,9 @@ type AuditLog = {
   actor_display_name: string | null;
   action_type: string;
   module_key: string;
+  entity_id: string | null;
+  room_id?: string | null;
+  tenant_id?: string | null;
   description: string;
   success: boolean;
   before_data: unknown;
@@ -23,7 +26,7 @@ type AuditLog = {
 
 export default function AuditLogsPage() {
   const access = useAccountAccess();
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [groups, setGroups] = useState<Array<AuditDisplayGroup<AuditLog>>>([]);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [action, setAction] = useState("");
@@ -52,7 +55,8 @@ export default function AuditLogsPage() {
       return;
     }
     setError("");
-    setLogs(payload.logs || []);
+    const rawLogs = payload.logs || [];
+    setGroups(payload.groups || groupAuditEventsForDisplay(rawLogs));
   }, [moduleKey, success]);
 
   useEffect(() => {
@@ -73,17 +77,18 @@ export default function AuditLogsPage() {
         </div>
         {error ? <p className="danger-text">{error}</p> : null}
         <div className="audit-list">
-          {logs.filter((log) => !action || actionLabel(log.action_type) === action).map((log) => {
-            const linkedReceipt = getLinkedReceiptAuditPresentation(log);
+          {groups.filter((group) => !action || actionLabel(group.primary.action_type) === action).map((group) => {
+            const log = group.primary;
+            const presentation = group.presentation;
             return <article className="audit-row" key={log.id}>
               <button type="button" onClick={() => setExpanded(expanded === log.id ? null : log.id)}>
                 <span><strong>{businessDescription(log, access.currencyCode)}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "本人"}</small></span>
                 <span className={"badge " + (log.success ? "success" : "danger")}>{log.success ? "成功" : "失败"}</span>
               </button>
-              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{linkedReceipt ? <><p><strong>{linkedReceipt.title}</strong></p><p>房租：{formatCurrency(linkedReceipt.rentAmount, access.currencyCode)}</p><p>押金：{formatCurrency(linkedReceipt.depositAmount, access.currencyCode)}</p><p>合计：{formatCurrency(linkedReceipt.totalAmount, access.currencyCode)}</p><p>结果：{log.success ? "成功" : "失败"}</p></> : safeSummary(log, access.currencyCode) ? <p>{safeSummary(log, access.currencyCode)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
+              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{presentation ? <><p><strong>{presentation.title}</strong></p><p>房租：{formatCurrency(presentation.rentAmount, access.currencyCode)}</p><p>押金：{formatCurrency(presentation.depositAmount, access.currencyCode)}</p><p>合计：{formatCurrency(presentation.totalAmount, access.currencyCode)}</p><p>结果：{log.success ? "成功" : "失败"}</p></> : safeSummary(log, access.currencyCode) ? <p>{safeSummary(log, access.currencyCode)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}{group.technicalChildren.length ? <details><summary>技术明细（{group.technicalChildren.length} 条）</summary>{group.technicalChildren.map((child) => <p key={child.id}>{businessDescription(child, access.currencyCode)}</p>)}</details> : null}</div> : null}
             </article>;
           })}
-          {!logs.filter((log) => !action || actionLabel(log.action_type) === action).length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
+          {!groups.filter((group) => !action || actionLabel(group.primary.action_type) === action).length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
         </div>
       </section>
     </AppLayout>
@@ -104,8 +109,8 @@ function actionLabel(value: string) {
   return "操作";
 }
 function businessDescription(log: AuditLog, currencyCode: Parameters<typeof formatCurrency>[1]) {
-  const linkedReceipt = getLinkedReceiptAuditPresentation(log);
-  if (linkedReceipt) return `${linkedReceipt.title} · ${formatCurrency(linkedReceipt.totalAmount, currencyCode)}`;
+  const presentation = getAuditBusinessPresentation(log);
+  if (presentation) return `${presentation.title} · ${formatCurrency(presentation.totalAmount, currencyCode)}`;
   const action = actionLabel(log.action_type);
   const module = moduleLabel(log.module_key);
   const summary = safeSummary(log, currencyCode);

@@ -1362,6 +1362,12 @@
 - Linked receipt void/delete cards use the immutable aggregate total in the title and expand into separate rent, deposit, total and result fields while retaining snake_case, camelCase and historical payment/deposit compatibility.
 - No lifecycle RPC, business data, schema, migration, finance calculation, real-user data or Production deployment changed.
 
+## 2026-08-24 - Audit business-event grouping and amount mapping (Preview)
+
+- The audit read projection now groups only explicit business aggregate events with same-transaction, actor-scoped, stable entity-graph children; historical or unproven events remain independent rows.
+- One-click check-in now presents its immutable rent/deposit snapshot and aggregate total, while linked receipt lifecycle events remain primary rows and expose table-trigger records only as technical details.
+- No audit rows, lifecycle functions, business data, schema, migration, finance calculation, permission or Production behavior changed.
+
 ## 2026-08-24 - Check-in receipt permanent-delete replay safety (Prepared)
 
 - Canonical linked-receipt deletion now recognizes a single, complete one-click check-in receipt graph, clears only that request's nullable payment/deposit references, preserves the check-in, tenant and contract history, then atomically deletes the verified receipt pair.
