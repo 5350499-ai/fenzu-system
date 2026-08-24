@@ -80,6 +80,7 @@ There are 55 route files. Every route is listed here and is checked by
 | `/api/tasks/server` | TASK | read/write | task management | ACTIVE_CANONICAL |
 | `/api/tenants/move-room` | LIFECYCLE | write | `update_tenant_current_assignment` RPC | ATOMIC_RPC |
 | `/api/tenants/move-out` | LIFECYCLE | write | `move_out_tenant_atomic` RPC | ATOMIC_RPC |
+| `/api/tenants/create` | TENANT_CREATE | write | `create_tenant_atomic` RPC | ATOMIC_RPC / MIGRATION_PENDING |
 
 Auth/recovery routes intentionally have a public protocol where appropriate.
 The backup trace route is disabled in Production and is not a business write.
@@ -88,7 +89,8 @@ The backup trace route is disabled in Production and is not a business write.
 
 | Action / data | Canonical server owner | Persistence boundary | Classification |
 |---|---|---|---|
-| Property, room, tenant, contract CRUD | `/api/business-data` + account auth | Supabase tables | LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY |
+| Tenant create with room, contract and optional receipt | `/api/tenants/create` | `create_tenant_atomic` | RPC_WRITE / ATOMIC_RPC / MIGRATION_PENDING |
+| Property, room, tenant, contract CRUD and tenant edit | `/api/business-data` + account auth | Supabase tables | LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY |
 | Tenant permanent delete | `/api/business-data` explicit contract guard | no mutation; move-out/archive preserve history | SERVER_REJECT / `TENANT_PERMANENT_DELETE_DISABLED` |
 | Rent payment edit | `/api/rent-collection` or compatibility path | `rent_payments` + audit | SERVER_REPOSITORY_WRITE |
 | Rent payment void/delete with a separated linked deposit | `/api/rent-payments/lifecycle` | lifecycle RPC + exact marker/cardinality/entity guards | RPC_WRITE / ATOMIC_RPC / MIGRATION_PENDING |
@@ -137,6 +139,7 @@ full-row compatibility protocol is recorded as deferred overposting risk.
 | `create_atomic_check_in` | `/api/check-in` | check-in transaction | ATOMIC_RPC |
 | `update_tenant_current_assignment` | `/api/tenants/move-room` | move-room transaction | ATOMIC_RPC |
 | `move_out_tenant_atomic` | `/api/tenants/move-out` | tenant lifecycle transaction | ATOMIC_RPC |
+| `create_tenant_atomic` | `/api/tenants/create` | tenant, room, contract and optional separated receipt transaction | ATOMIC_RPC / MIGRATION_PENDING |
 | `void_rent_payment_with_linked_deposit` | `/api/rent-payments/lifecycle` | payment + exact new linked deposit void | ATOMIC_RPC / MIGRATION_PENDING |
 | `permanently_delete_rent_payment_with_linked_deposit` | `/api/rent-payments/lifecycle` | payment + exact new linked deposit delete | ATOMIC_RPC / MIGRATION_PENDING |
 | `confirm_partner_settlement` | settlement route | one settlement batch persistence | NON_ATOMIC batch |

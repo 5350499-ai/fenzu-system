@@ -21,7 +21,7 @@ function routePath(file: string) {
 test("server boundary contract and complete API registry exist", () => {
   assert.ok(existsSync("SERVER_BOUNDARY_CONTRACT.md"));
   const routes = routeFiles(join(process.cwd(), "app", "api")).map(routePath).sort();
-  assert.equal(routes.length, 55);
+  assert.equal(routes.length, 56);
   for (const route of routes) assert.ok(contract.includes(`\`${route}\``), route);
   assert.match(contract, /LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY/);
   assert.match(contract, /SERVER_BOUNDARY_6X_COMPLETE_WITH_DEFERRED_RISKS/);
@@ -34,6 +34,7 @@ test("shared server ownership and write boundaries remain explicit", () => {
     "requireSensitivePermission",
     "requirePropertyAccess",
     "create_atomic_check_in",
+    "create_tenant_atomic",
     "update_tenant_current_assignment",
     "confirm_partner_settlement",
     "reverse_partner_settlement",

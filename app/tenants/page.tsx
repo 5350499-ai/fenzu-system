@@ -49,12 +49,13 @@ import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant
 import { getDebtCases, getTenantDebtCases, type DebtCase } from "@/lib/debt-case";
 import { getTenantDebtDisplay, tenantRentRowLabel, tenantRentRowTone, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
 import { rentPeriodToday } from "@/lib/rent-period-state";
-import { createSaveTiming, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow, type SaveTimingTrace } from "@/lib/save-latency-timing";
+import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, saveTimingRequestHeaders, serverTimingDuration, setSaveTimingDetail, timingNow, type SaveTimingTrace } from "@/lib/save-latency-timing";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
 import { buildTenantTimeline, calculateTenantPaymentPerformance } from "@/lib/tenant-timeline";
 import { createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
+import { createTenantCreateSubmissionGuard, type TenantCreateResult } from "@/lib/tenant-create";
 import { getTenantStatusSlots } from "@/lib/tenant-status-slots";
 import { isTenantDeleteConfirmed, isTenantPermanentDeleteEnabled, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
@@ -164,6 +165,8 @@ export default function TenantsPage() {
   const contractFilesRequestRef = useRef(0);
   const tenantRowRefs = useRef(new Map<string, HTMLElement>());
   const moveOutSubmissionGuardRef = useRef(createMoveOutSubmissionGuard());
+  const tenantCreateSubmissionGuardRef = useRef(createTenantCreateSubmissionGuard());
+  const tenantCreateRequestIdRef = useRef<string | null>(null);
   const [moveOutTenant, setMoveOutTenant] = useState<BusinessTenant | null>(null);
   const [moveOutDate, setMoveOutDate] = useState(localToday());
   const [moveOutDateTenant, setMoveOutDateTenant] = useState<BusinessTenant | null>(null);
@@ -471,6 +474,7 @@ export default function TenantsPage() {
     setPaymentForm(emptyTenantPayment);
     setNewPaymentDepositAmount(0);
     setOwnershipMode(partnerOptions[0]?.value || "");
+    tenantCreateRequestIdRef.current = null;
   }
 
   function openTenantForm(tenant?: BusinessTenant) {
@@ -634,83 +638,75 @@ export default function TenantsPage() {
         return;
       }
 
-      const nextTenant = form.id ? form : { ...form, id: crypto.randomUUID(), depositAmount: newPaymentDepositAmount };
-      const next = form.id
-        ? tenants.map((tenant) => (tenant.id === form.id ? nextTenant : tenant))
-        : [nextTenant, ...tenants];
-      const nextRooms = syncRoomsAfterTenantChange(rooms, next, previousTenant, nextTenant);
-      const currentContract = latestContractForTenant(nextTenant.id, contracts);
-      const nextContract: BusinessContract = currentContract
-        ? {
-            ...currentContract,
-            propertyId: nextTenant.propertyId,
-            roomId: nextTenant.roomId,
-            tenantId: nextTenant.id,
-            startDate: contractForm.startDate,
-            endDate: contractForm.endDate,
+      const guarded = await tenantCreateSubmissionGuardRef.current.run(async () => {
+        setSaving(true);
+        const clientRequestId = tenantCreateRequestIdRef.current || crypto.randomUUID();
+        tenantCreateRequestIdRef.current = clientRequestId;
+        const session = await getValidSupabaseSession();
+        if (!session) throw new Error("登录状态已失效，请重新登录。");
+        if (timing) markSaveTiming(timing, "T2");
+        const response = await fetch("/api/tenants/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}`, ...(timing ? saveTimingRequestHeaders(timing) : {}) },
+          body: JSON.stringify({
+            clientRequestId,
+            propertyId: form.propertyId,
+            roomId: form.roomId,
+            name: form.name,
+            phone: form.phone,
+            wechat: form.wechat,
+            source: form.source,
+            status: form.status,
+            monthlyRent: form.monthlyRent,
+            occupantCount: form.occupantCount,
+            paymentDay: form.paymentDay,
+            contractStartDate: contractForm.startDate,
+            contractEndDate: contractForm.endDate,
             coverageStartDate: paymentForm.coverageStartDate,
             coverageEndDate: paymentForm.coverageEndDate,
-            monthlyRent: nextTenant.monthlyRent,
-            depositAmount: nextTenant.depositAmount,
-            status: currentContract.status || "有效",
-            notes: nextTenant.notes || currentContract.notes || ""
-          }
-        : {
-            id: crypto.randomUUID(),
-            propertyId: nextTenant.propertyId,
-            roomId: nextTenant.roomId,
-            tenantId: nextTenant.id,
-            startDate: contractForm.startDate,
-            endDate: contractForm.endDate,
-            monthlyRent: nextTenant.monthlyRent,
-            depositAmount: nextTenant.depositAmount,
-            status: "有效",
-            notes: nextTenant.notes || ""
-          };
-      const nextContracts = currentContract
-        ? contracts.map((contract) => (contract.id === currentContract.id ? nextContract : contract))
-        : [nextContract, ...contracts];
-      const nextPayment = buildTenantPayment(nextTenant, { ...paymentForm, receivedBy: ownershipMode }, newPaymentDepositAmount);
-      const shouldPersistPayment = hasMeaningfulRentState(nextPayment);
-      const nextPayments = !shouldPersistPayment ? payments : nextPayment.id && payments.some((payment) => payment.id === nextPayment.id)
-        ? payments.map((payment) => (payment.id === nextPayment.id ? nextPayment : payment))
-        : [nextPayment, ...payments];
-      const nextDeposits = newPaymentDepositAmount > 0
-        ? [{
-            id: crypto.randomUUID(),
-            propertyId: nextTenant.propertyId,
-            roomId: nextTenant.roomId,
-            tenantId: nextTenant.id,
-            type: "收取",
-            amount: newPaymentDepositAmount,
-            status: "已收",
-            transactionDate: nextPayment.paymentDate || today(),
-            receivedBy: nextPayment.receivedBy,
-            notes: shouldPersistPayment ? `[收租押金:${nextPayment.id}]` : "租客建立时收取押金"
-          }, ...deposits]
-        : deposits;
-      const saved = await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败", timing || undefined);
-      // New rows receive their immutable created_at on the server. Re-read it
-      // instead of inventing a client time so the explicit 时间 sort is correct
-      // immediately after a successful tenant creation.
-      if (saved) {
-        try {
-          if (timing) markSaveTiming(timing, "T8");
-          setTenants(await refreshBusinessData<BusinessTenant>(tenantKey, next));
-          if (timing) {
-            markSaveTiming(timing, "T9");
-            setSaveTimingDetail(timing, "TENANT_REFRESH_MS", Math.round(timing.marks.T9 - timing.marks.T8));
-            requestAnimationFrame(() => {
-              markSaveTiming(timing, "T10");
-              setSaveTimingDetail(timing, "TOTAL_USER_WAIT_MS", Math.round(timing.marks.T10 - timing.marks.T0));
-              emitSaveTiming(timing);
-            });
-          }
-        } catch {
-          // The successful optimistic list remains visible; a later route
-          // load will still obtain the authoritative server creation time.
+            paymentDate: paymentForm.paymentDate,
+            rentAmount: paymentForm.amountDue,
+            depositAmount: newPaymentDepositAmount,
+            paymentStatus: paymentForm.paymentStatus,
+            paymentMethod: paymentForm.paymentMethod,
+            receivedBy: ownershipMode,
+            notes: form.notes
+          })
+        });
+        const payload = await response.json().catch(() => null);
+        if (timing) {
+          enablePreviewTimingFromResponse(timing, response);
+          markSaveTiming(timing, "T6");
+          setSaveTimingDetail(timing, "TENANT_CREATE_API_MS", durationBetween(timing, "T2", "T6"));
+          setSaveTimingDetail(timing, "TENANT_CREATE_RPC_MS", serverTimingDuration(response, "rpc"));
         }
-      }
+        if (!response.ok) throw new Error(payload?.error || "新增租客失败，本次没有产生任何记录。");
+        const result = payload?.result as TenantCreateResult | undefined;
+        if (!result?.tenant || !result.room || !result.contract) throw new Error("新增租客返回数据不完整，请刷新后确认。");
+        setTenants((current) => [result.tenant, ...current.filter((item) => item.id !== result.tenant.id)]);
+        setRooms((current) => current.map((item) => item.id === result.room.id ? result.room : item));
+        setContracts((current) => [result.contract, ...current.filter((item) => item.id !== result.contract.id)]);
+        if (result.rentPayment) setPayments((current) => [result.rentPayment!, ...current.filter((item) => item.id !== result.rentPayment!.id)]);
+        if (result.deposit) setDeposits((current) => [result.deposit!, ...current.filter((item) => item.id !== result.deposit!.id)]);
+        const invalidationStartedAt = timingNow();
+        await invalidateBusinessData([tenantKey, roomKey, contractKey, rentPaymentKey, depositKey]);
+        if (timing) {
+          setSaveTimingDetail(timing, "CACHE_INVALIDATE_MS", Math.round(timingNow() - invalidationStartedAt));
+          setSaveTimingDetail(timing, "TENANT_REFRESH_MS", "N/A");
+          markSaveTiming(timing, "T7");
+          markSaveTiming(timing, "T8");
+          markSaveTiming(timing, "T9");
+          requestAnimationFrame(() => {
+            markSaveTiming(timing, "T10");
+            setSaveTimingDetail(timing, "TENANT_CREATE_TOTAL_MS", Math.round(timing.marks.T10 - timing.marks.T0));
+            setSaveTimingDetail(timing, "TOTAL_USER_WAIT_MS", Math.round(timing.marks.T10 - timing.marks.T0));
+            emitSaveTiming(timing);
+          });
+        }
+        close();
+      });
+      if (!guarded.started) return;
+      return;
     } catch (error: any) {
       window.alert(error.message || "保存租客、收款或附件失败，请稍后重试。");
       return;
@@ -1856,8 +1852,10 @@ function compactPropertyName(name?: string) {
 function buildTenantPayment(tenant: BusinessTenant, draft: BusinessRentPayment, newDepositAmount: number): BusinessRentPayment {
   const rentMonth = (draft.coverageStartDate || today()).slice(0, 7);
   const rentAmount = Number(draft.amountDue || 0);
-  const depositIncome = Number(newDepositAmount || 0);
-  const amountPaid = draft.paymentStatus === "未收" ? depositIncome : rentAmount + depositIncome;
+  // Tenant creation receipts use the same separated model as renewal/check-in:
+  // payment is rent only; any deposit is a distinct deposit record.
+  void newDepositAmount;
+  const amountPaid = draft.paymentStatus === "未收" ? 0 : rentAmount;
   const next: BusinessRentPayment = {
     ...draft,
     id: draft.id || crypto.randomUUID(),

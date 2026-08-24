@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-24 - Atomic tenant creation performance path (Prepared)
+
+- Replaced only the new-tenant multi-POST flow with one authenticated `/api/tenants/create` entry and a prepared `create_tenant_atomic` transaction for tenant, shared-room state, contract and optional separated rent/deposit receipt.
+- Added durable client-request idempotency plus a synchronous mobile double-tap guard; successful results update the current page directly and perform one canonical cache invalidation instead of a tenant refresh.
+- Preserved tenant edit compatibility writes, shared-room policy, contract-owned coverage, rent-only payment plus separate deposit model, zero-record suppression and existing permissions. The additive migration remains unexecuted and Production remains unchanged.
+
 ## 2026-08-24 - Home and cache performance batch 1 (Preview only)
 
 - Centralized the versioned dashboard and settlement cache identities in `lib/cache/cache-keys.ts`, and aligned business-data and partner invalidation with the active v4 readers.

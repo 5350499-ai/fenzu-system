@@ -40,8 +40,8 @@ test("check-in RPC separates deposit cash from rent and makes rent payment optio
 });
 
 test("tenant creation does not persist an empty rent placeholder", () => {
-  assert.match(tenants, /const shouldPersistPayment = hasMeaningfulRentState\(nextPayment\)/);
-  assert.match(tenants, /const nextPayments = !shouldPersistPayment \? payments/);
+  assert.match(tenants, /fetch\("\/api\/tenants\/create"/);
+  assert.match(tenants, /rentAmount: paymentForm\.amountDue/);
   assert.match(tenants, /monthlyRent: 0/);
   assert.match(tenants, /depositAmount: 0/);
 });

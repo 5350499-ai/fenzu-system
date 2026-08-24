@@ -82,6 +82,7 @@ status.
 /api/tasks/server
 /api/tenants/move-room
 /api/tenants/move-out
+/api/tenants/create
 ```
 
 | Security ID | Domain / entry | Auth | Session source | Scope/permission owner | Resource check | Risk/status |
