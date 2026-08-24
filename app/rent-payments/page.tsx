@@ -54,7 +54,7 @@ import { matchesFinanceSearch } from "@/lib/finance-search";
 import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow } from "@/lib/save-latency-timing";
-import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
+import { hasMeaningfulRentState, normalizeRentPaymentAmount } from "@/lib/rent-payment-entry";
 import { projectDepositIncomePayments } from "@/lib/profit";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -452,6 +452,16 @@ export default function RentPaymentsPage() {
     if (!loaded || saving) return;
     const incomeType = form.incomeType || "房租收入";
     const isRent = isRentPayment(form);
+    const originalPayment = historicalOriginalRef.current;
+    const isHistoricalEdit = Boolean(originalPayment?.id);
+    const canonicalAmount = normalizeRentPaymentAmount({
+      isRent,
+      isHistoricalEdit,
+      isCollectionPayment: Boolean(collectionPaymentId),
+      paymentStatus: form.paymentStatus,
+      amountDue: form.amountDue,
+      amountPaid: form.amountPaid
+    });
     const requiresBusinessLink = isRent;
     if (requiresBusinessLink && (!form.propertyId || !form.roomId)) {
       window.alert("房租收入需要选择房源和房间。租客可以选择已有租客，也可以直接输入姓名。");
@@ -461,11 +471,11 @@ export default function RentPaymentsPage() {
       window.alert("请填写租金覆盖开始日期和结束日期。");
       return;
     }
-    if ((!isRent || form.paymentStatus !== "未收") && !isValidManualAmount(Number(form.amountPaid))) {
+    if ((!isRent || form.paymentStatus !== "未收") && !isValidManualAmount(canonicalAmount)) {
       window.alert(manualAmountError());
       return;
     }
-    if (!form.id && form.incomeType === "续交房租" && !hasMeaningfulRentState({ amountDue: form.amountDue, amountPaid: form.amountPaid, amountUnpaid: form.amountUnpaid })) {
+    if (!form.id && form.incomeType === "续交房租" && !hasMeaningfulRentState({ amountDue: form.amountDue, amountPaid: canonicalAmount, amountUnpaid: form.amountUnpaid })) {
       window.alert("续交房租必须填写有效的应收、实收或未收金额。");
       return;
     }
@@ -513,8 +523,6 @@ export default function RentPaymentsPage() {
       tenantNameSnapshot = tenant.name;
     }
     if (isRent && !tenantNameSnapshot) tenantNameSnapshot = typedTenantName || "未填写租客";
-    const originalPayment = historicalOriginalRef.current;
-    const isHistoricalEdit = Boolean(originalPayment?.id);
     const filesToUpload = !form.id ? pendingFiles : [];
     const paymentId = originalPayment?.id || form.id || newPaymentIdRef.current || crypto.randomUUID();
     if (!originalPayment?.id && !form.id) newPaymentIdRef.current = paymentId;
@@ -522,13 +530,7 @@ export default function RentPaymentsPage() {
     if (!originalPayment?.id && !form.clientRequestId) setForm((current) => ({ ...current, clientRequestId }));
     const amountDue = isRent ? Number(form.amountDue || 0) : 0;
     const depositIncomeAmount = isRent ? Number(depositAmount || 0) : 0;
-    const amountPaid = isRent
-      ? isHistoricalEdit
-        ? Number(form.amountPaid || 0)
-        : collectionPaymentId
-          ? Number(form.amountPaid || 0)
-        : (form.paymentStatus === "未收" ? depositIncomeAmount : amountDue + depositIncomeAmount)
-      : Number(form.amountPaid || 0);
+    const amountPaid = canonicalAmount;
     const amountUnpaid = isRent && (collectionPaymentId || form.paymentStatus === "未收") ? Math.max(amountDue - amountPaid, 0) : 0;
     const paymentDate = form.paymentDate || todayString();
     const rentMonth = paymentDate.slice(0, 7);
