@@ -8,6 +8,7 @@ import { createBeforeDestructiveRecoveryPoint } from "@/lib/server/scheduled-rec
 import { TENANT_PERMANENT_DELETE_DISABLED, isTenantPermanentDeleteEnabled, tenantPermanentDeleteDisabledMessage } from "@/lib/tenant-delete";
 import { assertTenantHasNoBusinessData } from "@/lib/server/tenant-delete-check";
 import { isValidManualAmount } from "@/lib/manual-amount";
+import { finishServerTiming, markServerTiming, startServerTiming } from "@/lib/server/save-latency-timing";
 
 const resources: Record<string, { table: string; module: string; propertyColumn: string }> = {
   "business-properties": { table: "properties", module: "properties", propertyColumn: "id" },
@@ -115,11 +116,13 @@ async function normalizeFreeSingleBusinessRow(context: Awaited<ReturnType<typeof
 }
 
 export async function POST(request: Request) {
+  const timing = startServerTiming(request, "business-data");
   try {
     const body = await parseJson(request) as { key?: string; operations?: BusinessOperation[]; ownerOnly?: boolean; manualEntry?: boolean; dryRun?: boolean };
     const paymentUpdateRequiresOwner = body.key === "business-rent-payments"
       && body.operations?.some((operation) => operation?.action === "update");
     const context = await requireActiveAccount(request, body.ownerOnly === true);
+    markServerTiming(timing, "authEnd");
     // Existing delegated accounts keep the historical owner-only payment edit
     // boundary. A free-single account manages only its own workspace and may
     // use the normal rent-payment edit permission.
@@ -131,6 +134,7 @@ export async function POST(request: Request) {
     if (!Array.isArray(body.operations)) throw new AccountApiError("页面版本已更新，请刷新后重试。", 400);
     const operations = body.operations.filter((operation) => operation && ["create", "update", "delete"].includes(operation.action));
     const client = getSupabaseAuthVerifier(context.accessToken);
+    markServerTiming(timing, "rpcStart");
     const lookupIds = [...new Set(operations
       .filter((operation) => operation.action !== "create")
       .map((operation) => String(operation.id || operation.row?.id || ""))
@@ -223,8 +227,9 @@ export async function POST(request: Request) {
       savedRows.push(...((data || []) as Array<{ id: string }>));
     }
 
-    return NextResponse.json({ ok: true, rows: savedRows });
+    markServerTiming(timing, "rpcEnd");
+    return finishServerTiming(NextResponse.json({ ok: true, rows: savedRows }), timing);
   } catch (error) {
-    return apiErrorResponse(error);
+    return finishServerTiming(apiErrorResponse(error), timing);
   }
 }

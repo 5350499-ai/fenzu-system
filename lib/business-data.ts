@@ -503,7 +503,7 @@ async function loadBusinessDataFromServer<T extends AnyRecord>(key: string, fall
   return rows;
 }
 
-async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean }) {
+async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean; timing?: { traceId: string; flow: string; onResponse?: (response: Response) => void } }) {
   if (!isSupabaseConfigured || !supabase || !tableConfigs[key]) {
     if (typeof window !== "undefined") window.localStorage.setItem(key, JSON.stringify(value));
     return value.map((row) => row.id).filter(Boolean);
@@ -541,16 +541,18 @@ async function saveBusinessDataToServer<T extends AnyRecord>(key: string, value:
   const requestBody = JSON.stringify({ key, operations, ownerOnly: options?.ownerOnly === true, manualEntry: options?.manualEntry === true });
   const submit = (accessToken: string) => fetch("/api/business-data", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, ...(options?.timing ? { "x-save-trace-id": options.timing.traceId, "x-save-flow": options.timing.flow } : {}) },
     body: requestBody
   });
   let response = await submit(session.access_token);
+  options?.timing?.onResponse?.(response);
   if (response.status === 401) {
     session = await getValidSupabaseSession(true);
     if (!session) throw new Error("登录状态已失效，请重新登录。");
     accountSnapshot = null;
     await loadAccountSnapshot(session.access_token);
     response = await submit(session.access_token);
+    options?.timing?.onResponse?.(response);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
@@ -600,7 +602,7 @@ export async function invalidateBusinessData(keys: string[]) {
   await cacheManager.invalidate(invalidated, scope);
 }
 
-export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean }) {
+export async function saveBusinessData<T extends AnyRecord>(key: string, value: T[], options?: { ownerOnly?: boolean; manualEntry?: boolean; timing?: { traceId: string; flow: string; onResponse?: (response: Response) => void } }) {
   const scope = await getCacheScope();
   const result = await saveBusinessDataToServer(key, value, options);
   await cacheManager.set(key, value, scope);

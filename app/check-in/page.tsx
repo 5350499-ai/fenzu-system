@@ -33,6 +33,7 @@ import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { paymentMethodOptions } from "@/lib/payment-method-presets";
 import { formatCurrency } from "@/lib/currency";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, markSaveTiming, saveTimingRequestHeaders, serverTimingDuration, setSaveTimingDetail, storePendingCheckInTiming, timingNow } from "@/lib/save-latency-timing";
 import { FileUp, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -131,6 +132,7 @@ export default function CheckInPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const timing = createSaveTiming("check-in");
     if (saving || submitLockRef.current || completionMessage) return;
     if (!form.propertyId || !form.roomId || !form.tenantName.trim()) {
       window.alert("请先选择房源、房间，并填写租客姓名。");
@@ -148,6 +150,7 @@ export default function CheckInPage() {
       window.alert("入住人数请输入1或更大的正整数。");
       return;
     }
+    markSaveTiming(timing, "T1");
     submitLockRef.current = true;
     setSaving(true);
     try {
@@ -156,9 +159,10 @@ export default function CheckInPage() {
       const finalReceivedBy = ownershipMode;
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("登录状态已失效，请重新登录。");
+      markSaveTiming(timing, "T2");
       const response = await fetch("/api/check-in", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}`, ...saveTimingRequestHeaders(timing) },
         body: JSON.stringify({
           clientRequestId,
           propertyId: form.propertyId,
@@ -183,6 +187,11 @@ export default function CheckInPage() {
         })
       });
       const payload = await response.json().catch(() => null);
+      enablePreviewTimingFromResponse(timing, response);
+      markSaveTiming(timing, "T6");
+      setSaveTimingDetail(timing, "CHECKIN_API_MS", durationBetween(timing, "T2", "T6"));
+      setSaveTimingDetail(timing, "CHECKIN_RPC_MS", serverTimingDuration(response, "rpc"));
+      setSaveTimingDetail(timing, "CONTACT_UPDATE_MS", serverTimingDuration(response, "side-effect"));
       if (!response.ok) throw new Error(payload?.error || "保存入住失败，本次没有产生任何记录。");
       const contactSaveWarning = String(payload?.contactSaveWarning || "");
       const result = payload?.result as {
@@ -285,6 +294,7 @@ export default function CheckInPage() {
         : null;
 
       let attachmentFailed = false;
+      const attachmentStartedAt = timingNow();
       try {
         for (const item of checkInAttachments) {
           if (item.target === "contract") await uploadContractFile(tenantId, contractId, item.file);
@@ -294,6 +304,7 @@ export default function CheckInPage() {
       } catch {
         attachmentFailed = true;
       }
+      setSaveTimingDetail(timing, "ATTACHMENT_MS", checkInAttachments.length ? Math.round(timingNow() - attachmentStartedAt) : "N/A");
       setTenants(nextTenants);
       setRooms(nextRooms);
       setContracts([nextContract, ...contracts.filter((contract) => contract.id !== contractId)]);
@@ -304,7 +315,12 @@ export default function CheckInPage() {
       setPayments(nextLedgerPayments.length
         ? [...nextLedgerPayments, ...payments.filter((payment) => !nextLedgerPayments.some((item) => item.id === payment.id))]
         : payments);
+      const invalidateStartedAt = timingNow();
       await invalidateBusinessData([tenantKey, roomKey, contractKey, rentPaymentKey, depositKey]);
+      setSaveTimingDetail(timing, "CACHE_INVALIDATE_MS", Math.round(timingNow() - invalidateStartedAt));
+      markSaveTiming(timing, "T7");
+      setSaveTimingDetail(timing, "SUCCESS_MESSAGE_TO_NAVIGATION_MS", 900);
+      storePendingCheckInTiming(timing);
       setCheckInAttachments([]);
       setAdvancedOpen(false);
       setAttachmentsOpen(false);

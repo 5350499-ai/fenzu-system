@@ -53,6 +53,7 @@ import { isOperationsRentDueTenant } from "@/lib/operations-analytics";
 import { matchesFinanceSearch } from "@/lib/finance-search";
 import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
+import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow } from "@/lib/save-latency-timing";
 import { hasMeaningfulRentState } from "@/lib/rent-payment-entry";
 import { projectDepositIncomePayments } from "@/lib/profit";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -447,6 +448,7 @@ export default function RentPaymentsPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const timing = createSaveTiming(form.incomeType === "续交房租" ? "renewal" : "payment-save");
     if (!loaded || saving) return;
     const incomeType = form.incomeType || "房租收入";
     const isRent = isRentPayment(form);
@@ -467,7 +469,9 @@ export default function RentPaymentsPage() {
       window.alert("续交房租必须填写有效的应收、实收或未收金额。");
       return;
     }
+    markSaveTiming(timing, "T1");
     setSaving(true);
+    const timingOptions = { timing: { traceId: timing.traceId, flow: timing.flow, onResponse: (response: Response) => enablePreviewTimingFromResponse(timing, response) } };
     let tenantId = form.tenantId;
     let tenantNameSnapshot = tenants.find((tenant) => tenant.id === form.tenantId)?.name || "";
     const typedTenantName = newTenantName.trim();
@@ -491,8 +495,13 @@ export default function RentPaymentsPage() {
       const nextTenants = [tenant, ...tenants];
       const nextRooms = rooms.map((item) => item.id === form.roomId ? { ...item, status: "已租" } : item);
       try {
-        await saveBusinessData(tenantKey, nextTenants);
-        await saveBusinessData(roomKey, nextRooms);
+        if (timing.marks.T2 == null) markSaveTiming(timing, "T2");
+        const tenantCreateStartedAt = timingNow();
+        await saveBusinessData(tenantKey, nextTenants, timingOptions);
+        const roomUpdateStartedAt = timingNow();
+        await saveBusinessData(roomKey, nextRooms, timingOptions);
+        setSaveTimingDetail(timing, "TENANT_CREATE_PREP_MS", Math.round(timingNow() - tenantCreateStartedAt));
+        setSaveTimingDetail(timing, "ROOM_UPDATE_MS", Math.round(timingNow() - roomUpdateStartedAt));
       } catch (error: any) {
         window.alert(error.message || "自动创建租客失败，收款记录未保存。");
         setSaving(false);
@@ -572,7 +581,11 @@ export default function RentPaymentsPage() {
       ? tenants.map((tenant) => tenant.id === tenantId ? { ...tenant, monthlyRent: requestedMonthlyRent } : tenant)
       : null;
     try {
-      await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit, manualEntry: true });
+      if (timing.marks.T2 == null) markSaveTiming(timing, "T2");
+      const corePaymentStartedAt = timingNow();
+      await saveBusinessData(rentPaymentKey, next, { ownerOnly: isHistoricalEdit, manualEntry: true, ...timingOptions });
+      setSaveTimingDetail(timing, "CORE_PAYMENT_MS", Math.round(timingNow() - corePaymentStartedAt));
+      markSaveTiming(timing, "T6");
       // The core financial write is confirmed here.  From this point on,
       // failures must be reported as side-effect failures, never as a failed
       // rent payment, and the confirmed payment must remain visible locally.
@@ -581,7 +594,9 @@ export default function RentPaymentsPage() {
 
       if (JSON.stringify(deposits) !== JSON.stringify(nextDeposits)) {
         try {
-          await saveBusinessData(depositKey, nextDeposits, { ownerOnly: isHistoricalEdit });
+          const depositStartedAt = timingNow();
+          await saveBusinessData(depositKey, nextDeposits, { ownerOnly: isHistoricalEdit, ...timingOptions });
+          setSaveTimingDetail(timing, "DEPOSIT_SIDE_EFFECT_MS", Math.round(timingNow() - depositStartedAt));
           setDeposits(nextDeposits);
         } catch {
           sideEffectFailures.push("押金记录");
@@ -595,7 +610,9 @@ export default function RentPaymentsPage() {
       }
       if (nextTenants) {
         try {
-          await saveBusinessData(tenantKey, nextTenants);
+          const tenantStartedAt = timingNow();
+          await saveBusinessData(tenantKey, nextTenants, timingOptions);
+          setSaveTimingDetail(timing, "TENANT_SIDE_EFFECT_MS", Math.round(timingNow() - tenantStartedAt));
           setTenants(nextTenants);
         } catch {
           sideEffectFailures.push("租客月租更新");
@@ -609,7 +626,9 @@ export default function RentPaymentsPage() {
       if (filesToUpload.length) {
         const uploadedFiles: RentPaymentFile[] = [];
         try {
+          const attachmentStartedAt = timingNow();
           for (const file of filesToUpload) uploadedFiles.push(await uploadRentPaymentFile(paymentId, file));
+          setSaveTimingDetail(timing, "ATTACHMENT_UPLOAD_MS", Math.round(timingNow() - attachmentStartedAt));
           setFiles((current) => [...uploadedFiles, ...current]);
         } catch (error: any) {
           if (uploadedFiles.length) setFiles((current) => [...uploadedFiles, ...current]);
@@ -621,7 +640,14 @@ export default function RentPaymentsPage() {
       } else {
         window.alert("收款保存成功。");
       }
+      markSaveTiming(timing, "T7");
       close();
+      requestAnimationFrame(() => {
+        markSaveTiming(timing, "T10");
+        setSaveTimingDetail(timing, "LOCAL_STATE_MS", durationBetween(timing, "T6", "T7"));
+        setSaveTimingDetail(timing, "TOTAL_USER_WAIT_MS", Math.round(timing.marks.T10 - timing.marks.T0));
+        emitSaveTiming(timing);
+      });
     } catch (error: any) {
       window.alert(`收款未保存，请重试。${error?.message ? `\n${error.message}` : ""}`);
     } finally {

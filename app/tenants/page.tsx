@@ -49,6 +49,7 @@ import { isCoverageExpired, isCurrentRentalRelationship, latestCoverageForTenant
 import { getDebtCases, getTenantDebtCases, type DebtCase } from "@/lib/debt-case";
 import { getTenantDebtDisplay, tenantRentRowLabel, tenantRentRowTone, type TenantDebtDisplay } from "@/lib/tenant-debt-display";
 import { rentPeriodToday } from "@/lib/rent-period-state";
+import { createSaveTiming, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow, type SaveTimingTrace } from "@/lib/save-latency-timing";
 import { partnerClass, partnerLabel, usePartnerDirectory } from "@/lib/partner-settings";
 import { buildAttributionOptions, getPartners } from "@/lib/partners";
 import { countTenantGroups, isEndedTenantStatus, sortTenantsByRoomAndStatus, splitTenantGroups, TenantSortMode } from "@/lib/tenant-sorting";
@@ -57,6 +58,7 @@ import { createMoveOutSubmissionGuard } from "@/lib/tenant-move-out";
 import { getTenantStatusSlots } from "@/lib/tenant-status-slots";
 import { isTenantDeleteConfirmed, isTenantPermanentDeleteEnabled, tenantDeletePermissionMessage } from "@/lib/tenant-delete";
 import { getValidSupabaseSession } from "@/lib/supabase";
+import { takePendingCheckInTiming } from "@/lib/save-latency-timing";
 import { archiveModeForTenantDeepLink, filterTenantsByArchiveMode, isArchivedTenantStatus } from "@/lib/tenant-archive";
 import { planTenantDeepLink, tenantDeepLinkScrollTargetId } from "@/lib/tenant-deep-link";
 import { resolveTenantNavigationContext } from "@/lib/reminder-navigation";
@@ -203,6 +205,8 @@ export default function TenantsPage() {
 
   useEffect(() => {
     async function load() {
+      const pendingCheckInTiming = takePendingCheckInTiming();
+      if (pendingCheckInTiming) markSaveTiming(pendingCheckInTiming, "T8");
       // The rent-status list and Reminder Engine must derive from the same
       // authoritative snapshot. A cache-first payment set can otherwise show a
       // different current period from the debt reminder for the same tenant.
@@ -264,6 +268,16 @@ export default function TenantsPage() {
         setDetailTenantId(requestedTenantId);
       }
       setLoaded(true);
+      if (pendingCheckInTiming) {
+        markSaveTiming(pendingCheckInTiming, "T9");
+        setSaveTimingDetail(pendingCheckInTiming, "TENANTS_PAGE_RELOAD_MS", Math.round(pendingCheckInTiming.marks.T9 - pendingCheckInTiming.marks.T8));
+        setSaveTimingDetail(pendingCheckInTiming, "navigationMs", Math.round(pendingCheckInTiming.marks.T8 - pendingCheckInTiming.marks.T7));
+        requestAnimationFrame(() => {
+          markSaveTiming(pendingCheckInTiming, "T10");
+          setSaveTimingDetail(pendingCheckInTiming, "TOTAL_USER_WAIT_MS", Math.round(pendingCheckInTiming.marks.T10 - pendingCheckInTiming.marks.T0));
+          emitSaveTiming(pendingCheckInTiming);
+        });
+      }
     }
     load().catch((error) => {
       setPartnersLoading(false);
@@ -504,19 +518,27 @@ export default function TenantsPage() {
     contracts?: BusinessContract[];
     deposits?: BusinessDeposit[];
     payments?: BusinessRentPayment[];
-  }, failureMessage = "保存失败，请稍后重试。") {
+  }, failureMessage = "保存失败，请稍后重试。", timing?: SaveTimingTrace) {
     setSaving(true);
     try {
-      if (next.tenants) await saveBusinessData(tenantKey, next.tenants);
-      if (next.rooms) await saveBusinessData(roomKey, next.rooms);
-      if (next.contracts) await saveBusinessData(contractKey, next.contracts);
-      if (next.deposits) await saveBusinessData(depositKey, next.deposits);
-      if (next.payments) await saveBusinessData(rentPaymentKey, next.payments);
+      const save = async (key: string, value: Array<{ id: string }>, detailKey: string) => {
+        const startedAt = timingNow();
+        await saveBusinessData(key, value, timing ? { timing: { traceId: timing.traceId, flow: timing.flow, onResponse: (response) => enablePreviewTimingFromResponse(timing, response) } } : undefined);
+        if (timing) setSaveTimingDetail(timing, detailKey, Math.round(timingNow() - startedAt));
+      };
+      if (timing) markSaveTiming(timing, "T2");
+      if (next.tenants) await save(tenantKey, next.tenants, "TENANT_SAVE_MS");
+      if (next.rooms) await save(roomKey, next.rooms, "ROOM_UPDATE_MS");
+      if (next.contracts) await save(contractKey, next.contracts, "CONTRACT_SAVE_MS");
+      if (next.deposits) await save(depositKey, next.deposits, "DEPOSIT_SAVE_MS");
+      if (next.payments) await save(rentPaymentKey, next.payments, "PAYMENT_SAVE_MS");
+      if (timing) markSaveTiming(timing, "T6");
       if (next.tenants) setTenants(next.tenants);
       if (next.rooms) setRooms(next.rooms);
       if (next.contracts) setContracts(next.contracts);
       if (next.deposits) setDeposits(next.deposits);
       if (next.payments) setPayments(next.payments);
+      if (timing) markSaveTiming(timing, "T7");
     } catch (error: any) {
       window.alert(error.message || failureMessage);
       return false;
@@ -528,6 +550,7 @@ export default function TenantsPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const timing = !form.id ? createSaveTiming("tenant-create") : null;
     if (!loaded || !form.propertyId || !form.roomId || !form.name.trim()) return;
     if (form.paymentDay != null && (!Number.isInteger(form.paymentDay) || form.paymentDay < 1 || form.paymentDay > 31)) {
       window.alert("每月缴费日请输入1到31，或留空表示不设置。");
@@ -541,6 +564,7 @@ export default function TenantsPage() {
       window.alert("入住人数请输入1或更大的正整数。");
       return;
     }
+    if (timing) markSaveTiming(timing, "T1");
     try {
       const previousTenant = form.id ? tenants.find((tenant) => tenant.id === form.id) || null : null;
       if (form.id) {
@@ -665,13 +689,23 @@ export default function TenantsPage() {
             notes: shouldPersistPayment ? `[收租押金:${nextPayment.id}]` : "租客建立时收取押金"
           }, ...deposits]
         : deposits;
-      const saved = await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败");
+      const saved = await persistAll({ tenants: next, rooms: nextRooms, contracts: nextContracts, deposits: nextDeposits, payments: nextPayments }, "租客和首次收款保存失败", timing || undefined);
       // New rows receive their immutable created_at on the server. Re-read it
       // instead of inventing a client time so the explicit 时间 sort is correct
       // immediately after a successful tenant creation.
       if (saved) {
         try {
+          if (timing) markSaveTiming(timing, "T8");
           setTenants(await refreshBusinessData<BusinessTenant>(tenantKey, next));
+          if (timing) {
+            markSaveTiming(timing, "T9");
+            setSaveTimingDetail(timing, "TENANT_REFRESH_MS", Math.round(timing.marks.T9 - timing.marks.T8));
+            requestAnimationFrame(() => {
+              markSaveTiming(timing, "T10");
+              setSaveTimingDetail(timing, "TOTAL_USER_WAIT_MS", Math.round(timing.marks.T10 - timing.marks.T0));
+              emitSaveTiming(timing);
+            });
+          }
         } catch {
           // The successful optimistic list remains visible; a later route
           // load will still obtain the authoritative server creation time.

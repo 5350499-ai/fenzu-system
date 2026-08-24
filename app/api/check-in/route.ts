@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/account-auth";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { ensureFreeSingleMember, freeSingleAttribution } from "@/lib/server/free-single-member";
+import { finishServerTiming, markServerTiming, startServerTiming } from "@/lib/server/save-latency-timing";
 
 type CheckInBody = {
   clientRequestId?: string;
@@ -42,8 +43,10 @@ function validDate(value: string | undefined, optional = false) {
 }
 
 export async function POST(request: Request) {
+  const timing = startServerTiming(request, "check-in");
   try {
     const context = await requireActiveAccount(request);
+    markServerTiming(timing, "authEnd");
     const body = await parseJson(request) as CheckInBody;
     const rentAmount = Number(body.rentAmount ?? 0);
     const depositAmount = Number(body.depositAmount ?? 0);
@@ -91,6 +94,7 @@ export async function POST(request: Request) {
     }
 
     const client = getSupabaseAuthVerifier(context.accessToken);
+    markServerTiming(timing, "rpcStart");
     const { data, error } = await client.rpc("create_atomic_check_in", {
       p_client_request_id: body.clientRequestId,
       p_property_id: body.propertyId,
@@ -115,6 +119,7 @@ export async function POST(request: Request) {
       p_received_by: attribution,
       p_notes: body.notes?.trim() || null
     });
+    markServerTiming(timing, "rpcEnd");
 
     if (error) {
       if (error.code === "42501") throw new AccountApiError("没有权限执行一键入住。", 403);
@@ -130,16 +135,18 @@ export async function POST(request: Request) {
       // The check-in RPC predates the existing tenants.wechat column. Keep the
       // financial/room transaction intact, then update only the tenant that
       // this trusted RPC just created in the same workspace.
+      markServerTiming(timing, "sideEffectStart");
       const { error: contactError } = await getSupabaseAdmin()
         .from("tenants")
         .update({ wechat: body.wechat.trim() })
         .eq("id", tenantId)
         .eq("user_id", context.profile.workspace_owner_id);
+      markServerTiming(timing, "sideEffectEnd");
       if (contactError) contactSaveWarning = "入住已完成，但 WhatsApp / 其他联系方式未保存，请到租客管理补充。";
     }
 
-    return NextResponse.json({ ok: true, result: data, contactSaveWarning: contactSaveWarning || undefined });
+    return finishServerTiming(NextResponse.json({ ok: true, result: data, contactSaveWarning: contactSaveWarning || undefined }), timing);
   } catch (error) {
-    return apiErrorResponse(error);
+    return finishServerTiming(apiErrorResponse(error), timing);
   }
 }
