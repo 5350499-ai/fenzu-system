@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse, isFreeSingleAccount, requireActiveAccount, requireModulePermission, requireSensitivePermission } from "@/lib/server/account-auth";
+import { sortAuditLogsForPresentation } from "@/lib/audit-log-summary";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(request: Request) {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
     if (error) throw error;
-    if (freeSingle) return NextResponse.json({ logs: data || [] });
+    if (freeSingle) return NextResponse.json({ logs: sortAuditLogsForPresentation(data || []) });
     const { data: workspaceUsers, error: workspaceError } = await admin
       .from("user_profiles")
       .select("auth_user_id")
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     if (workspaceError) throw workspaceError;
     const workspaceUserIdSet = new Set((workspaceUsers || []).map((item) => item.auth_user_id));
     const logs = (data || []).filter((row) => !row.actor_user_id || workspaceUserIdSet.has(row.actor_user_id));
-    return NextResponse.json({ logs });
+    return NextResponse.json({ logs: sortAuditLogsForPresentation(logs) });
   } catch (error) {
     return apiErrorResponse(error);
   }

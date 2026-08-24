@@ -6,6 +6,18 @@ export type AuditSummaryLog = {
   after_data?: unknown;
 };
 
+export type AuditPresentationLog = AuditSummaryLog & {
+  action_type?: string;
+  created_at?: string;
+};
+
+export type LinkedReceiptAuditPresentation = {
+  title: "永久删除收款" | "作废收款";
+  rentAmount: number;
+  depositAmount: number;
+  totalAmount: number;
+};
+
 function objectValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -25,6 +37,47 @@ function firstNumber(rows: Array<Record<string, unknown>>, keys: string[]) {
 }
 
 type CurrencyFormatter = (value: number | string | null | undefined, currency?: CurrencyCode) => string;
+
+function linkedReceiptTitle(actionType: string | undefined) {
+  if (actionType === "linked_receipt_delete") return "永久删除收款" as const;
+  if (actionType === "linked_receipt_void") return "作废收款" as const;
+  return null;
+}
+
+export function getLinkedReceiptAuditPresentation(log: AuditPresentationLog): LinkedReceiptAuditPresentation | null {
+  const title = linkedReceiptTitle(log.action_type);
+  if (!title) return null;
+
+  const rows = [objectValue(log.after_data), objectValue(log.before_data)].filter((row): row is Record<string, unknown> => Boolean(row));
+  const rentAmount = firstNumber(rows, ["rentAmount", "rent_amount"]);
+  const depositAmount = firstNumber(rows, ["depositAmount", "deposit_amount"]);
+  const totalAmount = firstNumber(rows, ["totalAmount", "total_amount"]);
+
+  if (rentAmount === undefined && depositAmount === undefined && totalAmount === undefined) return null;
+  const rent = rentAmount ?? 0;
+  const deposit = depositAmount ?? 0;
+  return {
+    title,
+    rentAmount: rent,
+    depositAmount: deposit,
+    totalAmount: totalAmount ?? rent + deposit
+  };
+}
+
+export function sortAuditLogsForPresentation<T extends AuditPresentationLog>(logs: T[]) {
+  return logs
+    .map((log, index) => ({ log, index }))
+    .sort((left, right) => {
+      const timeDifference = Date.parse(right.log.created_at || "") - Date.parse(left.log.created_at || "");
+      if (Number.isFinite(timeDifference) && timeDifference !== 0) return timeDifference;
+
+      const leftPriority = linkedReceiptTitle(left.log.action_type) ? 0 : 1;
+      const rightPriority = linkedReceiptTitle(right.log.action_type) ? 0 : 1;
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+      return left.index - right.index;
+    })
+    .map(({ log }) => log);
+}
 
 export function buildAuditLogSummary(log: AuditSummaryLog, currencyCode: CurrencyCode | undefined, formatAmount: CurrencyFormatter) {
   const rows = [objectValue(log.after_data), objectValue(log.before_data)].filter((row): row is Record<string, unknown> => Boolean(row));

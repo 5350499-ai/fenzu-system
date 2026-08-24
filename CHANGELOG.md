@@ -1356,6 +1356,12 @@
 - Added audit API/presentation support for aggregate amounts plus historical snake_case and camelCase snapshots; existing low-level table audit logs remain unchanged.
 - Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.
 
+## 2026-08-24 - Linked receipt audit presentation closeout (Preview)
+
+- The audit API now prioritizes the aggregate linked-receipt lifecycle event above same-transaction table trigger details; no audit rows are removed or rewritten.
+- Linked receipt void/delete cards use the immutable aggregate total in the title and expand into separate rent, deposit, total and result fields while retaining snake_case, camelCase and historical payment/deposit compatibility.
+- No lifecycle RPC, business data, schema, migration, finance calculation, real-user data or Production deployment changed.
+
 ## 2026-08-24 - Check-in receipt permanent-delete replay safety (Prepared)
 
 - Canonical linked-receipt deletion now recognizes a single, complete one-click check-in receipt graph, clears only that request's nullable payment/deposit references, preserves the check-in, tenant and contract history, then atomically deletes the verified receipt pair.

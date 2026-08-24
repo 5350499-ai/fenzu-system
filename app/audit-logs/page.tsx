@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/app-layout";
 import { supabase } from "@/lib/supabase";
 import { useAccountAccess } from "@/components/account-access";
 import { formatCurrency } from "@/lib/currency";
-import { buildAuditLogSummary } from "@/lib/audit-log-summary";
+import { buildAuditLogSummary, getLinkedReceiptAuditPresentation } from "@/lib/audit-log-summary";
 import { useCallback, useEffect, useState } from "react";
 
 type AuditLog = {
@@ -73,15 +73,16 @@ export default function AuditLogsPage() {
         </div>
         {error ? <p className="danger-text">{error}</p> : null}
         <div className="audit-list">
-          {logs.filter((log) => !action || actionLabel(log.action_type) === action).map((log) => (
-            <article className="audit-row" key={log.id}>
+          {logs.filter((log) => !action || actionLabel(log.action_type) === action).map((log) => {
+            const linkedReceipt = getLinkedReceiptAuditPresentation(log);
+            return <article className="audit-row" key={log.id}>
               <button type="button" onClick={() => setExpanded(expanded === log.id ? null : log.id)}>
                 <span><strong>{businessDescription(log, access.currencyCode)}</strong><small>{formatTime(log.created_at)} · {log.actor_display_name || log.actor_username || "本人"}</small></span>
                 <span className={"badge " + (log.success ? "success" : "danger")}>{log.success ? "成功" : "失败"}</span>
               </button>
-              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{safeSummary(log, access.currencyCode) ? <p>{safeSummary(log, access.currencyCode)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
-            </article>
-          ))}
+              {expanded === log.id ? <div className="audit-detail"><p>模块：{moduleLabel(log.module_key)}｜操作：{actionLabel(log.action_type)}</p>{linkedReceipt ? <><p><strong>{linkedReceipt.title}</strong></p><p>房租：{formatCurrency(linkedReceipt.rentAmount, access.currencyCode)}</p><p>押金：{formatCurrency(linkedReceipt.depositAmount, access.currencyCode)}</p><p>合计：{formatCurrency(linkedReceipt.totalAmount, access.currencyCode)}</p><p>结果：{log.success ? "成功" : "失败"}</p></> : safeSummary(log, access.currencyCode) ? <p>{safeSummary(log, access.currencyCode)}</p> : <p className="muted">该操作没有可展示的业务摘要。</p>}</div> : null}
+            </article>;
+          })}
           {!logs.filter((log) => !action || actionLabel(log.action_type) === action).length && !error ? <p className="muted">暂无符合条件的日志。</p> : null}
         </div>
       </section>
@@ -103,6 +104,8 @@ function actionLabel(value: string) {
   return "操作";
 }
 function businessDescription(log: AuditLog, currencyCode: Parameters<typeof formatCurrency>[1]) {
+  const linkedReceipt = getLinkedReceiptAuditPresentation(log);
+  if (linkedReceipt) return `${linkedReceipt.title} · ${formatCurrency(linkedReceipt.totalAmount, currencyCode)}`;
   const action = actionLabel(log.action_type);
   const module = moduleLabel(log.module_key);
   const summary = safeSummary(log, currencyCode);
