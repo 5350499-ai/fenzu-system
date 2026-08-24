@@ -53,7 +53,7 @@ or local state to a second source of truth.
 |---|---|---|---|---|
 | 全局视觉规范 | `UI_DESIGN_SYSTEM.md` | 规范章节与 shared tokens | 定义视觉、间距、触控和响应式契约 | 修改跨页面规则前必须更新并验证 |
 | 全局 CSS | `app/globals.css` | `:root`、shared semantic selectors | 执行全局 token 和已有组件样式 | 不用全局 selector 修复单页问题 |
-| shared primitives | `components/ui.tsx` | `SectionCard`、`DetailCard`、`CompactDetail*`、buttons | 提供共享 UI 原语 | 不为单页复制 primitive |
+| shared primitives | `components/ui.tsx`、`lib/destructive-confirmation.ts` | `SectionCard`、`DetailCard`、`CompactDetail*`、buttons、`ConfirmDialog`、`TypedDestructiveConfirmDialog` | 提供共享 UI 原语与固定 DELETE typed confirmation | 不为单页复制 primitive 或 token 校验 |
 | 房源范围选择 | `components/property-multi-select.tsx`, `lib/property-scope.ts` | `PropertyMultiSelect`, `property-scope` | 统一房源查询范围 | 禁止页面建立平行房源范围选择器 |
 | 下拉/选择 | `components/searchable-select.tsx`, `components/dropdown-listbox.tsx`, `components/tap-select.tsx` | shared listbox/select classes | 统一手势、滚动和选择行为 | 禁止页面自己实现 dropdown/listbox |
 

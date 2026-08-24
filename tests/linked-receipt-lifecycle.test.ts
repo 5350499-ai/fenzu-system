@@ -101,9 +101,10 @@ test("client uses one lifecycle request and never performs a payment/deposit dou
 });
 
 test("void and delete buttons open an app-owned confirmation before invoking the lifecycle request", () => {
-  assert.match(page, /function voidPayment\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "void", payment \}\)/);
-  assert.match(page, /function permanentlyDelete\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "delete", payment \}\)/);
-  assert.match(page, /<ConfirmDialog[\s\S]*open=\{Boolean\(lifecycleConfirmation\)\}[\s\S]*onConfirm=\{\(\) => void confirmPaymentLifecycle\(\)\}/);
+  assert.match(page, /function voidPayment\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "void", payment, receipt:/);
+  assert.match(page, /function permanentlyDelete\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "delete", payment, receipt:/);
+  assert.match(page, /<ConfirmDialog[\s\S]*open=\{lifecycleConfirmation\?\.action === "void"\}[\s\S]*onConfirm=\{\(\) => void confirmPaymentLifecycle\(\)\}/);
+  assert.match(page, /<TypedDestructiveConfirmDialog[\s\S]*open=\{lifecycleConfirmation\?\.action === "delete"\}[\s\S]*onConfirm=\{\(\) => void confirmPaymentLifecycle\(\)\}/);
   const lifecycleBody = page.slice(page.indexOf("function voidPayment"), page.indexOf("async function addPaymentFile"));
   assert.doesNotMatch(lifecycleBody, /window\.confirm\(/);
 });

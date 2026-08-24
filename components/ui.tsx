@@ -1,6 +1,8 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { euro } from "@/lib/format";
 import { ModalPortal } from "@/components/modal-portal";
+import { DELETE_CONFIRMATION_TOKEN, isValidDeleteConfirmation } from "@/lib/destructive-confirmation";
 
 function cx(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
@@ -76,6 +78,20 @@ export function LoadingOverlay({ label = "正在加载…" }: { label?: ReactNod
 export function ConfirmDialog({ open, title, description, confirmLabel = "确认", cancelLabel = "取消", onConfirm, onCancel }: { open: boolean; title: ReactNode; description?: ReactNode; confirmLabel?: ReactNode; cancelLabel?: ReactNode; onConfirm: () => void; onCancel: () => void }) {
   if (!open) return null;
   return <ModalPortal><div className="modal-backdrop ui-dialog-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="card modal-card ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title" onClick={(event) => event.stopPropagation()}><h2 id="ui-dialog-title" className="panel-title">{title}</h2>{description ? <p className="muted">{description}</p> : null}<div className="modal-actions"><SecondaryButton type="button" onClick={onCancel}>{cancelLabel}</SecondaryButton><DangerButton type="button" onClick={onConfirm}>{confirmLabel}</DangerButton></div></section></div></ModalPortal>;
+}
+
+export function TypedDestructiveConfirmDialog({ open, title, description, amountSummary, confirmLabel = "永久删除", cancelLabel = "取消", saving = false, onConfirm, onCancel }: { open: boolean; title: ReactNode; description?: ReactNode; amountSummary?: ReactNode; confirmLabel?: ReactNode; cancelLabel?: ReactNode; saving?: boolean; onConfirm: () => void; onCancel: () => void }) {
+  const [confirmation, setConfirmation] = useState("");
+
+  useEffect(() => {
+    if (!open) setConfirmation("");
+  }, [open]);
+
+  if (!open) return null;
+  const titleId = "typed-destructive-dialog-title";
+  const descriptionId = "typed-destructive-dialog-description";
+  const inputId = "typed-destructive-dialog-confirmation";
+  return <ModalPortal><div className="modal-backdrop ui-dialog-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget && !saving) onCancel(); }}><section className="card modal-card ui-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} onClick={(event) => event.stopPropagation()}><h2 id={titleId} className="panel-title">{title}</h2><p id={descriptionId} className="muted">{description}</p>{amountSummary ? <div className="ui-dialog-summary">{amountSummary}</div> : null}<div className="field"><label htmlFor={inputId}>请输入 {DELETE_CONFIRMATION_TOKEN} 以确认</label><input id={inputId} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" autoFocus /></div><div className="modal-actions"><SecondaryButton type="button" onClick={onCancel} disabled={saving}>{cancelLabel}</SecondaryButton><DangerButton type="button" onClick={onConfirm} disabled={saving || !isValidDeleteConfirmation(confirmation)} aria-busy={saving}>{saving ? "处理中…" : confirmLabel}</DangerButton></div></section></div></ModalPortal>;
 }
 
 export function Toast({ message, tone = "info" }: { message?: ReactNode; tone?: "success" | "warning" | "danger" | "info" }) {

@@ -1,4 +1,7 @@
-export const TENANT_DELETE_CONFIRMATION = "DELETE";
+// @ts-expect-error Node's strip-types test runner requires the explicit TypeScript extension.
+import { DELETE_CONFIRMATION_TOKEN, isValidDeleteConfirmation } from "./destructive-confirmation.ts";
+
+export const TENANT_DELETE_CONFIRMATION = DELETE_CONFIRMATION_TOKEN;
 export const TENANT_PERMANENT_DELETE_DISABLED = "TENANT_PERMANENT_DELETE_DISABLED";
 
 /** The current tenant schema models an occupant, not an unassigned contact. */
@@ -39,7 +42,7 @@ export function tenantDeleteBusinessDataMessage(status = "") {
 }
 
 export function isTenantDeleteConfirmed(value: string) {
-  return value.trim() === TENANT_DELETE_CONFIRMATION;
+  return isValidDeleteConfirmation(value);
 }
 
 export function tenantDeletePermissionMessage(canDelete: boolean) {

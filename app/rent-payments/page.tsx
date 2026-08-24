@@ -12,7 +12,7 @@ import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { TapSelect } from "@/components/tap-select";
-import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow, ConfirmDialog } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow, ConfirmDialog, TypedDestructiveConfirmDialog } from "@/components/ui";
 import {
   BusinessProperty,
   BusinessDeposit,
@@ -120,7 +120,7 @@ export default function RentPaymentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailPaymentId, setDetailPaymentId] = useState("");
-  const [lifecycleConfirmation, setLifecycleConfirmation] = useState<{ action: "void" | "delete"; payment: BusinessRentPayment } | null>(null);
+  const [lifecycleConfirmation, setLifecycleConfirmation] = useState<{ action: "void" | "delete"; payment: BusinessRentPayment; receipt: RentPaymentReceiptProjection } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
@@ -681,12 +681,12 @@ export default function RentPaymentsPage() {
 
   function voidPayment(payment: BusinessRentPayment) {
     if (saving) return;
-    setLifecycleConfirmation({ action: "void", payment });
+    setLifecycleConfirmation({ action: "void", payment, receipt: projectRentPaymentReceipt(payment, linkedDepositsByPaymentId.get(payment.id), checkInReceiptLinks) });
   }
 
   function permanentlyDelete(payment: BusinessRentPayment) {
     if (saving) return;
-    setLifecycleConfirmation({ action: "delete", payment });
+    setLifecycleConfirmation({ action: "delete", payment, receipt: projectRentPaymentReceipt(payment, linkedDepositsByPaymentId.get(payment.id), checkInReceiptLinks) });
   }
 
   async function confirmPaymentLifecycle() {
@@ -907,12 +907,21 @@ export default function RentPaymentsPage() {
         </div></ModalPortal>
       ) : null}
       <ConfirmDialog
-        open={Boolean(lifecycleConfirmation)}
+        open={lifecycleConfirmation?.action === "void"}
         title={lifecycleConfirmation?.action === "delete" ? "永久删除收款" : "作废收款"}
         description={lifecycleConfirmation?.action === "delete"
           ? "确定要永久删除这条收租记录吗？真实发生过的财务记录建议使用“作废”，删除后不可恢复。"
           : "确认作废这条收租记录吗？作废后原始金额和历史信息仍会保留。"}
         confirmLabel={lifecycleConfirmation?.action === "delete" ? "永久删除" : "确认作废"}
+        onCancel={() => { if (!saving) setLifecycleConfirmation(null); }}
+        onConfirm={() => void confirmPaymentLifecycle()}
+      />
+      <TypedDestructiveConfirmDialog
+        open={lifecycleConfirmation?.action === "delete"}
+        title="永久删除收款"
+        description="此操作将永久删除本次收款以及与本次收款明确关联的押金，删除后无法恢复。"
+        amountSummary={lifecycleConfirmation ? <><p>房租：{euro(lifecycleConfirmation.receipt.rentAmount)}</p><p>押金：{euro(lifecycleConfirmation.receipt.depositAmount)}</p><p>合计：{euro(lifecycleConfirmation.receipt.totalReceived)}</p></> : null}
+        saving={saving}
         onCancel={() => { if (!saving) setLifecycleConfirmation(null); }}
         onConfirm={() => void confirmPaymentLifecycle()}
       />

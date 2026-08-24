@@ -1356,6 +1356,12 @@
 - Added audit API/presentation support for aggregate amounts plus historical snake_case and camelCase snapshots; existing low-level table audit logs remain unchanged.
 - Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.
 
+## 2026-08-24 - Shared typed DELETE confirmation (Preview)
+
+- Added the shared, language-independent `DELETE` token validator and typed destructive confirmation dialog; tenant confirmation now delegates to the shared owner while server-side tenant permanent deletion remains disabled.
+- Rent-payment permanent deletion now requires typed `DELETE` confirmation and shows the canonical rent/deposit/total receipt snapshot; void continues using the ordinary confirmation dialog.
+- No backend, lifecycle RPC, permission, database, migration, finance, business-data or Production behavior changed.
+
 ## 2026-08-24 - Linked receipt audit presentation closeout (Preview)
 
 - The audit API now prioritizes the aggregate linked-receipt lifecycle event above same-transaction table trigger details; no audit rows are removed or rewritten.
