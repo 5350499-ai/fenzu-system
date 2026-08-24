@@ -26,6 +26,7 @@ import {
   getInitialRooms,
   getInitialTenants,
   loadBusinessData,
+  invalidateBusinessData,
   propertyKey,
   rentPaymentKey,
   roomKey,
@@ -57,6 +58,7 @@ import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emi
 import { hasMeaningfulRentState, normalizeRentPaymentAmount } from "@/lib/rent-payment-entry";
 import { linkedRentPaymentId, projectDepositIncomePayments, projectRentPaymentReceipt } from "@/lib/rent-deposit-finance";
 import type { RentPaymentReceiptProjection } from "@/lib/rent-deposit-finance";
+import { applyRentPaymentLifecycle } from "@/lib/rent-payment-lifecycle";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -312,7 +314,7 @@ export default function RentPaymentsPage() {
     if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
   const filteredPaymentTotal = useMemo(
-    () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount), 0),
+    () => filteredPayments.reduce((total, payment) => total + (isVoided(payment.notes) ? 0 : paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount)), 0),
     [filteredPayments, linkedDepositsByPaymentId]
   );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
@@ -674,16 +676,41 @@ export default function RentPaymentsPage() {
 
   async function voidPayment(payment: BusinessRentPayment) {
     if (!window.confirm("确认作废这条收租记录吗？作废后原始金额和历史信息仍会保留。")) return;
-    await persist(payments.map((item) => (item.id === payment.id ? { ...item, notes: markVoided(item.notes) } : item)));
+    setSaving(true);
+    try {
+      const result = await applyRentPaymentLifecycle(payment.id, "void");
+      setPayments((current) => current.map((item) => item.id === payment.id ? { ...item, notes: markVoided(item.notes) } : item));
+      if (result.linkedDepositHandled && result.linkedDepositId) {
+        setDeposits((current) => current.map((item) => item.id === result.linkedDepositId
+          ? { ...item, status: "已作废", notes: markVoided(item.notes) }
+          : item));
+      }
+      await invalidateBusinessData([rentPaymentKey, depositKey]);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "作废收款失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function permanentlyDelete(payment: BusinessRentPayment) {
     if (!window.confirm("确定要永久删除这条收租记录吗？\n真实发生过的财务记录建议使用“作废”，删除后不可恢复。")) return;
-    const relatedFiles = filesByPayment[payment.id] || [];
-    for (const file of relatedFiles) await deleteRentPaymentFile(file);
-    await persist(payments.filter((item) => item.id !== payment.id));
-    setFiles((current) => current.filter((file) => file.rentPaymentId !== payment.id));
-    setDetailPaymentId("");
+    setSaving(true);
+    try {
+      const result = await applyRentPaymentLifecycle(payment.id, "delete");
+      setPayments((current) => current.filter((item) => item.id !== payment.id));
+      if (result.linkedDepositHandled && result.linkedDepositId) {
+        setDeposits((current) => current.filter((item) => item.id !== result.linkedDepositId));
+      }
+      setFiles((current) => current.filter((file) => file.rentPaymentId !== payment.id));
+      setDetailPaymentId("");
+      await invalidateBusinessData([rentPaymentKey, depositKey]);
+      if (result.attachmentCleanupWarning) window.alert(result.attachmentCleanupWarning);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "永久删除收款失败，请稍后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function addPaymentFile(payment: BusinessRentPayment, file: File) {

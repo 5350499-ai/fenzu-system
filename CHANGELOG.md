@@ -1,5 +1,12 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-24 - Linked rent/deposit lifecycle atomic boundary (migration pending)
+
+- Added two fail-closed RPC definitions for voiding or permanently deleting a rent payment together with its uniquely and explicitly linked new-model deposit in one database transaction.
+- Exact payment UUID marker, cardinality, workspace, tenant, property, room, type, permission and legacy-mixed checks stop ambiguous or historical records without guessing or rewriting them.
+- The payment page now uses one lifecycle API request; permanent-delete attachment metadata remains database-cascaded and external file cleanup is best effort after the atomic DB commit.
+- The additive migration has not been executed in Production. No historical row, real user data, RPC, schema or Production deployment was changed in this preparation step.
+
 ## 2026-08-24 - Renewal rent and linked-deposit finance parity
 
 - Added one read-only receipt projection that keeps current separated rent/deposit receipts distinct while preserving historical mixed-payment compatibility.

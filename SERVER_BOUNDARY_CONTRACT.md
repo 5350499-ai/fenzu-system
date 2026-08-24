@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 49 route files. Every route is listed here and is checked by
+There are 53 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -71,6 +71,7 @@ There are 49 route files. Every route is listed here and is checked by
 | `/api/partner-settlements` | SETTLEMENT | read/write | settlement RPC/service / workspace | PARTIAL_SUCCESS_RISK |
 | `/api/partner-settlements/[id]` | SETTLEMENT | read/write | reversal RPC / workspace | HIGH_RISK |
 | `/api/rent-collection` | FINANCIAL | read/write | rent service / property | PARTIAL_SUCCESS_RISK |
+| `/api/rent-payments/lifecycle` | FINANCIAL/LIFECYCLE | write | linked receipt lifecycle RPC / payment + exact linked deposit | ATOMIC_RPC / MIGRATION_PENDING |
 | `/api/internal/recovery-scheduler` | INTERNAL/RECOVERY | scheduled write | CRON_SECRET + feature flag / server-only | DISABLED_UNTIL_ACTIVATION |
 | `/api/tasks/migration` | TASK | write | task management | LEGACY_COMPATIBILITY |
 | `/api/tasks/migration-preview` | TASK | read | task management | LEGACY_COMPATIBILITY |
@@ -87,7 +88,8 @@ The backup trace route is disabled in Production and is not a business write.
 |---|---|---|---|
 | Property, room, tenant, contract CRUD | `/api/business-data` + account auth | Supabase tables | LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY |
 | Tenant permanent delete | `/api/business-data` explicit contract guard | no mutation; move-out/archive preserve history | SERVER_REJECT / `TENANT_PERMANENT_DELETE_DISABLED` |
-| Rent payment edit/void | `/api/rent-collection` or compatibility path | `rent_payments` + audit | SERVER_REPOSITORY_WRITE / NON_ATOMIC |
+| Rent payment edit | `/api/rent-collection` or compatibility path | `rent_payments` + audit | SERVER_REPOSITORY_WRITE |
+| Rent payment void/delete with a separated linked deposit | `/api/rent-payments/lifecycle` | lifecycle RPC + exact marker/cardinality/entity guards | RPC_WRITE / ATOMIC_RPC / MIGRATION_PENDING |
 | Check-in | `/api/check-in` | `create_atomic_check_in` | RPC_WRITE / ATOMIC_RPC |
 | Move room | `/api/tenants/move-room` | `update_tenant_current_assignment` | RPC_WRITE / ATOMIC_RPC |
 | Move out | `/api/tenants/move-out` | `move_out_tenant_atomic` | RPC_WRITE / ATOMIC_RPC |
@@ -133,6 +135,8 @@ full-row compatibility protocol is recorded as deferred overposting risk.
 | `create_atomic_check_in` | `/api/check-in` | check-in transaction | ATOMIC_RPC |
 | `update_tenant_current_assignment` | `/api/tenants/move-room` | move-room transaction | ATOMIC_RPC |
 | `move_out_tenant_atomic` | `/api/tenants/move-out` | tenant lifecycle transaction | ATOMIC_RPC |
+| `void_rent_payment_with_linked_deposit` | `/api/rent-payments/lifecycle` | payment + exact new linked deposit void | ATOMIC_RPC / MIGRATION_PENDING |
+| `permanently_delete_rent_payment_with_linked_deposit` | `/api/rent-payments/lifecycle` | payment + exact new linked deposit delete | ATOMIC_RPC / MIGRATION_PENDING |
 | `confirm_partner_settlement` | settlement route | one settlement batch persistence | NON_ATOMIC batch |
 | `reverse_partner_settlement` | settlement detail route | reversal | SINGLE_SERVER_WRITE |
 | `restore_workspace_backup` | `/api/data-restore` | restore persistence | RESTORE_RPC |
@@ -166,6 +170,8 @@ Supabase errors as the only user-facing response.
 | Move room | guarded | route contract | RPC conflict protection | ATOMIC_RPC |
 | Move out | guarded | none required; final-state replay | `move_out_tenant_atomic` ownership/row lock | ATOMIC_RPC |
 | Rent payment | guarded | `client_request_id` | workspace unique index + replay/conflict check | CORE_WRITE_IDEMPOTENT |
+| Linked receipt void | guarded | final-state replay | exact marker/cardinality/entity checks + row locks | ATOMIC_RPC / MIGRATION_PENDING |
+| Linked receipt delete | guarded | second call returns not found | exact marker/cardinality/entity checks + row locks | ATOMIC_RPC / MIGRATION_PENDING |
 | Debt waiver | guarded | action contract | server dedupe | SINGLE_SERVER_WRITE |
 | Settlement confirm | guarded | client batch identity | BATCH_IDEMPOTENCY_PENDING | NON_ATOMIC batch |
 | Settlement reversal | guarded | action contract | RPC/state conflict | SINGLE_SERVER_WRITE |
