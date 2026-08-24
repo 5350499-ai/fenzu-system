@@ -1396,3 +1396,9 @@
 
 - Added Preview-only trace timing for login through home interactive and expense create/edit through UI interactive, using shared trace helpers and authenticated observability sinks.
 - Preserved login, expense, transaction, save order and loading behavior; no database, migration, Production deployment or real-user data change was performed.
+
+## 2026-08-24 - Login access one-shot handoff (Preview)
+
+- Added a memory-only, exact access-token-bound, five-second one-shot handoff from the login page's server-verified account resolution to the root `AccountAccessProvider` sign-in refresh.
+- Logout, account-snapshot clearing, token mismatch, expiry and invalid handoff results clear or bypass the handoff and retain the normal server verification path. Preview login timing now records handoff use and the immediate account-resolution request count.
+- No authentication semantics, server authorization, permissions, business logic, database, migration, real-user data or Production deployment changed.

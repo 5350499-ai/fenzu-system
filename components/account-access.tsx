@@ -5,6 +5,7 @@ import { emptyModulePermissions, emptySensitivePermissions, type AccountModuleKe
 import { clearEstablishedSupabaseSession, getValidSupabaseSession, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { isFreeSinglePlan, type AccountPlan } from "@/lib/free-single";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode, setActiveCurrency, type CurrencyCode } from "@/lib/currency";
+import { armLoginAccessHandoff, clearLoginAccessHandoff, consumeLoginAccessHandoff } from "@/lib/login-access-handoff";
 
 type AccountAccessState = {
   ready: boolean;
@@ -36,7 +37,7 @@ type AccountAccessValue = AccountAccessState & {
   canSensitive: (key: SensitivePermissionKey) => boolean;
   canAccessProperty: (propertyId?: string | null) => boolean;
   refresh: () => Promise<AccountAccessState>;
-  refreshWithAccessToken: (accessToken: string) => Promise<AccountAccessState>;
+  refreshWithAccessToken: (accessToken: string, loginTraceId?: string) => Promise<AccountAccessState>;
 };
 
 type AccountApiPayload = {
@@ -243,6 +244,7 @@ function persistAccessSnapshot(state: AccountAccessState) {
 
 export function clearAccountAccessSnapshot() {
   latestAccessState = null;
+  clearLoginAccessHandoff();
   if (typeof window !== "undefined") {
     try {
       const accountId = safeText(window.localStorage.getItem(ACTIVE_SNAPSHOT_ACCOUNT_KEY));
@@ -376,7 +378,22 @@ async function resolveAccessState(accessToken?: string): Promise<AccountAccessSt
 
 function loadAccessState() {
   if (!accessRequest) {
-    accessRequest = resolveAccessState().finally(() => {
+    accessRequest = (async () => {
+      const session = await getValidSupabaseSession();
+      if (!session) return resolveAccessState();
+      const handoffResult = consumeLoginAccessHandoff(session.access_token);
+      if (handoffResult) {
+        const handoffState = await handoffResult.catch(() => null);
+        if (handoffState && typeof handoffState === "object"
+          && "authenticated" in handoffState && handoffState.authenticated === true
+          && "isServerVerified" in handoffState && handoffState.isServerVerified === true
+          && "userId" in handoffState && typeof handoffState.userId === "string"
+          && "workspaceOwnerId" in handoffState && typeof handoffState.workspaceOwnerId === "string") {
+          return handoffState as AccountAccessState;
+        }
+      }
+      return resolveAccessState(session.access_token);
+    })().finally(() => {
       accessRequest = null;
     });
   }
@@ -466,7 +483,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
     return tracked;
   }, [commitState]);
 
-  const refreshWithAccessToken = useCallback((accessToken: string): Promise<AccountAccessState> => {
+  const refreshWithAccessToken = useCallback((accessToken: string, loginTraceId?: string): Promise<AccountAccessState> => {
     if (!accessToken) return Promise.resolve({ ...emptyState(), ready: true, authState: "unauthenticated" });
     const run = (async () => {
       commitState({ ...stateRef.current, ready: false, isRefreshing: false, invalidReason: "" });
@@ -486,6 +503,7 @@ export function AccountAccessProvider({ children }: { children: React.ReactNode 
         return next;
       }
     })();
+    if (loginTraceId) armLoginAccessHandoff(accessToken, loginTraceId, run);
     return run;
   }, [commitState]);
 

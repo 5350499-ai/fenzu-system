@@ -1,3 +1,5 @@
+import { getLoginAccessHandoffTelemetry } from "@/lib/login-access-handoff";
+
 export type SaveTimingFlow = "check-in" | "tenant-create" | "renewal" | "payment-save" | "login" | "expense-create" | "expense-edit";
 
 export type SaveTimingTrace = {
@@ -123,6 +125,7 @@ export function takePendingLoginTiming() {
 
 export function emitLoginTiming(trace: SaveTimingTrace, accessToken: string) {
   if (!trace.previewEnabled && typeof window !== "undefined" && !window.location.hostname.endsWith(".vercel.app")) return;
+  const handoff = getLoginAccessHandoffTelemetry(trace.traceId);
   void fetch("/api/performance-timing/login", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
@@ -131,6 +134,9 @@ export function emitLoginTiming(trace: SaveTimingTrace, accessToken: string) {
       loginApiMs: durationBetween(trace, "API_START", "API_END"),
       sessionMs: durationBetween(trace, "API_END", "SESSION_READY"),
       accountMs: durationBetween(trace, "ACCOUNT_ACCESS_START", "ACCOUNT_ACCESS_END"),
+      loginAccessInitialMs: durationBetween(trace, "ACCOUNT_ACCESS_START", "ACCOUNT_ACCESS_END"),
+      loginHandoffUsed: handoff?.handoffUsed ?? null,
+      loginDuplicateAccountRequestCount: handoff?.immediateAccountRequestCount ?? null,
       redirectToHomeMs: durationBetween(trace, "REDIRECT_START", "HOME_LOAD_START"),
       homeLoadMs: durationBetween(trace, "HOME_LOAD_START", "HOME_INTERACTIVE"),
       totalMs: durationBetween(trace, "T0", "HOME_INTERACTIVE")

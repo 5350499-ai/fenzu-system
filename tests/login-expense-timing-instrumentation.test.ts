@@ -16,13 +16,17 @@ test("login timing carries one trace from submit through home interactive", asyn
   assert.match(login, /storePendingLoginTiming\(timing\)/);
   assert.match(login, /SESSION_READY/);
   assert.match(login, /ACCOUNT_ACCESS_START/);
+  assert.match(login, /refreshWithAccessToken\(payload\.accessToken, timing\.traceId\)/);
   assert.match(login, /REDIRECT_START/);
   assert.match(dashboard, /takePendingLoginTiming\(\)/);
   assert.match(dashboard, /HOME_LOAD_START/);
   assert.match(dashboard, /emitLoginTiming\(loginTiming/);
   assert.match(helper, /LOGIN_PENDING_KEY/);
+  assert.match(helper, /loginHandoffUsed/);
+  assert.match(helper, /loginDuplicateAccountRequestCount/);
   assert.match(api, /VERCEL_ENV === "preview"/);
   assert.match(api, /\[login-timing\]/);
+  assert.match(api, /loginHandoffUsed/);
 });
 
 test("expense create and edit share Preview-only timing instrumentation", async () => {

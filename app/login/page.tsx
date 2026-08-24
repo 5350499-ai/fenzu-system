@@ -108,7 +108,7 @@ export default function LoginPage() {
       }
       markSaveTiming(timing, "SESSION_READY");
       markSaveTiming(timing, "ACCOUNT_ACCESS_START");
-      const verified = await withTimeout(access.refreshWithAccessToken(payload.accessToken), "账户状态验证超时，请重试。");
+      const verified = await withTimeout(access.refreshWithAccessToken(payload.accessToken, timing.traceId), "账户状态验证超时，请重试。");
       markSaveTiming(timing, "ACCOUNT_ACCESS_END");
       if (!verified.authenticated || !verified.isServerVerified) {
         setError(verified.invalidReason || "登录状态验证失败，请重新登录。");
