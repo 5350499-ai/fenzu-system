@@ -55,7 +55,8 @@ import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow } from "@/lib/save-latency-timing";
 import { hasMeaningfulRentState, normalizeRentPaymentAmount } from "@/lib/rent-payment-entry";
-import { projectDepositIncomePayments } from "@/lib/profit";
+import { linkedRentPaymentId, projectDepositIncomePayments, projectRentPaymentReceipt } from "@/lib/rent-deposit-finance";
+import type { RentPaymentReceiptProjection } from "@/lib/rent-deposit-finance";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -254,10 +255,24 @@ export default function RentPaymentsPage() {
     () => preserveStoredPartnerOption(partnerOptions, form.id ? form.receivedBy : "", partnerDirectory),
     [form.id, form.receivedBy, partnerDirectory, partnerOptions]
   );
-  const ledgerPayments = useMemo(
-    () => [...payments, ...projectDepositIncomePayments(deposits, payments)],
-    [deposits, payments]
-  );
+  const linkedDepositsByPaymentId = useMemo(() => new Map(
+    deposits.map((deposit) => [linkedRentPaymentId(deposit), deposit] as const).filter(([paymentId]) => paymentId)
+  ), [deposits]);
+  const ledgerPayments = useMemo(() => {
+    const displayedPaymentIds = new Set(payments.map((payment) => payment.id));
+    const depositById = new Map(deposits.map((deposit) => [deposit.id, deposit]));
+    const displayedStoredPayments = payments.filter((payment) => {
+      const sourceDeposit = payment.sourceDepositId ? depositById.get(payment.sourceDepositId) : undefined;
+      const linkedPaymentId = sourceDeposit ? linkedRentPaymentId(sourceDeposit) : "";
+      return !linkedPaymentId || !displayedPaymentIds.has(linkedPaymentId);
+    });
+    const standaloneDepositIncome = projectDepositIncomePayments(deposits, payments).filter((payment) => {
+      const sourceDeposit = payment.sourceDepositId ? depositById.get(payment.sourceDepositId) : undefined;
+      const linkedPaymentId = sourceDeposit ? linkedRentPaymentId(sourceDeposit) : "";
+      return !linkedPaymentId || !displayedPaymentIds.has(linkedPaymentId);
+    });
+    return [...displayedStoredPayments, ...standaloneDepositIncome];
+  }, [deposits, payments]);
   const filteredPayments = useMemo(() => {
     return ledgerPayments.filter((payment) => {
       if (!isManualIncomeLedgerVisible(payment)) return false;
@@ -285,20 +300,20 @@ export default function RentPaymentsPage() {
         payment.rentMonth,
         payment.coverageStartDate,
         payment.coverageEndDate,
-        paymentListAmount(payment)
+        paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount)
       ]) &&
         paymentMatchesPropertyScope(payment.propertyId, selectedPropertyIds) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, ledgerPayments)) &&
         (!rentDueOnly || Boolean(tenant && isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments)));
     });
-  }, [dateEnd, dateStart, ledgerPayments, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
+  }, [dateEnd, dateStart, ledgerPayments, linkedDepositsByPaymentId, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
   useEffect(() => {
     if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
   const filteredPaymentTotal = useMemo(
-    () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment), 0),
-    [filteredPayments]
+    () => filteredPayments.reduce((total, payment) => total + paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount), 0),
+    [filteredPayments, linkedDepositsByPaymentId]
   );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
   const canEditHistorical = access.isOwner && access.can("rent_payments", "edit");
@@ -758,7 +773,8 @@ export default function RentPaymentsPage() {
             const property = properties.find((item) => item.id === payment.propertyId);
             const room = rooms.find((item) => item.id === payment.roomId);
             const tenant = tenants.find((item) => item.id === payment.tenantId);
-            const linkedDeposit = deposits.find((deposit) => deposit.notes?.includes(depositPaymentMarker(payment.id)));
+            const linkedDeposit = linkedDepositsByPaymentId.get(payment.id);
+            const receipt = projectRentPaymentReceipt(payment, linkedDeposit?.amount);
             const expanded = detailPaymentId === payment.id;
             const attribution = partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState);
             return (
@@ -767,7 +783,7 @@ export default function RentPaymentsPage() {
                   <span>{payment.paymentDate || payment.rentMonth}</span>
                   <span className={`partner-tag ${partnerDisplayClass(payment.receivedBy, partnerDirectoryState)}`}>{attribution}</span>
                   <span>{isRentPayment(payment) ? `${room?.roomNumber || room?.name || "-"}/${tenant?.name || payment.incomeItem || "未填写租客"}` : payment.incomeItem || payment.incomeType || "其他收入"}</span>
-                  <strong>{euro(paymentListAmount(payment))}</strong>
+                  <strong>{euro(receipt.totalReceived)}</strong>
                   <StatusBadge tone={isVoided(payment.notes) ? "red" : "green"}>{isVoided(payment.notes) ? "已作废" : "已收取"}</StatusBadge>
                 </button>
                 {expanded ? (
@@ -778,7 +794,7 @@ export default function RentPaymentsPage() {
                     propertyName={property?.name || "-"}
                     roomName={room?.name || "-"}
                     tenantName={tenant?.name || payment.incomeItem || "未填写租客"}
-                    depositAmount={paymentDepositAmount(payment, linkedDeposit?.amount)}
+                    receipt={receipt}
                     files={filesByPayment[payment.id] || []}
                     attachmentLoadState={filesLoadState}
                     attachmentLoadError={filesLoadError}
@@ -793,7 +809,7 @@ export default function RentPaymentsPage() {
                       setOwnershipMode(mode);
                       setNewTenantName(!payment.tenantId && isRentPayment(payment) ? payment.incomeItem || "" : "");
                       setPendingFiles([]);
-                      setDepositAmount(paymentDepositAmount(payment, linkedDeposit));
+                      setDepositAmount(receipt.depositAmount);
                       setOpen(true);
                     }}
                     onVoid={() => voidPayment(payment)}
@@ -867,7 +883,7 @@ function PaymentDetail({
   propertyName,
   roomName,
   tenantName,
-  depositAmount,
+  receipt,
   files,
   attachmentLoadState,
   attachmentLoadError,
@@ -893,7 +909,7 @@ function PaymentDetail({
   propertyName: string;
   roomName: string;
   tenantName: string;
-  depositAmount: number;
+  receipt: RentPaymentReceiptProjection;
   files: RentPaymentFile[];
   attachmentLoadState: AttachmentLoadState;
   attachmentLoadError: string;
@@ -923,12 +939,12 @@ function PaymentDetail({
         <DetailField className="payment-room-field" label="房间" value={roomName} />
         <DetailField className="payment-tenant-field" label="租客" value={tenantName} />
         <DetailField className="payment-type-field" label="收款类型" value={payment.incomeType || "房租收入"} />
-        {isRentPayment(payment) ? <DetailField className="payment-rent-field" label="房租金额" value={euro(Number(payment.amountPaid || 0) > 0 ? Math.max(Number(payment.amountPaid || 0) - depositAmount, 0) : Number(payment.amountDue || 0))} /> : null}
+        {isRentPayment(payment) ? <DetailField className="payment-rent-field" label="房租金额" value={euro(receipt.rentAmount)} /> : null}
         <DetailField className="payment-date-field" label="收款日期" value={payment.paymentDate || "-"} />
-        {isRentPayment(payment) && depositAmount > 0 ? <DetailField className="payment-deposit-field" label="押金金额" value={euro(depositAmount)} /> : null}
+        {isRentPayment(payment) && receipt.depositAmount > 0 ? <DetailField className="payment-deposit-field" label="押金金额" value={euro(receipt.depositAmount)} /> : null}
         {isRentPayment(payment) ? <DetailField className="payment-coverage-start-field" label="覆盖开始" value={paymentCoverageStart(payment) || "-"} /> : null}
         {isRentPayment(payment) ? <DetailField className="payment-coverage-end-field" label="覆盖结束" value={paymentCoverageEnd(payment) || "-"} /> : null}
-        <DetailField className="payment-total-field" label="本次合计收入" value={euro(payment.amountPaid)} />
+        <DetailField className="payment-total-field" label="本次合计收入" value={euro(receipt.totalReceived)} />
         <DetailField className="payment-status-field" label="账目状态" value={isVoided(payment.notes) ? "已作废" : "已收取"} />
         <DetailField className="payment-method-field" label="付款方式" value={payment.paymentMethod || "-"} />
         {showOwnership ? <DetailField className="payment-owner-field" label="收款归属" value={partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState)} /> : null}
@@ -956,11 +972,6 @@ function PaymentDetail({
 
 function DetailField({ label, value, className }: { label: string; value: string; className?: string }) {
   return <CompactDetailRow className={className} label={label} value={value} />;
-}
-
-function paymentDepositAmount(payment: BusinessRentPayment, legacyLinkedDeposit?: number) {
-  if (legacyLinkedDeposit !== undefined) return Number(legacyLinkedDeposit || 0);
-  return Math.max(Number(payment.amountPaid || 0) - Number(payment.amountDue || 0), 0);
 }
 
 function RentPaymentAttachmentActions({ files, loadState, loadError, onRetry, onDelete, canDownload = true, canDelete = true }: { files: RentPaymentFile[]; loadState: AttachmentLoadState; loadError: string; onRetry: () => void; onDelete: (file: RentPaymentFile) => void; canDownload?: boolean; canDelete?: boolean }) {
@@ -1004,8 +1015,8 @@ function isRentPayment(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
-function paymentListAmount(payment: BusinessRentPayment) {
-  return Number(payment.amountPaid || 0);
+function paymentListAmount(payment: BusinessRentPayment, linkedDepositAmount?: number) {
+  return projectRentPaymentReceipt(payment, linkedDepositAmount).totalReceived;
 }
 
 function paymentAccountingDate(payment: BusinessRentPayment) {

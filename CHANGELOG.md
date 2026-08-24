@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-24 - Renewal rent and linked-deposit finance parity
+
+- Added one read-only receipt projection that keeps current separated rent/deposit receipts distinct while preserving historical mixed-payment compatibility.
+- Aligned rent-payment list/detail totals, Dashboard/net-profit input, and settlement input so a linked collected deposit is counted exactly once.
+- Preserved deposit refund lifecycle semantics, existing save order, database schema, RPCs, timing instrumentation, and historical rows; Production deployment remains pending explicit authorization.
+
 ## 2026-08-23 - Restore shared-room check-in eligibility
 
 - Prepared an additive, fail-closed corrective migration so non-archived rooms can accept additional tenants without changing the optional rent-payment, deposit separation, atomicity, or occupant-count wrapper contracts.

@@ -10,6 +10,7 @@ const checkIn = readFileSync(join(root, "app/check-in/page.tsx"), "utf8");
 const tenants = readFileSync(join(root, "app/tenants/page.tsx"), "utf8");
 const payments = readFileSync(join(root, "app/rent-payments/page.tsx"), "utf8");
 const profit = readFileSync(join(root, "lib/profit.ts"), "utf8");
+const rentDepositFinance = readFileSync(join(root, "lib/rent-deposit-finance.ts"), "utf8");
 const dashboard = readFileSync(join(root, "app/page.tsx"), "utf8");
 const settlement = readFileSync(join(root, "app/partnership-settlement/page.tsx"), "utf8");
 
@@ -42,7 +43,7 @@ test("deposit income is a separate idempotent ledger row", () => {
   assert.match(businessData, /source_deposit_id: row\.sourceDepositId/);
   assert.match(payments, /"押金收入"/);
   assert.match(profit, /projectDepositIncomePayments/);
-  assert.match(profit, /历史投影/);
+  assert.match(rentDepositFinance, /历史投影/);
   assert.match(dashboard, /projectDepositIncomePayments/);
   assert.match(settlement, /projectDepositIncomePayments/);
   assert.match(settlement, /buildSettlement\(\[id\][\s\S]*ledgerPayments/);
