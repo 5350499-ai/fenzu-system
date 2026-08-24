@@ -1335,3 +1335,10 @@
 - Production deployed the user-accepted settlement closeout at HEAD `c5298050d5628ed4766be2f698f2f7c01c9b5016`; deployment `dpl_8mBHsGf22MMrhgG39WT75y1eK2Aw` is READY at `https://fenzu-system.vercel.app`.
 - The `baseline-core-runtime-pass-20260823-1845` anchor remains the core recovery reference. Free-single settlement, yesterday boundary, rolling three months, reversal, light-theme history detail and property segment labels are recorded as accepted; true overlap protection was real-runtime verified.
 - The multi-property batch false overlap warning remains PARKED. Save-latency performance audit is PARKED. No database migration, real-user data change or additional business behavior changed.
+
+## 2026-08-24 - Check-in rent/deposit finance model correction (Prepared)
+
+- Unified future one-click check-in with the accepted renewal model: rent payment `amount_paid` stores rent only, deposit remains separate, and total received is rent plus collected deposit.
+- Added a fail-closed read boundary for explicit historical `check_in_requests` payment/deposit links and a shared classifier so historical mixed check-ins count once across payment management, Dashboard, net profit and settlement without rewriting any historical row.
+- Added a complete corrective 19-parameter RPC migration with the current owner, `SECURITY DEFINER`, empty `search_path`, service-role boundary, shared-room eligibility, optional meaningful rent row, contract-owned coverage plus the payment fallback, atomic request linkage and exact future marker. The occupant-count wrapper is unchanged.
+- Prepared only: no Production migration, Production deployment, database row mutation, backfill or real-user data change was performed.

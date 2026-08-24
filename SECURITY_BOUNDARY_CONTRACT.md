@@ -53,6 +53,7 @@ status.
 /api/auth/verification-status
 /api/business-data
 /api/check-in
+/api/check-in/receipt-links
 /api/client-errors
 /api/data-backup
 /api/data-backup/status

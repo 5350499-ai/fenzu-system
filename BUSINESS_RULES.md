@@ -262,3 +262,11 @@ superseded without a separate product decision.
 - 单个文件失败不会回滚已经成功的文件，后续文件继续处理，并在完成后汇总成功和失败结果。
 - 每个附件继续独立支持查看、下载和删除；新附件不会覆盖历史附件。
 - 一键入住保留单个可选初始附件，但同样不压缩原文件。
+
+## 一键入住房租与押金财务模型（2026-08-24）
+
+- 新的一键入住与续交房租统一使用分离模型：`rent_payments.amount_paid` 只保存实收房租，押金只保存于独立 `deposits` 记录；本次合计收入由两项相加后得到，且每项只能统计一次。
+- 一键入住使用 `check_in_requests.rent_payment_id` 与 `check_in_requests.deposit_id` 保存明确关系；存在房租流水的新记录还在押金备注保存精确 payment UUID marker。不得按金额、日期、租客或创建时间猜测关联。
+- 历史一键入住若由同一 `check_in_requests` 明确关联 payment 与 deposit，且旧 payment 已包含押金，读取时归类为 `LEGACY_MIXED_CHECKIN`：payment 贡献保留原合计，deposit 不再重复投影。历史金额和关系不得回填或改写。
+- `rent = 0` 且没有应收、实收或未收房租意义时，不创建 0/0/0 房租流水；独立实收押金仍可正常保存并计入一次收入。
+- 收款列表、筛选合计、首页收入、净利润和合伙结算必须消费同一个 rent/deposit classifier 与投影，不得各自重新推断历史或新模型。

@@ -56,7 +56,8 @@ import { isManualIncomeLedgerVisible } from "@/lib/manual-ledger-visibility";
 import { isValidManualAmount, manualAmountError } from "@/lib/manual-amount";
 import { createSaveTiming, durationBetween, enablePreviewTimingFromResponse, emitSaveTiming, markSaveTiming, setSaveTimingDetail, timingNow } from "@/lib/save-latency-timing";
 import { hasMeaningfulRentState, normalizeRentPaymentAmount } from "@/lib/rent-payment-entry";
-import { linkedRentPaymentId, projectDepositIncomePayments, projectRentPaymentReceipt } from "@/lib/rent-deposit-finance";
+import { linkedRentPaymentIdForDeposit, projectDepositIncomePayments, projectRentPaymentReceipt } from "@/lib/rent-deposit-finance";
+import { loadCheckInReceiptLinks, type CheckInReceiptLink } from "@/lib/check-in-receipt-links";
 import type { RentPaymentReceiptProjection } from "@/lib/rent-deposit-finance";
 import { applyRentPaymentLifecycle } from "@/lib/rent-payment-lifecycle";
 import { Ban, Download, Edit3, Eye, FileUp, Plus, Trash2, X } from "lucide-react";
@@ -98,6 +99,7 @@ export default function RentPaymentsPage() {
   const [tenants, setTenants] = useState<BusinessTenant[]>([]);
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [checkInReceiptLinks, setCheckInReceiptLinks] = useState<CheckInReceiptLink[]>([]);
   const [depositAmount, setDepositAmount] = useState(0);
   const [monthlyRentStandard, setMonthlyRentStandard] = useState<number | null>(null);
   const [files, setFiles] = useState<RentPaymentFile[]>([]);
@@ -175,6 +177,7 @@ export default function RentPaymentsPage() {
       const loadedTenants = await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms));
       const loadedPayments = await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants));
       const loadedDeposits = await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits());
+      const loadedCheckInReceiptLinks = loadedDeposits.length ? await loadCheckInReceiptLinks() : [];
       setProperties(loadedProperties);
       setRooms(loadedRooms);
       const repairedTenants = repairMissingTenantMonthlyRents(loadedTenants, loadedPayments);
@@ -182,6 +185,7 @@ export default function RentPaymentsPage() {
       setTenants(repairedTenants);
       setPayments(loadedPayments);
       setDeposits(loadedDeposits);
+      setCheckInReceiptLinks(loadedCheckInReceiptLinks);
       const collectionId = new URLSearchParams(window.location.search).get("collectPayment");
       const collectionPayment = loadedPayments.find((payment) => payment.id === collectionId);
       if (collectionPayment) {
@@ -258,23 +262,23 @@ export default function RentPaymentsPage() {
     [form.id, form.receivedBy, partnerDirectory, partnerOptions]
   );
   const linkedDepositsByPaymentId = useMemo(() => new Map(
-    deposits.map((deposit) => [linkedRentPaymentId(deposit), deposit] as const).filter(([paymentId]) => paymentId)
-  ), [deposits]);
+    deposits.map((deposit) => [linkedRentPaymentIdForDeposit(deposit, checkInReceiptLinks), deposit] as const).filter(([paymentId]) => paymentId)
+  ), [checkInReceiptLinks, deposits]);
   const ledgerPayments = useMemo(() => {
     const displayedPaymentIds = new Set(payments.map((payment) => payment.id));
     const depositById = new Map(deposits.map((deposit) => [deposit.id, deposit]));
     const displayedStoredPayments = payments.filter((payment) => {
       const sourceDeposit = payment.sourceDepositId ? depositById.get(payment.sourceDepositId) : undefined;
-      const linkedPaymentId = sourceDeposit ? linkedRentPaymentId(sourceDeposit) : "";
+      const linkedPaymentId = sourceDeposit ? linkedRentPaymentIdForDeposit(sourceDeposit, checkInReceiptLinks) : "";
       return !linkedPaymentId || !displayedPaymentIds.has(linkedPaymentId);
     });
-    const standaloneDepositIncome = projectDepositIncomePayments(deposits, payments).filter((payment) => {
+    const standaloneDepositIncome = projectDepositIncomePayments(deposits, payments, checkInReceiptLinks).filter((payment) => {
       const sourceDeposit = payment.sourceDepositId ? depositById.get(payment.sourceDepositId) : undefined;
-      const linkedPaymentId = sourceDeposit ? linkedRentPaymentId(sourceDeposit) : "";
+      const linkedPaymentId = sourceDeposit ? linkedRentPaymentIdForDeposit(sourceDeposit, checkInReceiptLinks) : "";
       return !linkedPaymentId || !displayedPaymentIds.has(linkedPaymentId);
     });
     return [...displayedStoredPayments, ...standaloneDepositIncome];
-  }, [deposits, payments]);
+  }, [checkInReceiptLinks, deposits, payments]);
   const filteredPayments = useMemo(() => {
     return ledgerPayments.filter((payment) => {
       if (!isManualIncomeLedgerVisible(payment)) return false;
@@ -302,20 +306,20 @@ export default function RentPaymentsPage() {
         payment.rentMonth,
         payment.coverageStartDate,
         payment.coverageEndDate,
-        paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount)
+        paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id), checkInReceiptLinks)
       ]) &&
         paymentMatchesPropertyScope(payment.propertyId, selectedPropertyIds) &&
         isDateInRange(paymentAccountingDate(payment), { startDate: dateStart, endDate: dateEnd }) &&
         (!overdueOnly || isLatestExpiredPayment(payment, ledgerPayments)) &&
         (!rentDueOnly || Boolean(tenant && isCurrentRentalRelationship(tenant) && isOperationsRentDueTenant(tenant, payments)));
     });
-  }, [dateEnd, dateStart, ledgerPayments, linkedDepositsByPaymentId, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
+  }, [checkInReceiptLinks, dateEnd, dateStart, ledgerPayments, linkedDepositsByPaymentId, overdueOnly, partnerDirectory, partnerDirectoryState, payments, properties, rentDueOnly, selectedPropertyIds, query, rooms, tenants]);
   useEffect(() => {
     if (properties.length && !propertyScopeRequested && !selectedPropertyIds.length) setSelectedPropertyIds(allPaymentPropertyScopeIds(properties));
   }, [properties, propertyScopeRequested, selectedPropertyIds.length]);
   const filteredPaymentTotal = useMemo(
-    () => filteredPayments.reduce((total, payment) => total + (isVoided(payment.notes) ? 0 : paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id)?.amount)), 0),
-    [filteredPayments, linkedDepositsByPaymentId]
+    () => filteredPayments.reduce((total, payment) => total + (isVoided(payment.notes) ? 0 : paymentListAmount(payment, linkedDepositsByPaymentId.get(payment.id), checkInReceiptLinks)), 0),
+    [checkInReceiptLinks, filteredPayments, linkedDepositsByPaymentId]
   );
   const visiblePayments = pageRows(filteredPayments, page, pageSize);
   const canEditHistorical = access.isOwner && access.can("rent_payments", "edit");
@@ -801,7 +805,7 @@ export default function RentPaymentsPage() {
             const room = rooms.find((item) => item.id === payment.roomId);
             const tenant = tenants.find((item) => item.id === payment.tenantId);
             const linkedDeposit = linkedDepositsByPaymentId.get(payment.id);
-            const receipt = projectRentPaymentReceipt(payment, linkedDeposit?.amount);
+            const receipt = projectRentPaymentReceipt(payment, linkedDeposit, checkInReceiptLinks);
             const expanded = detailPaymentId === payment.id;
             const attribution = partnerDisplayLabel(payment.receivedBy, partnerDirectory, partnerDirectoryState);
             return (
@@ -1042,8 +1046,8 @@ function isRentPayment(payment: BusinessRentPayment) {
   return !payment.incomeType || payment.incomeType === "房租收入" || payment.incomeType === "续交房租";
 }
 
-function paymentListAmount(payment: BusinessRentPayment, linkedDepositAmount?: number) {
-  return projectRentPaymentReceipt(payment, linkedDepositAmount).totalReceived;
+function paymentListAmount(payment: BusinessRentPayment, linkedDeposit?: BusinessDeposit, checkInReceiptLinks: CheckInReceiptLink[] = []) {
+  return projectRentPaymentReceipt(payment, linkedDeposit, checkInReceiptLinks).totalReceived;
 }
 
 function paymentAccountingDate(payment: BusinessRentPayment) {

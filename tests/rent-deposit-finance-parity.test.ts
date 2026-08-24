@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { BusinessDeposit, BusinessRentPayment } from "../lib/business-data.ts";
 // @ts-expect-error Node's strip-types runner needs the explicit source extension.
-import { projectDepositIncomePayments, projectRentPaymentReceipt } from "../lib/rent-deposit-finance.ts";
+import { classifyRentDepositFinance, projectDepositIncomePayments, projectRentPaymentReceipt } from "../lib/rent-deposit-finance.ts";
 
 const payment = (id: string, rent: number, overrides: Partial<BusinessRentPayment> = {}): BusinessRentPayment => ({
   id,
@@ -49,11 +49,12 @@ test("new separated renewal receipt keeps rent and linked deposit distinct and c
   for (const [rent, depositAmount, expectedTotal] of cases) {
     const rentPayment = payment(`payment-${rent}`, rent);
     const linkedDeposit = deposit(`deposit-${rent}`, rentPayment.id, depositAmount);
-    assert.deepEqual(projectRentPaymentReceipt(rentPayment, linkedDeposit.amount), {
+    assert.deepEqual(projectRentPaymentReceipt(rentPayment, linkedDeposit), {
       rentAmount: rent,
       depositAmount,
       totalReceived: expectedTotal,
-      legacyMixedDeposit: false
+      legacyMixedDeposit: false,
+      classification: "NEW_SEPARATED_RENEWAL"
     });
     const projected = projectDepositIncomePayments([linkedDeposit], [rentPayment]);
     assert.equal(projected.length, 1);
@@ -64,7 +65,7 @@ test("new separated renewal receipt keeps rent and linked deposit distinct and c
 
 test("rent-only and deposit-only receipts preserve their independent financial meaning", () => {
   const rentOnly = payment("rent-only", 100);
-  assert.equal(projectRentPaymentReceipt(rentOnly, 0).totalReceived, 100);
+  assert.equal(projectRentPaymentReceipt(rentOnly).totalReceived, 100);
   assert.equal(ledgerTotal([rentOnly], []), 100);
 
   const depositOnly = deposit("deposit-only", null, 200);
@@ -78,11 +79,12 @@ test("rent-only and deposit-only receipts preserve their independent financial m
 test("historical mixed rent and linked deposit remain one receipt without double count", () => {
   const legacy = payment("legacy-mixed", 100, { amountPaid: 300 });
   const linkedDeposit = deposit("legacy-deposit", legacy.id, 200);
-  assert.deepEqual(projectRentPaymentReceipt(legacy, linkedDeposit.amount), {
-    rentAmount: 100,
-    depositAmount: 200,
-    totalReceived: 300,
-    legacyMixedDeposit: true
+  assert.deepEqual(projectRentPaymentReceipt(legacy, linkedDeposit), {
+      rentAmount: 100,
+      depositAmount: 200,
+      totalReceived: 300,
+      legacyMixedDeposit: true,
+      classification: "LEGACY_MIXED_RENEWAL"
   });
   assert.equal(projectDepositIncomePayments([linkedDeposit], [legacy]).length, 0);
   assert.equal(ledgerTotal([legacy], [linkedDeposit]), 300);
@@ -110,8 +112,21 @@ test("dashboard and settlement consume the shared projected ledger", () => {
   const linkedDeposit = deposit("deposit-parity", rentPayment.id, 200);
   const ledger = [rentPayment, ...projectDepositIncomePayments([linkedDeposit], [rentPayment])];
   assert.equal(ledger.reduce((total, item) => total + item.amountPaid, 0), 300);
-  assert.match(readFileSync("app/page.tsx", "utf8"), /\[\.\.\.rentPayments, \.\.\.projectDepositIncomePayments\(deposits, rentPayments\)\]/);
-  assert.match(readFileSync("app/partnership-settlement/page.tsx", "utf8"), /\[\.\.\.payments, \.\.\.projectDepositIncomePayments\(deposits, payments\)\]/);
+  assert.match(readFileSync("app/page.tsx", "utf8"), /projectDepositIncomePayments\(deposits, rentPayments, checkInReceiptLinks\)/);
+  assert.match(readFileSync("app/partnership-settlement/page.tsx", "utf8"), /projectDepositIncomePayments\(deposits, payments, checkInReceiptLinks\)/);
+});
+
+test("explicit check-in identity distinguishes historical mixed and new separated receipts", () => {
+  const checkInLinks = [{ paymentId: "checkin-payment", depositId: "checkin-deposit" }];
+  const linkedDeposit = deposit("checkin-deposit", null, 2);
+  const historical = payment("checkin-payment", 1, { incomeType: "房租收入", amountPaid: 3 });
+  const current = payment("checkin-payment", 1, { incomeType: "房租收入", amountPaid: 1 });
+  assert.equal(classifyRentDepositFinance(historical, linkedDeposit, checkInLinks), "LEGACY_MIXED_CHECKIN");
+  assert.equal(classifyRentDepositFinance(current, linkedDeposit, checkInLinks), "NEW_SEPARATED_CHECKIN");
+  assert.equal(projectDepositIncomePayments([linkedDeposit], [historical], checkInLinks).length, 0);
+  assert.equal(ledgerTotalWithLinks([historical], [linkedDeposit], checkInLinks), 3);
+  assert.equal(projectDepositIncomePayments([linkedDeposit], [current], checkInLinks)[0].amountPaid, 2);
+  assert.equal(ledgerTotalWithLinks([current], [linkedDeposit], checkInLinks), 3);
 });
 
 test("refund lifecycle status alone does not create an automatic expense", () => {
@@ -122,9 +137,14 @@ test("refund lifecycle status alone does not create an automatic expense", () =>
 
 test("rent payment page consumes the canonical receipt projection for list and detail", () => {
   const source = readFileSync("app/rent-payments/page.tsx", "utf8");
-  assert.match(source, /const receipt = projectRentPaymentReceipt\(payment, linkedDeposit\?\.amount\)/);
+  assert.match(source, /const receipt = projectRentPaymentReceipt\(payment, linkedDeposit, checkInReceiptLinks\)/);
   assert.match(source, /euro\(receipt\.rentAmount\)/);
   assert.match(source, /euro\(receipt\.depositAmount\)/);
   assert.match(source, /euro\(receipt\.totalReceived\)/);
   assert.doesNotMatch(source, /Math\.max\(Number\(payment\.amountPaid \|\| 0\) - depositAmount/);
 });
+
+function ledgerTotalWithLinks(payments: BusinessRentPayment[], deposits: BusinessDeposit[], links: Array<{ paymentId: string; depositId: string }>) {
+  return [...payments, ...projectDepositIncomePayments(deposits, payments, links)]
+    .reduce((total, item) => total + Number(item.amountPaid || 0), 0);
+}

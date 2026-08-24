@@ -16,11 +16,12 @@ import { PARTNER_SETTLEMENT_CACHE_KEY } from "@/lib/cache/cache-keys";
 import { getMaxSettlementEndDate, getRollingThreeMonthSettlementRange, getSettlementDateValidationError } from "@/lib/settlement-date";
 import { DetailCard, DetailGrid, DetailItem, MoneyValue } from "@/components/ui";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
+import { loadCheckInReceiptLinks, type CheckInReceiptLink } from "@/lib/check-in-receipt-links";
 
 type RangeMode = "previous" | "threeMonths" | "custom";
 type Batch = { id: string; property_id: string; period_start: string; period_end: string; status: "confirmed" | "reversed"; total_income: number; total_expense: number; net_profit: number; confirmed_at: string; confirmed_by_account_id: string | null };
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
-type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; deposits?: BusinessDeposit[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
+type SettlementSnapshot = { properties: BusinessProperty[]; payments: BusinessRentPayment[]; expenses: BusinessExpense[]; deposits?: BusinessDeposit[]; checkInReceiptLinks: CheckInReceiptLink[]; partnerData: PartnerWorkspaceData; batches: Batch[] };
 type SettlementPropertyResult = { propertyId: string; propertyName: string; status: "SUCCESS" | "FAILED" | "NOT_ATTEMPTED"; batchId?: string; error?: string };
 type SettlementBatchExecution = { clientBatchId: string; status: "BATCH_FULL_SUCCESS" | "BATCH_PARTIAL_SUCCESS" | "BATCH_FULL_FAILURE"; results: SettlementPropertyResult[] };
 
@@ -40,6 +41,7 @@ export default function PartnershipSettlementPage() {
   const [payments, setPayments] = useState<BusinessRentPayment[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [deposits, setDeposits] = useState<BusinessDeposit[]>([]);
+  const [checkInReceiptLinks, setCheckInReceiptLinks] = useState<CheckInReceiptLink[]>([]);
   const [partnerData, setPartnerData] = useState<PartnerWorkspaceData | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const defaultRange = presetRange("previous");
@@ -54,7 +56,7 @@ export default function PartnershipSettlementPage() {
   const maxSettlementEndDate = getMaxSettlementEndDate();
 
   const activeRange = useMemo(() => rangeMode === "custom" ? { startDate: customStartDate, endDate: customEndDate } : presetRange(rangeMode), [customEndDate, customStartDate, rangeMode]);
-  const ledgerPayments = useMemo(() => [...payments, ...projectDepositIncomePayments(deposits, payments)], [deposits, payments]);
+  const ledgerPayments = useMemo(() => [...payments, ...projectDepositIncomePayments(deposits, payments, checkInReceiptLinks)], [checkInReceiptLinks, deposits, payments]);
   const currentKey = `${selectedPropertyIds.join(",")}|${activeRange.startDate}|${activeRange.endDate}`;
   const settlement = useMemo<SettlementResult | null>(() => {
     if (!trialKey || trialKey !== currentKey || !partnerData || !selectedPropertyIds.length) return null;
@@ -70,10 +72,10 @@ export default function PartnershipSettlementPage() {
     let unsubscribe: (() => void) | undefined;
     const cachedSnapshot = access.userId ? cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId) : null;
       if (cachedSnapshot) {
-      setProperties(cachedSnapshot.properties); setPayments(cachedSnapshot.payments); setExpenses(cachedSnapshot.expenses); setDeposits(cachedSnapshot.deposits || []); setPartnerData(cachedSnapshot.partnerData); setBatches(cachedSnapshot.batches); setSelectedPropertyIds((current) => current.length ? current : cachedSnapshot.properties.map((property) => property.id)); setLoadState("ready");
+      setProperties(cachedSnapshot.properties); setPayments(cachedSnapshot.payments); setExpenses(cachedSnapshot.expenses); setDeposits(cachedSnapshot.deposits || []); setCheckInReceiptLinks(cachedSnapshot.checkInReceiptLinks || []); setPartnerData(cachedSnapshot.partnerData); setBatches(cachedSnapshot.batches); setSelectedPropertyIds((current) => current.length ? current : cachedSnapshot.properties.map((property) => property.id)); setLoadState("ready");
       unsubscribe = cacheManager.subscribe(access.userId, PARTNER_SETTLEMENT_CACHE_KEY, () => {
         const next = cacheManager.peekMemory<SettlementSnapshot>(PARTNER_SETTLEMENT_CACHE_KEY, access.userId);
-        if (next && !cancelled) { setProperties(next.properties); setPayments(next.payments); setExpenses(next.expenses); setDeposits(next.deposits || []); setPartnerData(next.partnerData); setBatches(next.batches); setLoadState("ready"); }
+        if (next && !cancelled) { setProperties(next.properties); setPayments(next.payments); setExpenses(next.expenses); setDeposits(next.deposits || []); setCheckInReceiptLinks(next.checkInReceiptLinks || []); setPartnerData(next.partnerData); setBatches(next.batches); setLoadState("ready"); }
       });
     }
     async function load() {
@@ -82,18 +84,19 @@ export default function PartnershipSettlementPage() {
         const session = await getValidSupabaseSession();
         if (!session) throw new SettlementPageError("登录已失效，请重新登录。", "unauthorized");
         const headers = { Authorization: `Bearer ${session.access_token}` };
-        const [loadedProperties, loadedPayments, loadedExpenses, loadedDeposits, partnerPayload, batchPayload] = await Promise.all([
+        const [loadedProperties, loadedPayments, loadedExpenses, loadedDeposits, loadedCheckInReceiptLinks, partnerPayload, batchPayload] = await Promise.all([
           access.can("properties") ? refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : Promise.resolve([]),
           access.can("rent_payments") ? refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : Promise.resolve([]),
           access.can("expenses") ? refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses()) : Promise.resolve([]),
           access.can("deposits") ? refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits()) : Promise.resolve([]),
+          access.can("rent_payments") && access.can("deposits") ? loadCheckInReceiptLinks(session.access_token) : Promise.resolve([]),
           refreshPartners(),
           fetch("/api/partner-settlements", { headers, cache: "no-store" }).then(readApi)
         ]);
         if (!loadedProperties.length) throw new SettlementPageError("当前工作区没有可用房源。", "no_data");
         if (!cancelled) {
-          setProperties(loadedProperties); setSelectedPropertyIds((current) => current.length ? current.filter((id) => loadedProperties.some((property) => property.id === id)) : loadedProperties.map((property) => property.id)); setPayments(loadedPayments); setExpenses(loadedExpenses); setDeposits(loadedDeposits); setPartnerData(partnerPayload); setBatches(batchPayload.batches || []); setLoadState("ready");
-          void cacheManager.set(PARTNER_SETTLEMENT_CACHE_KEY, { properties: loadedProperties, payments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, partnerData: partnerPayload, batches: batchPayload.batches || [] }, session.user.id);
+          setProperties(loadedProperties); setSelectedPropertyIds((current) => current.length ? current.filter((id) => loadedProperties.some((property) => property.id === id)) : loadedProperties.map((property) => property.id)); setPayments(loadedPayments); setExpenses(loadedExpenses); setDeposits(loadedDeposits); setCheckInReceiptLinks(loadedCheckInReceiptLinks); setPartnerData(partnerPayload); setBatches(batchPayload.batches || []); setLoadState("ready");
+          void cacheManager.set(PARTNER_SETTLEMENT_CACHE_KEY, { properties: loadedProperties, payments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, checkInReceiptLinks: loadedCheckInReceiptLinks, partnerData: partnerPayload, batches: batchPayload.batches || [] }, session.user.id);
         }
       } catch (error) {
         if (cancelled) return;

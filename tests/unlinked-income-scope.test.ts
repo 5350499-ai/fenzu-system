@@ -21,6 +21,6 @@ test("payment list, search, and total share the canonical scope instead of an en
   assert.match(paymentsPage, /filteredPaymentTotal/);
   assert.match(paymentsPage, /<PropertyMultiSelect includeUnlinked/);
   assert.doesNotMatch(paymentsPage, /selectedPropertyIds\.includes\(payment\.propertyId\)/);
-  assert.match(dashboard, /projectDepositIncomePayments\(deposits, rentPayments\)/);
+  assert.match(dashboard, /projectDepositIncomePayments\(deposits, rentPayments, checkInReceiptLinks\)/);
   assert.match(dashboard, /calculateUnassignedIncome\(ledgerPayments, thisMonthRange\)/);
 });

@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 53 route files. Every route is listed here and is checked by
+There are 54 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -51,6 +51,7 @@ There are 53 route files. Every route is listed here and is checked by
 | `/api/auth/verification-status` | AUTH | read | verification ticket | PUBLIC_AUTH_FLOW |
 | `/api/business-data` | BUSINESS_DATA | write | compatibility mapper + account auth | LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY |
 | `/api/check-in` | LIFECYCLE | write | `create_atomic_check_in` RPC | ATOMIC_RPC |
+| `/api/check-in/receipt-links` | FINANCIAL | read | active account + rent/deposit view + workspace/property/identity checks | ACTIVE_CANONICAL |
 | `/api/client-errors` | OBSERVABILITY | write/log | error-reporting sink | NO_BUSINESS_WRITE |
 | `/api/data-backup` | BACKUP_RESTORE | read/export | backup service / owner + sensitive permission | HIGH_RISK |
 | `/api/data-backup/status` | BACKUP_RESTORE | read | authenticated workspace backup audit source | ACTIVE_CANONICAL |

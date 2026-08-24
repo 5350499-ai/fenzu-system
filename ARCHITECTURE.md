@@ -480,3 +480,9 @@ coverage end, timing, amount and engine action metadata.
 ## 附件原文件与多选上传（2026-07-22）
 
 共享 `AttachmentAddControl` 使用 `File[]` 保存一次选择的文件，并以串行 `for...of` 调用现有三类附件上传函数。每个文件仍经过现有权限、4MB、Google Drive 完成核验和 Supabase 索引流程；单文件失败不会影响同批其他文件。上传 provider、Google Drive 私有目录、旧 Supabase 双读取、RLS 和数据库结构不变。4MB 以内保留原始 MIME、文件名和字节内容；超限图片仅在明确提示后生成清晰 JPEG 副本，PDF 不压缩。
+
+## Check-in receipt finance compatibility boundary (2026-08-24)
+
+`lib/rent-deposit-finance.ts` is the canonical classifier and projection owner for rent/deposit receipts. The authenticated, read-only `GET /api/check-in/receipt-links` boundary exposes only validated payment/deposit ID pairs from protected `check_in_requests`; it enforces active-account, module, workspace, property and matching tenant/room identity before returning a link.
+
+The 19-parameter `create_atomic_check_in` remains the database transaction owner. New rows store rent-only `amount_paid`, a separate deposit, the existing `check_in_requests` IDs and an exact deposit marker when a payment exists. The 20-parameter occupant wrapper remains unchanged. Historical explicit pairs are classified at read time and are never rewritten. Dashboard, payment management and settlement all pass the same explicit link set into the shared projection.

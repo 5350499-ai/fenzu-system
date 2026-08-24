@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
 import { defaultBackupReminderSettings, loadBackupReminderSettings, loadServerBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
+import { loadCheckInReceiptLinks, type CheckInReceiptLink } from "@/lib/check-in-receipt-links";
 
 const shortcuts = [
   { title: "一键入住", href: "/check-in", icon: LogIn, tone: "green", module: "check_in" },
@@ -68,6 +69,7 @@ type DashboardSnapshot = {
   deposits: BusinessDeposit[];
   viewingAppointments: BusinessViewingAppointment[];
   waivedPaymentIds: string[];
+  checkInReceiptLinks: CheckInReceiptLink[];
 };
 
 export default function DashboardPage() {
@@ -85,6 +87,7 @@ export default function DashboardPage() {
   const [dataError, setDataError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [waivedPaymentIds, setWaivedPaymentIds] = useState<Set<string>>(new Set());
+  const [checkInReceiptLinks, setCheckInReceiptLinks] = useState<CheckInReceiptLink[]>([]);
   const [backupReminderSettings, setBackupReminderSettings] = useState<BackupReminderSettings>(() => defaultBackupReminderSettings());
 
   useEffect(() => {
@@ -101,6 +104,7 @@ export default function DashboardPage() {
       setDeposits(snapshot.deposits);
       setViewingAppointments(snapshot.viewingAppointments);
       setWaivedPaymentIds(new Set(snapshot.waivedPaymentIds));
+      setCheckInReceiptLinks(snapshot.checkInReceiptLinks || []);
       setDataStatus("ready");
     };
     async function load() {
@@ -134,6 +138,7 @@ export default function DashboardPage() {
           const loadedPayments = access.can("rent_payments") ? (revalidate ? await refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants))) : [];
           const loadedExpenses = access.can("expenses") ? (revalidate ? await refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties))) : [];
           const loadedDeposits = access.can("deposits") ? (revalidate ? await refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants))) : [];
+          const loadedCheckInReceiptLinks = access.can("rent_payments") && access.can("deposits") ? await loadCheckInReceiptLinks(session.access_token) : [];
           const loadedViewingAppointments = access.can("properties") ? (revalidate ? await refreshBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, [])) : [];
           const latestSession = await getValidSupabaseSession();
           let waivedIds: string[] = [];
@@ -144,7 +149,7 @@ export default function DashboardPage() {
               waivedIds = (payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[];
             }
           }
-          return { properties: loadedProperties, rooms: loadedRooms, tenants: loadedTenants, contracts: loadedContracts, rentPayments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, viewingAppointments: loadedViewingAppointments, waivedPaymentIds: waivedIds };
+          return { properties: loadedProperties, rooms: loadedRooms, tenants: loadedTenants, contracts: loadedContracts, rentPayments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, viewingAppointments: loadedViewingAppointments, waivedPaymentIds: waivedIds, checkInReceiptLinks: loadedCheckInReceiptLinks };
         }
       });
       if (!active) return;
@@ -183,8 +188,8 @@ export default function DashboardPage() {
   const thisMonthRange = useMemo(() => getDateRange("thisMonth"), []);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const ledgerPayments = useMemo(
-    () => [...rentPayments, ...projectDepositIncomePayments(deposits, rentPayments)],
-    [deposits, rentPayments]
+    () => [...rentPayments, ...projectDepositIncomePayments(deposits, rentPayments, checkInReceiptLinks)],
+    [checkInReceiptLinks, deposits, rentPayments]
   );
   const propertyStats = useMemo(
     () => calculatePropertyProfits(properties, rooms, tenants, ledgerPayments, expenses, deposits, thisMonthRange, waivedPaymentIds),
