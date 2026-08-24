@@ -12,7 +12,7 @@ import { pageRows, PaginationControls } from "@/components/pagination-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { PropertyMultiSelect } from "@/components/property-multi-select";
 import { TapSelect } from "@/components/tap-select";
-import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow } from "@/components/ui";
+import { CompactDetailGrid, CompactDetailGroup, CompactDetailRow, ConfirmDialog } from "@/components/ui";
 import {
   BusinessProperty,
   BusinessDeposit,
@@ -120,6 +120,7 @@ export default function RentPaymentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [detailPaymentId, setDetailPaymentId] = useState("");
+  const [lifecycleConfirmation, setLifecycleConfirmation] = useState<{ action: "void" | "delete"; payment: BusinessRentPayment } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageWarning, setStorageWarning] = useState("");
@@ -678,40 +679,42 @@ export default function RentPaymentsPage() {
     }
   }
 
-  async function voidPayment(payment: BusinessRentPayment) {
-    if (!window.confirm("确认作废这条收租记录吗？作废后原始金额和历史信息仍会保留。")) return;
-    setSaving(true);
-    try {
-      const result = await applyRentPaymentLifecycle(payment.id, "void");
-      setPayments((current) => current.map((item) => item.id === payment.id ? { ...item, notes: markVoided(item.notes) } : item));
-      if (result.linkedDepositHandled && result.linkedDepositId) {
-        setDeposits((current) => current.map((item) => item.id === result.linkedDepositId
-          ? { ...item, status: "已作废", notes: markVoided(item.notes) }
-          : item));
-      }
-      await invalidateBusinessData([rentPaymentKey, depositKey]);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "作废收款失败，请稍后重试。");
-    } finally {
-      setSaving(false);
-    }
+  function voidPayment(payment: BusinessRentPayment) {
+    if (saving) return;
+    setLifecycleConfirmation({ action: "void", payment });
   }
 
-  async function permanentlyDelete(payment: BusinessRentPayment) {
-    if (!window.confirm("确定要永久删除这条收租记录吗？\n真实发生过的财务记录建议使用“作废”，删除后不可恢复。")) return;
+  function permanentlyDelete(payment: BusinessRentPayment) {
+    if (saving) return;
+    setLifecycleConfirmation({ action: "delete", payment });
+  }
+
+  async function confirmPaymentLifecycle() {
+    if (!lifecycleConfirmation || saving) return;
+    const { action, payment } = lifecycleConfirmation;
+    setLifecycleConfirmation(null);
     setSaving(true);
     try {
-      const result = await applyRentPaymentLifecycle(payment.id, "delete");
-      setPayments((current) => current.filter((item) => item.id !== payment.id));
-      if (result.linkedDepositHandled && result.linkedDepositId) {
-        setDeposits((current) => current.filter((item) => item.id !== result.linkedDepositId));
+      const result = await applyRentPaymentLifecycle(payment.id, action);
+      if (action === "void") {
+        setPayments((current) => current.map((item) => item.id === payment.id ? { ...item, notes: markVoided(item.notes) } : item));
+        if (result.linkedDepositHandled && result.linkedDepositId) {
+          setDeposits((current) => current.map((item) => item.id === result.linkedDepositId
+            ? { ...item, status: "已作废", notes: markVoided(item.notes) }
+            : item));
+        }
+      } else {
+        setPayments((current) => current.filter((item) => item.id !== payment.id));
+        if (result.linkedDepositHandled && result.linkedDepositId) {
+          setDeposits((current) => current.filter((item) => item.id !== result.linkedDepositId));
+        }
+        setFiles((current) => current.filter((file) => file.rentPaymentId !== payment.id));
+        setDetailPaymentId("");
+        if (result.attachmentCleanupWarning) window.alert(result.attachmentCleanupWarning);
       }
-      setFiles((current) => current.filter((file) => file.rentPaymentId !== payment.id));
-      setDetailPaymentId("");
       await invalidateBusinessData([rentPaymentKey, depositKey]);
-      if (result.attachmentCleanupWarning) window.alert(result.attachmentCleanupWarning);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "永久删除收款失败，请稍后重试。");
+      window.alert(error instanceof Error ? error.message : action === "void" ? "作废收款失败，请稍后重试。" : "永久删除收款失败，请稍后重试。");
     } finally {
       setSaving(false);
     }
@@ -903,6 +906,16 @@ export default function RentPaymentsPage() {
           </section>
         </div></ModalPortal>
       ) : null}
+      <ConfirmDialog
+        open={Boolean(lifecycleConfirmation)}
+        title={lifecycleConfirmation?.action === "delete" ? "永久删除收款" : "作废收款"}
+        description={lifecycleConfirmation?.action === "delete"
+          ? "确定要永久删除这条收租记录吗？真实发生过的财务记录建议使用“作废”，删除后不可恢复。"
+          : "确认作废这条收租记录吗？作废后原始金额和历史信息仍会保留。"}
+        confirmLabel={lifecycleConfirmation?.action === "delete" ? "永久删除" : "确认作废"}
+        onCancel={() => { if (!saving) setLifecycleConfirmation(null); }}
+        onConfirm={() => void confirmPaymentLifecycle()}
+      />
     </AppLayout>
   );
 }
@@ -995,7 +1008,7 @@ function PaymentDetail({
       <div className="compact-action-grid expense-detail-actions">
         {canEdit ? <button className="btn expense-detail-action" type="button" onClick={onEdit}><Edit3 size={15} /> 编辑收款</button> : <span aria-hidden="true" />}
         {canArchive ? <button className="btn expense-detail-action" disabled={saving} type="button" onClick={onVoid}><Ban size={15} /> 作废</button> : <span aria-hidden="true" />}
-        {canDelete ? <button className="btn danger expense-detail-action" type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
+        {canDelete ? <button className="btn danger expense-detail-action" disabled={saving} type="button" onClick={onDelete}><Trash2 size={15} /> 永久删除</button> : <span aria-hidden="true" />}
       </div>
     </div>
   );

@@ -76,11 +76,26 @@ test("client uses one lifecycle request and never performs a payment/deposit dou
   assert.match(route, /requireModulePermission\(context, "rent_payments", permission\)/);
   assert.match(route, /requirePropertyAccess\(context, payment\.property_id\)/);
   assert.match(route, /verifier\.rpc\(rpcName, \{ p_payment_id: body\.paymentId \}\)/);
-  assert.match(page, /applyRentPaymentLifecycle\(payment\.id, "void"\)/);
-  assert.match(page, /applyRentPaymentLifecycle\(payment\.id, "delete"\)/);
-  const voidBody = page.slice(page.indexOf("async function voidPayment"), page.indexOf("async function permanentlyDelete"));
-  const deleteBody = page.slice(page.indexOf("async function permanentlyDelete"), page.indexOf("async function addPaymentFile"));
-  assert.doesNotMatch(voidBody + deleteBody, /saveBusinessData|persist\(/);
+  assert.match(page, /applyRentPaymentLifecycle\(payment\.id, action\)/);
+  const lifecycleBody = page.slice(page.indexOf("function voidPayment"), page.indexOf("async function addPaymentFile"));
+  assert.doesNotMatch(lifecycleBody, /saveBusinessData|persist\(/);
+});
+
+test("void and delete buttons open an app-owned confirmation before invoking the lifecycle request", () => {
+  assert.match(page, /function voidPayment\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "void", payment \}\)/);
+  assert.match(page, /function permanentlyDelete\(payment: BusinessRentPayment\)[\s\S]*setLifecycleConfirmation\(\{ action: "delete", payment \}\)/);
+  assert.match(page, /<ConfirmDialog[\s\S]*open=\{Boolean\(lifecycleConfirmation\)\}[\s\S]*onConfirm=\{\(\) => void confirmPaymentLifecycle\(\)\}/);
+  const lifecycleBody = page.slice(page.indexOf("function voidPayment"), page.indexOf("async function addPaymentFile"));
+  assert.doesNotMatch(lifecycleBody, /window\.confirm\(/);
+});
+
+test("lifecycle confirmation uses one canonical action for RPC and local state", () => {
+  const body = page.slice(page.indexOf("async function confirmPaymentLifecycle"), page.indexOf("async function addPaymentFile"));
+  assert.match(body, /const \{ action, payment \} = lifecycleConfirmation/);
+  assert.match(body, /applyRentPaymentLifecycle\(payment\.id, action\)/);
+  assert.match(body, /if \(action === "void"\)/);
+  assert.match(body, /invalidateBusinessData\(\[rentPaymentKey, depositKey\]\)/);
+  assert.doesNotMatch(body, /saveBusinessData|persist\(/);
 });
 
 test("database delete is authoritative and external attachment cleanup is best effort afterward", () => {

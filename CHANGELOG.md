@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-24 - Rent-payment lifecycle button runtime wiring
+
+- Replaced the browser-native pre-request confirmation for rent-payment void/delete with the existing app-owned confirmation dialog so mobile clicks produce a visible, testable action path.
+- Kept one canonical lifecycle API request for each action, preserved the atomic Production RPC boundary and permission checks, and synchronized only the affected local payment/deposit state after success.
+- No database, RPC, finance projection, check-in, settlement, cache, save-order or Production behavior was changed; deployment remains Preview-only pending mobile acceptance.
+
 ## 2026-08-24 - Linked rent/deposit lifecycle atomic boundary (migration pending)
 
 - Added two fail-closed RPC definitions for voiding or permanently deleting a rent payment together with its uniquely and explicitly linked new-model deposit in one database transaction.
