@@ -200,12 +200,14 @@ export default function CheckInPage() {
         rentPaymentId?: string | null;
         depositIncomePaymentId?: string | null;
         depositId?: string | null;
+        receiptDeleted?: boolean;
         monthlyRent: number;
       };
       const tenantId = result.tenantId;
       const contractId = result.contractId;
       const paymentId = result.rentPaymentId || "";
       const depositIncomePaymentId = result.depositIncomePaymentId || "";
+      const receiptDeleted = result.receiptDeleted === true;
       const effectiveMonthlyRent = Number(result.monthlyRent ?? form.amountPaid ?? 0);
       const nextTenant: BusinessTenant = {
         id: tenantId,
@@ -325,7 +327,9 @@ export default function CheckInPage() {
       setAdvancedOpen(false);
       setAttachmentsOpen(false);
       setForm(createInitialForm());
-      setCompletionMessage(contactSaveWarning || (attachmentFailed ? "入住已保存，但附件上传失败，正在返回租客管理。" : "入住保存成功，正在返回租客管理。"));
+      setCompletionMessage(receiptDeleted
+        ? "入住已完成，但本次收款记录已被永久删除。"
+        : contactSaveWarning || (attachmentFailed ? "入住已保存，但附件上传失败，正在返回租客管理。" : "入住保存成功，正在返回租客管理。"));
     } catch (error: any) {
       window.alert(error.message || "一键入住保存失败，请稍后重试。");
       submitLockRef.current = false;

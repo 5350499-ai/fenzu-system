@@ -1355,3 +1355,9 @@
 - Preserved existing void finance semantics while adding transaction-local aggregate void/delete audit snapshots with rent, deposit, total, classification and pre-action lifecycle states.
 - Added audit API/presentation support for aggregate amounts plus historical snake_case and camelCase snapshots; existing low-level table audit logs remain unchanged.
 - Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.
+
+## 2026-08-24 - Check-in receipt permanent-delete replay safety (Prepared)
+
+- Canonical linked-receipt deletion now recognizes a single, complete one-click check-in receipt graph, clears only that request's nullable payment/deposit references, preserves the check-in, tenant and contract history, then atomically deletes the verified receipt pair.
+- The preserved idempotency result explicitly returns null receipt IDs and `receiptDeleted=true`, so replay cannot recreate income or return stale payment/deposit IDs; aggregate lifecycle audit adds the check-in request, contract and origin snapshot fields.
+- Prepared only: no Production migration, Production deployment, historical-row rewrite, marker cleanup or real-user data change was performed.
