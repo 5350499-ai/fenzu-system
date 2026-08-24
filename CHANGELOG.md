@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-24 - Home and cache performance batch 1 (Preview only)
+
+- Centralized the versioned dashboard and settlement cache identities in `lib/cache/cache-keys.ts`, and aligned business-data and partner invalidation with the active v4 readers.
+- Changed the homepage's independent read-only business datasets and required financial/reminder support reads from a serial chain to a controlled parallel load phase. Financial projections and write behavior are unchanged.
+- The global cache warmup now yields to the homepage loader on `/`, and Preview-only homepage timing reports core, secondary and total interactive load duration. Production debug output remains disabled.
+
 ## 2026-08-24 - Rent-payment lifecycle button runtime wiring
 
 - Replaced the browser-native pre-request confirmation for rent-payment void/delete with the existing app-owned confirmation dialog so mobile clicks produce a visible, testable action path.

@@ -40,7 +40,7 @@ writer or recreate a governed financial derivation.
 | `DATA.SETTLEMENT_SNAPSHOT` | Confirmed historical facts | settlement snapshot tables/API | history/detail | confirm/reverse RPC boundary | detail presentation only | settlement cache invalidation | restore snapshot parents/children | HIGH | GOVERNED |
 | `DATA.ATTACHMENT` | File metadata and storage object | metadata table + storage provider | attachment helpers/API | storage/file API roots | attachment lists/reports | list refetch after mutation | cleanup/restore mapping | HIGH | GOVERNED |
 | `DATA.ACCOUNT_PERMISSION` | Account status and permissions | server account API/Auth/RLS | AccountAccess snapshot + server guards | account management API | navigation/action visibility | account-scoped snapshot; clear on switch | snapshot never authority | P0-sensitive | GOVERNED |
-| `DATA.DASHBOARD_METRICS` | Dashboard totals/reminders | refreshed canonical inputs | dashboard aggregate loader | none | dashboard loader + profit/reminder helpers | `dashboard-v3` | recomputed after restore | HIGH | GOVERNED_WITH_DEFERRED_RISK |
+| `DATA.DASHBOARD_METRICS` | Dashboard totals/reminders | refreshed canonical inputs | dashboard aggregate loader | none | dashboard loader + profit/reminder helpers | `dashboard-v4` | recomputed after restore | HIGH | GOVERNED_WITH_DEFERRED_RISK |
 | `DATA.PROPERTY_METRICS` | Property profit/occupancy views | canonical business inputs | profit/analytics loaders | none | `lib/profit.ts`, operations analytics | related business invalidation | recomputed after restore | HIGH | GOVERNED_WITH_DEFERRED_RISK |
 | `DATA.TENANT_METRICS` | Tenant payment/status presentation | tenant/payment/debt inputs | tenant list/detail loaders | none | RentPeriodState/DebtCase adapters | tenant/payment invalidation | recomputed after restore | HIGH | GOVERNED |
 | `DATA.BACKUP_RESTORE_STATE` | Backup/restore operation status | server backup/restore report | Data Center | backup/restore API | report/cache reset | restore clears global cache | backup is not current fact | HIGH | GOVERNED |
@@ -69,16 +69,16 @@ identical filters or date ranges; future unification requires business review.
 ## Cache and refresh contract
 
 `CacheManager` is the only IndexedDB/memory cache lifecycle owner. Business data
-uses scoped keys and `CACHE_INVALIDATION`; dashboard uses `dashboard-v3`, and
-partner settlement uses `partner-settlement-v3`. Cache is never source of truth:
+uses scoped keys and `CACHE_INVALIDATION`; dashboard uses `dashboard-v4`, and
+partner settlement uses `partner-settlement-v4`. Cache is never source of truth:
 a cache hit is stale-while-revalidate and authoritative refresh uses
 `refreshBusinessData`.
 
 | Cache root | Source | Write/read | Invalidate | Fallback |
 |---|---|---|---|---|
 | business data keys | Supabase/API or demo local data | `business-data.ts` | dependency map | demo/initial fallback only |
-| `dashboard-v3` | business inputs + waiver API | dashboard loader | business mutations/waiver | revalidated snapshot |
-| `partner-settlement-v3` | partner/payment/expense/share APIs | settlement loader | partner/share/payment/expense | current calculation separate from snapshots |
+| `dashboard-v4` | business inputs + waiver API | dashboard loader | business mutations/waiver | revalidated snapshot |
+| `partner-settlement-v4` | partner/payment/expense/share APIs | settlement loader | partner/share/payment/expense | current calculation separate from snapshots |
 | `partners` | partner API | `lib/partners.ts` | partner mutations | empty directory, never synthetic partner |
 | task migration keys | legacy local backup/state | task repository/migration | explicit migration | compatibility only |
 | account access snapshot | server-verified metadata | `AccountAccess` | account switch/logout | shell visibility only |

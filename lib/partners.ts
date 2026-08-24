@@ -1,5 +1,6 @@
 import { getValidSupabaseSession } from "./supabase";
 import { cacheManager } from "./cache/cache-manager";
+import { PARTNER_SETTLEMENT_CACHE_KEY } from "./cache/cache-keys";
 export { canDeletePartner, hasOverlappingShareIntervals, resolveLegacyPartner, validateActivePartnerCount, validatePartnerPercentages, validatePartnerPlanRows } from "./partner-rules";
 
 export type Partner = {
@@ -134,7 +135,7 @@ export async function refreshPartners(): Promise<PartnerWorkspaceData> {
 
 export async function invalidatePartnersCache() {
   const session = await getValidSupabaseSession();
-  if (session?.user?.id) await cacheManager.invalidate(["partners", "partner-settlement-v3"], session.user.id);
+  if (session?.user?.id) await cacheManager.invalidate(["partners", PARTNER_SETTLEMENT_CACHE_KEY], session.user.id);
 }
 
 export async function getActivePartners(data?: PartnerWorkspaceData) {

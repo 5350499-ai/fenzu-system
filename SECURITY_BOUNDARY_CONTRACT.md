@@ -73,6 +73,7 @@ status.
 /api/partners/shares
 /api/partner-settlements
 /api/partner-settlements/[id]
+/api/performance-timing/home
 /api/rent-collection
 /api/rent-payments/lifecycle
 /api/internal/recovery-scheduler

@@ -20,7 +20,7 @@ scope and permissions. `apiErrorResponse` is the shared user-safe error edge.
 
 ## API route registry
 
-There are 54 route files. Every route is listed here and is checked by
+There are 55 route files. Every route is listed here and is checked by
 `validate:server-boundary`.
 
 | Route | Class | Read/write | Server owner / scope | Status |
@@ -71,6 +71,7 @@ There are 54 route files. Every route is listed here and is checked by
 | `/api/partners/shares` | PARTNER | write | share-plan RPC / workspace | HIGH_RISK |
 | `/api/partner-settlements` | SETTLEMENT | read/write | settlement RPC/service / workspace | PARTIAL_SUCCESS_RISK |
 | `/api/partner-settlements/[id]` | SETTLEMENT | read/write | reversal RPC / workspace | HIGH_RISK |
+| `/api/performance-timing/home` | OBSERVABILITY | write/log | authenticated Preview-only homepage timing sink | NON_PRODUCTION_ONLY / NO_BUSINESS_WRITE |
 | `/api/rent-collection` | FINANCIAL | read/write | rent service / property | PARTIAL_SUCCESS_RISK |
 | `/api/rent-payments/lifecycle` | FINANCIAL/LIFECYCLE | write | linked receipt lifecycle RPC / payment + exact linked deposit | ATOMIC_RPC / MIGRATION_PENDING |
 | `/api/internal/recovery-scheduler` | INTERNAL/RECOVERY | scheduled write | CRON_SECRET + feature flag / server-only | DISABLED_UNTIL_ACTIVATION |

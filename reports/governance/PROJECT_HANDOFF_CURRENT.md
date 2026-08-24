@@ -95,7 +95,7 @@ The long-term target is real users, sustained use, subscription/payment validati
 | Backup | JSON is the restore source; CSV/Excel are reporting exports. | `lib/data-export.ts`, Data Resilience contracts | Code/audit released | User download is not guaranteed server retention. Attachments are excluded from ordinary Beta backup. |
 | Restore | Dry-run, ownership checks, BeforeRestore safety package, then canonical transactional restore. | `app/api/data-restore/route.ts`, Data Resilience contracts | Code/automated contract released | Real-world destructive retest after recent changes is not completed. |
 | Data export | Export is separate from Restore; handoff to iOS/browser is not proof the file was saved. | `lib/data-export.ts`, data center | Released | Do not claim native save completion from browser handoff. |
-| Cache | `CacheManager` owns IndexedDB lifecycle; dashboard uses `dashboard-v3` stale-while-revalidate. | `lib/cache/cache-manager.ts` | Released with follow-up | Cold-start auth-gate-before-cache behavior is a performance task, not a proven correctness failure. |
+| Cache | `CacheManager` owns IndexedDB lifecycle; dashboard uses `dashboard-v4` stale-while-revalidate. | `lib/cache/cache-manager.ts` | Released with follow-up | Cold-start auth-gate-before-cache behavior is a performance task, not a proven correctness failure. |
 
 ## 6. Backup / Restore — explicit safety status
 

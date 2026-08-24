@@ -73,7 +73,7 @@
     "workspaceIsolation": "server auth, ownership checks and RLS remain authority",
     "auth": "Supabase session plus application account/session verification",
     "backupRestore": "data export is separate; dry-run, BeforeRestore and canonical transactional restore are current code contracts",
-    "cache": "CacheManager owns IndexedDB lifecycle; dashboard-v3 is stale-while-revalidate"
+    "cache": "CacheManager owns IndexedDB lifecycle; dashboard-v4 is stale-while-revalidate"
   },
   "backupRestore": {
     "codeAuditStatus": "RELEASED_WITH_AUTOMATED_CONTRACT_COVERAGE",

@@ -45,6 +45,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { DASHBOARD_CACHE_KEY } from "@/lib/cache/cache-keys";
+import { createHomeLoadTiming, emitHomeLoadTiming, markHomeLoadTiming, setHomeLoadTiming } from "@/lib/home-load-timing";
 import { defaultBackupReminderSettings, loadBackupReminderSettings, loadServerBackupReminderSettings, type BackupReminderSettings } from "@/lib/backup-reminders";
 import { loadCheckInReceiptLinks, type CheckInReceiptLink } from "@/lib/check-in-receipt-links";
 
@@ -108,8 +109,10 @@ export default function DashboardPage() {
       setDataStatus("ready");
     };
     async function load() {
+      const timing = createHomeLoadTiming();
       const session = await getValidSupabaseSession();
       if (!session) throw new Error("Session expired");
+      markHomeLoadTiming(timing, "AUTH_READY");
       const scope = session.user.id;
       setBackupReminderSettings(loadBackupReminderSettings(scope));
       const memorySnapshot = cacheManager.peekMemory<DashboardSnapshot>(DASHBOARD_CACHE_KEY, scope);
@@ -131,29 +134,43 @@ export default function DashboardPage() {
       const snapshot = await cacheManager.get<DashboardSnapshot>(DASHBOARD_CACHE_KEY, {
         scope,
         loader: async ({ revalidate = false } = {}) => {
-          const loadedProperties = access.can("properties") ? (revalidate ? await refreshBusinessData<BusinessProperty>(propertyKey, getInitialProperties()) : await loadBusinessData<BusinessProperty>(propertyKey, getInitialProperties())) : [];
-          const loadedRooms = access.can("rooms") ? (revalidate ? await refreshBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties)) : await loadBusinessData<BusinessRoom>(roomKey, getInitialRooms(loadedProperties))) : [];
-          const loadedTenants = access.can("tenants") ? (revalidate ? await refreshBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms)) : await loadBusinessData<BusinessTenant>(tenantKey, getInitialTenants(loadedProperties, loadedRooms))) : [];
-          const loadedContracts = access.can("tenants") ? (revalidate ? await refreshBusinessData<BusinessContract>(contractKey, getInitialContracts()) : await loadBusinessData<BusinessContract>(contractKey, getInitialContracts())) : [];
-          const loadedPayments = access.can("rent_payments") ? (revalidate ? await refreshBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments(loadedProperties, loadedRooms, loadedTenants))) : [];
-          const loadedExpenses = access.can("expenses") ? (revalidate ? await refreshBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties)) : await loadBusinessData<BusinessExpense>(expenseKey, getInitialExpenses(loadedProperties))) : [];
-          const loadedDeposits = access.can("deposits") ? (revalidate ? await refreshBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants)) : await loadBusinessData<BusinessDeposit>(depositKey, getInitialDeposits(loadedProperties, loadedRooms, loadedTenants))) : [];
-          const loadedCheckInReceiptLinks = access.can("rent_payments") && access.can("deposits") ? await loadCheckInReceiptLinks(session.access_token) : [];
-          const loadedViewingAppointments = access.can("properties") ? (revalidate ? await refreshBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, []) : await loadBusinessData<BusinessViewingAppointment>(viewingAppointmentKey, [])) : [];
-          const latestSession = await getValidSupabaseSession();
-          let waivedIds: string[] = [];
-          if (latestSession) {
-            const response = await fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${latestSession.access_token}` }, cache: "no-store" });
-            if (response.ok) {
-              const payload = await response.json() as { actions?: Array<{ rentPaymentId?: string }> };
-              waivedIds = (payload.actions || []).map((action) => action.rentPaymentId).filter(Boolean) as string[];
-            }
-          }
+          const loadData = <T extends BusinessProperty | BusinessRoom | BusinessTenant | BusinessContract | BusinessRentPayment | BusinessExpense | BusinessDeposit | BusinessViewingAppointment>(key: string, fallback: T[]) => revalidate ? refreshBusinessData<T>(key, fallback) : loadBusinessData<T>(key, fallback);
+          markHomeLoadTiming(timing, "CORE_LOAD_START");
+          const coreStartedAt = performance.now();
+          const coreLoad = Promise.all([
+            access.can("properties") ? loadData<BusinessProperty>(propertyKey, getInitialProperties()) : Promise.resolve([]),
+            access.can("rooms") ? loadData<BusinessRoom>(roomKey, getInitialRooms()) : Promise.resolve([]),
+            access.can("tenants") ? loadData<BusinessTenant>(tenantKey, getInitialTenants()) : Promise.resolve([]),
+            access.can("tenants") ? loadData<BusinessContract>(contractKey, getInitialContracts()) : Promise.resolve([]),
+            access.can("rent_payments") ? loadData<BusinessRentPayment>(rentPaymentKey, getInitialRentPayments()) : Promise.resolve([]),
+            access.can("expenses") ? loadData<BusinessExpense>(expenseKey, getInitialExpenses()) : Promise.resolve([]),
+            access.can("deposits") ? loadData<BusinessDeposit>(depositKey, getInitialDeposits()) : Promise.resolve([]),
+            access.can("properties") ? loadData<BusinessViewingAppointment>(viewingAppointmentKey, []) : Promise.resolve([])
+          ]);
+          const secondaryStartedAt = performance.now();
+          const secondaryLoad = Promise.all([
+            access.can("rent_payments") && access.can("deposits") ? loadCheckInReceiptLinks(session.access_token) : Promise.resolve([]),
+            fetch("/api/rent-collection", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
+              .then(async (response) => response.ok ? (await response.json() as { actions?: Array<{ rentPaymentId?: string }> }).actions || [] : [])
+              .then((actions) => actions.map((action) => action.rentPaymentId).filter(Boolean) as string[])
+          ]);
+          const [[loadedProperties, loadedRooms, loadedTenants, loadedContracts, loadedPayments, loadedExpenses, loadedDeposits, loadedViewingAppointments], [loadedCheckInReceiptLinks, waivedIds]] = await Promise.all([coreLoad, secondaryLoad]);
+          setHomeLoadTiming(timing, "HOME_CORE_LOAD_MS", performance.now() - coreStartedAt);
+          setHomeLoadTiming(timing, "HOME_SECONDARY_LOAD_MS", performance.now() - secondaryStartedAt);
+          markHomeLoadTiming(timing, "CORE_LOAD_END");
+          markHomeLoadTiming(timing, "SECONDARY_LOAD_END");
           return { properties: loadedProperties, rooms: loadedRooms, tenants: loadedTenants, contracts: loadedContracts, rentPayments: loadedPayments, expenses: loadedExpenses, deposits: loadedDeposits, viewingAppointments: loadedViewingAppointments, waivedPaymentIds: waivedIds, checkInReceiptLinks: loadedCheckInReceiptLinks };
         }
       });
       if (!active) return;
       applySnapshot(snapshot);
+      markHomeLoadTiming(timing, "PROJECTION_END");
+      requestAnimationFrame(() => {
+        if (!active) return;
+        markHomeLoadTiming(timing, "HOME_INTERACTIVE");
+        setHomeLoadTiming(timing, "HOME_TOTAL_MS", performance.now() - timing.startedAt);
+        emitHomeLoadTiming(timing, session.access_token);
+      });
     }
     load().catch((error) => {
       if (!active) return;

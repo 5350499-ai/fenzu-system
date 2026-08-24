@@ -54,5 +54,5 @@ test("page owners keep scoped ledger, settlement, appointment and cache contract
   assert.match(settlement, /确认结算/);
   assert.match(appointments, /QuickStatusMenu/);
   assert.match(appointments, /updateStatus/);
-  assert.match(businessData, /viewingAppointmentKey\]: \[viewingAppointmentKey, "home-summary", "dashboard-v3"\]/);
+  assert.match(businessData, /\[viewingAppointmentKey\]: \[viewingAppointmentKey, \.\.\.HOME_DERIVED_CACHE_KEYS\]/);
 });

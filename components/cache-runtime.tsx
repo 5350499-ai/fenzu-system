@@ -18,6 +18,10 @@ export function CacheRuntime() {
     if (!access.ready || !access.authenticated) return;
     let cancelled = false;
     const run = () => {
+      // The dashboard owns the same data reads. Do not make background warmup
+      // compete with a cold homepage load; cache inflight de-duplication is a
+      // fallback, not the homepage scheduling policy.
+      if (window.location.pathname === "/") return;
       if (access.can("partnership_settlement", "view")) void getPartners().catch(() => undefined);
       const permitted = preloadKeys.filter((key) => {
         if (key === propertyKey || key === roomKey || key === tenantKey || key === contractKey) return access.can(key === tenantKey || key === contractKey ? "tenants" : key === propertyKey || key === roomKey ? key.replace("business-", "") as "properties" | "rooms" : "properties", "view");

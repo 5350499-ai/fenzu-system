@@ -1,6 +1,7 @@
 import { getValidSupabaseSession, isSupabaseConfigured, supabase } from "./supabase";
 import { isActualMoveOutDateEnabled } from "./actual-move-out-feature";
 import { cacheManager } from "./cache/cache-manager";
+import { ANALYTICS_CACHE_KEY, DASHBOARD_CACHE_KEY, HOME_SUMMARY_CACHE_KEY, PARTNER_SETTLEMENT_CACHE_KEY, PROFITS_CACHE_KEY } from "./cache/cache-keys";
 
 export type ContractAttachment = {
   name: string;
@@ -571,16 +572,19 @@ async function getCacheScope() {
   return session?.user?.id || "anonymous";
 }
 
+const HOME_DERIVED_CACHE_KEYS = [HOME_SUMMARY_CACHE_KEY, DASHBOARD_CACHE_KEY];
+const FINANCE_DERIVED_CACHE_KEYS = [...HOME_DERIVED_CACHE_KEYS, PARTNER_SETTLEMENT_CACHE_KEY, PROFITS_CACHE_KEY, ANALYTICS_CACHE_KEY];
+
 const CACHE_INVALIDATION: Record<string, string[]> = {
-  [expenseKey]: [expenseKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [rentPaymentKey]: [rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [depositKey]: [depositKey, "home-summary", "profits", "analytics"],
-  [propertyKey]: [propertyKey, roomKey, tenantKey, contractKey, rentPaymentKey, expenseKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [contractKey]: [contractKey, rentPaymentKey, depositKey, "home-summary", "dashboard-v3", "partner-settlement-v3", "profits", "analytics"],
-  [viewingAppointmentKey]: [viewingAppointmentKey, "home-summary", "dashboard-v3"],
-  [taskKey]: [taskKey, "home-summary"]
+  [expenseKey]: [expenseKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [rentPaymentKey]: [rentPaymentKey, depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [depositKey]: [depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [propertyKey]: [propertyKey, roomKey, tenantKey, contractKey, rentPaymentKey, expenseKey, depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [roomKey]: [roomKey, tenantKey, contractKey, rentPaymentKey, depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [tenantKey]: [tenantKey, contractKey, rentPaymentKey, depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [contractKey]: [contractKey, rentPaymentKey, depositKey, ...FINANCE_DERIVED_CACHE_KEYS],
+  [viewingAppointmentKey]: [viewingAppointmentKey, ...HOME_DERIVED_CACHE_KEYS],
+  [taskKey]: [taskKey, HOME_SUMMARY_CACHE_KEY]
 };
 
 export async function loadBusinessData<T extends AnyRecord>(key: string, fallback: T[] = []): Promise<T[]> {
