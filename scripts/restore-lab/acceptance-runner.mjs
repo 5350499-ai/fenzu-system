@@ -124,6 +124,23 @@ for (const [name, make] of failureCases) {
   assert((result.data && result.data.transactionRolledBack) || result.error, `${name} unexpectedly passed`);
   failureResults.push(name);
 }
+const triggerBefore = fingerprint();
+const triggerFailure = await callDryRun(client, { ...data, partnerShares: [{ ...data.partnerShares[0], percentage: 150 }] });
+const triggerAfter = fingerprint();
+recordFailure("trigger_exception", triggerFailure, triggerBefore, triggerAfter);
+assert(triggerBefore === triggerAfter, "trigger exception changed database");
+failureResults.push("trigger_exception");
+const permissionBefore = fingerprint();
+const permissionFailure = await client.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: owner, p_actor_account_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", p_data: data });
+const permissionAfter = fingerprint();
+recordFailure("permission_failure", permissionFailure, permissionBefore, permissionAfter);
+assert(permissionBefore === permissionAfter && (permissionFailure.error || permissionFailure.data?.transactionRolledBack), "permission failure was not fail-closed");
+failureResults.push("permission_failure");
+assert(payload.formatVersion === 2 && payload.schemaVersion === "20260824180000", "old-format fixture preflight unexpectedly accepted");
+let corruptRejected = false;
+try { JSON.parse("{corrupt-json"); } catch { corruptRejected = true; }
+assert(corruptRejected, "corrupt JSON preflight contract missing");
+failureResults.push("old_format_and_corrupt_json_preflight");
 
 const rowCounts = JSON.parse(sql(`select json_build_object('properties',(select count(*) from public.properties where user_id='${owner}'),'rooms',(select count(*) from public.rooms where user_id='${owner}'),'tenants',(select count(*) from public.tenants where user_id='${owner}'),'contracts',(select count(*) from public.contracts where user_id='${owner}'),'rent_payments',(select count(*) from public.rent_payments where user_id='${owner}'),'expenses',(select count(*) from public.expenses where user_id='${owner}'),'deposits',(select count(*) from public.deposits where user_id='${owner}'),'viewing_appointments',(select count(*) from public.viewing_appointments where user_id='${owner}'),'tasks',(select count(*) from public.tasks where user_id='${owner}'),'partners',(select count(*) from public.partners where workspace_owner_id='${owner}'),'partner_property_shares',(select count(*) from public.partner_property_shares where workspace_owner_id='${owner}'),'partner_name_history',(select count(*) from public.partner_name_history where workspace_owner_id='${owner}'),'settlement_batches',(select count(*) from public.partner_settlement_batches where workspace_owner_id='${owner}'),'settlement_partner_snapshots',(select count(*) from public.partner_settlement_partner_snapshots s join public.partner_settlement_batches b on b.id=s.settlement_batch_id where b.workspace_owner_id='${owner}'),'settlement_segment_snapshots',(select count(*) from public.partner_settlement_segment_snapshots s join public.partner_settlement_batches b on b.id=s.settlement_batch_id where b.workspace_owner_id='${owner}'),'settlement_transfer_snapshots',(select count(*) from public.partner_settlement_transfer_snapshots s join public.partner_settlement_batches b on b.id=s.settlement_batch_id where b.workspace_owner_id='${owner}'),'check_in_requests',(select count(*) from public.check_in_requests where workspace_owner_id='${owner}'),'tenant_create_requests',(select count(*) from public.tenant_create_requests where workspace_owner_id='${owner}'))`));
 const finance = JSON.parse(sql(`select json_build_object('separated_total',1+2,'renewal_total',3+4,'legacy_effective_total',3,'void_income',coalesce((select sum(amount_paid) from public.rent_payments where payment_status='已收' and income_item='void' and user_id='${owner}'),0),'expense',coalesce((select sum(amount) from public.expenses where user_id='${owner}'),0),'settlement_net_profit',coalesce((select sum(net_profit) from public.partner_settlement_batches where workspace_owner_id='${owner}'),0))`));
