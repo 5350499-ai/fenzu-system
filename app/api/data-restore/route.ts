@@ -10,6 +10,7 @@ import {
 import { sanitizeFreeSingleExportData } from "@/lib/data-export";
 import { createDataBackup } from "@/lib/server/backup-service";
 import { recordRecoveryPoint } from "@/lib/server/recovery-point-service";
+import { emitRestoreFailureDiagnostic } from "@/lib/server/restore-diagnostics";
 
 const BACKUP_BUCKET = "system-backups";
 const RESTORE_RPC_TIMEOUT_MS = 120_000;
@@ -536,6 +537,7 @@ export async function POST(request: Request) {
       if (restoreError) {
         logRestoreStage(operationId, "GENERATE_REPORT_START", { mode, success: false });
         const diagnostic = { ...restoreDiagnostic(restoreError, null, mode), error: "Restore 失败" };
+        emitRestoreFailureDiagnostic({ restoreSessionId: operationId, stage: diagnostic.failureStage, sqlState: diagnostic.sqlState, table: diagnostic.table, column: diagnostic.column, constraint: diagnostic.constraint, recordId: diagnostic.recordId, workspace: context.profile.workspace_owner_id, actorType: context.profile.account_type, mode, message: diagnostic.message });
         console.error("Restore RPC failed", { rpcName: "restore_workspace_backup", workspaceOwnerId: context.profile.workspace_owner_id, ...diagnostic, rawRpcError: restoreError });
         const report = { beforeRestore: { success: true }, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode };
         logRestoreStage(operationId, "GENERATE_REPORT_DONE", { mode, success: false });
@@ -557,6 +559,7 @@ export async function POST(request: Request) {
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {
       const diagnostic = restoreDiagnostic(error, (dryRun || null) as Record<string, unknown> | null);
+      emitRestoreFailureDiagnostic({ restoreSessionId: operationId, stage: diagnostic.failureStage, sqlState: diagnostic.sqlState, table: diagnostic.table, column: diagnostic.column, constraint: diagnostic.constraint, recordId: diagnostic.recordId, workspace: context.profile.workspace_owner_id, actorType: context.profile.account_type, mode: "dry_run", message: diagnostic.message });
       console.error("Restore Dry Run RPC failed", {
         rpcName: "restore_workspace_backup_dry_run",
         workspaceOwnerId: context.profile.workspace_owner_id,

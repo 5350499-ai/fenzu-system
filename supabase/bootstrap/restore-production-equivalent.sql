@@ -50,3 +50,15 @@ begin
   end loop;
 end;
 $verify$;
+
+-- The local PostgREST service-role key must exercise the same Restore boundary
+-- as the server-owned RPC. These grants are local bootstrap parity, not a
+-- Production privilege change.
+grant select, insert, update, delete on public.properties, public.rooms,
+  public.tenants, public.contracts, public.rent_payments, public.expenses,
+  public.deposits, public.viewing_appointments, public.tasks, public.partners,
+  public.partner_property_shares, public.partner_name_history,
+  public.partner_settlement_batches, public.partner_settlement_partner_snapshots,
+  public.partner_settlement_segment_snapshots, public.partner_settlement_transfer_snapshots,
+  public.check_in_requests, public.tenant_create_requests to service_role;
+grant select, insert on public.audit_logs to service_role;

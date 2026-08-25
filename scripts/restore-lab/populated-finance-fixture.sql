@@ -42,4 +42,22 @@ insert into public.check_in_requests (client_request_id,actor_user_id,workspace_
  ('dddddddd-dddd-4ddd-8ddd-dddddddddddf','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',null,null,null,null,'{"receiptDeleted":true,"paymentId":null,"depositId":null}'::jsonb,now());
 insert into public.tenant_create_requests (client_request_id,actor_user_id,workspace_owner_id,tenant_id,contract_id,rent_payment_id,deposit_id,result,completed_at) values
  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333331','44444444-4444-4444-8444-444444444441','55555555-5555-4555-8555-555555555551','66666666-6666-4666-8666-666666666661','{"tenantId":"33333333-3333-4333-8333-333333333331","contractId":"44444444-4444-4444-8444-444444444441","rentPaymentId":"55555555-5555-4555-8555-555555555551","depositId":"66666666-6666-4666-8666-666666666661"}'::jsonb,now());
+insert into public.viewing_appointments (id,user_id,property_id,room_id,appointment_date,appointment_time,contact_name,contact_whatsapp,contact_phone,status,notes)
+values ('88888888-8888-4888-8888-888888888881','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222224','2026-08-05','10:00','Prospect','+34000000000','600000000','已完成','fixture appointment');
+insert into public.tasks (id,user_id,task_type,title,description,due_date,status,priority,property_id,room_id,tenant_id,contract_id,rent_payment_id,deposit_id,notes)
+values ('99999999-9999-4999-8999-999999999991','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','maintenance','Fixture task','Restore acceptance task','2026-08-10','待办','高','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333331','44444444-4444-4444-8444-444444444441','55555555-5555-4555-8555-555555555551','66666666-6666-4666-8666-666666666661','fixture task');
+insert into public.partners (id,workspace_owner_id,legacy_code,display_name,color_key,sort_order,is_active)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','P-A','Partner A','blue',1,true);
+insert into public.partner_property_shares (id,workspace_owner_id,property_id,partner_id,percentage,effective_from)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab',100,'2026-08-01');
+insert into public.partner_name_history (id,workspace_owner_id,partner_id,old_display_name,new_display_name,changed_at,changed_by_account_id)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaad','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab','Partner Old','Partner A','2026-08-01','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+insert into public.partner_settlement_batches (id,workspace_owner_id,property_id,period_start,period_end,period_range,status,total_income,total_expense,net_profit,currency,confirmed_by_account_id,property_name_snapshot)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaae','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','2026-08-01','2026-08-31','2026-08','confirmed',17,5,12,'EUR','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Restore Lab');
+insert into public.partner_settlement_partner_snapshots (id,settlement_batch_id,partner_id,partner_display_name_snapshot,actual_collected,actual_paid,actual_retained,profit_entitlement,settlement_balance,share_segments_snapshot)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaf','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaae','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab','Partner A',17,0,17,12,12,'[{"percentage":100}]'::jsonb);
+insert into public.partner_settlement_segment_snapshots (id,settlement_batch_id,segment_start,segment_end,total_income,total_expense,net_profit,shares_snapshot)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaba','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaae','2026-08-01','2026-08-31',17,5,12,'[{"partnerId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab","percentage":100}]'::jsonb);
+insert into public.partner_settlement_transfer_snapshots (id,settlement_batch_id,from_partner_id,to_partner_id,from_name_snapshot,to_name_snapshot,amount,currency)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaabb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaae','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab','Partner A','Partner A',0,'EUR');
 commit;
