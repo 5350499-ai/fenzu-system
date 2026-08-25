@@ -1,0 +1,38 @@
+{
+  "name": "fenzu-restore-local-production-equivalent",
+  "purpose": "Deterministic local-only Restore acceptance bootstrap; never a Production migration plan.",
+  "sourceOfTruth": "scripts/restore-live-schema.snapshot.json plus the current repository migrations",
+  "requiredPreflight": [
+    "Docker Engine running",
+    "npx supabase 2.115.0 or compatible",
+    "no Production URL, key, or database connection string",
+    "isolated project id and ports"
+  ],
+  "knownHistoricalChainGates": [
+    {
+      "id": "duplicate-version-202606160002",
+      "severity": "bootstrap-blocker",
+      "evidence": "Two repository migrations share the 202606160002 version prefix.",
+      "localPolicy": "Copy only to a generated local workdir with deterministic 20260616000201/20260616000202 names; do not rewrite the repository history."
+    },
+    {
+      "id": "production-owner-identity-precondition",
+      "severity": "bootstrap-blocker",
+      "evidence": "20260713154204_accounts_permissions_stage1.sql aborts an empty database unless the fixed Production owner already exists in auth.users.",
+      "localPolicy": "Do not seed the Production identity. The bootstrap must use an isolated test identity or a schema bootstrap path; Production identity values are never copied into local fixtures."
+    },
+    {
+      "id": "historical-function-shape-assumptions",
+      "severity": "bootstrap-blocker",
+      "evidence": "Several historical migrations replace composite-return functions using earlier column shapes.",
+      "localPolicy": "The generated bootstrap must fail visibly and record the exact migration/function shape instead of silently patching it."
+    }
+  ],
+  "acceptanceRequirements": {
+    "restoreBoundaryTables": 18,
+    "freshRebuilds": 3,
+    "fullDryRuns": 5,
+    "fullRestores": 5,
+    "productionWrites": 0
+  }
+}

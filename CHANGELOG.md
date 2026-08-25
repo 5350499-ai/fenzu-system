@@ -1,5 +1,11 @@
 # 2026-08-15 - Data resilience local foundation
 
+## 2026-08-25 - Restore architectural closeout lab (local only)
+
+- Added the local-only Restore acceptance bootstrap manifest, explicit final Production-equivalent schema bootstrap, canonical 18-table identity/dependency metadata, and live-function legacy-column validation.
+- Four independent empty local Supabase projects reached the final migration chain and passed 18/18 live-schema parity with zero active prohibited Restore-column references. Historical migration gates (duplicate version, fixed Production identity seed, composite-return shape and diagnostic ordering) are recorded as explicit generated-workdir normalizations; repository history and Production remain unchanged.
+- This is not a Production Restore readiness claim: populated finance edge fixtures, direct replay, BeforeRestore actual restore, failure/audit diagnostics and the required five full runs remain acceptance gates.
+
 ## 2026-08-25 - Restore session continuity and non-blocking BeforeRestore (Preview)
 
 - Materialized the selected restore file once into a shared immutable session with raw bytes, SHA-256, parsed payload, backup identity and Preview state; later Restore steps no longer re-read the iOS File object or require re-selection.

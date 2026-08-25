@@ -1,0 +1,23 @@
+select jsonb_build_object(
+  'sourceWorkspaceId','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'formatVersion',2,
+  'schemaVersion','20260824180000',
+  'properties',coalesce((select jsonb_agg(to_jsonb(x)) from public.properties x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'rooms',coalesce((select jsonb_agg(to_jsonb(x)) from public.rooms x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'tenants',coalesce((select jsonb_agg(to_jsonb(x)) from public.tenants x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'contracts',coalesce((select jsonb_agg(to_jsonb(x)) from public.contracts x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'rentPayments',coalesce((select jsonb_agg(to_jsonb(x)) from public.rent_payments x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'expenses',coalesce((select jsonb_agg(to_jsonb(x)) from public.expenses x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'deposits',coalesce((select jsonb_agg(to_jsonb(x)) from public.deposits x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'viewingAppointments',coalesce((select jsonb_agg(to_jsonb(x)) from public.viewing_appointments x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'tasks',coalesce((select jsonb_agg(to_jsonb(x)) from public.tasks x where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'partners',coalesce((select jsonb_agg(to_jsonb(x)) from public.partners x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'partnerShares',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_property_shares x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'partnerNameHistory',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_name_history x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'settlementBatches',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_settlement_batches x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'partnerSettlementPartnerSnapshots',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_settlement_partner_snapshots x where settlement_batch_id in (select id from public.partner_settlement_batches where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')),'[]'::jsonb),
+  'partnerSettlementSegmentSnapshots',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_settlement_segment_snapshots x where settlement_batch_id in (select id from public.partner_settlement_batches where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')),'[]'::jsonb),
+  'partnerSettlementTransferSnapshots',coalesce((select jsonb_agg(to_jsonb(x)) from public.partner_settlement_transfer_snapshots x where settlement_batch_id in (select id from public.partner_settlement_batches where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')),'[]'::jsonb),
+  'checkInRequests',coalesce((select jsonb_agg(to_jsonb(x)) from public.check_in_requests x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb),
+  'tenantCreateRequests',coalesce((select jsonb_agg(to_jsonb(x)) from public.tenant_create_requests x where workspace_owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'[]'::jsonb)
+);
