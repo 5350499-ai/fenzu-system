@@ -1427,3 +1427,8 @@
 - THIS_IS_NOT_A_ZERO_BUG_CLAIM: true
 - BACKUP_RESTORE_DESTRUCTIVE_ACCEPTANCE: NOT_STARTED
 - Production smoke passed for `/`, `/login`, `/tenants`, `/check-in`, `/rent-payments`, `/expenses`, `/audit-logs`, `/partnership-settlement`, `/viewing-appointments` and `/data-center` (HTTP 200); unauthenticated `POST /api/tenants/create` returned 401. No post-deploy runtime errors were found in the deployment window.
+
+## 2026-08-25 - Restore Preview request-table count column fix (Preview)
+
+- Restore Preview current-summary counts now use head-count semantics without assuming every table has an `id` column; request tables continue to use their canonical `client_request_id` identity transparently.
+- Preserved free-single read permission, owner-only `/api/accounts`, Preview resilience, Restore mapping, database schema, migrations and business data.

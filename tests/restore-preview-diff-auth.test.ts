@@ -48,6 +48,8 @@ test("preview current count loader reads the protected summary endpoint", () => 
   assert.match(summaryRoute, /tenant_create_requests/);
   assert.match(summaryRoute, /user_profiles/);
   assert.match(summaryRoute, /accountProjectionCount/);
+  assert.match(summaryRoute, /select\("\*", \{ count: "exact", head: true \}\)/);
+  assert.doesNotMatch(summaryRoute, /countColumn/);
   assert.match(accountAuth, /requireRestorePreviewReadAccess/);
   assert.match(accountAuth, /account_type === "owner" \|\| isFreeSingleAccount/);
   assert.match(accountsRoute, /requireActiveAccount\(request, true\)/);
