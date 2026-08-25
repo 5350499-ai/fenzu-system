@@ -1,19 +1,19 @@
 # Production Restore Release Checkpoint — 2026-08-25
 
-Status: `READY_FOR_USER_PRODUCTION_DRY_RUN`
+Status: `CLOSED / ACCEPTED`
 
-This checkpoint records the one-time Production release gate. It is not a
-zero-bug claim and it does not record a completed user Dry Run or Restore.
+This checkpoint records the one-time Production release and completed user
+mobile Backup/Restore acceptance. It is not a zero-bug claim.
 
 ## Release identity
 
-- Release code HEAD: `7c44eeeb4c53d00ea191f7bd93ddf4832519e2b8`
+- Release code HEAD: `fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6`
 - Stable tag: `stable-production-restore-ready-20260825`
-- Stable tag target: `7c44eeeb4c53d00ea191f7bd93ddf4832519e2b8`
+- Stable tag target: `fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6`
 - Production migration source: `supabase/migrations/20260825140000_restore_active_schema_final_parity.sql`
 - Production migration registry version: `20260825141846`
 - Production migration name: `restore_active_schema_final_parity`
-- Production deployment: `dpl_GnUv1W5wUfTTQYWTbBYK9VTSJWG2`
+- Production deployment: `dpl_EkpZSGWL3Jxs468FAKwPhaEXsqpL`
 - Production URL: `https://fenzu-system.vercel.app`
 - Preview deployment: `dpl_CFJndnMxNHLmDkb7MnAj7pYXmm19`
 - Preview URL: `https://fenzu-system-hwlh5y9uv-5350499-ais-projects.vercel.app`
@@ -29,17 +29,21 @@ zero-bug claim and it does not record a completed user Dry Run or Restore.
 - Production smoke: PASS
 - Unauthenticated Restore API boundary: HTTP 401
 - Production runtime error scan after deploy: no runtime errors found
+- Final user mobile Backup/Restore acceptance: PASS
+- Free-user cloud recovery: OFF; mandatory local pre-Restore backup: ON
+- Internal Full cloud recovery capability: PRESERVED
+- Local Restore Lab: five full Dry Runs, five full Restores, 18-table/finance/idempotency/failure-injection acceptance: PASS
 
 ## Preserved boundaries
 
 - Production code deploy: completed for the release HEAD
-- Production Dry Run: `NOT_STARTED`
-- Production Restore: `NOT_STARTED`
+- Production Dry Run: `PASS`
+- Production Restore: `PASS`
 - Real user business data modified: `NO`
 - Historical business rows modified: `NO`
 - Test user data modified: `NO`
 - Attachments binary Restore: out of scope for the first destructive drill
 - Audit history Restore: excluded from the first destructive drill
 
-The next authorized action is the user's one-time Production Dry Run. No
-formal Restore is authorized by this checkpoint.
+The destructive Production action is complete for the accepted test flow. No
+additional automatic Restore or Dry Run is authorized by this checkpoint.

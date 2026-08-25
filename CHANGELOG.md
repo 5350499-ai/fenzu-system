@@ -1,3 +1,10 @@
+# 2026-08-25 - Production Backup/Restore closeout and Private Beta readiness
+
+- Closed the Production Backup/Restore release after final iPhone acceptance: Preview, recovery rehearsal, mandatory local pre-Restore backup, formal Restore and post-Restore core-page/amount checks all passed.
+- Recorded the ordinary `free_single` policy: no platform cloud recovery hosting; the user must save and confirm a local current-data backup before formal Restore. Internal Full cloud recovery capability remains preserved.
+- Recorded implemented partnership capability (partners, shares, rename history, proportional settlement and snapshots), attachment product policy, Vercel Device Flow/browser-automation policy, and the long-term local Restore/Migration Lab.
+- Reassessed readiness to `PRIVATE_REAL_USER_BETA_READY` for a 1–3 person trusted cohort; this is not Public Beta or a paid release. Governance-only documentation update; no business code, database, Production data or deployment changed by this entry.
+
 # 2026-08-15 - Data resilience local foundation
 
 ## 2026-08-25 - Restore architectural closeout lab (local only)

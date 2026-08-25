@@ -1,12 +1,12 @@
 {
   "status": "AUTHORITATIVE_CURRENT_HANDOFF",
-  "generatedAt": "2026-08-22",
+  "generatedAt": "2026-08-25",
   "project": {
     "name": "蜜蜂分租 / fenzu-system",
     "packageName": "spanish-rental-manager",
     "repoPath": "C:\\Users\\a5350\\Documents\\Codex\\2026-08-03\\github-5350499-ai-fenzu-system-https",
-    "branch": "feat/global-cache-v3",
-    "applicationReleaseHead": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
+    "branch": "fix/free-single-settlement-auth",
+    "applicationReleaseHead": "fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6",
     "author": { "name": "5350499-ai", "email": "5350499@qq.com" },
     "trackedWorktreeClean": true,
     "preservedUntrackedRoots": [
@@ -20,17 +20,17 @@
   "deployments": {
     "production": {
       "url": "https://fenzu-system.vercel.app",
-      "deploymentId": "dpl_4GN7K19KTfXdJwavu8kFVjhGmkNH",
-      "deploymentUrl": "https://fenzu-system-9kf3grnx2-5350499-ais-projects.vercel.app",
+      "deploymentId": "dpl_EkpZSGWL3Jxs468FAKwPhaEXsqpL",
+      "deploymentUrl": "https://fenzu-system-1rrgavc4w-5350499-ais-projects.vercel.app",
       "status": "READY",
-      "head": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
-      "headEvidence": "direct Production deployment from this checkout; Vercel inspect verifies status and alias but does not display Git SHA"
+      "head": "fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6",
+      "headEvidence": "direct Production deployment from a clean HEAD-only staging export; Vercel inspect verifies status and alias but does not display Git SHA"
     },
     "latestPreview": {
-      "deploymentId": "dpl_73G2MBv4qA78jiXJE3sovvmVRvnj",
-      "url": "https://fenzu-system-ffc77y3od-5350499-ais-projects.vercel.app",
+      "deploymentId": "dpl_BZeXKk6t2UQdbPa6C7McpRD6mDNB",
+      "url": "https://fenzu-system-kuyokc3pw-5350499-ais-projects.vercel.app",
       "status": "READY",
-      "head": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510"
+      "head": "fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6"
     },
     "applicationReleaseHeadEqualsProductionHead": true,
     "note": "The handoff documentation commit is metadata-only and is intentionally not a Production application release."
@@ -76,28 +76,56 @@
     "cache": "CacheManager owns IndexedDB lifecycle; dashboard-v4 is stale-while-revalidate"
   },
   "backupRestore": {
-    "codeAuditStatus": "RELEASED_WITH_AUTOMATED_CONTRACT_COVERAGE",
-    "productionContractStatus": "NON_DESTRUCTIVE_PRODUCTION_SMOKE_ONLY",
-    "realWorldDestructiveRestoreRetestAfterRecentChanges": "NOT_YET_COMPLETED",
-    "nextRequiredProcedure": [
-      "create fresh backup and baseline on a dedicated test/small account",
-      "deliberately modify or delete a small known test dataset",
-      "run dry-run and BeforeRestore, then canonical Restore",
-      "compare tenants, rooms, payments, expenses, deposits, reminders, analytics/statistics and associations",
-      "record recovery/audit evidence; never manually repair Supabase business rows"
-    ]
+    "codeAuditStatus": "RELEASED_AND_MOBILE_ACCEPTED",
+    "productionContractStatus": "DESTRUCTIVE_RESTORE_COMPLETE / ACCEPTED",
+    "realWorldDestructiveRestoreRetestAfterRecentChanges": "COMPLETE / PASS",
+    "finalMobileAcceptance": "PASS",
+    "localLabAcceptance": {
+      "fullDryRunSuccessCount": 5,
+      "fullRestoreSuccessCount": 5,
+      "restore18Table": "PASS",
+      "financeParity": "PASS",
+      "idempotency": "PASS",
+      "failureInjectionRollback": "PASS"
+    },
+    "freeUserPolicy": {
+      "cloudRecoveryEnabled": false,
+      "automaticCloudBackupEnabled": false,
+      "localPreRestoreBackupRequired": true,
+      "userOwnsBackupFile": true
+    },
+    "internalFullCloudRecoveryPreserved": true
+  },
+  "productPolicies": {
+    "freeSingleModel": "single operator; 100% own operation/economic attribution; no partnership entry point; local Backup; mandatory local pre-Restore backup; no platform cloud backup hosting",
+    "partnershipCapability": "IMPLEMENTED_AND_TESTED; partners, shares, rename history, percentage validation, proportional settlement and historical snapshots",
+    "partnershipMaximum": "NOT_DECIDED",
+    "attachments": "TECHNICAL_CAPABILITY_IMPLEMENTED_TESTED; product OFF for Free and Paid; Internal Full may retain internal use; separate from ordinary Backup/Restore",
+    "internalFull": "full-feature baseline with cloud recovery, recovery metadata, diagnostics and future historical recovery; entitlement-based, never hard-coded user ID",
+    "futurePremium": "NOT_YET_COMMERCIALIZED_OR_EXPOSED",
+    "vercelLoginMethod": "Google",
+    "credentialsStorage": "FORBIDDEN",
+    "browserAutomation": {
+      "internalBrowserFirst": true,
+      "desktopChromeControl": false,
+      "cliApiConnectorFirst": true,
+      "userIntervention": "LAST_RESORT",
+      "vercelDeviceFlowPreferred": true,
+      "deprecatedGithubLoginFlow": "DO_NOT_USE"
+    },
+    "localRestoreLab": "LONG_TERM_ASSET; LOCAL_ISOLATED_ACCEPTANCE_FIRST; never use Production as the trial environment"
   },
   "readiness": {
-    "privateRealUserBeta": { "ready": false, "reason": "destructive Backup-to-Restore retest is still required" },
+    "privateRealUserBeta": { "ready": true, "label": "PRIVATE_REAL_USER_BETA_READY", "recommendedCohortSize": "1-3 trusted friends/real landlords", "scope": "normal daily use only; no destructive Restore or internal-only capability testing" },
     "publicBeta": { "ready": false, "reason": "requires private-beta evidence, support/feedback and legal/privacy readiness" },
     "paidCommercialRelease": { "ready": false, "reason": "subscription/plan enforcement and commercial validation remain" },
     "appStoreGooglePlay": { "ready": false, "reason": "native packaging, store/compliance and commercial readiness remain" }
   },
   "backlog": {
-    "releaseBeforePrivateBeta": ["real Backup -> destructive test -> Restore closure"],
-    "privateBetaValidation": ["small real-user cohort", "structured feedback/support evidence", "cold-start cache performance observation"],
+    "releaseBeforePrivateBeta": [],
+    "privateBetaValidation": ["1-3 trusted friends/real landlords", "normal daily rental workflow", "structured feedback/support evidence", "mobile browser/device issues", "cold-start cache performance observation"],
     "publicBeta": ["privacy policy", "user terms", "onboarding/help", "error-feedback/support entry", "beta-feedback collection"],
-    "commercialization": ["multi-language", "multi-currency commercial validation", "partnership/multi-member subscriptions", "subscription plans and entitlements"],
+    "commercialization": ["multi-language", "multi-currency commercial validation", "partnership/multi-member paid packaging", "subscription plans and entitlements"],
     "appStore": ["native packaging", "store assets/compliance", "distribution and paid-product operations"],
     "optionalPolish": ["cold-start cache performance", "future user-evidenced input/search ergonomics"]
   },
@@ -112,25 +140,30 @@
     "DATABASE_CHANGE_REQUIRES_EXPLICIT_SCOPE": true,
     "PRODUCTION_DEPLOY_REQUIRES_EXPLICIT_RELEASE_STEP": true,
     "SMALL_LOW_RISK_UI_CHANGES_CAN_USE_PREVIEW_THEN_RELEASE": true,
-    "BACKUP_RESTORE_CHANGES_REQUIRE_EXTRA_CAUTION": true
+    "BACKUP_RESTORE_CHANGES_REQUIRE_EXTRA_CAUTION": true,
+    "INTERNAL_BROWSER_FIRST": true,
+    "DESKTOP_CHROME_CONTROL": false,
+    "USER_INTERVENTION": "LAST_RESORT",
+    "LOCAL_ISOLATED_ACCEPTANCE_FIRST": true,
+    "PRODUCTION_RESTORE_FREEZE_UNLESS_EXPLICITLY_AUTHORIZED": true
   },
   "nextSessionStartHere": [
+    "read CLAUDE.md, BUSINESS_RULES.md, ARCHITECTURE.md, this handoff, the task-relevant contract/policy and latest release checkpoint",
     "verify current checkout HEAD and Production alias",
-    "execute authorized Backup -> destructive test -> Restore closure on a dedicated test/small account",
-    "if passed, reassess private real-user Beta readiness",
-    "prepare a small real-user/private-landlord cohort rather than broad feature work",
-    "collect real feedback and support evidence",
+    "run 1-3 person private-beta normal-use validation",
+    "collect structured real-user feedback and support evidence",
     "decide Public Beta from evidence",
     "then advance multi-language, subscriptions and App Store roadmap"
   ],
   "validation": {
-    "finalCommit": "fe3ef91af95c856bc0fdeb4141f7a0d83d987510",
-    "fullTestSuite": "402/402 PASS before Production release",
+    "finalCommit": "fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6",
+    "fullTestSuite": "534/534 PASS before Production release",
     "releaseChecks": ["TypeScript", "Production build", "Responsive", "UI", "UI interactions", "Security", "Server Boundary", "Actions", "Domain", "Data State", "Backup/Restore", "git diff --check"],
-    "productionSmoke": "requested public routes HTTP 200; unauthenticated accounts/me and data-backup/status HTTP 401"
+    "productionSmoke": "public routes HTTP 200; unauthenticated current-summary and accounts HTTP 401; runtime errors 0; final mobile Backup/Restore acceptance PASS"
   },
   "handoffAuditChanges": {
     "businessLogicChanged": false,
+    "governanceOnlyCommit": true,
     "databaseChanged": false,
     "realUserDataModified": false,
     "supabaseSchemaChanged": false,
