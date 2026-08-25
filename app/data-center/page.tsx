@@ -37,6 +37,7 @@ import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { markSuccessfulBackup, recordSuccessfulBackup } from "@/lib/backup-reminders";
 import { buildRestorePreviewDiffRows, summarizeRestorePreviewDiff } from "@/lib/restore-preview-diff";
+import { createRestoreSession, materializeRestoreFile, verifyRestoreSessionIntegrity, type RestoreSession } from "@/lib/restore-session";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -49,7 +50,7 @@ type CoreData = {
 };
 type ExportRow = Record<string, unknown> & { id: string };
 type BackupStatus = "preparing" | "ready" | "generating" | "validating" | "handoff" | "complete" | "error";
-type RestorePreview = { fileName: string; fileSize: number; payload: DataExportPayload; currentData: Record<string, unknown> };
+type RestorePreview = { fileName: string; fileSize: number; payload: DataExportPayload; currentData: Record<string, unknown>; session: RestoreSession };
 type RestoreStep = "preview" | "confirm";
 type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
 type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; constraint?: string | null; recordId?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown; rawRpcError?: unknown; rawDryRun?: unknown };
@@ -82,7 +83,9 @@ function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
 }
 
 function restoreDryRunErrorText(result: Record<string, unknown>) {
-  return ["❌ Restore Dry Run 失败", JSON.stringify(result, null, 2)].join("\n");
+  const serialized = JSON.stringify(result, null, 2);
+  if (/the object can not be found here|object not found/i.test(serialized)) return "❌ 原备份文件引用已失效，请重新选择原始备份文件。";
+  return ["❌ Restore Dry Run 失败", serialized].join("\n");
 }
 
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
@@ -116,6 +119,7 @@ export default function DataCenterPage() {
   const backupRunRef = useRef(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [restoreSession, setRestoreSession] = useState<RestoreSession | null>(null);
   const [restoreStep, setRestoreStep] = useState<RestoreStep>("preview");
   const [restoreError, setRestoreError] = useState("");
   const [restoreLoading, setRestoreLoading] = useState(false);
@@ -342,6 +346,7 @@ export default function DataCenterPage() {
 
   async function previewRestoreFile(file: File | undefined) {
     setRestorePreview(null);
+    setRestoreSession(null);
     setRestoreStep("preview");
     setRestoreError("");
     setBeforeRestorePackage(null);
@@ -359,7 +364,8 @@ export default function DataCenterPage() {
     }
     setRestoreLoading(true);
     try {
-      const parsed: unknown = JSON.parse(await file.text());
+      const materialized = await materializeRestoreFile(file);
+      const parsed: unknown = materialized.parsed;
       if (!isDataExportPayload(parsed)) {
         throw new Error("文件不是本软件导出的 Backup V1 文件，或缺少必要字段。");
       }
@@ -370,7 +376,9 @@ export default function DataCenterPage() {
       if (!integrity.valid) throw new Error(integrity.errors[0] || "备份文件校验失败，请选择完整文件。");
       if (!await verifyDataExportChecksum(parsed)) throw new Error("备份校验失败，文件可能已损坏。");
       const currentData = await loadExportData(false, true);
-      setRestorePreview({ fileName: file.name, fileSize: file.size, payload: parsed, currentData });
+      const session = createRestoreSession(materialized, parsed, currentData);
+      setRestoreSession(session);
+      setRestorePreview({ fileName: session.originalFileName, fileSize: session.originalFileSize, payload: session.parsedBackupPayload, currentData, session });
     } catch (previewError) {
       setRestoreError(previewError instanceof Error ? previewError.message : "备份文件无法读取，请重新选择。");
     } finally {
@@ -378,7 +386,7 @@ export default function DataCenterPage() {
     }
   }
 
-  async function prepareBeforeRestore() {
+  async function prepareBeforeRestore(): Promise<BeforeRestorePackage> {
     setBeforeRestoreStatus("preparing");
     setBeforeRestoreError("");
     try {
@@ -399,10 +407,19 @@ export default function DataCenterPage() {
         throw new BeforeRestoreClientError({ stage: "file_generation", code: "before_restore_file_generation_failed", message: error instanceof Error ? error.message : "分享文件生成失败" });
       }
       setBeforeRestoreStatus("saving");
-      await saveFileWithSystemFallback(file);
       setBeforeRestorePackage(packageData);
       setBeforeRestoreConfirmed(false);
       setBeforeRestoreStatus("ready");
+      setRestoreSession((current) => current ? {
+        ...current,
+        beforeRestoreStoragePath: packageData.storagePath,
+        beforeRestoreChecksum: packageData.payload.metadata.checksum,
+        beforeRestoreCreatedAt: packageData.payload.metadata.exportedAt
+      } : current);
+      void saveFileWithSystemFallback(file).catch(() => {
+        setBeforeRestoreError("系统恢复点已安全保存；本地 BeforeRestore 下载未完成，不影响后续 Dry Run。可稍后重新下载。");
+      });
+      return packageData;
     } catch (error) {
       setBeforeRestoreStatus("error");
       const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "BeforeRestore 生成失败" };
@@ -412,6 +429,9 @@ export default function DataCenterPage() {
   }
 
   async function executeRestore(payload: DataExportPayload, beforeRestoreBackupPath: string, mode: "dry_run" | "restore" = "dry_run") {
+    if (!restoreSession || restoreSession.parsedBackupPayload !== payload || !await verifyRestoreSessionIntegrity(restoreSession) || !isDataExportPayload(payload) || !await verifyDataExportChecksum(payload)) {
+      throw new Error("恢复文件内容发生变化，请重新选择原始备份文件。");
+    }
     const session = await getValidSupabaseSession();
     if (!session?.access_token) throw new Error("登录已失效，请重新登录后再恢复。");
     const response = await fetch("/api/data-restore", {
@@ -425,7 +445,13 @@ export default function DataCenterPage() {
       throw new Error(restoreDryRunErrorText(diagnosticResult));
     }
     if (!result?.report) throw new Error("Restore Dry Run 未返回完整检查报告。");
-    return result.report;
+    const report = result.report;
+    if (mode === "dry_run") {
+      setRestoreSession((current) => current ? { ...current, dryRunResult: report, dryRunPassed: Boolean(report.databaseUnchanged), restoreConfirmationState: report.databaseUnchanged ? "dry_run_passed" : "not_ready" } : current);
+    } else {
+      setRestoreSession((current) => current ? { ...current, restoreConfirmationState: "confirmed" } : current);
+    }
+    return report;
   }
 
   return <AppLayout title="备份与恢复" description="管理业务数据备份、恢复入口和报表导出。">
@@ -447,7 +473,7 @@ export default function DataCenterPage() {
         {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton> : null}
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-      {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else setRestorePreview(null); setRestoreError(""); }} /> : null}
+      {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else { setRestorePreview(null); setRestoreSession(null); } setRestoreError(""); }} /> : null}
       </SectionCard>
       <BackupReminderCard />
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印或发送给会计，导出 Excel / CSV，不用于系统恢复。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
@@ -478,7 +504,7 @@ type RestoreDryRunReport = {
   mode?: "dry_run" | "restore";
 };
 
-function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<BeforeRestorePackage>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const rows = buildRestorePreviewDiffRows(payload.data, currentData);
@@ -524,7 +550,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         <p>恢复开始前，系统会自动生成一份当前数据 BeforeRestore 备份，并提示保存，以便需要时恢复当前状态。</p>
         {beforeRestoreStatus === "preparing" ? <p>正在生成恢复前备份…</p> : null}
         {beforeRestoreStatus === "saving" ? <p>正在调用系统保存，请选择保存位置…</p> : null}
-        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已生成</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
+        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已安全保存到系统恢复点，正在进入 Dry Run</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
         {beforeRestoreError ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreError}</p> : null}
       </div>
       {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
@@ -532,17 +558,26 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       {restoreSlow ? <p className="data-center-alert data-center-alert--warning" role="status">恢复仍在进行中，请稍候……</p> : null}
       {restoreReport && restoreReport.mode !== "restore" ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
        {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>真实 Restore 报告</strong><p>BeforeRestore：成功</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>Restore V2 一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
-      {beforeRestorePackage ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /><span>我已保存 BeforeRestore 文件，可以继续恢复</span></label> : null}
+      {restoreReport?.databaseUnchanged ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /><span>我已查看 Dry Run 报告，可以继续正式恢复</span></label> : null}
        <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        {canRealRestore ? <DangerButton type="button" disabled={(beforeRestorePackage ? !beforeRestoreConfirmed : false) || restoring || Boolean(restoreReport) || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
+        {canRealRestore ? <DangerButton type="button" disabled={(restoreReport?.databaseUnchanged ? !beforeRestoreConfirmed : false) || restoring || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
           setRestoreActionError(""); setRestoreActionSuccess("");
-          if (!beforeRestorePackage) { try { await onPrepareBeforeRestore(); } catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复前备份生成失败，请重试。"); } return; }
-          setRestoring(true); setRestoreReport(null);
-          try { const report = await onRestore(payload, beforeRestorePackage.storagePath, "restore"); await cacheManager.clearAll(); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${beforeRestorePackage?.fileName || "已生成的 BeforeRestore"}。建议检查收入、支出、租客和合同等关键数据。`); }
+          setRestoring(true);
+          try {
+            const prepared = beforeRestorePackage || await onPrepareBeforeRestore();
+            if (!restoreReport) {
+              const report = await onRestore(payload, prepared.storagePath, "dry_run");
+              setRestoreReport(report);
+              setRestoreActionSuccess("BeforeRestore 已安全保存，Dry Run 已完成。请查看报告后再确认正式恢复。");
+            } else {
+              const report = await onRestore(payload, prepared.storagePath, "restore");
+              await cacheManager.clearAll(); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${prepared.fileName}。建议检查收入、支出、租客和合同等关键数据。`);
+            }
+          }
           catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore 失败，数据库变更已自动回滚。"); }
           finally { setRestoring(false); }
-        })()}>{restoring ? "正在恢复…" : "开始恢复（Restore）"}</DangerButton> : null}
+        })()}>{restoring ? "正在处理…" : !beforeRestorePackage ? "生成安全备份并执行 Dry Run" : !restoreReport ? "执行 Dry Run" : "开始恢复（Restore）"}</DangerButton> : null}
        </div>
      </div>;
    }
@@ -553,6 +588,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       <div className="detail-field"><span>文件大小</span><strong>{formatBackupSize(preview.fileSize)}</strong></div>
       <div className="detail-field"><span>备份文件</span><strong>{preview.fileName}</strong></div>
       <div className="detail-field"><span>数据条数</span><strong>{payload.metadata.recordCount}</strong></div>
+      <div className="detail-field"><span>内容指纹</span><strong title={preview.session.originalPayloadSha256}>{preview.session.originalPayloadSha256.slice(0, 12)}…</strong></div>
     </div>
     <div className={`data-center-restore-result ${allMatch ? "data-center-restore-result--success" : "data-center-restore-result--warning"}`} role="status">
       <strong>{unavailableCount ? "⚠ 当前数据读取不完整，暂不能可靠比较。" : allMatch ? "✓ 当前数据与备份完全一致，可以安全进入下一步。" : `⚠ 共发现 ${differenceCount} 项数据存在差异，请确认是否使用此备份。`}</strong>
