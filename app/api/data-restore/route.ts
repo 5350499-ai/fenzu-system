@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, isFreeSingleAccount, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
+import { apiErrorResponse, getRestoreCapabilityForAccount, isFreeSingleAccount, parseJson, requireActiveAccount } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   createDataExportPayload,
@@ -384,13 +384,17 @@ function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId
 export async function POST(request: Request) {
   try {
     const context = await requireActiveAccount(request);
+    const restoreCapability = getRestoreCapabilityForAccount(context);
     if (context.profile.account_type !== "owner" && !isFreeSingleAccount(context)) {
       return NextResponse.json({ error: "当前账号没有恢复数据权限。", code: "restore_permission_denied" }, { status: 403 });
     }
     const operationId = crypto.randomUUID();
     logRestoreStage(operationId, "REQUEST_RECEIVED", { action: "data_restore" });
-    const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string };
+    const body = await parseJson(request) as { action?: string; payload?: unknown; beforeRestoreBackupPath?: string; localPreRestoreBackupConfirmed?: boolean; localPreRestoreBackupChecksum?: string; dryRunPassed?: boolean };
     if (body.action === "prepare_before_restore") {
+      if (!restoreCapability.cloudRecoveryEnabled) {
+        return NextResponse.json({ error: "免费版不提供云端恢复点，请先将当前数据备份保存到本机。", code: "free_user_cloud_before_restore_disabled" }, { status: 403 });
+      }
       const workspaceId = context.profile.workspace_owner_id;
       const diagnosticContext = { workspaceId, ownerId: context.userId, bucket: BACKUP_BUCKET, mimeType: "application/json" };
       let stage = "database_read";
@@ -450,9 +454,9 @@ export async function POST(request: Request) {
     const restorePayload = isFreeSingleAccount(context)
       ? await (async () => {
         const currentBackup = await createDataBackup(admin, context.profile.workspace_owner_id, {
-          backupType: "cloud",
+          backupType: "local",
           exportedBy: context.userId,
-          exportReason: "BeforeRestore",
+          exportReason: "Manual",
           timezone: uploadedPayload.metadata.timezone
         });
         const sanitizedData = rehydrateFreeSingleAttributionFields(
@@ -490,14 +494,19 @@ export async function POST(request: Request) {
     if (!integrity.valid) return NextResponse.json({ error: integrity.errors[0] || "备份文件校验失败。", code: "invalid_backup" }, { status: 400 });
     logRestoreStage(operationId, "PAYLOAD_VALIDATION_OK", { mode });
     let backupPath = body.beforeRestoreBackupPath || "";
-    if (mode === "dry_run") {
-    const expectedPrefix = `${context.profile.workspace_owner_id}/before-restore/`;
-    if (!backupPath.startsWith(expectedPrefix) || !backupPath.endsWith(".json")) return NextResponse.json({ error: "请先完成恢复前备份。", code: "before_restore_required" }, { status: 409 });
-    const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
-    if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
+    if (mode === "dry_run" && restoreCapability.cloudRecoveryEnabled) {
+      const expectedPrefix = `${context.profile.workspace_owner_id}/before-restore/`;
+      if (!backupPath.startsWith(expectedPrefix) || !backupPath.endsWith(".json")) return NextResponse.json({ error: "请先完成恢复前安全备份。", code: "before_restore_required" }, { status: 409 });
+      const beforeRestoreFile = await admin.storage.from(BACKUP_BUCKET).download(backupPath);
+      if (beforeRestoreFile.error || !beforeRestoreFile.data) return NextResponse.json({ error: "恢复前安全备份不可用，请重新生成。", code: "before_restore_missing" }, { status: 409 });
     }
     const normalized = normalizeRestoreDataFromDatabaseSchema(restorePayload, context.profile.workspace_owner_id);
-    if (mode === "restore") {
+    if (mode === "restore" && restoreCapability.localPreRestoreBackupRequired) {
+      if (body.dryRunPassed !== true || body.localPreRestoreBackupConfirmed !== true || !/^[a-f0-9]{64}$/i.test(body.localPreRestoreBackupChecksum || "")) {
+        return NextResponse.json({ error: "正式恢复前必须完成恢复演练，并确认已将当前数据备份保存到本机。", code: "local_pre_restore_backup_required" }, { status: 409 });
+      }
+    }
+    if (mode === "restore" && restoreCapability.cloudRecoveryEnabled) {
       let freshBeforeRestore: Awaited<ReturnType<typeof createBeforeRestorePackage>>;
       try {
         logRestoreStage(operationId, "BEFORE_RESTORE_START", { mode });
@@ -555,6 +564,16 @@ export async function POST(request: Request) {
       logRestoreStage(operationId, "BUILD_RESPONSE_DONE", { mode, status: 200 });
       logRestoreStage(operationId, "API_RETURN", { mode, status: 200 });
       return NextResponse.json(responseBody);
+    }
+    if (mode === "restore" && restoreCapability.localPreRestoreBackupRequired) {
+      logRestoreStage(operationId, "RESTORE_RPC_START", { rpcName: "restore_workspace_backup", preRestoreBackup: "local_user_backup" });
+      const { error: restoreError } = await admin.rpc("restore_workspace_backup", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
+      if (restoreError) {
+        const diagnostic = { ...restoreDiagnostic(restoreError, null, mode), error: "恢复失败" };
+        emitRestoreFailureDiagnostic({ restoreSessionId: operationId, stage: diagnostic.failureStage, sqlState: diagnostic.sqlState, table: diagnostic.table, column: diagnostic.column, constraint: diagnostic.constraint, recordId: diagnostic.recordId, workspace: context.profile.workspace_owner_id, actorType: context.profile.account_type, mode, message: diagnostic.message });
+        return NextResponse.json({ ...diagnostic, report: { beforeRestore: { success: true, mode: "local_user_backup" }, cloudRecoveryPointCreated: false, upload: { success: true }, delete: { success: false }, import: { success: false }, fieldValidation: { success: false }, consistencyValidation: { success: false }, transactionRolledBack: true, databaseUnchanged: true, databaseRestored: false, mode } }, { status: 409 });
+      }
+      return NextResponse.json({ ok: true, restore: true, beforeRestore: { mode: "local_user_backup" }, cloudRecoveryPointCreated: false, report: { beforeRestore: { success: true, mode: "local_user_backup" }, cloudRecoveryPointCreated: false, upload: { success: true }, delete: { success: true }, import: { success: true }, fieldValidation: { success: true }, consistencyValidation: { success: true }, transactionRolledBack: false, databaseUnchanged: false, databaseRestored: true, mode } });
     }
     const { data: dryRun, error } = await admin.rpc("restore_workspace_backup_dry_run", { p_workspace_owner_id: context.profile.workspace_owner_id, p_actor_account_id: context.userId, p_data: normalized });
     if (error || !dryRun?.ok) {

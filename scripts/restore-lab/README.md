@@ -30,3 +30,13 @@ and downloads a BeforeRestore recovery point, verifies its SHA-256, uses the
 downloaded bytes as the Restore input, runs five full Dry Run/Restore rounds,
 and records rollback diagnostics outside the database transaction. It must not
 be pointed at a linked or Production project.
+
+The free-user versus internal-full recovery policy is exercised separately:
+
+```powershell
+npm run test:restore-policy-lab
+```
+
+This runner performs five local-only free-user Dry Run/Restore rounds with no
+new cloud recovery point, then three internal-full rounds using the preserved
+server recovery-point path. Both flows use the same populated 18-table fixture.

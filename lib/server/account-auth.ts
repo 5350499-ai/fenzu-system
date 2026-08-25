@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseAuthVerifier } from "@/lib/supabase-admin";
 import { isFreeSinglePlan, isFreeSingleRestrictedModule, isFreeSingleRestrictedSensitivePermission, type AccountPlan } from "@/lib/free-single";
+import { getRestoreCapability, type RestoreCapability } from "@/lib/restore-capability";
 
 export type AccountProfileRow = {
   auth_user_id: string;
@@ -275,6 +276,10 @@ export function requireRestorePreviewReadAccess(context: Pick<AccountRequestCont
   const isWorkspaceOwner = context.userId === context.profile.workspace_owner_id;
   const allowed = isWorkspaceOwner && (context.profile.account_type === "owner" || isFreeSingleAccount(context));
   if (!allowed) throw new AccountApiError("没有权限执行此操作。", 403, "restore_preview_permission_denied");
+}
+
+export function getRestoreCapabilityForAccount(context: Pick<AccountRequestContext, "profile">): RestoreCapability {
+  return getRestoreCapability({ accountType: context.profile.account_type, accountPlan: context.profile.account_plan });
 }
 
 export function isSettlementConfirmationActor(context: Pick<AccountRequestContext, "userId" | "profile">) {

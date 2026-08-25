@@ -21,7 +21,8 @@
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs",
     "validate:restore-live-schema": "node scripts/validate-restore-live-schema.mjs",
-    "test:restore-lab": "node scripts/restore-lab/acceptance-runner.mjs"
+    "test:restore-lab": "node scripts/restore-lab/acceptance-runner.mjs",
+    "test:restore-policy-lab": "node scripts/restore-lab/free-user-policy-runner.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

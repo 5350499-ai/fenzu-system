@@ -52,24 +52,24 @@ type ExportRow = Record<string, unknown> & { id: string };
 type BackupStatus = "preparing" | "ready" | "generating" | "validating" | "handoff" | "complete" | "error";
 type RestorePreview = { fileName: string; fileSize: number; payload: DataExportPayload; currentData: Record<string, unknown>; session: RestoreSession };
 type RestoreStep = "preview" | "confirm";
-type BeforeRestorePackage = { fileName: string; storagePath: string; payload: DataExportPayload };
+type BeforeRestorePackage = { fileName: string; storagePath?: string; payload: DataExportPayload; kind: "cloud" | "local" };
 type BeforeRestoreDiagnostic = { error?: string; code?: string; sqlState?: string | null; message?: string; details?: string | null; hint?: string | null; stack?: string | null; stage?: string; schema?: string | null; table?: string | null; constraint?: string | null; recordId?: string | null; recordCount?: number | null; bucket?: string | null; objectPath?: string | null; mimeType?: string | null; workspaceId?: string | null; ownerId?: string | null; storageResponse?: unknown; supabaseResponse?: unknown; rawRpcError?: unknown; rawDryRun?: unknown };
 
 class BeforeRestoreClientError extends Error {
   diagnostic: BeforeRestoreDiagnostic;
   constructor(diagnostic: BeforeRestoreDiagnostic) {
-    super(diagnostic.message || diagnostic.error || "BeforeRestore 生成失败");
+    super(diagnostic.message || diagnostic.error || "恢复前安全备份生成失败");
     this.name = "BeforeRestoreClientError";
     this.diagnostic = diagnostic;
   }
 }
 
 function beforeRestoreStageLabel(stage?: string) {
-  return ({ database_read: "数据库读取", json_generation: "JSON 生成", json_serialization: "JSON 序列化", storage_upload: "Storage 上传", response: "服务端返回", file_generation: "生成分享文件", navigator_share: "navigator.share 分享", file_system_access: "文件选择器保存", browser_download: "浏览器下载" } as Record<string, string>)[stage || ""] || stage || "未知步骤";
+  return ({ database_read: "数据库读取", json_generation: "备份文件生成", json_serialization: "备份文件整理", storage_upload: "云端保存", response: "服务端返回", file_generation: "生成分享文件", navigator_share: "系统分享", file_system_access: "文件选择器保存", browser_download: "浏览器下载" } as Record<string, string>)[stage || ""] || "未知步骤";
 }
 
 function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
-  const lines = [`❌ ${beforeRestoreStageLabel(diagnostic.stage)}失败`, diagnostic.message || diagnostic.error || "BeforeRestore 生成失败"];
+  const lines = [`❌ ${beforeRestoreStageLabel(diagnostic.stage)}失败`, diagnostic.message || diagnostic.error || "恢复前安全备份生成失败"];
   if (diagnostic.code) lines.push(`错误代码：${diagnostic.code}`);
   if (diagnostic.sqlState) lines.push(`SQLSTATE：${diagnostic.sqlState}`);
   if (diagnostic.details) lines.push(`详情：${diagnostic.details}`);
@@ -83,9 +83,10 @@ function beforeRestoreErrorText(diagnostic: BeforeRestoreDiagnostic) {
 }
 
 function restoreDryRunErrorText(result: Record<string, unknown>) {
-  const serialized = JSON.stringify(result, null, 2);
-  if (/the object can not be found here|object not found/i.test(serialized)) return "❌ 原备份文件引用已失效，请重新选择原始备份文件。";
-  return ["❌ Restore Dry Run 失败", serialized].join("\n");
+  const message = typeof result.message === "string" ? result.message : typeof result.error === "string" ? result.error : "恢复演练未通过。";
+  if (/the object can not be found here|object not found/i.test(message)) return "❌ 原备份文件引用已失效，请重新选择原始备份文件。";
+  const code = typeof result.code === "string" ? `（错误代码：${result.code}）` : "";
+  return `❌ 恢复演练失败：${message}${code}`;
 }
 
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
@@ -125,6 +126,8 @@ export default function DataCenterPage() {
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [beforeRestorePackage, setBeforeRestorePackage] = useState<BeforeRestorePackage | null>(null);
   const [beforeRestoreConfirmed, setBeforeRestoreConfirmed] = useState(false);
+  const [localPreRestoreBackupSaved, setLocalPreRestoreBackupSaved] = useState(false);
+  const [localPreRestoreBackupConfirmed, setLocalPreRestoreBackupConfirmed] = useState(false);
   const [beforeRestoreStatus, setBeforeRestoreStatus] = useState<"idle" | "preparing" | "saving" | "ready" | "error">("idle");
   const [beforeRestoreError, setBeforeRestoreError] = useState("");
   const [beforeRestoreDownloadNotice, setBeforeRestoreDownloadNotice] = useState("");
@@ -352,6 +355,8 @@ export default function DataCenterPage() {
     setRestoreError("");
     setBeforeRestorePackage(null);
     setBeforeRestoreConfirmed(false);
+    setLocalPreRestoreBackupSaved(false);
+    setLocalPreRestoreBackupConfirmed(false);
     setBeforeRestoreStatus("idle");
     setBeforeRestoreError("");
     setBeforeRestoreDownloadNotice("");
@@ -401,23 +406,53 @@ export default function DataCenterPage() {
       });
       const result = await response.json().catch(() => null) as (BeforeRestoreDiagnostic & { beforeRestore?: BeforeRestorePackage }) | null;
       if (!response.ok || !result?.beforeRestore) throw new BeforeRestoreClientError(result || { stage: "response", code: "before_restore_response_invalid", message: "服务端没有返回有效的 BeforeRestore 文件" });
-      const packageData = result.beforeRestore;
+      const packageData: BeforeRestorePackage = { ...result.beforeRestore, kind: "cloud" };
       setBeforeRestoreStatus("saving");
-      setBeforeRestorePackage(packageData);
+      setBeforeRestorePackage({ ...packageData, kind: "cloud" });
       setBeforeRestoreConfirmed(false);
       setBeforeRestoreStatus("ready");
       setRestoreSession((current) => current ? {
         ...current,
-        beforeRestoreStoragePath: packageData.storagePath,
+        beforeRestoreStoragePath: packageData.storagePath || null,
         beforeRestoreChecksum: packageData.payload.metadata.checksum,
         beforeRestoreCreatedAt: packageData.payload.metadata.exportedAt
       } : current);
       return packageData;
     } catch (error) {
       setBeforeRestoreStatus("error");
-      const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "BeforeRestore 生成失败" };
+      const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "恢复前安全备份生成失败" };
       setBeforeRestoreError(beforeRestoreErrorText(diagnostic));
       throw error;
+    }
+  }
+
+  async function prepareLocalPreRestoreBackup() {
+    setBeforeRestoreStatus("preparing");
+    setBeforeRestoreError("");
+    setBeforeRestoreDownloadNotice("");
+    try {
+      const session = await getValidSupabaseSession();
+      if (!session?.access_token) throw new Error("登录已失效，请重新登录后再继续。");
+      const response = await fetch("/api/data-backup", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+      const result = await response.json().catch(() => null) as { payload?: DataExportPayload; error?: string } | null;
+      if (!response.ok || !result?.payload) throw new Error(result?.error || "当前数据备份生成失败。");
+      const integrity = await dryRunRestore(result.payload);
+      if (!integrity.valid) throw new Error(integrity.errors[0] || "当前数据备份校验失败。");
+      const now = new Date();
+      const part = (value: number) => String(value).padStart(2, "0");
+      const fileName = `恢复前备份-${now.getFullYear()}-${part(now.getMonth() + 1)}-${part(now.getDate())}-${part(now.getHours())}${part(now.getMinutes())}.json`;
+      const packageData: BeforeRestorePackage = { fileName, payload: result.payload, kind: "local" };
+      setBeforeRestorePackage(packageData);
+      setBeforeRestoreStatus("saving");
+      await saveFileWithSystemFallback(buildExportFile(fileName, JSON.stringify(result.payload, null, 2), "application/json"));
+      setLocalPreRestoreBackupSaved(true);
+      setLocalPreRestoreBackupConfirmed(false);
+      setBeforeRestoreStatus("ready");
+      setBeforeRestoreDownloadNotice("当前数据备份已交给系统保存。请确认已将文件保存到安全位置。");
+    } catch (error) {
+      setBeforeRestoreStatus("error");
+      setLocalPreRestoreBackupSaved(false);
+      setBeforeRestoreError(error instanceof UserCancelledFileHandoffError ? "已取消保存，请重新点击“备份当前数据到本机”。" : error instanceof Error ? error.message : "当前数据备份保存失败，请重试。");
     }
   }
 
@@ -430,9 +465,9 @@ export default function DataCenterPage() {
       setBeforeRestoreDownloadNotice("本地恢复前备份副本已交给系统处理；这不会改变当前 Restore 流程。");
     } catch (error) {
       if (error instanceof UserCancelledFileHandoffError) {
-        setBeforeRestoreDownloadNotice("已取消本地副本下载；系统恢复点仍然安全保存，不影响 Dry Run。");
+        setBeforeRestoreDownloadNotice("已取消本地副本下载；系统恢复点仍然安全保存，不影响恢复演练。");
       } else {
-        setBeforeRestoreDownloadNotice("本地副本下载未完成；系统恢复点仍然安全保存，不影响 Dry Run。");
+        setBeforeRestoreDownloadNotice("本地副本下载未完成；系统恢复点仍然安全保存，不影响恢复演练。");
       }
     }
   }
@@ -446,14 +481,14 @@ export default function DataCenterPage() {
     const response = await fetch("/api/data-restore", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: mode, payload, beforeRestoreBackupPath })
+      body: JSON.stringify({ action: mode, payload, beforeRestoreBackupPath, dryRunPassed: restoreSession.dryRunPassed, localPreRestoreBackupConfirmed, localPreRestoreBackupChecksum: beforeRestorePackage?.kind === "local" ? beforeRestorePackage.payload.metadata.checksum : undefined })
     });
     const result = await response.json().catch(() => null) as (Record<string, unknown> & { report?: RestoreDryRunReport }) | null;
     if (!response.ok) {
-      const diagnosticResult: Record<string, unknown> = result ?? { error: "Restore Dry Run 失败" };
+      const diagnosticResult: Record<string, unknown> = result ?? { error: "恢复演练失败" };
       throw new Error(restoreDryRunErrorText(diagnosticResult));
     }
-    if (!result?.report) throw new Error("Restore Dry Run 未返回完整检查报告。");
+    if (!result?.report) throw new Error("恢复演练未返回完整检查报告。");
     const report = result.report;
     if (mode === "dry_run") {
       setRestoreSession((current) => current ? { ...current, dryRunResult: report, dryRunPassed: Boolean(report.databaseUnchanged), restoreConfirmationState: report.databaseUnchanged ? "dry_run_passed" : "not_ready" } : current);
@@ -482,7 +517,7 @@ export default function DataCenterPage() {
         {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton> : null}
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-  {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} beforeRestoreDownloadNotice={beforeRestoreDownloadNotice} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onDownloadBeforeRestoreCopy={downloadBeforeRestoreCopy} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else { setRestorePreview(null); setRestoreSession(null); } setRestoreError(""); }} /> : null}
+  {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} localPreRestoreBackupSaved={localPreRestoreBackupSaved} localPreRestoreBackupConfirmed={localPreRestoreBackupConfirmed} onLocalPreRestoreBackupConfirmed={setLocalPreRestoreBackupConfirmed} isFreeUser={access.isFreeSingle} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} beforeRestoreDownloadNotice={beforeRestoreDownloadNotice} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onPrepareLocalPreRestoreBackup={prepareLocalPreRestoreBackup} onDownloadBeforeRestoreCopy={downloadBeforeRestoreCopy} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else { setRestorePreview(null); setRestoreSession(null); } setRestoreError(""); }} /> : null}
       </SectionCard>
       <BackupReminderCard />
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印或发送给会计，导出 Excel / CSV，不用于系统恢复。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
@@ -513,7 +548,7 @@ type RestoreDryRunReport = {
   mode?: "dry_run" | "restore";
 };
 
-function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, beforeRestoreDownloadNotice, canRealRestore, onPrepareBeforeRestore, onDownloadBeforeRestoreCopy, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; beforeRestoreDownloadNotice: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<BeforeRestorePackage>; onDownloadBeforeRestoreCopy: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, localPreRestoreBackupSaved, localPreRestoreBackupConfirmed, onLocalPreRestoreBackupConfirmed, isFreeUser, beforeRestoreStatus, beforeRestoreError, beforeRestoreDownloadNotice, canRealRestore, onPrepareBeforeRestore, onPrepareLocalPreRestoreBackup, onDownloadBeforeRestoreCopy, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; localPreRestoreBackupSaved: boolean; localPreRestoreBackupConfirmed: boolean; onLocalPreRestoreBackupConfirmed: (confirmed: boolean) => void; isFreeUser: boolean; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; beforeRestoreDownloadNotice: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<BeforeRestorePackage>; onPrepareLocalPreRestoreBackup: () => Promise<void>; onDownloadBeforeRestoreCopy: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const rows = buildRestorePreviewDiffRows(payload.data, currentData);
@@ -542,52 +577,55 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       <div className="data-center-restore-warning" role="alert">
         <strong>⚠ 即将恢复备份</strong>
         <p>恢复将覆盖当前所有业务数据。</p>
-        <p>恢复前系统将自动创建一份当前数据 Backup，以便需要时可以恢复回来。</p>
+        {isFreeUser ? <p>免费版不提供云端备份保管。正式恢复前，请先将当前数据备份保存到您的手机或电脑。</p> : <p>恢复前系统将自动保存一份当前数据到云端恢复点。</p>}
         <p>本次操作不可撤销。</p>
       </div>
-      <div className="panel-header"><div><h3 className="panel-title">最终确认</h3><p className="data-center-muted">恢复前会自动保存当前数据备份；恢复过程由数据库事务保护，失败将完整回滚。</p></div></div>
+      <div className="panel-header"><div><h3 className="panel-title">最终确认</h3><p className="data-center-muted">{isFreeUser ? "请先完成当前数据本地备份确认；恢复过程由数据库事务保护，失败将完整回滚。" : "恢复前会自动保存当前数据备份；恢复过程由数据库事务保护，失败将完整回滚。"}</p></div></div>
       <div className="detail-grid">
         <div className="detail-field"><span>Backup 文件名</span><strong>{preview.fileName}</strong></div>
-        <div className="detail-field"><span>Backup 时间</span><strong>{new Date(payload.metadata.exportedAt).toLocaleString("zh-CN")}</strong></div>
+        <div className="detail-field"><span>备份时间</span><strong>{new Date(payload.metadata.exportedAt).toLocaleString("zh-CN")}</strong></div>
         <div className="detail-field"><span>差异项数量</span><strong>{differenceCount}</strong></div>
         <div className="detail-field"><span>数据状态</span><strong>{unavailableCount ? "当前数据不可用" : allMatch ? "全部一致" : "存在差异"}</strong></div>
       </div>
       <p className="data-center-restore-confirmation">
       </p>
       <div className="data-center-before-restore" role="status">
-        <strong>恢复前备份</strong>
-        <p>恢复开始前，系统会自动生成一份当前数据 BeforeRestore 备份并保存到系统恢复点，以便需要时恢复当前状态。</p>
+        <strong>{isFreeUser ? "恢复前必须备份当前数据" : "恢复前安全备份"}</strong>
+        {isFreeUser ? <p>免费版不提供云端备份保管。请先点击下方按钮，将当前数据备份保存到安全位置；未保存可能导致无法回退。</p> : <p>恢复开始前，系统会自动生成一份当前数据并保存到云端恢复点。</p>}
         {beforeRestoreStatus === "preparing" ? <p>正在生成恢复前备份…</p> : null}
         {beforeRestoreStatus === "saving" ? <p>正在调用系统保存，请选择保存位置…</p> : null}
-        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已安全保存到系统恢复点，正在进入 Dry Run</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div><p className="data-center-muted">如需额外保存到本机，可选下载一份副本；本地下载不会影响 Restore 流程。</p><SecondaryButton type="button" onClick={() => void onDownloadBeforeRestoreCopy()}>下载恢复前备份副本（可选）</SecondaryButton></> : null}
+        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ {isFreeUser ? "当前数据备份已生成" : "恢复前安全备份已保存到云端恢复点"}</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div>{!isFreeUser ? <><p className="data-center-muted">如需额外保存到本机，可选下载一份副本；本地下载不会影响恢复流程。</p><SecondaryButton type="button" onClick={() => void onDownloadBeforeRestoreCopy()}>下载恢复前备份副本（可选）</SecondaryButton></> : null}</> : null}
         {beforeRestoreError ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreError}</p> : null}
         {beforeRestoreDownloadNotice ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreDownloadNotice}</p> : null}
+        {isFreeUser && !localPreRestoreBackupSaved ? <SecondaryButton type="button" onClick={() => void onPrepareLocalPreRestoreBackup()} disabled={beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"}>备份当前数据到本机</SecondaryButton> : null}
       </div>
       {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}
       {restoreSlow ? <p className="data-center-alert data-center-alert--warning" role="status">恢复仍在进行中，请稍候……</p> : null}
-      {restoreReport && restoreReport.mode !== "restore" ? <div className="data-center-restore-report" role="status"><strong>恢复模拟报告（Restore Report）</strong><p>BeforeRestore：{restoreReport.beforeRestore.success ? "成功" : "失败"}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>Restore V2 一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
-       {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>真实 Restore 报告</strong><p>BeforeRestore：成功</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>Restore V2 一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
-      {restoreReport?.databaseUnchanged ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /><span>我已查看 Dry Run 报告，可以继续正式恢复</span></label> : null}
+      {restoreReport && restoreReport.mode !== "restore" ? <div className="data-center-restore-report" role="status"><strong>恢复报告</strong><p>{isFreeUser ? "恢复前本地备份：无需云端恢复点" : `恢复前安全备份：${restoreReport.beforeRestore.success ? "成功" : "失败"}`}</p><p>上传：{restoreReport.upload.success ? "成功" : "失败"}</p><p>删除模拟：{restoreReport.delete.success ? "成功" : "失败"}</p><p>导入模拟：{restoreReport.import.success ? "成功" : "失败"}</p><p>字段级校验：{restoreReport.fieldValidation.success ? "通过" : "失败"}</p><p>数据一致性校验：{restoreReport.consistencyValidation.success ? "通过" : "失败"}</p><p>事务回滚：{restoreReport.transactionRolledBack ? "已执行" : "未执行"}</p><p>数据库：{restoreReport.databaseUnchanged ? "未修改" : "状态未知"}</p></div> : null}
+      {restoreReport?.mode === "restore" ? <div className="data-center-restore-report" role="status"><strong>恢复报告</strong><p>{isFreeUser ? "恢复前本地备份：已确认" : "恢复前安全备份：成功"}</p><p>上传：成功</p><p>删除：成功</p><p>导入：成功</p><p>字段级校验：通过</p><p>数据一致性校验：通过</p><p>事务回滚：未执行</p><p>数据库：已恢复</p></div> : null}
+      {restoreReport?.databaseUnchanged && !isFreeUser ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={beforeRestoreConfirmed} onChange={(event) => onBeforeRestoreConfirmed(event.target.checked)} /><span>我已查看恢复演练报告，可以继续正式恢复</span></label> : null}
+      {restoreReport?.databaseUnchanged && isFreeUser && localPreRestoreBackupSaved ? <label className="data-center-restore-confirmation data-center-restore-confirmation--prominent"><input type="checkbox" checked={localPreRestoreBackupConfirmed} onChange={(event) => onLocalPreRestoreBackupConfirmed(event.target.checked)} /><span>我已将恢复前备份保存到安全位置</span></label> : null}
        <div className="settings-actions">
         <SecondaryButton type="button" onClick={onBack}>返回</SecondaryButton>
-        {canRealRestore ? <DangerButton type="button" disabled={(restoreReport?.databaseUnchanged ? !beforeRestoreConfirmed : false) || restoring || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
+        {canRealRestore ? <DangerButton type="button" disabled={(isFreeUser ? (restoreReport?.databaseUnchanged ? !localPreRestoreBackupSaved || !localPreRestoreBackupConfirmed : false) : (restoreReport?.databaseUnchanged ? !beforeRestoreConfirmed : false)) || restoring || beforeRestoreStatus === "preparing" || beforeRestoreStatus === "saving"} onClick={() => void (async () => {
           setRestoreActionError(""); setRestoreActionSuccess("");
           setRestoring(true);
           try {
-            const prepared = beforeRestorePackage || await onPrepareBeforeRestore();
             if (!restoreReport) {
-              const report = await onRestore(payload, prepared.storagePath, "dry_run");
+              const prepared = isFreeUser ? null : (beforeRestorePackage || await onPrepareBeforeRestore());
+              const report = await onRestore(payload, prepared?.storagePath || "", "dry_run");
               setRestoreReport(report);
-              setRestoreActionSuccess("BeforeRestore 已安全保存，Dry Run 已完成。请查看报告后再确认正式恢复。");
+              setRestoreActionSuccess(isFreeUser ? "恢复演练已完成。请先备份当前数据到本机，再确认正式恢复。" : "恢复前安全备份已保存，恢复演练已完成。请查看报告后再确认正式恢复。");
             } else {
-              const report = await onRestore(payload, prepared.storagePath, "restore");
-              await cacheManager.clearAll(); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。BeforeRestore 文件：${prepared.fileName}。建议检查收入、支出、租客和合同等关键数据。`);
+              const prepared = isFreeUser ? null : (beforeRestorePackage || await onPrepareBeforeRestore());
+              const report = await onRestore(payload, prepared?.storagePath || "", "restore");
+              await cacheManager.clearAll(); setRestoreReport(report); setRestoreActionSuccess(`数据库已恢复成功。恢复来源文件：${preview.fileName}。${prepared ? `恢复前备份文件：${prepared.fileName}。` : "恢复前备份已由您保存到本机。"}建议检查收入、支出、租客和合同等关键数据。`);
             }
           }
-          catch (error) { setRestoreActionError(error instanceof Error ? error.message : "Restore 失败，数据库变更已自动回滚。"); }
+          catch (error) { setRestoreActionError(error instanceof Error ? error.message : "恢复失败，数据库变更已自动回滚。"); }
           finally { setRestoring(false); }
-        })()}>{restoring ? "正在处理…" : !beforeRestorePackage ? "生成安全备份并执行 Dry Run" : !restoreReport ? "执行 Dry Run" : "开始恢复（Restore）"}</DangerButton> : null}
+        })()}>{restoring ? "正在处理…" : !restoreReport ? "执行恢复演练" : isFreeUser && !localPreRestoreBackupSaved ? "请先备份当前数据到本机" : "正式恢复"}</DangerButton> : null}
        </div>
      </div>;
    }
