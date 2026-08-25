@@ -1439,3 +1439,8 @@
 
 - Restore Preview current-summary counts now use head-count semantics without assuming every table has an `id` column; request tables continue to use their canonical `client_request_id` identity transparently.
 - Preserved free-single read permission, owner-only `/api/accounts`, Preview resilience, Restore mapping, database schema, migrations and business data.
+# 2026-08-25 - Trusted Restore context for business permission triggers
+
+- Added a transaction-local, actor/workspace-bound trusted Restore context for the canonical Restore wrapper.
+- Shared business update-permission triggers now allow only that validated Restore context while preserving ordinary CRUD and move-out permission checks.
+- Added anti-spoof and Restore-boundary regression coverage. Production migration execution remains pending.
