@@ -59,6 +59,7 @@ status.
 /api/data-backup/status
 /api/data-backup/complete
 /api/data-restore
+/api/data-restore/current-summary
 /api/debug/backup-trace
 /api/files/google-drive/complete
 /api/files/google-drive/content

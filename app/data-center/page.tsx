@@ -36,6 +36,7 @@ import { saveFileWithSystemFallback, UserCancelledFileHandoffError } from "@/lib
 import { installBackupRuntimeTrace, traceBackupRuntimeEvent } from "@/lib/backup-runtime-trace";
 import { cacheManager } from "@/lib/cache/cache-manager";
 import { markSuccessfulBackup, recordSuccessfulBackup } from "@/lib/backup-reminders";
+import { buildRestorePreviewDiffRows, summarizeRestorePreviewDiff } from "@/lib/restore-preview-diff";
 
 type CoreData = {
   properties: BusinessProperty[];
@@ -84,27 +85,6 @@ function restoreDryRunErrorText(result: Record<string, unknown>) {
   return ["❌ Restore Dry Run 失败", JSON.stringify(result, null, 2)].join("\n");
 }
 
-const restoreLabels: Record<string, string> = {
-  properties: "房源",
-  rooms: "房间",
-  tenants: "租客",
-  contracts: "合同",
-  rentPayments: "收租",
-  expenses: "支出",
-  deposits: "押金",
-  viewingAppointments: "看房预约",
-  tasks: "待办",
-  partners: "合伙人",
-  partnerShares: "比例方案",
-  partnerNameHistory: "合伙人名称历史",
-  propertyHistory: "房源历史",
-  settlementBatches: "结算批次",
-  settlementSnapshots: "结算快照",
-  auditLogs: "操作日志（仅审计，不参与一致性校验）",
-  accounts: "账号",
-  settings: "系统设置"
-};
-
 const emptyData: CoreData = { properties: [], rooms: [], tenants: [], contracts: [], rentPayments: [], expenses: [], deposits: [] };
 const countLabels: Record<string, string> = {
   properties: "房源", rooms: "房间", tenants: "租客", contracts: "合同", rentPayments: "收款",
@@ -147,7 +127,7 @@ export default function DataCenterPage() {
 
   useEffect(() => installBackupRuntimeTrace(), []);
 
-  async function loadExportData(updatePageState = true) {
+  async function loadExportData(updatePageState = true, forRestorePreview = false) {
     if (updatePageState) {
       setLoading(true);
       setError("");
@@ -173,11 +153,16 @@ export default function DataCenterPage() {
       } catch { /* The export remains limited to the current account's readable data. */ }
       const session = await getValidSupabaseSession();
       const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-      const [settlementResponse, accountResponse, auditResponse] = await Promise.all([
+      const [settlementResponse, accountResponse, auditResponse, restoreSummaryResponse] = await Promise.all([
         access.canSensitive("canViewPartnershipSettlement") ? fetch("/api/partner-settlements", { headers: authHeaders, cache: "no-store" }) : null,
-        access.isOwner ? fetch("/api/accounts", { headers: authHeaders, cache: "no-store" }) : null,
-        access.canSensitive("canViewAuditLogs") ? fetch("/api/audit-logs", { headers: authHeaders, cache: "no-store" }) : null
+        forRestorePreview || access.isOwner ? fetch("/api/accounts", { headers: authHeaders, cache: "no-store" }) : null,
+        access.canSensitive("canViewAuditLogs") ? fetch("/api/audit-logs", { headers: authHeaders, cache: "no-store" }) : null,
+        forRestorePreview ? fetch("/api/data-restore/current-summary", { headers: authHeaders, cache: "no-store" }) : null
       ]);
+      const restoreSummary = forRestorePreview
+        ? (restoreSummaryResponse?.ok ? await restoreSummaryResponse.json() as Record<string, unknown> : null)
+        : null;
+      if (forRestorePreview && !restoreSummary) throw new Error("无法读取当前恢复预览数据，请稍后重试。");
       const settlementBody = settlementResponse?.ok ? await settlementResponse.json() : {};
       const accountBody = accountResponse?.ok ? await accountResponse.json() : {};
       const auditBody = auditResponse?.ok ? await auditResponse.json() : {};
@@ -192,12 +177,21 @@ export default function DataCenterPage() {
       const nextAccounts = Array.isArray(accountBody.accounts) ? accountBody.accounts : [];
       const nextAuditLogs = Array.isArray(auditBody.logs) ? auditBody.logs : [];
       const nextPartnerRatios = loadPartnerRatios();
+      const countPlaceholders = (key: string, value: unknown) => Array.from({ length: Math.max(0, Number(value) || 0) }, (_, index) => ({ id: `preview:${key}:${index}` }));
       const nextData = { properties, rooms, tenants, contracts, rentPayments, expenses, deposits };
       const nextExportData: Record<string, unknown> = {
         ...nextData, tasks: taskRows, viewingAppointments: appointments, partners: nextPartners, partnerShares: nextShares,
         partnerNameHistory: nextHistory, propertyHistory: [], settlementBatches: batches, settlementSnapshots: snapshots,
         accounts: nextAccounts, auditLogs: nextAuditLogs, settings: { legacyPartnerRatios: nextPartnerRatios }
       };
+      if (restoreSummary) {
+        nextExportData.partners = countPlaceholders("partners", restoreSummary.partners);
+        nextExportData.partnerShares = countPlaceholders("partnerShares", restoreSummary.partnerShares);
+        nextExportData.partnerNameHistory = countPlaceholders("partnerNameHistory", restoreSummary.partnerNameHistory);
+        nextExportData.checkInRequests = countPlaceholders("checkInRequests", restoreSummary.checkInRequests);
+        nextExportData.tenantCreateRequests = countPlaceholders("tenantCreateRequests", restoreSummary.tenantCreateRequests);
+        nextExportData.accounts = countPlaceholders("accounts", restoreSummary.accounts);
+      }
       if (updatePageState) {
         setData(nextData); setTasks(taskRows); setViewingAppointments(appointments); setPartners(nextPartners); setPartnerShares(nextShares);
         setNameHistory(nextHistory); setSettlementBatches(batches); setSettlementSnapshots(snapshots); setAccounts(nextAccounts); setAuditLogs(nextAuditLogs);
@@ -371,7 +365,7 @@ export default function DataCenterPage() {
       const integrity = validateDataExportIntegrity(parsed);
       if (!integrity.valid) throw new Error(integrity.errors[0] || "备份文件校验失败，请选择完整文件。");
       if (!await verifyDataExportChecksum(parsed)) throw new Error("备份校验失败，文件可能已损坏。");
-      const currentData = await loadExportData(false);
+      const currentData = await loadExportData(false, true);
       setRestorePreview({ fileName: file.name, fileSize: file.size, payload: parsed, currentData });
     } catch (previewError) {
       setRestoreError(previewError instanceof Error ? previewError.message : "备份文件无法读取，请重新选择。");
@@ -483,16 +477,8 @@ type RestoreDryRunReport = {
 function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
-  const keys = Object.keys(payload.data);
-  const countValue = (value: unknown) => Array.isArray(value) ? value.length : value && typeof value === "object" ? 1 : 0;
-  const rows = keys.map((key) => {
-    const current = countValue(currentData[key]);
-    const backup = countValue(payload.data[key]);
-    const auditOnly = key === "auditLogs";
-    return { key, label: restoreLabels[key] || "其他数据", current, backup, differs: !auditOnly && current !== backup, auditOnly };
-  });
-  const differenceCount = rows.filter((row) => row.differs).length;
-  const allMatch = differenceCount === 0;
+  const rows = buildRestorePreviewDiffRows(payload.data, currentData);
+  const { differenceCount, unavailableCount, allMatch } = summarizeRestorePreviewDiff(rows);
   const [restoreActionError, setRestoreActionError] = useState("");
   const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
   const [restoreReport, setRestoreReport] = useState<RestoreDryRunReport | null>(null);
@@ -525,7 +511,7 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
         <div className="detail-field"><span>Backup 文件名</span><strong>{preview.fileName}</strong></div>
         <div className="detail-field"><span>Backup 时间</span><strong>{new Date(payload.metadata.exportedAt).toLocaleString("zh-CN")}</strong></div>
         <div className="detail-field"><span>差异项数量</span><strong>{differenceCount}</strong></div>
-        <div className="detail-field"><span>数据状态</span><strong>{allMatch ? "全部一致" : "存在差异"}</strong></div>
+        <div className="detail-field"><span>数据状态</span><strong>{unavailableCount ? "当前数据不可用" : allMatch ? "全部一致" : "存在差异"}</strong></div>
       </div>
       <p className="data-center-restore-confirmation">
       </p>
@@ -565,14 +551,14 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       <div className="detail-field"><span>数据条数</span><strong>{payload.metadata.recordCount}</strong></div>
     </div>
     <div className={`data-center-restore-result ${allMatch ? "data-center-restore-result--success" : "data-center-restore-result--warning"}`} role="status">
-      <strong>{allMatch ? "✓ 当前数据与备份完全一致，可以安全进入下一步。" : `⚠ 共发现 ${differenceCount} 项数据存在差异，请确认是否使用此备份。`}</strong>
+      <strong>{unavailableCount ? "⚠ 当前数据读取不完整，暂不能可靠比较。" : allMatch ? "✓ 当前数据与备份完全一致，可以安全进入下一步。" : `⚠ 共发现 ${differenceCount} 项数据存在差异，请确认是否使用此备份。`}</strong>
     </div>
     <div className="data-center-restore-table-wrap">
       <table className="data-center-restore-table">
         <thead><tr><th scope="col">项目</th><th scope="col">当前数据</th><th scope="col">备份数据</th><th scope="col">状态</th></tr></thead>
         <tbody>{rows.map((row) => {
-          const status = row.auditOnly ? "审计记录" : row.current === row.backup ? "✅" : row.backup > row.current ? "↑" : "↓";
-          return <tr key={row.key}><th scope="row">{row.label}</th><td>{row.current}</td><td>{row.backup}</td><td aria-label={row.auditOnly ? "不参与一致性校验" : row.differs ? "存在差异" : "相同"}>{status}</td></tr>;
+          const status = row.status === "AUDIT_ONLY" ? "审计记录" : row.status === "UNAVAILABLE" ? "不可用" : row.status === "MATCH" ? "✅" : (row.backup || 0) > (row.current || 0) ? "↑" : "↓";
+          return <tr key={row.key}><th scope="row">{row.label}</th><td>{row.current === null ? "—" : row.current}</td><td>{row.backup === null ? "—" : row.backup}</td><td aria-label={row.status === "AUDIT_ONLY" ? "不参与一致性校验" : row.status === "UNAVAILABLE" ? "当前数据不可用" : row.differs ? "存在差异" : "相同"}>{status}</td></tr>;
         })}</tbody>
       </table>
     </div>

@@ -24,7 +24,7 @@ function routePath(file: string) {
 test("security contract exists and covers the API surface", () => {
   assert.ok(existsSync("SECURITY_BOUNDARY_CONTRACT.md"));
   const routes = routeFiles(join(process.cwd(), "app", "api")).map(routePath).sort();
-  assert.equal(routes.length, 58);
+  assert.equal(routes.length, 59);
   for (const route of routes) assert.ok(contract.includes(route), route);
   assert.match(contract, /SECURITY_7X_COMPLETE_WITH_DEFERRED_RISKS/);
 });

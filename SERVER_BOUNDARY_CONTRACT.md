@@ -57,6 +57,7 @@ There are 55 route files. Every route is listed here and is checked by
 | `/api/data-backup/status` | BACKUP_RESTORE | read | authenticated workspace backup audit source | ACTIVE_CANONICAL |
 | `/api/data-backup/complete` | BACKUP_RESTORE | write/log | authenticated completed-export audit event | HIGH_RISK |
 | `/api/data-restore` | BACKUP_RESTORE | write | restore service + RPC | HIGH_RISK |
+| `/api/data-restore/current-summary` | BACKUP_RESTORE | read | workspace-scoped current count summary | HIGH_RISK |
 | `/api/debug/backup-trace` | OBSERVABILITY | write/log | non-production diagnostic | NON_PRODUCTION_ONLY |
 | `/api/files/google-drive/complete` | ATTACHMENT | write | upload completion + owner | HIGH_RISK |
 | `/api/files/google-drive/content` | ATTACHMENT | read/write | Drive service + attachment scope | ACTIVE_CANONICAL |

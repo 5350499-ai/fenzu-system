@@ -21,7 +21,7 @@ function routePath(file: string) {
 test("server boundary contract and complete API registry exist", () => {
   assert.ok(existsSync("SERVER_BOUNDARY_CONTRACT.md"));
   const routes = routeFiles(join(process.cwd(), "app", "api")).map(routePath).sort();
-  assert.equal(routes.length, 58);
+  assert.equal(routes.length, 59);
   for (const route of routes) assert.ok(contract.includes(`\`${route}\``), route);
   assert.match(contract, /LEGACY_CANONICAL_COMPATIBILITY_BOUNDARY/);
   assert.match(contract, /SERVER_BOUNDARY_6X_COMPLETE_WITH_DEFERRED_RISKS/);
