@@ -8,6 +8,8 @@ import { buildRestorePreviewDiffRows, summarizeRestorePreviewDiff } from "../lib
 
 const page = fs.readFileSync(new URL("../app/data-center/page.tsx", import.meta.url), "utf8");
 const summaryRoute = fs.readFileSync(new URL("../app/api/data-restore/current-summary/route.ts", import.meta.url), "utf8");
+const accountAuth = fs.readFileSync(new URL("../lib/server/account-auth.ts", import.meta.url), "utf8");
+const accountsRoute = fs.readFileSync(new URL("../app/api/accounts/route.ts", import.meta.url), "utf8");
 const migration = fs.readFileSync(new URL("../supabase/migrations/20260825080000_restore_free_single_owner_permission.sql", import.meta.url), "utf8");
 
 test("canonical registry covers the 18-table restore boundary and preview-only entities", () => {
@@ -41,9 +43,16 @@ test("preview current count loader reads the protected summary endpoint", () => 
   assert.match(page, /tenantCreateRequests/);
   assert.match(page, /current data is unavailable|当前数据不可用|当前数据读取不完整/);
   assert.match(summaryRoute, /requireActiveAccount/);
+  assert.match(summaryRoute, /requireRestorePreviewReadAccess/);
   assert.match(summaryRoute, /check_in_requests/);
   assert.match(summaryRoute, /tenant_create_requests/);
   assert.match(summaryRoute, /user_profiles/);
+  assert.match(summaryRoute, /accountProjectionCount/);
+  assert.match(accountAuth, /requireRestorePreviewReadAccess/);
+  assert.match(accountAuth, /account_type === "owner" \|\| isFreeSingleAccount/);
+  assert.match(accountsRoute, /requireActiveAccount\(request, true\)/);
+  assert.doesNotMatch(page, /forRestorePreview \|\| access\.isOwner \? fetch\("\/api\/accounts"/);
+  assert.match(page, /Promise\.allSettled/);
 });
 
 test("free-single workspace owner permission is restored without weakening workspace binding", () => {

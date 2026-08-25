@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, requireActiveAccount } from "@/lib/server/account-auth";
+import { apiErrorResponse, requireActiveAccount, requireRestorePreviewReadAccess } from "@/lib/server/account-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 async function countRows(admin: ReturnType<typeof getSupabaseAdmin>, table: string, column: string, ownerId: string, countColumn = "id") {
@@ -10,7 +10,8 @@ async function countRows(admin: ReturnType<typeof getSupabaseAdmin>, table: stri
 
 export async function GET(request: Request) {
   try {
-    const context = await requireActiveAccount(request, true);
+    const context = await requireActiveAccount(request);
+    requireRestorePreviewReadAccess(context);
     const admin = getSupabaseAdmin();
     const ownerId = context.profile.workspace_owner_id;
     const [partners, partnerShares, partnerNameHistory, checkInRequests, tenantCreateRequests, accounts] = await Promise.all([
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
       countRows(admin, "tenant_create_requests", "workspace_owner_id", ownerId),
       countRows(admin, "user_profiles", "workspace_owner_id", ownerId, "auth_user_id")
     ]);
-    return NextResponse.json({ partners, partnerShares, partnerNameHistory, checkInRequests, tenantCreateRequests, accounts });
+    return NextResponse.json({ partners, partnerShares, partnerNameHistory, checkInRequests, tenantCreateRequests, accountProjectionCount: accounts });
   } catch (error) {
     return apiErrorResponse(error);
   }

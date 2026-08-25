@@ -153,12 +153,16 @@ export default function DataCenterPage() {
       } catch { /* The export remains limited to the current account's readable data. */ }
       const session = await getValidSupabaseSession();
       const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-      const [settlementResponse, accountResponse, auditResponse, restoreSummaryResponse] = await Promise.all([
+      const [settlementResult, accountResult, auditResult, restoreSummaryResult] = await Promise.allSettled([
         access.canSensitive("canViewPartnershipSettlement") ? fetch("/api/partner-settlements", { headers: authHeaders, cache: "no-store" }) : null,
-        forRestorePreview || access.isOwner ? fetch("/api/accounts", { headers: authHeaders, cache: "no-store" }) : null,
+        access.isOwner ? fetch("/api/accounts", { headers: authHeaders, cache: "no-store" }) : null,
         access.canSensitive("canViewAuditLogs") ? fetch("/api/audit-logs", { headers: authHeaders, cache: "no-store" }) : null,
         forRestorePreview ? fetch("/api/data-restore/current-summary", { headers: authHeaders, cache: "no-store" }) : null
       ]);
+      const settlementResponse = settlementResult.status === "fulfilled" ? settlementResult.value : null;
+      const accountResponse = accountResult.status === "fulfilled" ? accountResult.value : null;
+      const auditResponse = auditResult.status === "fulfilled" ? auditResult.value : null;
+      const restoreSummaryResponse = restoreSummaryResult.status === "fulfilled" ? restoreSummaryResult.value : null;
       const restoreSummary = forRestorePreview
         ? (restoreSummaryResponse?.ok ? await restoreSummaryResponse.json() as Record<string, unknown> : null)
         : null;
@@ -190,7 +194,7 @@ export default function DataCenterPage() {
         nextExportData.partnerNameHistory = countPlaceholders("partnerNameHistory", restoreSummary.partnerNameHistory);
         nextExportData.checkInRequests = countPlaceholders("checkInRequests", restoreSummary.checkInRequests);
         nextExportData.tenantCreateRequests = countPlaceholders("tenantCreateRequests", restoreSummary.tenantCreateRequests);
-        nextExportData.accounts = countPlaceholders("accounts", restoreSummary.accounts);
+        nextExportData.accounts = countPlaceholders("accounts", restoreSummary.accountProjectionCount);
       }
       if (updatePageState) {
         setData(nextData); setTasks(taskRows); setViewingAppointments(appointments); setPartners(nextPartners); setPartnerShares(nextShares);

@@ -271,6 +271,12 @@ export function isFreeSingleWorkspaceOwner(context: Pick<AccountRequestContext, 
   return isFreeSingleAccount(context) && context.userId === context.profile.workspace_owner_id;
 }
 
+export function requireRestorePreviewReadAccess(context: Pick<AccountRequestContext, "userId" | "profile">) {
+  const isWorkspaceOwner = context.userId === context.profile.workspace_owner_id;
+  const allowed = isWorkspaceOwner && (context.profile.account_type === "owner" || isFreeSingleAccount(context));
+  if (!allowed) throw new AccountApiError("没有权限执行此操作。", 403, "restore_preview_permission_denied");
+}
+
 export function isSettlementConfirmationActor(context: Pick<AccountRequestContext, "userId" | "profile">) {
   return context.profile.account_type === "owner" || isFreeSingleWorkspaceOwner(context);
 }
