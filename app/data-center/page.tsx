@@ -127,6 +127,7 @@ export default function DataCenterPage() {
   const [beforeRestoreConfirmed, setBeforeRestoreConfirmed] = useState(false);
   const [beforeRestoreStatus, setBeforeRestoreStatus] = useState<"idle" | "preparing" | "saving" | "ready" | "error">("idle");
   const [beforeRestoreError, setBeforeRestoreError] = useState("");
+  const [beforeRestoreDownloadNotice, setBeforeRestoreDownloadNotice] = useState("");
   const [subscriptionDialog, setSubscriptionDialog] = useState<"backup" | "restore" | null>(null);
 
   useEffect(() => installBackupRuntimeTrace(), []);
@@ -353,6 +354,7 @@ export default function DataCenterPage() {
     setBeforeRestoreConfirmed(false);
     setBeforeRestoreStatus("idle");
     setBeforeRestoreError("");
+    setBeforeRestoreDownloadNotice("");
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".json")) {
       setRestoreError("请选择 .json 备份文件。");
@@ -400,12 +402,6 @@ export default function DataCenterPage() {
       const result = await response.json().catch(() => null) as (BeforeRestoreDiagnostic & { beforeRestore?: BeforeRestorePackage }) | null;
       if (!response.ok || !result?.beforeRestore) throw new BeforeRestoreClientError(result || { stage: "response", code: "before_restore_response_invalid", message: "服务端没有返回有效的 BeforeRestore 文件" });
       const packageData = result.beforeRestore;
-      let file: File;
-      try {
-        file = buildExportFile(packageData.fileName, JSON.stringify(packageData.payload, null, 2), "application/json");
-      } catch (error) {
-        throw new BeforeRestoreClientError({ stage: "file_generation", code: "before_restore_file_generation_failed", message: error instanceof Error ? error.message : "分享文件生成失败" });
-      }
       setBeforeRestoreStatus("saving");
       setBeforeRestorePackage(packageData);
       setBeforeRestoreConfirmed(false);
@@ -416,15 +412,28 @@ export default function DataCenterPage() {
         beforeRestoreChecksum: packageData.payload.metadata.checksum,
         beforeRestoreCreatedAt: packageData.payload.metadata.exportedAt
       } : current);
-      void saveFileWithSystemFallback(file).catch(() => {
-        setBeforeRestoreError("系统恢复点已安全保存；本地 BeforeRestore 下载未完成，不影响后续 Dry Run。可稍后重新下载。");
-      });
       return packageData;
     } catch (error) {
       setBeforeRestoreStatus("error");
       const diagnostic = error instanceof BeforeRestoreClientError ? error.diagnostic : { stage: "unknown", message: error instanceof Error ? error.message : "BeforeRestore 生成失败" };
       setBeforeRestoreError(beforeRestoreErrorText(diagnostic));
       throw error;
+    }
+  }
+
+  async function downloadBeforeRestoreCopy() {
+    if (!beforeRestorePackage) return;
+    setBeforeRestoreDownloadNotice("");
+    try {
+      const file = buildExportFile(beforeRestorePackage.fileName, JSON.stringify(beforeRestorePackage.payload, null, 2), "application/json");
+      await saveFileWithSystemFallback(file);
+      setBeforeRestoreDownloadNotice("本地恢复前备份副本已交给系统处理；这不会改变当前 Restore 流程。");
+    } catch (error) {
+      if (error instanceof UserCancelledFileHandoffError) {
+        setBeforeRestoreDownloadNotice("已取消本地副本下载；系统恢复点仍然安全保存，不影响 Dry Run。");
+      } else {
+        setBeforeRestoreDownloadNotice("本地副本下载未完成；系统恢复点仍然安全保存，不影响 Dry Run。");
+      }
     }
   }
 
@@ -473,7 +482,7 @@ export default function DataCenterPage() {
         {!restorePreview ? <SecondaryButton type="button" disabled={!access.ready || restoreLoading} onClick={() => restoreInputRef.current?.click()}>恢复备份</SecondaryButton> : null}
         {restoreError ? <p className="data-center-alert data-center-alert--danger" role="alert">{restoreError}</p> : null}
         {restoreLoading ? <p className="data-center-muted" role="status" aria-live="polite">正在解析备份并读取当前数据，请稍候…</p> : null}
-      {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else { setRestorePreview(null); setRestoreSession(null); } setRestoreError(""); }} /> : null}
+  {restorePreview ? <RestorePreviewCard preview={restorePreview!} step={restoreStep} beforeRestorePackage={beforeRestorePackage} beforeRestoreConfirmed={beforeRestoreConfirmed} onBeforeRestoreConfirmed={setBeforeRestoreConfirmed} beforeRestoreStatus={beforeRestoreStatus} beforeRestoreError={beforeRestoreError} beforeRestoreDownloadNotice={beforeRestoreDownloadNotice} canRealRestore={access.isOwner || access.isFreeSingle} onPrepareBeforeRestore={prepareBeforeRestore} onDownloadBeforeRestoreCopy={downloadBeforeRestoreCopy} onNext={() => setRestoreStep("confirm")} onRestore={executeRestore} onBack={() => { if (restoreStep === "confirm") setRestoreStep("preview"); else { setRestorePreview(null); setRestoreSession(null); } setRestoreError(""); }} /> : null}
       </SectionCard>
       <BackupReminderCard />
       <SectionCard className="data-center-card"><DataCardHeader icon={<ArrowDownToLine size={20} />} title="数据导出" description="用于统计、打印或发送给会计，导出 Excel / CSV，不用于系统恢复。" /><p className="data-center-muted">Excel 和 CSV 会导出当前权限范围内的业务数据。</p><PrimaryButton type="button" disabled={loading || !access.canSensitive("canExportData")} onClick={() => setExportSheetOpen(true)}><ArrowDownToLine size={17} /> 导出数据</PrimaryButton></SectionCard>
@@ -504,7 +513,7 @@ type RestoreDryRunReport = {
   mode?: "dry_run" | "restore";
 };
 
-function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, canRealRestore, onPrepareBeforeRestore, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<BeforeRestorePackage>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
+function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestoreConfirmed, onBeforeRestoreConfirmed, beforeRestoreStatus, beforeRestoreError, beforeRestoreDownloadNotice, canRealRestore, onPrepareBeforeRestore, onDownloadBeforeRestoreCopy, onNext, onRestore, onBack }: { preview: RestorePreview; step: RestoreStep; beforeRestorePackage: BeforeRestorePackage | null; beforeRestoreConfirmed: boolean; onBeforeRestoreConfirmed: (confirmed: boolean) => void; beforeRestoreStatus: "idle" | "preparing" | "saving" | "ready" | "error"; beforeRestoreError: string; beforeRestoreDownloadNotice: string; canRealRestore: boolean; onPrepareBeforeRestore: () => Promise<BeforeRestorePackage>; onDownloadBeforeRestoreCopy: () => Promise<void>; onNext: () => void; onRestore: (payload: DataExportPayload, beforeRestoreBackupPath: string, mode?: "dry_run" | "restore") => Promise<RestoreDryRunReport>; onBack: () => void }) {
   const { payload } = preview;
   const currentData = preview.currentData;
   const rows = buildRestorePreviewDiffRows(payload.data, currentData);
@@ -547,11 +556,12 @@ function RestorePreviewCard({ preview, step, beforeRestorePackage, beforeRestore
       </p>
       <div className="data-center-before-restore" role="status">
         <strong>恢复前备份</strong>
-        <p>恢复开始前，系统会自动生成一份当前数据 BeforeRestore 备份，并提示保存，以便需要时恢复当前状态。</p>
+        <p>恢复开始前，系统会自动生成一份当前数据 BeforeRestore 备份并保存到系统恢复点，以便需要时恢复当前状态。</p>
         {beforeRestoreStatus === "preparing" ? <p>正在生成恢复前备份…</p> : null}
         {beforeRestoreStatus === "saving" ? <p>正在调用系统保存，请选择保存位置…</p> : null}
-        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已安全保存到系统恢复点，正在进入 Dry Run</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div></> : null}
+        {beforeRestorePackage ? <><p className="data-center-alert data-center-alert--success">✅ BeforeRestore 已安全保存到系统恢复点，正在进入 Dry Run</p><div className="detail-field"><span>文件名</span><strong>{beforeRestorePackage.fileName}</strong></div><p className="data-center-muted">如需额外保存到本机，可选下载一份副本；本地下载不会影响 Restore 流程。</p><SecondaryButton type="button" onClick={() => void onDownloadBeforeRestoreCopy()}>下载恢复前备份副本（可选）</SecondaryButton></> : null}
         {beforeRestoreError ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreError}</p> : null}
+        {beforeRestoreDownloadNotice ? <p className="data-center-alert data-center-alert--warning">{beforeRestoreDownloadNotice}</p> : null}
       </div>
       {restoreActionError ? <pre className="data-center-alert data-center-alert--warning data-center-error-details" role="status">{restoreActionError}</pre> : null}
       {restoreActionSuccess ? <p className="data-center-alert data-center-alert--success" role="status">{restoreActionSuccess}</p> : null}

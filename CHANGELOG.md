@@ -4,6 +4,7 @@
 
 - Materialized the selected restore file once into a shared immutable session with raw bytes, SHA-256, parsed payload, backup identity and Preview state; later Restore steps no longer re-read the iOS File object or require re-selection.
 - BeforeRestore server persistence now unblocks the Restore flow immediately. The local BeforeRestore download/share is a non-blocking extra copy, and the flow proceeds through Dry Run before the separate final Restore confirmation.
+- Removed the automatic local BeforeRestore handoff from the main flow. The server recovery point is the safety gate; a local JSON copy is now an explicit optional action and cannot block Dry Run or reset the Restore session.
 - Added session integrity checks, visible short content fingerprinting and safe mapping for file-provider object errors. Backup v2, 18-table Restore mapping, RPCs, permissions, database schema, business data and Production remain unchanged.
 
 ## 2026-08-24 - Atomic tenant creation performance path (Prepared)

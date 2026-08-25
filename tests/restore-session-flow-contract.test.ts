@@ -15,8 +15,16 @@ test("restore flow keeps the parsed payload in a shared session owner", () => {
 });
 
 test("BeforeRestore persistence is not blocked by local file handoff and Dry Run precedes Restore", () => {
-  assert.match(page, /void saveFileWithSystemFallback\(file\)\.catch/);
+  const prepare = page.slice(page.indexOf("async function prepareBeforeRestore"), page.indexOf("async function downloadBeforeRestoreCopy"));
+  assert.doesNotMatch(prepare, /saveFileWithSystemFallback/);
+  assert.match(page, /onDownloadBeforeRestoreCopy/);
   assert.match(page, /onRestore\(payload, prepared\.storagePath, "dry_run"\)/);
   assert.match(page, /onRestore\(payload, prepared\.storagePath, "restore"\)/);
   assert.match(page, /我已查看 Dry Run 报告，可以继续正式恢复/);
+});
+
+test("optional BeforeRestore download is a user action and cannot gate the main flow", () => {
+  assert.match(page, /下载恢复前备份副本（可选）/);
+  assert.match(page, /本地下载不会影响 Restore 流程/);
+  assert.match(page, /系统恢复点仍然安全保存，不影响 Dry Run/);
 });
