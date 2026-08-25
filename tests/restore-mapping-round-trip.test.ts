@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 
 const parityMigration = readFileSync("supabase/migrations/20260825120000_restore_live_schema_column_parity.sql", "utf8");
+const finalParityMigration = readFileSync("supabase/migrations/20260825140000_restore_active_schema_final_parity.sql", "utf8");
 const snapshot = JSON.parse(readFileSync("scripts/restore-live-schema.snapshot.json", "utf8"));
 const tables = snapshot.tables as Record<string, { columns: string[]; primaryKey: string[]; foreignKeys: string[][] }>;
 const prohibited = ["landlord_id", "area", "has_window", "has_private_bathroom", "furniture", "whatsapp", "passport_number", "nie_number", "nationality", "move_in_date", "expected_move_out_date", "key_count", "contract_type", "is_signed", "is_active", "file_url", "storage_path"];
@@ -20,6 +21,13 @@ test("live restore replacement only references current schema columns", () => {
 test("request restore identities remain client_request_id", () => {
   assert.deepEqual(tables.check_in_requests.primaryKey, ["client_request_id"]);
   assert.deepEqual(tables.tenant_create_requests.primaryKey, ["client_request_id"]);
+});
+
+test("final active schema parity removes the live-invalid task completion mapping", () => {
+  assert.match(finalParityMigration, /restore_workspace_backup_impl\(uuid,uuid,jsonb\)/);
+  assert.match(finalParityMigration, /v_marker text := ', completed_at=excluded\.completed_at'/);
+  assert.match(finalParityMigration, /v_source := replace\(v_source, v_marker, ''\)/);
+  assert.match(finalParityMigration, /Restore tasks\.completed_at mapping remains after replacement/);
 });
 
 test("currency_code is carried through Backup settings and the transactional Restore boundary", () => {
