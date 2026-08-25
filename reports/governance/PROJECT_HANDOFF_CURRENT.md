@@ -2,8 +2,10 @@
 
 Status: `AUTHORITATIVE_CURRENT_HANDOFF`
 
-Generated: `2026-08-22`
+Generated: `2026-08-25`
 Scope: repository, documented contracts, current test evidence, and live Vercel deployment metadata. This document is the current-session handoff; it does not replace the domain and security contracts named below.
+
+Current release checkpoint: [`PRODUCTION_RESTORE_RELEASE_CHECKPOINT_20260825.md`](./PRODUCTION_RESTORE_RELEASE_CHECKPOINT_20260825.md)
 
 ## 1. Authoritative repository and deployment state
 
@@ -12,18 +14,18 @@ Scope: repository, documented contracts, current test evidence, and live Vercel 
 | Product | 蜜蜂分租 / fenzu-system (`spanish-rental-manager`) |
 | Canonical checkout | `C:\Users\a5350\Documents\Codex\2026-08-03\github-5350499-ai-fenzu-system-https` |
 | Branch | `feat/global-cache-v3` |
-| Current application release HEAD | `fe3ef91af95c856bc0fdeb4141f7a0d83d987510` |
+| Current application release HEAD | `7c44eeeb4c53d00ea191f7bd93ddf4832519e2b8` |
 | Commit author | `5350499-ai <5350499@qq.com>` |
 | Tracked worktree | Clean at handoff creation |
 | Production URL | `https://fenzu-system.vercel.app` |
-| Production deployment | `dpl_4GN7K19KTfXdJwavu8kFVjhGmkNH` |
-| Production deployment URL | `https://fenzu-system-9kf3grnx2-5350499-ais-projects.vercel.app` |
+| Production deployment | `dpl_GnUv1W5wUfTTQYWTbBYK9VTSJWG2` |
+| Production deployment URL | `https://fenzu-system-ebu6wp1s0-5350499-ais-projects.vercel.app` |
 | Production status | `READY` |
-| Latest useful Preview | `dpl_73G2MBv4qA78jiXJE3sovvmVRvnj` — `https://fenzu-system-ffc77y3od-5350499-ais-projects.vercel.app` |
+| Latest useful Preview | `dpl_CFJndnMxNHLmDkb7MnAj7pYXmm19` — `https://fenzu-system-hwlh5y9uv-5350499-ais-projects.vercel.app` |
 | Latest Preview status | `READY` |
-| Preview / Production provenance | Both were created directly from `fe3ef91…` in this checkout; Vercel inspect confirms the Production alias points to `dpl_4GN7…`. |
+| Preview / Production provenance | Preview and Production were deployed from the final release checkout; the dated checkpoint records the exact release HEAD, deployment IDs and migration registry version. |
 
-`APPLICATION_RELEASE_HEAD == PRODUCTION_HEAD: YES`, based on the direct Production deploy of `fe3ef91…`; Vercel CLI deployment inspection exposes status/alias but does not independently display a Git SHA. The docs-only handoff commit is intentionally not a Production application release and must not be treated as one.
+`APPLICATION_RELEASE_HEAD == PRODUCTION_HEAD: YES`, based on the direct Production deploy of `7c44eeeb…`; Vercel CLI deployment inspection exposes status/alias but does not independently display a Git SHA. The dated governance checkpoint records the exact release identity and migration registry version.
 
 Preserved untracked directories: `design/`, `public/bee-rental-bee-shape-exploration/`, `public/bee-rental-icon-exploration/`, `public/bee-rental-icon-final-v2/` through `final-v8/`, and `supabase/.temp/`. Do not reset, clean, delete, or stage these as part of unrelated work.
 
