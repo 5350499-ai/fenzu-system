@@ -289,7 +289,7 @@ function normalizeRestoreDataLegacy(payload: DataExportPayload, workspaceOwnerId
   }));
   const contracts = rows(source.contracts).map((row) => ({
     id: text(row.id), user_id: workspaceOwnerId, contract_type: text(row.contract_type ?? row.contractType, "tenant_contract"), property_id: nullableUuid(row.property_id ?? row.propertyId), room_id: nullableUuid(row.room_id ?? row.roomId),
-    tenant_id: nullableUuid(row.tenant_id ?? row.tenantId), landlord_id: nullableUuid(row.landlord_id ?? row.landlordId), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount),
+    tenant_id: nullableUuid(row.tenant_id ?? row.tenantId), monthly_rent: numberValue(row.monthly_rent ?? row.monthlyRent), deposit_amount: numberValue(row.deposit_amount ?? row.depositAmount),
     start_date: date(row.start_date ?? row.startDate), end_date: date(row.end_date ?? row.endDate), is_signed: booleanValue(row.is_signed ?? row.isSigned), is_active: row.is_active == null && row.isActive == null ? text(row.status) !== "ended" : booleanValue(row.is_active ?? row.isActive), status: text(row.status, "active"),
     file_url: nullableText(row.file_url ?? row.fileUrl), storage_path: nullableText(row.storage_path ?? row.storagePath), notes: nullableText(row.notes), created_at: iso(row.created_at ?? row.createdAt), updated_at: iso(row.updated_at ?? row.updatedAt)
   }));
