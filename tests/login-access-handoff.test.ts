@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
-
-const handoff = await import(pathToFileURL(resolve("lib/login-access-handoff.ts")).href);
-const { armLoginAccessHandoff, clearLoginAccessHandoff, consumeLoginAccessHandoff, getLoginAccessHandoffTelemetry, LOGIN_ACCESS_HANDOFF_TTL_MS } = handoff;
+// Explicit source extension keeps the project-local TS runner deterministic.
+import { armLoginAccessHandoff, clearLoginAccessHandoff, consumeLoginAccessHandoff, getLoginAccessHandoffTelemetry, LOGIN_ACCESS_HANDOFF_TTL_MS } from "../lib/login-access-handoff.ts";
 
 test("login handoff is one-shot and bound to the exact in-memory access token", async () => {
   clearLoginAccessHandoff();
