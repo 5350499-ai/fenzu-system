@@ -23,7 +23,19 @@ const excluded = new Set([
 
 const files = (await readdir(migrationsDir))
   .filter((name) => name.endsWith(".sql"))
-  .sort();
+  .map((sourceName) => {
+    let name = sourceName;
+    if (sourceName.startsWith("202606160002_")) {
+      name = sourceName.includes("contract_files")
+        ? sourceName.replace("202606160002_", "20260616000202_")
+        : sourceName.replace("202606160002_", "20260616000201_");
+    }
+    if (sourceName.startsWith("20260806080332_restore_schema_single_source")) {
+      name = sourceName.replace("20260806080332_", "20260806130001_");
+    }
+    return { name, sourceName };
+  })
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 function removeFirstBlock(source, marker) {
   const start = source.indexOf(marker);
@@ -83,16 +95,16 @@ const parts = [
   "insert into auth.users (id, email) values ('00000000-0000-4000-8000-000000000001', 'synthetic-owner@example.invalid') on conflict (id) do nothing;",
 ];
 
-for (const name of files) {
-  if (excluded.has(name)) {
-    parts.push(`-- EXCLUDED HISTORICAL DATA REPAIR: ${name}`);
+for (const { name, sourceName } of files) {
+  if (excluded.has(sourceName)) {
+    parts.push(`-- EXCLUDED HISTORICAL DATA REPAIR: ${sourceName}`);
     continue;
   }
-  const source = (await readFile(join(migrationsDir, name), "utf8"))
+  const source = (await readFile(join(migrationsDir, sourceName), "utf8"))
     .replace(/^\uFEFF/, "")
     .replace(/\r\n/g, "\n");
   parts.push(`-- BEGIN CANONICAL MIGRATION: ${name}`);
-  parts.push(normalize(name, source));
+  parts.push(normalize(sourceName, source));
   parts.push(`-- END CANONICAL MIGRATION: ${name}`);
 }
 
