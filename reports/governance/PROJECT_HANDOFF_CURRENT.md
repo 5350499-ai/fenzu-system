@@ -323,8 +323,13 @@ authorize implementation or Production release by itself:
    Premium feature is activated, no database migration is required, and Phase 2
    has not started.
 2. `PHASE_2` — Premium Cloud Backup Data Contract. Store structured business
-   data only; exclude attachment binaries, identity/contract images, signed
-   URLs, Google Drive objects/references and other attachment-provider data.
+   data only. **LOCAL COMPLETE.** The owner is `lib/data-export.ts`, reusing
+   `createDataBackup`, Backup v2, checksum, manifest, workspace binding and the
+   canonical Restore boundary. The explicit `PREMIUM_CLOUD` profile excludes
+   accounts, audit logs, attachment binaries, identity/contract images, signed
+   URLs, Google Drive objects/references, provider IDs and auth secrets.
+   `FREE_LOCAL` and Internal Full behavior remain unchanged. This phase does
+   not add scheduling, retention, UI, payment or Storage lifecycle.
 3. `PHASE_3` — Premium Cloud Backup Lifecycle: automatic backup every 7 days,
    one shared automatic/manual pool of 10, oldest-first permanent deletion at
    the 11th point, explicit history listing/deletion and second confirmation.
@@ -368,6 +373,21 @@ READ_CANONICAL_ROOTS
 
 No phase may silently drift into billing, unrelated refactoring, Production
 testing or a second capability/roadmap system.
+
+### 9.8 Phase 2 Premium Cloud Backup data contract
+
+The canonical owner is `lib/data-export.ts`, not a second Backup service. The
+profile model is `FREE_LOCAL`, `PREMIUM_CLOUD` and `INTERNAL_FULL`; only the
+Premium profile applies the Premium cloud field sanitizer. The allowed payload
+collections are the current Backup v2/Restore collections and safe settings.
+Account credentials, session/auth values, audit-only data, attachment binary,
+attachment access references, Storage/Google Drive/provider references and
+unknown top-level collections are excluded fail-closed.
+
+The 18-table Restore boundary and request-table idempotency fields remain
+unchanged. `PREMIUM_CLOUD` is a contract compatibility path only in this phase:
+no Premium entry, cloud-history UI, scheduler, 10-slot pool, 90-day retention,
+subscription billing, Storage lifecycle or Production change is authorized.
 
 ### 9.7 Phase 1 capability root implementation record
 

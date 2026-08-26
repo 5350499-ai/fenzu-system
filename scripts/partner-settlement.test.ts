@@ -17,15 +17,18 @@ const shares = [
 ];
 
 test("settlement splits a range at share effective dates", () => {
-  const result = buildSettlement("p", { startDate: "2026-08-15", endDate: "2026-09-15" }, [{ id: "p" }], partners, shares, [
-    { id: "income-1", propertyId: "p", roomId: "r", tenantId: "t", rentMonth: "2026-08", paymentDate: "2026-08-20", amountDue: 100, amountPaid: 100, amountUnpaid: 0, paymentMethod: "", receivedBy: "A", paymentStatus: "已收", isOverdue: false },
-    { id: "income-2", propertyId: "p", roomId: "r", tenantId: "t", rentMonth: "2026-09", paymentDate: "2026-09-10", amountDue: 200, amountPaid: 200, amountUnpaid: 0, paymentMethod: "", receivedBy: "B", paymentStatus: "已收", isOverdue: false },
+  const firstTestShares = shares.map((share) => share.id.endsWith("1")
+    ? { ...share, effectiveFrom: "2025-07-01", effectiveTo: "2025-07-31" }
+    : { ...share, effectiveFrom: "2025-08-01", effectiveTo: null });
+  const result = buildSettlement("p", { startDate: "2025-07-15", endDate: "2025-08-15" }, [{ id: "p" }], partners, firstTestShares, [
+    { id: "income-1", propertyId: "p", roomId: "r", tenantId: "t", rentMonth: "2025-07", paymentDate: "2025-07-20", amountDue: 100, amountPaid: 100, amountUnpaid: 0, paymentMethod: "", receivedBy: "A", paymentStatus: "已收", isOverdue: false },
+    { id: "income-2", propertyId: "p", roomId: "r", tenantId: "t", rentMonth: "2025-08", paymentDate: "2025-08-10", amountDue: 200, amountPaid: 200, amountUnpaid: 0, paymentMethod: "", receivedBy: "B", paymentStatus: "已收", isOverdue: false },
   ], [
-    { id: "expense-1", propertyId: "p", roomId: "r", expenseMonth: "2026-09", category: "维护", amount: 50, paymentDate: "2026-09-10", paidBy: "A", isPaid: true },
+    { id: "expense-1", propertyId: "p", roomId: "r", expenseMonth: "2025-08", category: "维护", amount: 50, paymentDate: "2025-08-10", paidBy: "A", isPaid: true },
   ]);
   assert.deepEqual(result.segments.map((segment) => [segment.startDate, segment.endDate, segment.shares.map((share) => share.percentage)]), [
-    ["2026-08-15", "2026-08-31", [50, 50]],
-    ["2026-09-01", "2026-09-15", [50, 40, 10]],
+    ["2025-07-15", "2025-07-31", [50, 50]],
+    ["2025-08-01", "2025-08-15", [50, 40, 10]],
   ]);
   assert.equal(result.totalIncome, 300);
   assert.equal(result.totalExpense, 50);

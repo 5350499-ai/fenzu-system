@@ -18,6 +18,37 @@ const REQUIRED_COLLECTIONS = [
   "propertyHistory", "settlementBatches", "settlementSnapshots", "settings"
 ] as const;
 
+export const BACKUP_PROFILES = ["FREE_LOCAL", "PREMIUM_CLOUD", "INTERNAL_FULL"] as const;
+export type BackupProfile = (typeof BACKUP_PROFILES)[number];
+export const PREMIUM_CLOUD_BACKUP_PROFILE = "PREMIUM_CLOUD" as const;
+export const PREMIUM_CLOUD_ALLOWED_DATA_KEYS = Object.freeze([...REQUIRED_COLLECTIONS]);
+export const PREMIUM_CLOUD_EXCLUDED_DATA_KEYS = Object.freeze(["accounts", "auditLogs", "audit_logs"]);
+
+export type PremiumCloudFieldClassification =
+  | "SAFE_STRUCTURED_BUSINESS_FIELD"
+  | "SAFE_SETTINGS_FIELD"
+  | "SENSITIVE_ATTACHMENT_REFERENCE"
+  | "BINARY_OR_FILE_PAYLOAD"
+  | "AUTH_SECRET"
+  | "UNKNOWN";
+
+const AUTH_SECRET_KEY = /password|password_hash|access[_-]?token|refresh[_-]?token|token|session|secret|service[_-]?role|api[_-]?key|authorization|cookie|private[_-]?key/i;
+const ATTACHMENT_KEY = /attachment|storage|signed_?url|provider|google_?drive|drive_?file|download_?url|file_?url|blob|binary/i;
+const FILE_PAYLOAD_KEY = /^(?:file|files|content|contents|bytes|binary|blob)$/i;
+const SAFE_PRESENTATION_ATTACHMENT_KEY = /^(?:file_?name|file_?type|file_?size)$/i;
+
+function normalizedKey(key: string) { return key.replace(/[-_]/g, "").toLowerCase(); }
+
+export function classifyPremiumCloudField(key: string, attachmentContext = false): PremiumCloudFieldClassification {
+  if (AUTH_SECRET_KEY.test(key)) return "AUTH_SECRET";
+  if (FILE_PAYLOAD_KEY.test(key)) return "BINARY_OR_FILE_PAYLOAD";
+  if (attachmentContext && SAFE_PRESENTATION_ATTACHMENT_KEY.test(key)) return "SENSITIVE_ATTACHMENT_REFERENCE";
+  if (ATTACHMENT_KEY.test(key)) return "SENSITIVE_ATTACHMENT_REFERENCE";
+  if (key === "currencyCode" || key === "currency_code") return "SAFE_SETTINGS_FIELD";
+  if (normalizedKey(key) === "id" || /^[a-z][A-Za-z0-9_]*$/.test(key)) return "SAFE_STRUCTURED_BUSINESS_FIELD";
+  return "UNKNOWN";
+}
+
 export type BackupSummary = {
   propertiesCount: number;
   roomsCount: number;
@@ -58,6 +89,7 @@ export type BackupMetadata = {
   applicationName: typeof APPLICATION_NAME;
   applicationId: typeof APPLICATION_ID;
   sourceWorkspaceId: string;
+  backupProfile?: BackupProfile;
 };
 
 export type DataExportPayload = {
@@ -82,6 +114,49 @@ export function stripSensitiveExportData(value: unknown): unknown {
       .filter(([key]) => !SENSITIVE_EXPORT_KEY.test(key))
       .map(([key, nestedValue]) => [key, stripSensitiveExportData(nestedValue)])
   );
+}
+
+function sanitizePremiumValue(value: unknown, path: string, attachmentContext = false): unknown {
+  if (Array.isArray(value)) return value.map((item, index) => sanitizePremiumValue(item, `${path}[${index}]`, attachmentContext));
+  if (!isRecord(value)) return value;
+  const next: Record<string, unknown> = {};
+  const nestedAttachmentContext = attachmentContext || /attachment|file|storage|provider|drive/i.test(path);
+  for (const [key, nested] of Object.entries(value)) {
+    const classification = classifyPremiumCloudField(key, nestedAttachmentContext);
+    if (classification === "SAFE_STRUCTURED_BUSINESS_FIELD" || classification === "SAFE_SETTINGS_FIELD") {
+      next[key] = sanitizePremiumValue(nested, `${path}.${key}`, nestedAttachmentContext);
+    }
+  }
+  return next;
+}
+
+/**
+ * Premium Cloud Backup is a profile of the existing Backup v2 engine. It
+ * allowlists the current payload collections and removes account/audit data
+ * plus any attachment, provider, binary or authentication material. Unknown
+ * top-level collections and unknown/suspicious fields fail closed by omission.
+ */
+export function sanitizePremiumCloudBackupData(data: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  for (const key of PREMIUM_CLOUD_ALLOWED_DATA_KEYS) {
+    if (!(key in data)) continue;
+    if (key === "settings") {
+      const settings = isRecord(data[key]) ? data[key] : {};
+      const currencyCode = settings.currencyCode ?? settings.currency_code;
+      clean.settings = typeof currencyCode === "string" ? { currencyCode } : {};
+      continue;
+    }
+    clean[key] = sanitizePremiumValue(data[key], key, false);
+  }
+  return clean;
+}
+
+export function isPremiumCloudBackupProfile(value: unknown): value is typeof PREMIUM_CLOUD_BACKUP_PROFILE {
+  return value === PREMIUM_CLOUD_BACKUP_PROFILE;
+}
+
+export function premiumCloudCapabilityRequired(tier: string): boolean {
+  return tier === "PREMIUM" || tier === "INTERNAL_FULL";
 }
 
 /** Free-single exports are portable business records only: no attachment or
@@ -176,24 +251,26 @@ function jsonForSize(payload: DataExportPayload): string {
   return JSON.stringify(payload, null, 2);
 }
 
-function normalizedMetadata(options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] }, exportedAt: string): Omit<BackupMetadata, "checksum"> {
+function normalizedMetadata(options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"]; backupProfile?: BackupProfile }, exportedAt: string): Omit<BackupMetadata, "checksum"> {
   return {
     backupFormatVersion: BACKUP_FORMAT_VERSION, appVersion: APP_VERSION, schemaVersion: SCHEMA_VERSION,
     backupId: crypto.randomUUID(), backupType: options.backupType || "local", exportedAt,
     exportedBy: options.exportedBy || null, timezone: options.timezone || "UTC", description: DESCRIPTION,
     generatedBy: GENERATED_BY, softwareEdition: SOFTWARE_EDITION, platform: options.platform || "Web",
     exportReason: options.exportReason || "Manual", exportDurationMs: 0, recordCount: 0,
-    applicationName: APPLICATION_NAME, applicationId: APPLICATION_ID, sourceWorkspaceId: options.sourceWorkspaceId || ""
+    applicationName: APPLICATION_NAME, applicationId: APPLICATION_ID, sourceWorkspaceId: options.sourceWorkspaceId || "",
+    ...(options.backupProfile ? { backupProfile: options.backupProfile } : {})
   };
 }
 
 export async function createDataExportPayload(
   data: Record<string, unknown>,
   exportedAt = new Date().toISOString(),
-  options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"] } = {}
+  options: { sourceWorkspaceId?: string; backupType?: "local" | "cloud"; exportedBy?: string | null; timezone?: string; platform?: BackupMetadata["platform"]; exportReason?: BackupMetadata["exportReason"]; backupProfile?: BackupProfile } = {}
 ): Promise<DataExportPayload> {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const cleanData = normalizeNullableUuidReferences(stripSensitiveExportData(data) as Record<string, unknown>);
+  const profileData = options.backupProfile === "PREMIUM_CLOUD" ? sanitizePremiumCloudBackupData(data) : data;
+  const cleanData = normalizeNullableUuidReferences(stripSensitiveExportData(profileData) as Record<string, unknown>);
   const metadata = normalizedMetadata(options, exportedAt);
   const recordCount = buildBackupSummary(cleanData).totalRecords;
   const elapsed = () => Math.max(0, Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt));

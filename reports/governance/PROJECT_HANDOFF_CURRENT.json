@@ -147,9 +147,20 @@
       "databaseMigrationRequired": false,
       "productionActivated": false
     },
+    "premiumCloudBackupContract": {
+      "owner": "lib/data-export.ts",
+      "status": "LOCAL_COMPLETE_CONTRACT_ONLY",
+      "profiles": ["FREE_LOCAL", "PREMIUM_CLOUD", "INTERNAL_FULL"],
+      "allowedData": "current Backup v2 structured collections and settings",
+      "excludedData": ["accounts", "auditLogs", "attachment_binary", "attachment_reference", "provider_reference", "auth_secret"],
+      "restoreBoundary": 18,
+      "scheduler": false,
+      "retentionLifecycle": false,
+      "productionActivated": false
+    },
     "premiumRoadmap": [
       { "phase": "PHASE_1", "name": "Canonical Capability / Entitlement Root", "status": "LOCAL_COMPLETE_DEFINITION_ONLY", "owner": "lib/account-capabilities.ts", "productionActivated": false },
-      { "phase": "PHASE_2", "name": "Premium Cloud Backup Data Contract", "status": "PLANNING_ONLY", "attachmentPolicy": "EXCLUDED" },
+      { "phase": "PHASE_2", "name": "Premium Cloud Backup Data Contract", "status": "LOCAL_COMPLETE_CONTRACT_ONLY", "owner": "lib/data-export.ts", "attachmentPolicy": "EXCLUDED", "scheduler": false, "retentionLifecycle": false, "productionActivated": false },
       { "phase": "PHASE_3", "name": "Premium Cloud Backup Lifecycle", "status": "PLANNING_ONLY", "automaticIntervalDays": 7, "sharedPoolSlots": 10, "cancelRetentionDays": 90 },
       { "phase": "PHASE_4", "name": "Existing Partnership to Premium entitlement", "status": "PLANNING_ONLY", "rebuildPartnershipEngine": false },
       { "phase": "PHASE_5", "name": "Premium property and room limits", "status": "PLANNING_ONLY", "freeProperties": 5, "freeRoomsPerProperty": 10 },

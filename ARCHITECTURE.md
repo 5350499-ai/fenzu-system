@@ -354,6 +354,15 @@ Free and Premium, and preserves Internal Full cloud recovery, diagnostics,
 partnership and attachment capability. Future Premium lifecycle work remains
 Phase 2+ and must reuse existing engines.
 
+`lib/data-export.ts` remains the single Backup v2 engine and is also the
+canonical Premium Cloud Backup data-contract owner. `PREMIUM_CLOUD` is an
+explicit Backup profile over the same checksum/manifest/schema/workspace
+contract; it allowlists the current structured payload collections and removes
+accounts, audit logs, attachment/provider references, binaries, URLs and auth
+secrets. `FREE_LOCAL` and the existing Internal Full paths retain their current
+behavior. Phase 2 defines the boundary only; it does not add scheduling,
+retention, Premium UI, Storage lifecycle or a second Restore engine.
+
 Planned, in canonical order: Premium Cloud Backup
 data contract; Premium Cloud Backup lifecycle; existing Partnership entitlement;
 Premium property/room limits; Theme Token consolidation and Premium Themes;

@@ -1,3 +1,14 @@
+# 2026-08-26 - Premium Phase 2 cloud Backup data contract (local)
+
+- Added the explicit `FREE_LOCAL` / `PREMIUM_CLOUD` / `INTERNAL_FULL` Backup
+  profile vocabulary to the existing `lib/data-export.ts` Backup v2 owner.
+- Premium cloud payloads now have a fail-closed structured-data boundary that
+  excludes account/audit domains, attachment binaries and metadata, Storage or
+  Google Drive/provider references, URLs and authentication secrets.
+- Preserved the existing Free Local and Internal Full Backup/Restore behavior;
+  no scheduler, retention lifecycle, UI, payment, migration, deployment or
+  Production data change was made.
+
 # 2026-08-26 - Premium Phase 1 capability root (local)
 
 - Added `lib/account-capabilities.ts` as the single capability/quota root for
