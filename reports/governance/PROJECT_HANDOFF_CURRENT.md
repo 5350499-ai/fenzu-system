@@ -455,3 +455,27 @@ attachment or cloud-recovery tests.
 - The Premium master roadmap is planning-only. This governance update does not
   start `PHASE_1`, create entitlements, change schema, enable cloud backups or
   authorize any deployment.
+
+## 13. Hong Kong migration governance
+
+### Phase B — isolated backend foundation: COMPLETE
+
+The current verified rehearsal source is
+`b58daf3f47b7c0bafa270c47551dca8556a6192b` on
+`hk-migration-phase-b`. Local, remote and Hong Kong rehearsal source parity
+passed. `HK_CANONICAL_BOOTSTRAP` is owned by
+`scripts/hk-canonical-bootstrap.mjs`; it preserves the canonical migration
+chain while excluding only historical Production identity repairs from a clean
+synthetic rebuild.
+
+Verified isolated evidence: canonical schema bootstrap/parity, synthetic
+fixtures, owner and wrong-workspace RLS proof, financial/partnership and
+idempotency regression, `pg_dump` checksum/restore round trip and rollback
+evidence. PostgreSQL on the Hong Kong host is loopback-only. No Production
+database, Auth, Storage, Vercel deployment, real user data, or other Hong Kong
+application was changed.
+
+Phase C is authorized for **strictly read-only** Production inventory and Auth,
+database and Storage portability analysis. It must not perform a production
+write, export user content to Hong Kong, reset a password, change a session,
+alter Vercel/Supabase/DNS, or begin a cutover. Premium Phase 3 remains paused.

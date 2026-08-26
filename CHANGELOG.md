@@ -1502,3 +1502,9 @@
 - Added a transaction-local, actor/workspace-bound trusted Restore context for the canonical Restore wrapper.
 - Shared business update-permission triggers now allow only that validated Restore context while preserving ordinary CRUD and move-out permission checks.
 - Added anti-spoof and Restore-boundary regression coverage. Production migration execution remains pending.
+
+## 2026-08-26 - HK Migration Phase B governance closeout
+
+- Recorded the verified isolated Hong Kong rehearsal at `b58daf3f47b7c0bafa270c47551dca8556a6192b`: clean canonical bootstrap, schema parity, synthetic financial and partnership coverage, authenticated RLS owner/wrong-workspace proof, `pg_dump` round trip and rollback evidence.
+- `scripts/hk-canonical-bootstrap.mjs` remains the one rehearsal orchestration owner over the canonical migration chain; historical Production identity repairs are excluded only from clean synthetic bootstrap, never deleted or rewritten.
+- No Production database/Auth/Storage/Vercel change, real-user data operation, deployment or other-host service change occurred.

@@ -517,3 +517,21 @@ coverage end, timing, amount and engine action metadata.
 `lib/rent-deposit-finance.ts` is the canonical classifier and projection owner for rent/deposit receipts. The authenticated, read-only `GET /api/check-in/receipt-links` boundary exposes only validated payment/deposit ID pairs from protected `check_in_requests`; it enforces active-account, module, workspace, property and matching tenant/room identity before returning a link.
 
 The 19-parameter `create_atomic_check_in` remains the database transaction owner. New rows store rent-only `amount_paid`, a separate deposit, the existing `check_in_requests` IDs and an exact deposit marker when a payment exists. The 20-parameter occupant wrapper remains unchanged. Historical explicit pairs are classified at read time and are never rewritten. Dashboard, payment management and settlement all pass the same explicit link set into the shared projection.
+
+## Hong Kong full-stack migration — Phase B closeout (2026-08-26)
+
+`scripts/hk-canonical-bootstrap.mjs` is the one **rehearsal orchestration
+owner** for a clean Hong Kong PostgreSQL rebuild. It derives the schema from
+the canonical migration chain; it does not replace migrations as the
+Production upgrade owner and must never be applied to Production.
+
+The orchestration explicitly excludes historical Production-account repairs and
+replaces them with deterministic synthetic Auth/workspace identities. It keeps
+the canonical schema semantics, function ordering, RLS and permission helpers,
+while preventing any clean environment from requiring a real Production email,
+UUID or business row. The isolated Hong Kong rehearsal at
+`b58daf3f47b7c0bafa270c47551dca8556a6192b` passed clean bootstrap, schema,
+synthetic financial/partnership fixture, authenticated owner/wrong-workspace
+RLS proof, `pg_dump` round trip and rollback evidence. PostgreSQL remains
+loopback-only. This is migration portability evidence only: Production remains
+Vercel + Supabase and is unchanged.

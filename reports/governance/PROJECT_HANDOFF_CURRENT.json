@@ -186,6 +186,25 @@
     "paidCommercialRelease": { "ready": false, "reason": "subscription/plan enforcement and commercial validation remain" },
     "appStoreGooglePlay": { "ready": false, "reason": "native packaging, store/compliance and commercial readiness remain" }
   },
+  "hkMigration": {
+    "phaseB": {
+      "status": "COMPLETE",
+      "verifiedRehearsalHead": "b58daf3f47b7c0bafa270c47551dca8556a6192b",
+      "branch": "hk-migration-phase-b",
+      "canonicalBootstrapOwner": "scripts/hk-canonical-bootstrap.mjs",
+      "headParity": "PASS",
+      "schemaParity": "PASS",
+      "permissionParity": "PASS",
+      "financialParity": "PASS",
+      "backupRestoreRehearsal": "PG_DUMP_ROUND_TRIP_AND_ROLLBACK_PASS",
+      "productionChanged": false
+    },
+    "phaseC": {
+      "status": "AUTHORIZED_READ_ONLY_ANALYSIS",
+      "productionWritesForbidden": true,
+      "premiumPhase3": "PAUSED"
+    }
+  },
   "backlog": {
     "releaseBeforePrivateBeta": [],
     "privateBetaValidation": ["1-3 trusted friends/real landlords", "normal daily rental workflow", "structured feedback/support evidence", "mobile browser/device issues", "cold-start cache performance observation"],
