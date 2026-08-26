@@ -479,3 +479,36 @@ Phase C is authorized for **strictly read-only** Production inventory and Auth,
 database and Storage portability analysis. It must not perform a production
 write, export user content to Hong Kong, reset a password, change a session,
 alter Vercel/Supabase/DNS, or begin a cutover. Premium Phase 3 remains paused.
+
+### Phase C — Auth and production migration rehearsal: DISCOVERY COMPLETE, EXACT-TARGET PROOF PENDING
+
+The strictly read-only Production inventory found an approximately 18 MB
+database; 8 Auth users, all email/password with bcrypt-format credentials; no
+Google OAuth identities; and approximately 62 MiB of Storage data. No user
+content, credentials, hashes, tokens, IDs or financial rows were exported or
+written. Existing Auth UUID preservation is the migration contract: importing
+compatible Auth identities before public data preserves `user_profiles`,
+workspace ownership, RLS linkage and business foreign keys. A new target JWT
+boundary means a one-time re-login is required at cutover; password reset or
+account re-registration is not expected, subject to the exact-target rehearsal.
+
+The target is a lean Supabase-compatible core, not full self-hosted Supabase:
+PostgreSQL 17, a current GoTrue-compatible Auth service, PostgREST and a
+Storage-compatible service behind existing Nginx, then the Phase D Next.js
+parallel application. Production is PostgreSQL 17 while Hong Kong Phase B is
+PostgreSQL 16, so Phase B cannot prove Auth/Storage import compatibility by
+itself. The next authorized isolated task is an empty PostgreSQL 17 target with
+synthetic identities and the target Auth/API/Storage services, proving actual
+JWT-to-RLS context, bcrypt verification/rehash and Storage policy behavior.
+
+The final export is manifest-led: supported Supabase platform dump for schema,
+roles and data; separate Auth identity and Storage checksums/manifests; final
+write freeze; count/ID/finance verification; one write origin only; then a
+7–14 day read-only rollback window. `family_ledger_*` data and the
+`family-ledger-avatars` bucket have live rows but no in-repository ownership
+reference, so an explicit scope decision is required before a final Fenzu
+export. They must not be silently included or excluded.
+
+Phase C is therefore **PARTIAL**, not a cutover authorization. No Production
+database/Auth/Storage/Vercel/DNS change occurred. Premium Phase 3 remains
+paused.

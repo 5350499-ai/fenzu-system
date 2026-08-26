@@ -535,3 +535,54 @@ synthetic financial/partnership fixture, authenticated owner/wrong-workspace
 RLS proof, `pg_dump` round trip and rollback evidence. PostgreSQL remains
 loopback-only. This is migration portability evidence only: Production remains
 Vercel + Supabase and is unchanged.
+
+## Hong Kong full-stack migration — Phase C read-only discovery (2026-08-26)
+
+Phase C establishes a read-only cutover design; it does not migrate, export or
+change Production. The live source is a small Supabase PostgreSQL 17 estate
+(about 18 MB), with 8 email/password identities using bcrypt-format password
+credentials and no active Google OAuth identities. Preserving the existing Auth
+UUIDs keeps `user_profiles`, workspace ownership and foreign-key ownership
+links stable. The target must import compatible bcrypt credentials, use a new
+Hong Kong JWT/session signing boundary, revoke or exclude old session/refresh
+tokens, and require a one-time cutover re-login. It must not require account
+re-registration or a password reset.
+
+The selected minimum target is not a full self-hosted Supabase bundle:
+`Nginx -> Next.js -> current GoTrue-compatible Auth + PostgREST +
+Storage-compatible service -> PostgreSQL 17`. Studio, Realtime, Edge Functions
+and an API gateway are not target requirements. This preserves the existing
+Supabase client contract while avoiding a broad page/API rewrite. PostgreSQL 17
+is mandatory for the exact-target rehearsal because the Production source is
+PostgreSQL 17; the existing Hong Kong PostgreSQL 16 rehearsal remains valid
+only as Phase B schema/semantic evidence.
+
+The source uses `btree_gist`, `pgcrypto`, `uuid-ossp` and `supabase_vault`.
+The final export/import owner must use the supported Supabase platform dump
+flow, then validate schema fingerprint, IDs, row counts, financial parity and
+Storage manifests in an isolated target. `pg_dump` remains the local fast
+backup/rehearsal mechanism, not the canonical platform migration export.
+
+Storage and data migration are strictly manifest-led. Current recovery/business
+backup objects and in-scope legacy attachment objects require private target
+storage paths and checksum validation; signed URLs, provider credentials,
+tokens and Premium cloud-backup attachment references remain excluded. External
+Google Drive attachment references are deferred, never silently copied. The
+live `family_ledger_*` tables and `family-ledger-avatars` bucket require an
+explicit product-ownership decision before any final Fenzu export; they are not
+implicitly included or discarded.
+
+The controlled cutover model is: maintenance/write freeze, final supported
+database/Auth identity snapshot and Storage manifest, isolated import and
+parity checks, Hong Kong smoke, origin/domain switch, then reopen Hong Kong
+writes. There is no dual write. If validation fails, Hong Kong writes remain
+disabled, the original Vercel/Supabase origin is restored and its writes reopen.
+Preserve the old stack read-only for 7–14 days. With the current measured size,
+the working estimate is a 20–30 minute write freeze and 45–60 minute total
+cutover, subject to a timed exact-target rehearsal.
+
+**Phase C remains partial.** Phase B proved synthetic PostgreSQL/RLS semantics,
+but the Hong Kong host does not yet run the selected PostgreSQL 17 +
+GoTrue/PostgREST/Storage-compatible runtime. `HK_TARGET_AUTH_RLS_PARITY` must
+be proven there with synthetic identities before Phase C or a parallel
+application phase can be closed. Production is unchanged.

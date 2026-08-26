@@ -200,9 +200,54 @@
       "productionChanged": false
     },
     "phaseC": {
-      "status": "AUTHORIZED_READ_ONLY_ANALYSIS",
+      "status": "PARTIAL_DISCOVERY_COMPLETE_EXACT_TARGET_RUNTIME_PROOF_PENDING",
       "productionWritesForbidden": true,
-      "premiumPhase3": "PAUSED"
+      "premiumPhase3": "PAUSED",
+      "productionInventory": {
+        "databaseSize": "18 MB",
+        "tableCountAcrossPublicAuthStorageAppPrivate": 65,
+        "estimatedRowsTotal": 3540,
+        "authUsers": 8,
+        "authProviders": {
+          "email": 8,
+          "google": 0,
+          "other": 0
+        },
+        "storageBucketCount": 6,
+        "storageObjectCountLive": 79,
+        "storageTotalBytes": 64793928
+      },
+      "authMigration": {
+        "passwordCredentialClass": "bcrypt_$2a$_read_only_aggregate",
+        "passwordResetExpected": "NO_SUBJECT_TO_EXACT_TARGET_REHEARSAL",
+        "userIdPreservation": "CANONICAL_REQUIREMENT",
+        "cutoverReloginRequired": true,
+        "googleOauthUsers": 0
+      },
+      "target": {
+        "model": "LEAN_SUPABASE_COMPATIBLE_CORE",
+        "components": [
+          "PostgreSQL 17",
+          "GoTrue-compatible Auth",
+          "PostgREST",
+          "Storage-compatible service",
+          "Nginx",
+          "Next.js in Phase D"
+        ],
+        "fullSelfHostedSupabase": false,
+        "exactTargetRuntimeProof": "PENDING"
+      },
+      "productionMigration": {
+        "method": "SUPPORTED_SUPABASE_PLATFORM_DUMP_PLUS_SEPARATE_STORAGE_MANIFEST",
+        "writeFreezeEstimateMinutes": "20-30",
+        "totalCutoverEstimateMinutes": "45-60",
+        "rollbackWindowDays": "7-14",
+        "dualWrite": false
+      },
+      "scopeDecisionRequired": [
+        "family_ledger_tables_and_family_ledger_avatars_bucket_ownership"
+      ],
+      "readyForPhaseD": false
     }
   },
   "backlog": {

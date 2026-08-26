@@ -1508,3 +1508,9 @@
 - Recorded the verified isolated Hong Kong rehearsal at `b58daf3f47b7c0bafa270c47551dca8556a6192b`: clean canonical bootstrap, schema parity, synthetic financial and partnership coverage, authenticated RLS owner/wrong-workspace proof, `pg_dump` round trip and rollback evidence.
 - `scripts/hk-canonical-bootstrap.mjs` remains the one rehearsal orchestration owner over the canonical migration chain; historical Production identity repairs are excluded only from clean synthetic bootstrap, never deleted or rewritten.
 - No Production database/Auth/Storage/Vercel change, real-user data operation, deployment or other-host service change occurred.
+
+## 2026-08-26 - HK Migration Phase C read-only portability discovery
+
+- Recorded the strict read-only Production inventory and future cutover contract: PostgreSQL 17 source, bcrypt email/password Auth identities, one-time cutover re-login, manifest-led Storage migration, final write freeze and single-write-origin rollback model.
+- Selected a lean Supabase-compatible target core (PostgreSQL 17, GoTrue-compatible Auth, PostgREST and Storage-compatible service) rather than a full self-hosted Supabase bundle; no target services were installed in this discovery phase.
+- Marked exact target-runtime Auth/RLS/Storage proof and `family_ledger_*` product ownership as pending gates. No Production data, credentials, Auth, Storage, Vercel deployment, DNS or Hong Kong application service was changed.
