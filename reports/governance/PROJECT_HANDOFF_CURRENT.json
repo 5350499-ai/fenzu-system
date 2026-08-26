@@ -17,6 +17,32 @@
       "supabase/.temp/"
     ]
   },
+  "globalEngineering": {
+    "adopted": true,
+    "root": "C:\\Users\\a5350\\Documents\\Codex\\GLOBAL_ENGINEERING\\",
+    "entrypoint": "README.md",
+    "runtimeDependency": false,
+    "readOrder": [
+      "GLOBAL_ENGINEERING/README.md",
+      "CLAUDE.md",
+      "BUSINESS_RULES.md",
+      "ARCHITECTURE.md",
+      "PROJECT_HANDOFF_CURRENT.md/.json",
+      "current task contract/policy",
+      "latest release checkpoint",
+      "CHANGELOG.md"
+    ],
+    "inheritedPolicies": [
+      "CANONICAL_ROOT_FIRST",
+      "LOCAL_FIRST",
+      "PRODUCTION_IS_STABLE_ENVIRONMENT",
+      "INTERNAL_BROWSER_FIRST",
+      "CLI_API_PRIORITY",
+      "DESKTOP_CHROME_CONTROL_FORBIDDEN_BY_DEFAULT",
+      "USER_INTERVENTION_LAST_RESORT"
+    ],
+    "premiumPhase1Started": false
+  },
   "deployments": {
     "production": {
       "url": "https://fenzu-system.vercel.app",
@@ -172,8 +198,9 @@
     "LOCAL_ISOLATED_ACCEPTANCE_FIRST": true,
     "PRODUCTION_RESTORE_FREEZE_UNLESS_EXPLICITLY_AUTHORIZED": true
   },
-    "nextSessionStartHere": [
-    "read CLAUDE.md, BUSINESS_RULES.md, ARCHITECTURE.md, this handoff, the task-relevant contract/policy and latest release checkpoint",
+  "nextSessionStartHere": [
+    "read C:\\Users\\a5350\\Documents\\Codex\\GLOBAL_ENGINEERING\\README.md",
+    "read CLAUDE.md, BUSINESS_RULES.md, ARCHITECTURE.md, this handoff, the task-relevant contract/policy, latest release checkpoint and CHANGELOG",
     "verify current checkout HEAD and Production alias",
     "run 1-3 person private-beta normal-use validation",
     "collect structured real-user feedback and support evidence",

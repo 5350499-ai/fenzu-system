@@ -2,6 +2,19 @@
 
 本文件是本项目的永久开发规范。以后每次开始开发前，都必须先阅读本文件，以及 `BUSINESS_RULES.md`、`ARCHITECTURE.md`、`CHANGELOG.md`。凡是新增、修改或重构前端 UI、页面、弹窗、表单、导航、卡片、按钮或响应式布局，还必须先阅读 `UI_DESIGN_SYSTEM.md`。
 
+## 0. Global Engineering prerequisite
+
+Before starting any fenzu-system task, first read:
+
+`C:\Users\a5350\Documents\Codex\GLOBAL_ENGINEERING\README.md`
+
+Then follow its required global rules, and read this project's `BUSINESS_RULES.md`,
+`ARCHITECTURE.md`, canonical `PROJECT_HANDOFF_CURRENT.md/.json`, the
+task-relevant contract/policy and the latest release checkpoint. Confirm the
+current HEAD, Production state and task scope before work begins. The global
+directory is Codex governance only: it is not imported, built, bundled or read
+by the application at runtime.
+
 ## 1. 项目定位
 
 本项目是长期维护、长期运营的软件，不是 Demo，不是练习项目，不是一次性项目。

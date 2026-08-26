@@ -46,17 +46,33 @@ Product path:
 
 The long-term target is real users, sustained use, subscription/payment validation, and official mobile-store distribution.
 
-## 3. Required reading order for the next Codex session
+## 3. Global Engineering adoption and required reading order
 
-1. `CLAUDE.md`
-2. `BUSINESS_RULES.md`
-3. `ARCHITECTURE.md`
-4. `CHANGELOG.md`
+`GLOBAL_ENGINEERING_ADOPTED = YES`
+
+- Global root: `C:\Users\a5350\Documents\Codex\GLOBAL_ENGINEERING\`
+- Global entrypoint: `README.md`
+- Runtime dependency: `NONE`; the application does not import, build or bundle
+  the global governance directory.
+
+The project inherits the global `CANONICAL_ROOT_FIRST`, Local-first,
+Production-stability, internal-browser-first, CLI/API-priority, desktop-Chrome
+protection and user-intervention-last-resort rules. Fenzu-specific business
+truth remains owned by the project files below. Any exception must record its
+reason, owner and scope here.
+
+### `NEW_SESSION_READ_ORDER`
+
+1. `C:\Users\a5350\Documents\Codex\GLOBAL_ENGINEERING\README.md`
+2. `CLAUDE.md`
+3. `BUSINESS_RULES.md`
+4. `ARCHITECTURE.md`
 5. This handoff and `PROJECT_HANDOFF_CURRENT.json`
 6. The current task-relevant contract/policy owner
 7. The latest release checkpoint
-8. For UI work: `UI_DESIGN_SYSTEM.md`, `UI_COMPONENT_MAP.md`, and `RESPONSIVE_CONTRACT.md`
-9. For data/security work: `ACTION_TREE_CONTRACT.md`, `DATA_STATE_TREE_CONTRACT.md`, `DOMAIN_RULE_CONTRACT.md`, `SECURITY_BOUNDARY_CONTRACT.md`, `SERVER_BOUNDARY_CONTRACT.md`, and the relevant Data Resilience documents.
+8. `CHANGELOG.md`
+9. For UI work: `UI_DESIGN_SYSTEM.md`, `UI_COMPONENT_MAP.md`, and `RESPONSIVE_CONTRACT.md`
+10. For data/security work: `ACTION_TREE_CONTRACT.md`, `DATA_STATE_TREE_CONTRACT.md`, `DOMAIN_RULE_CONTRACT.md`, `SECURITY_BOUNDARY_CONTRACT.md`, `SERVER_BOUNDARY_CONTRACT.md`, and the relevant Data Resilience documents.
 
 `FINAL_GOVERNANCE_BASELINE.md` is a historical governance baseline. It remains useful for frozen roots and accepted risks, but its older release/Production statements are not the current deployment status; this handoff is the current status owner.
 

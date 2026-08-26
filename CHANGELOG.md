@@ -1,3 +1,12 @@
+# 2026-08-26 - Adopt global engineering entrypoint
+
+- Added the minimal fenzu-system pointer to the portable global engineering
+  rules at `C:\Users\a5350\Documents\Codex\GLOBAL_ENGINEERING\README.md`.
+- Updated the canonical handoff and JSON read order so new sessions read global
+  rules first, then fenzu project rules, contracts and the latest checkpoint.
+- Preserved runtime behavior: no business code, database, migration, Premium
+  work, Restore, deployment or user data changed.
+
 # 2026-08-26 - Premium product master roadmap governance
 
 - Recorded the canonical-root-first rule, stable Production/local-first release
