@@ -237,13 +237,125 @@ Operational interpretation:
 - For every material change: root cause → shared/canonical fix → regression test → Preview → real-device/real-flow acceptance → explicit Production release.
 - Database, schema, migration, scheduler, SMTP, subscriptions and real-user data each need their own explicit scope. A release request does not authorize them automatically.
 
+## 9.4 Canonical Root First and stable-environment policy
+
+`CANONICAL_ROOT_FIRST = TRUE` is a permanent engineering rule. Before adding
+any capability, domain rule, financial calculation or design rule, identify its
+existing canonical owner. Reuse it when present; otherwise create the smallest
+single root first. Pages, APIs, server code and SQL must derive from that root
+and must not maintain parallel rules. The required invariants are:
+
+- `ONE_DOMAIN_ONE_CANONICAL_OWNER = TRUE`
+- `ONE_CAPABILITY_ONE_CANONICAL_OWNER = TRUE`
+- `ONE_BUSINESS_RULE_ONE_CANONICAL_OWNER = TRUE`
+- `ONE_DESIGN_RULE_ONE_CANONICAL_OWNER = TRUE`
+- `ONE_FINANCIAL_CALCULATION_ONE_CANONICAL_OWNER = TRUE`
+- `ROOT_CAUSE_FIRST = TRUE`; patch-first development is forbidden.
+
+Production is a stable environment, not a development environment:
+
+```text
+LOCAL_FIRST
+-> AUTOMATED_ACCEPTANCE
+-> PREVIEW_SECOND
+-> FINAL_USER_UX_ACCEPTANCE
+-> EXPLICIT_PRODUCTION_AUTHORIZATION
+-> PRODUCTION_LAST
+```
+
+Local Docker/Supabase and the Restore Lab may run migrations, synthetic
+fixtures, destructive tests, failure injection and full E2E acceptance.
+Production is never the trial environment. Users are not intermediate test
+operators; `USER_INTERVENTION = LAST_RESORT` and is reserved for final UX,
+real-device acceptance, official account-holder authorization or a judgment
+automation cannot make.
+
+## 9.5 Browser and desktop isolation policy
+
+`INTERNAL_BROWSER_FIRST = TRUE`, `CLI_API_FIRST_WHEN_APPROPRIATE = TRUE`, and
+`DO_NOT_CONTROL_USER_DESKTOP_CHROME = TRUE`. CodeDesk's isolated browser is
+preferred for browser work; CLI/API/connector is preferred when it can complete
+the task. Desktop Chrome must not be opened, focused, refreshed, filled or
+otherwise controlled without explicit user authorization. If an official
+account-holder action is unavoidable, stop, explain the limitation, remind the
+user to pause conflicting desktop automation, request one minimal action, and
+then resume automatically. Never store passwords, tokens, cookies, OAuth codes,
+session secrets or other credentials in the repository, governance files or
+logs.
+
+## 9.6 Premium product master roadmap
+
+The product tiers are intentionally distinct:
+
+- `FREE`: ordinary single-operator product; mature basic capabilities remain
+  free.
+- `PREMIUM`: future commercial entitlement, not currently commercialized or
+  exposed.
+- `INTERNAL_FULL`: internal full-feature baseline; it is not automatically a
+  Premium customer tier.
+
+The following sequence is the canonical future roadmap. A phase does not
+authorize implementation or Production release by itself:
+
+1. `PHASE_1` — Canonical Capability / Entitlement Root. Reuse
+   `lib/free-single.ts`, `lib/restore-capability.ts`, `account-auth` and
+   `app_private` helpers before introducing the smallest unified resolver.
+2. `PHASE_2` — Premium Cloud Backup Data Contract. Store structured business
+   data only; exclude attachment binaries, identity/contract images, signed
+   URLs, Google Drive objects/references and other attachment-provider data.
+3. `PHASE_3` — Premium Cloud Backup Lifecycle: automatic backup every 7 days,
+   one shared automatic/manual pool of 10, oldest-first permanent deletion at
+   the 11th point, explicit history listing/deletion and second confirmation.
+4. `PHASE_4` — Existing Partnership to Premium entitlement. Do not rebuild the
+   partnership engine; add only entitlement, UI entry and commercial copy.
+5. `PHASE_5` — Premium property/room limits. Keep Free at 5 properties and 10
+   rooms per property; future limits must come from the capability root, never
+   duplicated page logic.
+6. `PHASE_6` — Theme token consolidation and Premium Themes. Reuse the current
+   Light/Dark token owner and CSS variables; do not create page-local themes.
+7. `PHASE_7` — Account deletion and full cloud purge. Cancellation and account
+   deletion are separate. Full purge must cover business data, Premium cloud
+   backups, recovery metadata, `system-backups` objects and related Storage,
+   Auth cleanup and protected audit handling. Current status is
+   `NOT_PROVEN / PARTIAL`.
+8. `PHASE_8` — i18n and language packages. Execute last, after the product and
+   Premium surface stabilize; all user-visible text must then use locale
+   packages and locale-aware date, number and currency formatters.
+
+Premium must reuse the existing Backup v2, checksum, manifest, workspace
+binding, Recovery Point, Preview, Dry Run and transactional Restore engines.
+Attachments remain `FREE = OFF`, `PREMIUM = OFF`, `INTERNAL_FULL = INTERNAL_ONLY`
+until a separate product and cost decision changes that policy. Existing
+statistics, history, profits, reminders, local Backup/Restore and basic export
+remain `KEEP_FREE`.
+
+Every future phase follows the same release template:
+
+```text
+READ_CANONICAL_ROOTS
+-> IDENTIFY_EXISTING_OWNER
+-> MINIMUM_LOCAL_IMPLEMENTATION
+-> AUTOMATED_TESTING + FAILURE_INJECTION_WHEN_APPLICABLE
+-> FULL_REGRESSION + PRODUCTION_BUILD
+-> PREVIEW + AUTOMATED_SMOKE
+-> USER_FINAL_UX_ACCEPTANCE_WHEN_NEEDED
+-> EXPLICIT_PRODUCTION_AUTHORIZATION
+-> PRODUCTION_DEPLOY + POST_DEPLOY_SMOKE
+-> UPDATE_HANDOFF / CHANGELOG / CHECKPOINT
+```
+
+No phase may silently drift into billing, unrelated refactoring, Production
+testing or a second capability/roadmap system.
+
 ## 10. NEXT SESSION START HERE
 
 1. Read `CLAUDE.md`, `BUSINESS_RULES.md`, `ARCHITECTURE.md`, this handoff, the task-relevant contract/policy, and the latest release checkpoint.
 2. Verify checkout HEAD and the Production alias before any release work.
 3. Run the 1–3 person private-beta normal-use validation and collect structured feedback.
 4. Do not ask private-beta users to perform destructive Restore or internal-only tests.
-5. Use evidence to decide whether Public Beta is justified; only then advance commercial and App Store / Google Play work.
+5. Read the `9.4`–`9.6` governance rules before any new capability or release work.
+6. Use evidence to decide whether Public Beta is justified; only then advance
+   `PHASE_1` and later commercial or App Store / Google Play work.
 
 ## 11. Current validation evidence
 
@@ -282,3 +394,6 @@ attachment or cloud-recovery tests.
 - This governance closeout changes no business code, database, schema, migration, scheduler, SMTP or real-user data.
 - This document intentionally does not authorize a deployment. It is a state record for the next Codex session.
 - This financial audit made no business-code, schema, database-row or Production deployment change; its only repository change is governance evidence.
+- The Premium master roadmap is planning-only. This governance update does not
+  start `PHASE_1`, create entitlements, change schema, enable cloud backups or
+  authorize any deployment.

@@ -103,6 +103,20 @@
     "attachments": "TECHNICAL_CAPABILITY_IMPLEMENTED_TESTED; product OFF for Free and Paid; Internal Full may retain internal use; separate from ordinary Backup/Restore",
     "internalFull": "full-feature baseline with cloud recovery, recovery metadata, diagnostics and future historical recovery; entitlement-based, never hard-coded user ID",
     "futurePremium": "NOT_YET_COMMERCIALIZED_OR_EXPOSED",
+    "productTiers": ["FREE", "PREMIUM", "INTERNAL_FULL"],
+    "canonicalRootFirst": true,
+    "keepFree": ["analytics", "history", "property_profits", "reminders", "local_backup", "local_restore", "basic_csv_excel_export", "pwa_mobile"],
+    "premiumRoadmapOwner": "reports/governance/PROJECT_HANDOFF_CURRENT.md#9.6-premium-product-master-roadmap",
+    "premiumRoadmap": [
+      { "phase": "PHASE_1", "name": "Canonical Capability / Entitlement Root", "status": "PLANNING_ONLY" },
+      { "phase": "PHASE_2", "name": "Premium Cloud Backup Data Contract", "status": "PLANNING_ONLY", "attachmentPolicy": "EXCLUDED" },
+      { "phase": "PHASE_3", "name": "Premium Cloud Backup Lifecycle", "status": "PLANNING_ONLY", "automaticIntervalDays": 7, "sharedPoolSlots": 10, "cancelRetentionDays": 90 },
+      { "phase": "PHASE_4", "name": "Existing Partnership to Premium entitlement", "status": "PLANNING_ONLY", "rebuildPartnershipEngine": false },
+      { "phase": "PHASE_5", "name": "Premium property and room limits", "status": "PLANNING_ONLY", "freeProperties": 5, "freeRoomsPerProperty": 10 },
+      { "phase": "PHASE_6", "name": "Theme Token consolidation and Premium Themes", "status": "PLANNING_ONLY" },
+      { "phase": "PHASE_7", "name": "Account Deletion and Full Cloud Purge", "status": "PLANNING_ONLY", "currentStatus": "NOT_PROVEN / PARTIAL" },
+      { "phase": "PHASE_8", "name": "i18n and Language Packages", "status": "PLANNING_ONLY", "lastPhase": true }
+    ],
     "vercelLoginMethod": "Google",
     "credentialsStorage": "FORBIDDEN",
     "browserAutomation": {
@@ -141,18 +155,31 @@
     "PRODUCTION_DEPLOY_REQUIRES_EXPLICIT_RELEASE_STEP": true,
     "SMALL_LOW_RISK_UI_CHANGES_CAN_USE_PREVIEW_THEN_RELEASE": true,
     "BACKUP_RESTORE_CHANGES_REQUIRE_EXTRA_CAUTION": true,
+    "CANONICAL_ROOT_FIRST": true,
+    "ONE_DOMAIN_ONE_CANONICAL_OWNER": true,
+    "ONE_CAPABILITY_ONE_CANONICAL_OWNER": true,
+    "ONE_BUSINESS_RULE_ONE_CANONICAL_OWNER": true,
+    "ONE_DESIGN_RULE_ONE_CANONICAL_OWNER": true,
+    "ONE_FINANCIAL_CALCULATION_ONE_CANONICAL_OWNER": true,
+    "PRODUCTION_IS_STABLE_ENVIRONMENT": true,
+    "PRODUCTION_IS_DEVELOPMENT_ENVIRONMENT": false,
+    "LOCAL_FIRST": true,
+    "AUTOMATED_ACCEPTANCE_BEFORE_PREVIEW": true,
+    "DO_NOT_CONTROL_USER_DESKTOP_CHROME": true,
     "INTERNAL_BROWSER_FIRST": true,
     "DESKTOP_CHROME_CONTROL": false,
     "USER_INTERVENTION": "LAST_RESORT",
     "LOCAL_ISOLATED_ACCEPTANCE_FIRST": true,
     "PRODUCTION_RESTORE_FREEZE_UNLESS_EXPLICITLY_AUTHORIZED": true
   },
-  "nextSessionStartHere": [
+    "nextSessionStartHere": [
     "read CLAUDE.md, BUSINESS_RULES.md, ARCHITECTURE.md, this handoff, the task-relevant contract/policy and latest release checkpoint",
     "verify current checkout HEAD and Production alias",
     "run 1-3 person private-beta normal-use validation",
     "collect structured real-user feedback and support evidence",
     "decide Public Beta from evidence",
+    "read the canonical Premium roadmap in PROJECT_HANDOFF_CURRENT.md section 9.6",
+    "do not start PHASE_1 without a separate implementation scope and local acceptance plan",
     "then advance multi-language, subscriptions and App Store roadmap"
   ],
   "validation": {

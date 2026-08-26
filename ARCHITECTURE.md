@@ -336,9 +336,17 @@ are not range filters.
 
 Completed: Backup / Restore V4; dynamic partners; Production release.
 
-In progress: Global Cache V3; Product Roadmap.
+In progress: Global Cache V3. The canonical long-term Premium roadmap and
+release gates are maintained in
+`reports/governance/PROJECT_HANDOFF_CURRENT.md` and its JSON companion.
 
-Planned: local attachment import/export; full-app navigation optimization; UI detail refinement; multi-property support; membership/subscription system (not open); cloud backup; enhanced historical restore; attachment capacity management; multi-person collaboration for advanced partners.
+Planned, in canonical order: Capability/Entitlement Root; Premium Cloud Backup
+data contract; Premium Cloud Backup lifecycle; existing Partnership entitlement;
+Premium property/room limits; Theme Token consolidation and Premium Themes;
+Account Deletion / Full Cloud Purge; i18n / Language Packages. These are
+planning items only and do not authorize implementation, migration or
+deployment. Do not duplicate this roadmap in page code or another governance
+file.
 
 The static `/roadmap` page is a product-planning surface only. All current roadmap items remain free, with no payment or subscription flow connected.
 

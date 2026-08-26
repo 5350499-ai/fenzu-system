@@ -1,3 +1,16 @@
+# 2026-08-26 - Premium product master roadmap governance
+
+- Recorded the canonical-root-first rule, stable Production/local-first release
+  flow, user-intervention-last-resort policy and internal-browser/CLI/API-first
+  browser isolation rules in the current handoff.
+- Recorded the distinct `FREE`, future `PREMIUM` and `INTERNAL_FULL` product
+  tiers and the eight-phase Premium roadmap: capability root, cloud Backup data
+  contract, 7-day/10-slot cloud lifecycle with 90-day cancellation retention,
+  existing Partnership entitlement, limits, themes, full cloud purge and i18n.
+- Preserved mature Free analytics, history, profits, reminders, local
+  Backup/Restore and basic export. This is governance-only; no business code,
+  database, migration, deployment or user data changed.
+
 # 2026-08-25 - Production Backup/Restore closeout and Private Beta readiness
 
 - Closed the Production Backup/Restore release after final iPhone acceptance: Preview, recovery rehearsal, mandatory local pre-Restore backup, formal Restore and post-Restore core-page/amount checks all passed.
