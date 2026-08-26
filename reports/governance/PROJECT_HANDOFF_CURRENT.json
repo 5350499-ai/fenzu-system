@@ -200,7 +200,7 @@
       "productionChanged": false
     },
     "phaseC": {
-      "status": "PARTIAL_DISCOVERY_COMPLETE_EXACT_TARGET_RUNTIME_PROOF_PENDING",
+      "status": "COMPLETE_SYNTHETIC_EXACT_TARGET_RUNTIME_PROOF",
       "productionWritesForbidden": true,
       "premiumPhase3": "PAUSED",
       "productionInventory": {

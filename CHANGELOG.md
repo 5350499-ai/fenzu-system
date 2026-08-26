@@ -1514,3 +1514,8 @@
 - Recorded the strict read-only Production inventory and future cutover contract: PostgreSQL 17 source, bcrypt email/password Auth identities, one-time cutover re-login, manifest-led Storage migration, final write freeze and single-write-origin rollback model.
 - Selected a lean Supabase-compatible target core (PostgreSQL 17, GoTrue-compatible Auth, PostgREST and Storage-compatible service) rather than a full self-hosted Supabase bundle; no target services were installed in this discovery phase.
 - Marked exact target-runtime Auth/RLS/Storage proof and `family_ledger_*` product ownership as pending gates. No Production data, credentials, Auth, Storage, Vercel deployment, DNS or Hong Kong application service was changed.
+
+## 2026-08-26 - HK Migration Phase C exact target runtime proof
+
+- Proved the isolated exact target: PostgreSQL 17.6, GoTrue v2.195.0, PostgREST v14.16, Storage API v1.68.5 and loopback-only Nginx routing. Canonical bootstrap, bcrypt login/refresh/logout, JWT-to-RLS UUID/workspace isolation, Storage isolation, PG17 dump/restore, rollback and isolated dependency recovery passed with synthetic data only.
+- Corrected the isolated gateway to re-resolve Docker service DNS after service restarts; no host Nginx route, production service, database, Auth, Storage, Vercel, DNS or game-status-radar service was changed. `family_ledger_*` remains out of scope pending ownership evidence.

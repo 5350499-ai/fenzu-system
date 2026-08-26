@@ -480,7 +480,7 @@ database and Storage portability analysis. It must not perform a production
 write, export user content to Hong Kong, reset a password, change a session,
 alter Vercel/Supabase/DNS, or begin a cutover. Premium Phase 3 remains paused.
 
-### Phase C — Auth and production migration rehearsal: DISCOVERY COMPLETE, EXACT-TARGET PROOF PENDING
+### Phase C — Auth and production migration rehearsal: COMPLETE (synthetic exact-target proof)
 
 The strictly read-only Production inventory found an approximately 18 MB
 database; 8 Auth users, all email/password with bcrypt-format credentials; no
@@ -509,6 +509,12 @@ write freeze; count/ID/finance verification; one write origin only; then a
 reference, so an explicit scope decision is required before a final Fenzu
 export. They must not be silently included or excluded.
 
-Phase C is therefore **PARTIAL**, not a cutover authorization. No Production
-database/Auth/Storage/Vercel/DNS change occurred. Premium Phase 3 remains
-paused.
+The isolated exact target completed on PostgreSQL 17.6 + GoTrue v2.195.0 +
+PostgREST v14.16 + Storage API v1.68.5. Synthetic bcrypt login, UUID/RLS chain,
+session refresh/logout, private Storage isolation, PG17 dump/restore, transaction
+rollback and dependency-failure recovery all passed. `family_ledger_*` and
+`family-ledger-avatars` remain `OUT_OF_SCOPE_PENDING_OWNERSHIP`.
+
+Phase C is **COMPLETE**, not a cutover authorization. No Production
+database/Auth/Storage/Vercel/DNS change occurred. Premium Phase 3 remains paused.
+The next separately authorized phase is Phase D parallel application deployment.

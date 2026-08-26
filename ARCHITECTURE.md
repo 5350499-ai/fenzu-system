@@ -581,8 +581,15 @@ Preserve the old stack read-only for 7–14 days. With the current measured size
 the working estimate is a 20–30 minute write freeze and 45–60 minute total
 cutover, subject to a timed exact-target rehearsal.
 
-**Phase C remains partial.** Phase B proved synthetic PostgreSQL/RLS semantics,
-but the Hong Kong host does not yet run the selected PostgreSQL 17 +
-GoTrue/PostgREST/Storage-compatible runtime. `HK_TARGET_AUTH_RLS_PARITY` must
-be proven there with synthetic identities before Phase C or a parallel
-application phase can be closed. Production is unchanged.
+## Hong Kong full-stack migration — Phase C exact-target proof (2026-08-26)
+
+Phase C is complete as a synthetic-only proof. The isolated runtime is
+PostgreSQL 17.6, GoTrue v2.195.0, PostgREST v14.16, Storage API v1.68.5 and
+an internal Nginx gateway. It cleanly bootstraps the canonical schema, verifies
+bcrypt login/refresh/logout, preserves synthetic Auth UUID → profile → workspace
+ownership → RLS, blocks wrong-workspace/inactive/anonymous/invalid-token access,
+and validates private Storage policy boundaries. PostgreSQL, Auth/API and gateway
+are loopback/internal-only; the gateway uses Docker DNS re-resolution so isolated
+service restarts recover without stale upstream IPs. A synthetic PG17 dump/restore
+round trip and transaction rollback also passed. This is portability proof only:
+Production remains Vercel + Supabase and unchanged; Phase D is separately gated.
