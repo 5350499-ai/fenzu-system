@@ -110,6 +110,11 @@ for (const { name, sourceName } of files) {
 }
 
 parts.push(`
+-- Isolated Supabase-compatible grants; RLS remains the row-level boundary.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
 -- Synthetic owner/workspace fixture. No Production identity or data is used.
 insert into public.user_profiles (
   auth_user_id, workspace_owner_id, username, display_name, account_type,
