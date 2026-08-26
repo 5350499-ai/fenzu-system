@@ -53,6 +53,25 @@ function normalize(name, source) {
     return result;
   }
 
+  if (["202607150001_account_permissions_stage3.sql", "20260730120000_add_actual_move_out_date.sql", "20260808000400_fix_authorized_tenants_occupant_count_return.sql"].includes(name)) {
+    const replacement = name.includes("20260808000400")
+      ? "    null::text, null::text, null::text, null::text, t.source, t.move_in_date, t.expected_move_out_date, t.actual_move_out_date,\n    t.monthly_rent, t.deposit_amount, t.key_count, t.status,\n    case when app_private.has_sensitive_permission('view_tenant_notes') then t.notes else null end,\n    t.created_at, t.updated_at, t.payment_day, t.occupant_count"
+      : "    null::text, null::text, null::text, null::text, t.source, t.move_in_date, t.expected_move_out_date, t.actual_move_out_date,\n    t.monthly_rent, t.deposit_amount, t.key_count, t.status,\n    case when app_private.has_sensitive_permission('view_tenant_notes') then t.notes else null end,\n    t.created_at, t.updated_at, t.payment_day";
+    const projection = /    t\.source, t\.monthly_rent, t\.deposit_amount, t\.status,[\s\S]*?t\.created_at, t\.updated_at, t\.payment_day(?:, t\.actual_move_out_date)?(?:,\s*\n    t\.occupant_count)?/;
+    if (!projection.test(source)) throw new Error(`Tenant projection normalization target not found: ${name}`);
+    return source.replace(projection, replacement);
+  }
+
+  if (name === "20260823180000_coverage_and_deposit_income.sql") {
+    const roomMarker = "  v_marker := E'  update public.rooms\\n  set status = ''已租''';";
+    const markerIndex = source.indexOf(roomMarker);
+    const guard = "  if position(v_marker in v_source) = 0 then\n    raise exception 'create_atomic_check_in room update marker not found';\n  end if;";
+    const guardIndex = markerIndex < 0 ? -1 : source.indexOf(guard, markerIndex);
+    if (guardIndex < 0) throw new Error("Room marker normalization target not found");
+    const fallback = "  if position(v_marker in v_source) > 0 then\n    v_source := replace(v_source, v_marker, v_replacement);\n  else\n    v_marker := E'  update public.rooms\\r\\n  set status = ''已租''';\n    if position(v_marker in v_source) = 0 then\n      raise exception 'create_atomic_check_in room update marker not found';\n    end if;\n    v_source := replace(v_source, v_marker, v_replacement);\n  end if;";
+    return source.slice(0, guardIndex) + fallback + source.slice(guardIndex + guard.length);
+  }
+
   return source;
 }
 
@@ -69,7 +88,7 @@ for (const name of files) {
     parts.push(`-- EXCLUDED HISTORICAL DATA REPAIR: ${name}`);
     continue;
   }
-  const source = await readFile(join(migrationsDir, name), "utf8");
+  const source = (await readFile(join(migrationsDir, name), "utf8")).replace(/\r\n/g, "\n");
   parts.push(`-- BEGIN CANONICAL MIGRATION: ${name}`);
   parts.push(normalize(name, source));
   parts.push(`-- END CANONICAL MIGRATION: ${name}`);
