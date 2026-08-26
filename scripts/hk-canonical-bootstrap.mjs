@@ -88,7 +88,9 @@ for (const name of files) {
     parts.push(`-- EXCLUDED HISTORICAL DATA REPAIR: ${name}`);
     continue;
   }
-  const source = (await readFile(join(migrationsDir, name), "utf8")).replace(/\r\n/g, "\n");
+  const source = (await readFile(join(migrationsDir, name), "utf8"))
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n");
   parts.push(`-- BEGIN CANONICAL MIGRATION: ${name}`);
   parts.push(normalize(name, source));
   parts.push(`-- END CANONICAL MIGRATION: ${name}`);
