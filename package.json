@@ -18,6 +18,7 @@
     "test:workspace-currency-save": "node --experimental-strip-types --test tests/workspace-currency-save.test.ts",
     "test:backup-reminder": "node --experimental-strip-types --test tests/backup-reminder.test.ts",
     "test:backup-reminder-server-source": "node --experimental-strip-types --test tests/backup-reminder-server-source.test.ts",
+    "test:account-capabilities": "node --experimental-strip-types --test scripts/account-capabilities.test.ts",
     "validate:ui": "node scripts/validate-ui-system.mjs",
     "validate:restore-mapping": "node scripts/validate-restore-mapping.mjs",
     "validate:restore-live-schema": "node scripts/validate-restore-live-schema.mjs",

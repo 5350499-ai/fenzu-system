@@ -313,9 +313,15 @@ The product tiers are intentionally distinct:
 The following sequence is the canonical future roadmap. A phase does not
 authorize implementation or Production release by itself:
 
-1. `PHASE_1` — Canonical Capability / Entitlement Root. Reuse
-   `lib/free-single.ts`, `lib/restore-capability.ts`, `account-auth` and
-   `app_private` helpers before introducing the smallest unified resolver.
+1. `PHASE_1` — Canonical Capability / Entitlement Root. **LOCAL COMPLETE.**
+   The owner is `lib/account-capabilities.ts`. It defines `FREE`, `PREMIUM`
+   and `INTERNAL_FULL`, preserves Free at 5 properties/10 rooms, keeps Premium
+   limits TBD, and maps the legacy `managed` path to Internal Full compatibility
+   only. `managed` is not Premium. `lib/free-single.ts` and
+   `lib/restore-capability.ts` remain compatibility/security adapters; existing
+   account-auth and `app_private` helpers remain enforcement boundaries. No
+   Premium feature is activated, no database migration is required, and Phase 2
+   has not started.
 2. `PHASE_2` — Premium Cloud Backup Data Contract. Store structured business
    data only; exclude attachment binaries, identity/contract images, signed
    URLs, Google Drive objects/references and other attachment-provider data.
@@ -362,6 +368,22 @@ READ_CANONICAL_ROOTS
 
 No phase may silently drift into billing, unrelated refactoring, Production
 testing or a second capability/roadmap system.
+
+### 9.7 Phase 1 capability root implementation record
+
+`lib/account-capabilities.ts` is the single product capability/quota owner.
+The resolver exposes partnership, cloud Backup/history, automatic cloud Backup,
+Premium Themes, attachments, diagnostics, local Backup/Restore and property/
+room quotas for the three product tiers. `PREMIUM` is a definition-only tier in
+this phase: partnership and future cloud capabilities are described but not
+commercially exposed; Premium property/room limits remain centralized TBD
+values. Attachments remain `FREE = OFF`, `PREMIUM = OFF`,
+`INTERNAL_FULL = ON`.
+
+This root does not replace defense-in-depth SQL/RLS or existing business
+engines. The Partnership engine, cloud recovery engine and attachment engine
+are reused, not rebuilt. No production behavior, database schema, migration,
+Restore or deployment is changed by Phase 1.
 
 ## 10. NEXT SESSION START HERE
 

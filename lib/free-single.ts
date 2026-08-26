@@ -1,9 +1,11 @@
+import { FREE_SINGLE_LIMITS } from "./account-capabilities";
+
 export const FREE_SINGLE_PLAN = "free_single" as const;
 export const MANAGED_PLAN = "managed" as const;
 export type AccountPlan = typeof FREE_SINGLE_PLAN | typeof MANAGED_PLAN;
 
-export const FREE_SINGLE_PROPERTY_LIMIT = 5;
-export const FREE_SINGLE_ROOM_LIMIT = 10;
+export const FREE_SINGLE_PROPERTY_LIMIT = FREE_SINGLE_LIMITS.maxProperties;
+export const FREE_SINGLE_ROOM_LIMIT = FREE_SINGLE_LIMITS.maxRoomsPerProperty;
 
 export function isFreeSinglePlan(value: unknown): value is typeof FREE_SINGLE_PLAN {
   return value === FREE_SINGLE_PLAN;

@@ -41,7 +41,9 @@
       "DESKTOP_CHROME_CONTROL_FORBIDDEN_BY_DEFAULT",
       "USER_INTERVENTION_LAST_RESORT"
     ],
-    "premiumPhase1Started": false
+    "premiumPhase1Started": true,
+    "premiumPhase1Status": "LOCAL_COMPLETE",
+    "capabilityRootOwner": "lib/account-capabilities.ts"
   },
   "deployments": {
     "production": {
@@ -133,8 +135,20 @@
     "canonicalRootFirst": true,
     "keepFree": ["analytics", "history", "property_profits", "reminders", "local_backup", "local_restore", "basic_csv_excel_export", "pwa_mobile"],
     "premiumRoadmapOwner": "reports/governance/PROJECT_HANDOFF_CURRENT.md#9.6-premium-product-master-roadmap",
+    "capabilityRoot": {
+      "owner": "lib/account-capabilities.ts",
+      "status": "LOCAL_COMPLETE_DEFINITION_ONLY",
+      "tiers": ["FREE", "PREMIUM", "INTERNAL_FULL"],
+      "managedIsNotPremium": true,
+      "freeMaxProperties": 5,
+      "freeMaxRoomsPerProperty": 10,
+      "premiumLimits": "TBD_CENTRALIZED_NO_ACTIVATION",
+      "attachments": { "free": false, "premium": false, "internalFull": true },
+      "databaseMigrationRequired": false,
+      "productionActivated": false
+    },
     "premiumRoadmap": [
-      { "phase": "PHASE_1", "name": "Canonical Capability / Entitlement Root", "status": "PLANNING_ONLY" },
+      { "phase": "PHASE_1", "name": "Canonical Capability / Entitlement Root", "status": "LOCAL_COMPLETE_DEFINITION_ONLY", "owner": "lib/account-capabilities.ts", "productionActivated": false },
       { "phase": "PHASE_2", "name": "Premium Cloud Backup Data Contract", "status": "PLANNING_ONLY", "attachmentPolicy": "EXCLUDED" },
       { "phase": "PHASE_3", "name": "Premium Cloud Backup Lifecycle", "status": "PLANNING_ONLY", "automaticIntervalDays": 7, "sharedPoolSlots": 10, "cancelRetentionDays": 90 },
       { "phase": "PHASE_4", "name": "Existing Partnership to Premium entitlement", "status": "PLANNING_ONLY", "rebuildPartnershipEngine": false },
@@ -206,7 +220,7 @@
     "collect structured real-user feedback and support evidence",
     "decide Public Beta from evidence",
     "read the canonical Premium roadmap in PROJECT_HANDOFF_CURRENT.md section 9.6",
-    "do not start PHASE_1 without a separate implementation scope and local acceptance plan",
+    "PHASE_1 capability root is locally complete; do not start PHASE_2 without a separate implementation scope and local acceptance plan",
     "then advance multi-language, subscriptions and App Store roadmap"
   ],
   "validation": {

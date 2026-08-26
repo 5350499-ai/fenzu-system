@@ -340,7 +340,21 @@ In progress: Global Cache V3. The canonical long-term Premium roadmap and
 release gates are maintained in
 `reports/governance/PROJECT_HANDOFF_CURRENT.md` and its JSON companion.
 
-Planned, in canonical order: Capability/Entitlement Root; Premium Cloud Backup
+`lib/account-capabilities.ts` is now the canonical product capability and quota
+root for `FREE`, `PREMIUM` and `INTERNAL_FULL`. It is a local Phase 1
+definition/compatibility layer only: Premium is not activated, no commercial
+limits are invented, and no database migration is required. Existing
+`free-single`, account-auth, Restore and SQL/RLS helpers remain security and
+business boundaries; they are not replaced by a UI-only resolver. `managed` is
+an existing legacy/full-account path and is explicitly not Premium.
+
+The root currently preserves Free at 5 properties and 10 rooms per property,
+keeps local Backup/Restore and mature analytics free, keeps attachments off for
+Free and Premium, and preserves Internal Full cloud recovery, diagnostics,
+partnership and attachment capability. Future Premium lifecycle work remains
+Phase 2+ and must reuse existing engines.
+
+Planned, in canonical order: Premium Cloud Backup
 data contract; Premium Cloud Backup lifecycle; existing Partnership entitlement;
 Premium property/room limits; Theme Token consolidation and Premium Themes;
 Account Deletion / Full Cloud Purge; i18n / Language Packages. These are

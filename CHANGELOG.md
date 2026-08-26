@@ -1,3 +1,15 @@
+# 2026-08-26 - Premium Phase 1 capability root (local)
+
+- Added `lib/account-capabilities.ts` as the single capability/quota root for
+  `FREE`, `PREMIUM` and `INTERNAL_FULL`.
+- Preserved Free limits and mature Free behavior; kept `managed` as a legacy
+  full/internal compatibility path rather than treating it as Premium.
+- Routed the Free quota constants and Restore capability adapter through the
+  root without changing SQL/RLS enforcement, partnership, cloud recovery or
+  attachment engines.
+- Phase 1 is local-only and definition-only: no Premium feature activation,
+  database change, migration, deployment, Restore or user-data change.
+
 # 2026-08-26 - Adopt global engineering entrypoint
 
 - Added the minimal fenzu-system pointer to the portable global engineering

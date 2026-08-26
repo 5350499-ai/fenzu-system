@@ -1,3 +1,5 @@
+import { getLegacyAccountCapabilities, type LegacyCapabilityInput } from "./account-capabilities";
+
 export type RestoreCapabilityInput = {
   accountType: "owner" | "custom";
   accountPlan: "managed" | "free_single";
@@ -13,12 +15,13 @@ export type RestoreCapability = {
 
 /** One capability owner for the free-user versus full-account Restore split. */
 export function getRestoreCapability(input: RestoreCapabilityInput): RestoreCapability {
-  const freeUser = input.accountType === "custom" && input.accountPlan === "free_single";
+  const capabilities = getLegacyAccountCapabilities(input as LegacyCapabilityInput);
+  const freeUser = capabilities.tier === "FREE";
   return {
     freeUser,
-    cloudRecoveryEnabled: !freeUser,
-    historyRecoveryEnabled: !freeUser,
-    automaticCloudBackupEnabled: !freeUser,
-    localPreRestoreBackupRequired: freeUser
+    cloudRecoveryEnabled: capabilities.canUseCloudBackup,
+    historyRecoveryEnabled: capabilities.canUseCloudHistory,
+    automaticCloudBackupEnabled: capabilities.canUseAutomaticCloudBackup,
+    localPreRestoreBackupRequired: !capabilities.canUseCloudBackup
   };
 }
