@@ -252,7 +252,33 @@ Operational interpretation:
 - Production `dpl_EkpZSGWL3Jxs468FAKwPhaEXsqpL` is `READY`; the formal alias is confirmed by Vercel inspection.
 - Final mobile Backup/Restore acceptance is `PASS`, including the mandatory local pre-Restore backup gate and post-Restore core-page/amount check.
 
+## 11.1 Final financial/data integrity audit (2026-08-26)
+
+`FINAL_FINANCIAL_DATA_INTEGRITY_AUDIT = PASS`.
+
+The local Restore Lab completed the real local database acceptance: five full
+Dry Runs and five full Restores; populated 18-table execution; separated,
+legacy-mixed, renewal, void and deleted-receipt finance cases; direct normal
+business regression for tenant create, check-in, payment, expense, renewal,
+move-out, settlement, audit and dashboard; replay/idempotency; and failure
+injection with rollback and unchanged financial state. The complete repository
+suite remained `534/534 PASS`; TypeScript and Production build passed.
+
+Production was queried read-only only. The final bounded integrity scan found
+zero orphan contract/payment/deposit/request links, zero negative payment,
+deposit or expense values, zero invalid partner percentage totals and zero
+settlement net-profit formula mismatches. Production raw finance totals and
+counts were captured as an audit snapshot; presentation parity remains owned
+by the shared finance/projection contracts and their passing regression suite.
+
+The resulting gate is `READY_FOR_FIRST_EXTERNAL_PRIVATE_BETA_USER = YES`.
+The first cohort remains very small (one to three trusted friends or real
+landlords) and is limited to normal daily use. Friends must not perform
+destructive Restore, database administration, internal diagnostics, hidden
+attachment or cloud-recovery tests.
+
 ## 12. Handoff boundaries
 
 - This governance closeout changes no business code, database, schema, migration, scheduler, SMTP or real-user data.
 - This document intentionally does not authorize a deployment. It is a state record for the next Codex session.
+- This financial audit made no business-code, schema, database-row or Production deployment change; its only repository change is governance evidence.

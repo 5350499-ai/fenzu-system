@@ -159,7 +159,33 @@
     "finalCommit": "fe23649f36e0f2a0bb8ff409b2131d7e6383b3e6",
     "fullTestSuite": "534/534 PASS before Production release",
     "releaseChecks": ["TypeScript", "Production build", "Responsive", "UI", "UI interactions", "Security", "Server Boundary", "Actions", "Domain", "Data State", "Backup/Restore", "git diff --check"],
-    "productionSmoke": "public routes HTTP 200; unauthenticated current-summary and accounts HTTP 401; runtime errors 0; final mobile Backup/Restore acceptance PASS"
+    "productionSmoke": "public routes HTTP 200; unauthenticated current-summary and accounts HTTP 401; runtime errors 0; final mobile Backup/Restore acceptance PASS",
+    "financialIntegrityAudit": {
+      "status": "PASS",
+      "date": "2026-08-26",
+      "fullTestSuite": "534/534 PASS",
+      "localFullDryRunSuccessCount": 5,
+      "localFullRestoreSuccessCount": 5,
+      "localFailureInjectionRollback": "PASS",
+      "localNormalBusinessE2E": "PASS",
+      "localFinanceCases": ["separated", "legacy_mixed", "renewal", "void", "deleted_receipt", "tenant_create"],
+      "productionReadOnlyIntegrity": {
+        "orphanContractTenant": 0,
+        "orphanPaymentTenant": 0,
+        "orphanPaymentDeposit": 0,
+        "orphanDepositTenant": 0,
+        "orphanCheckinRequestLinks": 0,
+        "orphanTenantRequestLinks": 0,
+        "invalidPartnerTotals": 0,
+        "settlementMismatches": 0,
+        "negativePaymentValues": 0,
+        "negativeDepositValues": 0,
+        "negativeExpenseValues": 0
+      },
+      "readyForFirstExternalPrivateBetaUser": true,
+      "recommendedCohortSize": "1-3 trusted friends/real landlords",
+      "productionWrites": false
+    }
   },
   "handoffAuditChanges": {
     "businessLogicChanged": false,
