@@ -92,6 +92,7 @@ const parts = [
   "-- This file is rehearsal-only and must never be applied to Production.",
   "create schema if not exists auth;",
   "create table if not exists auth.users (id uuid primary key, email text, deleted_at timestamptz);",
+  "alter table auth.users add column if not exists deleted_at timestamptz;",
   "insert into auth.users (id, email) values ('00000000-0000-4000-8000-000000000001', 'synthetic-owner@example.invalid') on conflict (id) do nothing;",
 ];
 
